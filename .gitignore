@@ -1,0 +1,63 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+release/
+build/
+.externalNativeBuild/
+
+# Gradle files
+.gradle/
+local.properties
+
+# Log/dump files
+*.log
+java_pid*.hprof
+_phx_tmp/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+captures/
+.navigation/
+*.orig
+.DS_Store
+
+# Keystore files (never commit secrets)
+*.jks
+*.keystore
+
+# NDK
+*.so
+obj/
+
+# Decompiled libraries (large, not source)
+decompiled_libs/
+
+# Decompiled third-party Java source files (not app code)
+src/main/java/com/airbnb/
+src/main/java/com/android/
+src/main/java/com/auth0/
+src/main/java/com/facebook/
+src/main/java/com/google/
+src/main/java/com/instabug/
+src/main/java/com/iteratehq/
+src/main/java/com/launchdarkly/
+src/main/java/com/mux/
+src/main/java/com/onesignal/
+src/main/java/com/segment/
+src/main/java/com/vitruvian/

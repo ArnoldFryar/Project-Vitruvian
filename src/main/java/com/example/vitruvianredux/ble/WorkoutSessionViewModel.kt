@@ -1,0 +1,194 @@
+﻿package com.example.vitruvianredux.ble
+
+import android.app.Application
+import android.speech.tts.TextToSpeech
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.example.vitruvianredux.ble.protocol.WorkoutParameters
+import com.example.vitruvianredux.ble.session.PlayerSetParams
+import com.example.vitruvianredux.model.Exercise
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.util.Locale
+
+/**
+ * Activity-scoped ViewModel that wraps [WorkoutSessionEngine].
+ *
+ * Instantiate via [Factory] so the engine receives the same [AndroidBleClient] instance
+ * that is already managed by [BleViewModel].
+ */
+class WorkoutSessionViewModel(
+    app: Application,
+    bleClient: AndroidBleClient,
+) : AndroidViewModel(app), TextToSpeech.OnInitListener {
+
+    private val engine = WorkoutSessionEngine(bleClient, viewModelScope)
+
+    /** Live session state — observe in Compose with [collectAsState]. */
+    val state: StateFlow<SessionState> = engine.state
+
+    /** True when the BLE client is fully ready (connected + writeChar + notifications). */
+    val bleIsReady: StateFlow<Boolean> = engine.bleClient.isReady
+
+    /** Bundled diagnostics snapshot for the debug panel. */
+    val bleDiagnostics: StateFlow<BleDiagnostics> = engine.bleClient.diagnostics
+
+    /** In-memory ring buffer of the last 50 session + BLE events (for debug UI). */
+    val sessionEvents: StateFlow<List<SessionEventLog.Event>> = SessionEventLog.events
+
+    /**
+     * The exercise currently loaded in the player screen.
+     * Set via [setPlayerExercise] before navigating to the player route.
+     */
+    private val _playerExercise = MutableStateFlow<Exercise?>(null)
+    val playerExercise: StateFlow<Exercise?> = _playerExercise.asStateFlow()
+
+    private var tts: TextToSpeech? = null
+    private var isTtsInitialized = false
+    private var lastSpokenRep = 0
+
+    init {
+        tts = TextToSpeech(app, this)
+        
+        viewModelScope.launch {
+            state.collect { currentState ->
+                val currentRep = if (currentState.setPhase == com.example.vitruvianredux.ble.session.SetPhase.WARMUP) {
+                    currentState.warmupRepsCompleted
+                } else {
+                    currentState.workingRepsCompleted
+                }
+                
+                if (currentRep > lastSpokenRep && currentRep > 0) {
+                    speakRep(currentRep)
+                    lastSpokenRep = currentRep
+                } else if (currentRep < lastSpokenRep) {
+                    // Reset when reps count drops (e.g. new set or transition from warmup to working)
+                    lastSpokenRep = currentRep
+                }
+            }
+        }
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            tts?.language = Locale.US
+            isTtsInitialized = true
+        }
+    }
+
+    private fun speakRep(rep: Int) {
+        if (isTtsInitialized) {
+            tts?.speak(rep.toString(), TextToSpeech.QUEUE_FLUSH, null, "rep_$rep")
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        tts?.stop()
+        tts?.shutdown()
+    }
+
+    /** Call before navigating to the player screen to hand off the full Exercise object. */
+    fun setPlayerExercise(exercise: Exercise?) {
+        _playerExercise.value = exercise
+    }
+
+    fun initDevice() = engine.initDevice()
+    fun startSet(params: WorkoutParameters) = engine.startSet(params)
+
+    /** Primary stop: sends official STOP + transitions to [SessionPhase.Stopped]. */
+    fun stopSet() = engine.stopSet()
+
+    fun endSet() = engine.stopSet()
+
+    /** Emergency stop — always sends STOP regardless of phase. Resets to [SessionPhase.Idle]. */
+    fun panicStop() = engine.panicStop()
+
+    fun resetDevice() = engine.resetDevice()
+
+    fun startProgram(sets: List<WorkoutParameters>) = engine.startProgram(sets)
+
+    fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean = engine.startPlayerWorkout(sets)
+
+    fun dismiss() = engine.dismiss()
+
+    // ── Player-mode API ───────────────────────────────────────────────────────
+
+    /**
+     * Start a single player-mode set from the UI.
+     * Wraps the parameters into a single-item list and delegates to [startPlayerWorkout].
+     */
+    fun startPlayerSet(
+        exercise: Exercise,
+        targetReps: Int?,
+        targetDurationSec: Int?,
+        warmupReps: Int,
+        weightPerCableLb: Int,
+        programMode: String,
+        progressionRegressionLb: Int = 0,
+        echoLevel: com.example.vitruvianredux.ble.protocol.EchoLevel = com.example.vitruvianredux.ble.protocol.EchoLevel.HARD,
+        eccentricLoadPct: Int = 75,
+        isJustLift: Boolean = false,
+    ) {
+        _playerExercise.value = exercise
+        val sets = listOf(
+            PlayerSetParams(
+                exerciseName      = exercise.name,
+                thumbnailUrl      = exercise.thumbnailUrl,
+                videoUrl          = exercise.videoUrl,
+                targetReps        = targetReps,
+                targetDurationSec = targetDurationSec,
+                weightPerCableLb  = weightPerCableLb,
+                restAfterSec      = 0,
+                warmupReps        = warmupReps,
+                programMode       = programMode,
+                progressionRegressionLb = progressionRegressionLb,
+                echoLevel         = echoLevel,
+                eccentricLoadPct  = eccentricLoadPct,
+                isJustLift        = isJustLift,
+            )
+        )
+        engine.startPlayerWorkout(sets)
+    }
+
+    /**
+     * Stop the currently active player-mode set manually (user presses Stop).
+     * Collects stats and transitions to ExerciseComplete → Resting / WorkoutComplete.
+     */
+    fun stopPlayerSet() = engine.stopPlayerSet()
+
+    /** Skip the rest countdown and advance immediately to the next step. */
+    fun skipRest() = engine.skipRest()
+
+    /** Update the upcoming sets in the player workout. */
+    fun updateUpcomingSets(newSets: List<PlayerSetParams>) = engine.updateUpcomingSets(newSets)
+
+    val upcomingSets: List<PlayerSetParams>
+        get() = engine.upcomingSets
+
+    /** Reset from WorkoutComplete back to Idle. Call after user dismisses the summary. */
+    fun resetAfterWorkout() = engine.resetAfterWorkout()
+
+    /**
+     * Increment rep count by 1 for UI debug testing without a live BLE device.
+     * Only works if the session is in [SessionPhase.ExerciseActive].
+     */
+    fun debugIncrementRep() = engine.debugIncrementRep()
+
+    class Factory(
+        private val app: Application,
+        private val bleClient: AndroidBleClient,
+    ) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            if (modelClass.isAssignableFrom(WorkoutSessionViewModel::class.java)) {
+                return WorkoutSessionViewModel(app, bleClient) as T
+            }
+            throw IllegalArgumentException("Unknown ViewModel class")
+        }
+    }
+}

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- V lettermark in hot pink -->
+    <path
+        android:fillColor="#F72585"
+        android:pathData="M20,20 L44,88 L54,64 L64,88 L88,20 L74,20 L54,72 L34,20 Z"/>
+</vector>
