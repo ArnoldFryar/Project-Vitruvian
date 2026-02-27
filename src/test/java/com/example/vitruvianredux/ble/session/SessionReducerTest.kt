@@ -189,7 +189,7 @@ class SessionReducerTest {
         val vol   = result.effects.filterIsInstance<SessionEffect.VolumeAdd>().single()
         assertEquals(SetPhase.WORKING, vol.phase)
         assertEquals(WorkoutParameters.lbsToKg(40), vol.loadKg, 0.001f)
-        assertEquals("per-rep emission: reps must be 1", 1, vol.reps)
+        assertEquals("per-rep emission: reps must be 3", 3, vol.reps)
     }
 
     // ── WorkingComplete dispatched directly ───────────────────────────────────

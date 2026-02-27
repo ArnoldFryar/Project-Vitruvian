@@ -31,6 +31,14 @@ class WorkoutSessionViewModel(
     /** Live session state — observe in Compose with [collectAsState]. */
     val state: StateFlow<SessionState> = engine.state
 
+    /**
+     * When false (default), the final rep completes its full eccentric before
+     * the machine stops.  When true, STOP fires at the concentric peak.
+     */
+    var stopAtTop: Boolean
+        get() = engine.stopAtTop
+        set(value) { engine.stopAtTop = value }
+
     /** True when the BLE client is fully ready (connected + writeChar + notifications). */
     val bleIsReady: StateFlow<Boolean> = engine.bleClient.isReady
 
@@ -49,25 +57,51 @@ class WorkoutSessionViewModel(
 
     private var tts: TextToSpeech? = null
     private var isTtsInitialized = false
-    private var lastSpokenRep = 0
+    private var lastSpokenWorkingRep = 0
+    private var lastSetPhase: com.example.vitruvianredux.ble.session.SetPhase? = null
+    /** Tracks the last rest-countdown second we spoke so we don't repeat. */
+    private var lastSpokenRestSecond = -1
 
     init {
         tts = TextToSpeech(app, this)
         
+        // Voice rep counter — matches Phoenix: only announce WORKING rep numbers.
+        // Warmup reps are silent. Working reps are spoken via TTS (1, 2, 3...).
         viewModelScope.launch {
             state.collect { currentState ->
-                val currentRep = if (currentState.setPhase == com.example.vitruvianredux.ble.session.SetPhase.WARMUP) {
-                    currentState.warmupRepsCompleted
-                } else {
-                    currentState.workingRepsCompleted
+                val phase = currentState.setPhase
+
+                // Reset spoken counter when transitioning INTO working phase
+                // or when the working rep count resets (new set)
+                if (phase != lastSetPhase) {
+                    if (phase == com.example.vitruvianredux.ble.session.SetPhase.WORKING) {
+                        lastSpokenWorkingRep = 0  // Fresh start for working phase
+                    }
+                    lastSetPhase = phase
                 }
-                
-                if (currentRep > lastSpokenRep && currentRep > 0) {
-                    speakRep(currentRep)
-                    lastSpokenRep = currentRep
-                } else if (currentRep < lastSpokenRep) {
-                    // Reset when reps count drops (e.g. new set or transition from warmup to working)
-                    lastSpokenRep = currentRep
+
+                // Only announce working reps (matches Phoenix behaviour)
+                if (phase == com.example.vitruvianredux.ble.session.SetPhase.WORKING ||
+                    phase == com.example.vitruvianredux.ble.session.SetPhase.REST ||
+                    phase == com.example.vitruvianredux.ble.session.SetPhase.COMPLETE) {
+                    val workingRep = currentState.workingRepsCompleted
+                    if (workingRep > lastSpokenWorkingRep && workingRep > 0) {
+                        speakRep(workingRep)
+                        lastSpokenWorkingRep = workingRep
+                    }
+                }
+
+                // ── Rest countdown — speak final 10 seconds ──────────────
+                val sessionPhase = currentState.sessionPhase
+                if (sessionPhase is SessionPhase.Resting) {
+                    val sec = sessionPhase.secondsRemaining
+                    if (sec in 1..10 && sec != lastSpokenRestSecond) {
+                        lastSpokenRestSecond = sec
+                        speakCountdown(sec)
+                    }
+                } else {
+                    // Reset when we leave the Resting phase
+                    lastSpokenRestSecond = -1
                 }
             }
         }
@@ -83,6 +117,12 @@ class WorkoutSessionViewModel(
     private fun speakRep(rep: Int) {
         if (isTtsInitialized) {
             tts?.speak(rep.toString(), TextToSpeech.QUEUE_FLUSH, null, "rep_$rep")
+        }
+    }
+
+    private fun speakCountdown(seconds: Int) {
+        if (isTtsInitialized) {
+            tts?.speak(seconds.toString(), TextToSpeech.QUEUE_FLUSH, null, "rest_$seconds")
         }
     }
 
@@ -163,6 +203,9 @@ class WorkoutSessionViewModel(
 
     /** Skip the rest countdown and advance immediately to the next step. */
     fun skipRest() = engine.skipRest()
+
+    /** Skip the current exercise entirely and advance to the next different exercise. */
+    fun skipExercise() = engine.skipExercise()
 
     /** Update the upcoming sets in the player workout. */
     fun updateUpcomingSets(newSets: List<PlayerSetParams>) = engine.updateUpcomingSets(newSets)

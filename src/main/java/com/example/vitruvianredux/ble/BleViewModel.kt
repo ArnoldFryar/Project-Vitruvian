@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -15,7 +16,7 @@ class BleViewModel(app: Application) : AndroidViewModel(app) {
 
     val state: StateFlow<BleConnectionState> = client.state
     val devices: StateFlow<List<BleDevice>> = client.devices
-    val notifyEvents: StateFlow<NotifyEvent?> = client.notifyEvents
+    val notifyEvents: SharedFlow<NotifyEvent> = client.notifyEvents
 
     /** True when connected, write-char is cached, and all notifications are enabled. */
     val isReady: StateFlow<Boolean> = client.isReady

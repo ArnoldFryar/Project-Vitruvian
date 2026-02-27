@@ -40,7 +40,8 @@ object BleProtocolConstants {
     /**
      * Ordered list of characteristic UUIDs to enable for notifications.
      * Matches the Project Phoenix NOTIFY_CHAR_UUID_STRINGS order.
-     * NOTE: SAMPLE is intentionally excluded — subscribe separately if position telemetry is needed.
+     * NOTE: SAMPLE/Monitor is intentionally excluded — it is POLLED via read,
+     * not notified, matching Phoenix's MetricPollingEngine approach.
      */
     val NOTIFY_CHAR_UUIDS: List<String> = listOf(
         UPDATE_STATE_CHAR_UUID,

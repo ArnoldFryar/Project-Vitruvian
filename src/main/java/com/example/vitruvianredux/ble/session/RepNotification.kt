@@ -64,7 +64,7 @@ data class RepNotification(
             val rangeBottom = if (buf.remaining() >= 4) buf.float else 0f
 
             return if (buf.remaining() >= 8) {
-                // Modern 24-byte packet
+                // Modern 24-byte packet — has all machine counters
                 RepNotification(
                     up           = up,
                     down         = down,
@@ -74,6 +74,16 @@ data class RepNotification(
                     repsRomTotal = buf.short.toInt() and 0xFFFF,
                     repsSetCount = buf.short.toInt() and 0xFFFF,
                     repsSetTotal = buf.short.toInt() and 0xFFFF,
+                )
+            } else if (buf.remaining() >= 4) {
+                // 20-byte packet — has warmup counters but no working counters
+                RepNotification(
+                    up           = up,
+                    down         = down,
+                    rangeTop     = rangeTop,
+                    rangeBottom  = rangeBottom,
+                    repsRomCount = buf.short.toInt() and 0xFFFF,
+                    repsRomTotal = buf.short.toInt() and 0xFFFF,
                 )
             } else {
                 // Legacy 16-byte packet — no rom/set fields

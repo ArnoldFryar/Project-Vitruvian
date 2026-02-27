@@ -3,6 +3,8 @@
 import android.util.Log
 import com.example.vitruvianredux.ble.SessionEventLog
 import com.example.vitruvianredux.ble.protocol.BlePacketFactory
+import com.example.vitruvianredux.ble.protocol.SampleNotification
+import com.example.vitruvianredux.ble.protocol.CableSample
 import com.example.vitruvianredux.ble.protocol.WorkoutParameters
 import com.example.vitruvianredux.ble.session.BleCommand
 import com.example.vitruvianredux.ble.session.EngineState
@@ -24,12 +26,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private const val TAG = "WorkoutSession"
 private const val REPS_UUID = "8308f2a6-0875-4a94-a86f-5c5c5e1b068a"
+private const val SAMPLE_UUID = "90e991a6-c548-44ed-969b-eb541014eae3"
 
 sealed class SessionPhase {
     // ── Legacy / quick-start ──────────────────────────────────────────────────
@@ -87,6 +91,10 @@ data class SessionState(
     val warmupRepsCompleted: Int = 0,
     /** Working reps completed (from reducer) — use this for display, not raw repsCount. */
     val workingRepsCompleted: Int = 0,
+    /** Live left-cable telemetry (position/velocity/force). Null until first sample received. */
+    val leftCable: CableSample? = null,
+    /** Live right-cable telemetry (position/velocity/force). Null until first sample received. */
+    val rightCable: CableSample? = null,
 )
 
 class WorkoutSessionEngine(
@@ -138,6 +146,8 @@ class WorkoutSessionEngine(
      * original Vitruvian app.
      */
     private val repDetector: MachineRepDetector = MachineRepDetector()
+    /** Monotonic guard: highest totalReps dispatched within the current set. */
+    private var lastDispatchedRepCount = 0
     /**
      * Per-set volume accumulator — reset at [launchPlayerSet], read at [completeCurrentPlayerSet].
      * Receives [SessionEffect.VolumeAdd] effects (warmup or working bucket, 1 rep at a time).
@@ -145,6 +155,86 @@ class WorkoutSessionEngine(
      * exists anywhere else in the engine.
      */
     private var setVolumeAccumulator = VolumeAccumulator.ZERO
+
+    // ── Eccentric-finish gate ──────────────────────────────────────────────
+    /**
+     * When false (default), the engine waits for the eccentric phase of the
+     * final rep to complete before sending STOP.  This prevents the machine
+     * from releasing resistance at the TOP of the last rep.
+     *
+     * When true, STOP fires immediately when the rep target is reached
+     * (legacy behaviour — useful for exercises where the user wants to
+     * release at the concentric peak).
+     */
+    @Volatile var stopAtTop: Boolean = false
+    /** True while waiting for the eccentric of the final rep to finish. */
+    private var awaitingEccentricFinish = false
+    /** The `up` counter value when the target was reached. */
+    private var upCounterAtTarget = 0
+    /** Safety timeout: completes the set if the eccentric never registers. */
+    private var eccentricTimeoutJob: Job? = null
+    /** Tracks the last notification's `up` counter for eccentric gating. */
+    private var lastNotificationUp = 0
+
+    // ── Monitor polling (cable position / force) ─────────────────────────────
+    /**
+     * Job that continuously reads the Monitor (Sample) characteristic,
+     * matching Phoenix's MetricPollingEngine.  No fixed delay — BLE response
+     * time naturally rate-limits to ~10-20 Hz.
+     */
+    private var monitorPollingJob: Job? = null
+
+    /** Start polling the monitor characteristic for cable position data. */
+    private fun startMonitorPolling() {
+        monitorPollingJob?.cancel()
+        monitorPollingJob = scope.launch {
+            Log.i(TAG, "MONITOR_POLL: starting")
+            var successCount = 0L
+            var failCount = 0
+            while (isActive) {
+                try {
+                    val data = bleClient.readCharacteristic(SAMPLE_UUID)
+                    if (data != null && data.size >= 16) {
+                        successCount++
+                        val sample = SampleNotification.fromBytes(data)
+                        if (sample != null) {
+                            _state.update { current ->
+                                current.copy(
+                                    leftCable = sample.left,
+                                    rightCable = sample.right,
+                                    lastTelemetryTimestamp = System.currentTimeMillis(),
+                                )
+                            }
+                        }
+                        if (successCount == 1L || successCount % 500 == 0L) {
+                            Log.d(TAG, "MONITOR_POLL: #$successCount  ${data.size}B  posL=${sample?.left?.position}  posR=${sample?.right?.position}")
+                        }
+                        failCount = 0
+                        // Small delay between successful reads to give writes priority
+                        delay(30)
+                    } else {
+                        failCount++
+                        if (failCount <= 5 || failCount % 50 == 0) {
+                            Log.w(TAG, "MONITOR_POLL: read returned ${data?.size ?: "null"} (fail #$failCount)")
+                        }
+                        delay(50)
+                    }
+                } catch (e: Exception) {
+                    failCount++
+                    if (failCount <= 3) Log.w(TAG, "MONITOR_POLL: error: ${e.message}")
+                    delay(50)
+                }
+            }
+            Log.i(TAG, "MONITOR_POLL: stopped (reads=$successCount)")
+        }
+    }
+
+    /** Stop the monitor polling loop. */
+    private fun stopMonitorPolling() {
+        monitorPollingJob?.cancel()
+        monitorPollingJob = null
+    }
+
     init {
         scope.launch {
             bleClient.state.collect { conn ->
@@ -179,7 +269,6 @@ class WorkoutSessionEngine(
         }
         scope.launch {
             bleClient.notifyEvents.collect { event ->
-                event ?: return@collect
                 val now = event.timestampMs
                 if (event.uuid.equals(REPS_UUID, ignoreCase = true)) {
                     val notification = RepNotification.fromBytes(event.bytes)
@@ -187,15 +276,50 @@ class WorkoutSessionEngine(
                         Log.w(TAG, "REPS notify: failed to parse ${event.bytes.size}B payload")
                         return@collect
                     }
-                    // Feed the parsed notification into the detector. It uses the
-                    // `down` counter (bottom of movement) as the authoritative rep
-                    // count, exactly matching the original Vitruvian app.
+                    // Feed the parsed notification into the detector.
                     val detectorEvents = repDetector.process(notification)
-                    val count = repDetector.totalConfirmedReps
-                    Log.d(TAG, "REPS notify -> confirmed=$count  up=${notification.up}" +
-                        " down=${notification.down}  events=${detectorEvents.size}" +
+
+                    // Track up counter for eccentric-finish gate
+                    lastNotificationUp = notification.up
+
+                    // ── Eccentric-finish gate ─────────────────────────────
+                    // If we deferred STOP to let the final rep's eccentric
+                    // complete, check whether down has caught up to up.
+                    if (awaitingEccentricFinish) {
+                        if (notification.down >= upCounterAtTarget) {
+                            Log.i(TAG, "ECCENTRIC_DONE  down=${notification.down} >= up=$upCounterAtTarget  → completing set")
+                            awaitingEccentricFinish = false
+                            eccentricTimeoutJob?.cancel()
+                            completeCurrentPlayerSet()
+                        }
+                        // While waiting, still update telemetry but skip reducer dispatch
+                        // (reducer already transitioned to REST internally).
+                        _state.value = _state.value.copy(lastTelemetryTimestamp = now)
+                        return@collect
+                    }
+
+                    // Compute totalReps based on packet format:
+                    //   Modern (24-byte): sum detector's warmup + working (machine-sourced counters)
+                    //   Legacy (16-byte): use totalConfirmedReps (delta-based)
+                    val rawCount = if (!notification.isLegacyFormat) {
+                        repDetector.warmupRepsCompleted + repDetector.workingRepsCompleted
+                    } else {
+                        repDetector.totalConfirmedReps
+                    }.coerceAtLeast(0)   // never negative
+
+                    // Monotonic guard: totalReps may only increase within a set.
+                    val count = maxOf(rawCount, lastDispatchedRepCount)
+                    lastDispatchedRepCount = count
+
+                    Log.d(TAG, "REPS notify -> confirmed=$count (raw=$rawCount)" +
+                        "  up=${notification.up} down=${notification.down}" +
+                        "  romCount=${notification.repsRomCount} romTotal=${notification.repsRomTotal}" +
+                        "  setCount=${notification.repsSetCount} setTotal=${notification.repsSetTotal}" +
+                        "  det_wu=${repDetector.warmupRepsCompleted} det_wk=${repDetector.workingRepsCompleted}" +
+                        "  events=${detectorEvents.size}" +
+                        "  legacy=${notification.isLegacyFormat}" +
                         "  raw=${event.bytes.hexPreview()} (${event.bytes.size}B)")
-                    _state.value = _state.value.copy(repsCount = count, lastTelemetryTimestamp = now)
+
                     // Dispatch to reducer: deterministic phase tracking and effects.
                     // Warmup/working boundaries, BleSend(workingLoad), and StartRestTimer
                     // are all produced as effects and executed by executeEffects().
@@ -208,14 +332,36 @@ class WorkoutSessionEngine(
                             "  CALLER=notifyCollector")
                         val result = SessionReducer.reduce(engineState, SessionEvent.MachineRepDetected(count))
                         engineState = result.newState
-                        // Sync canonical reducer state to observable UI state immediately after reduce.
-                        _state.value = _state.value.copy(
-                            setPhase             = engineState.phase,
-                            warmupRepsCompleted  = engineState.warmupRepsCompleted,
-                            workingRepsCompleted = engineState.workingRepsCompleted,
-                        )
+
+                        // ATOMIC state update: combine repsCount + reducer fields in one shot
+                        // so the polling loop can't trigger a recomposition with stale values.
+                        _state.update { current ->
+                            current.copy(
+                                repsCount            = count,
+                                lastTelemetryTimestamp = now,
+                                setPhase             = engineState.phase,
+                                warmupRepsCompleted  = engineState.warmupRepsCompleted,
+                                workingRepsCompleted = engineState.workingRepsCompleted,
+                            )
+                        }
+                        Log.d(TAG, "UI_STATE -> phase=${engineState.phase}" +
+                            "  warmupOnScreen=${engineState.warmupRepsCompleted}" +
+                            "  workingOnScreen=${engineState.workingRepsCompleted}" +
+                            "  repsCount=$count")
                         executeEffects(result.effects)
+                    } else {
+                        // Not in active exercise — just update repsCount without reducer
+                        _state.update { current ->
+                            current.copy(
+                                repsCount             = count,
+                                lastTelemetryTimestamp = now,
+                            )
+                        }
                     }
+                } else if (event.uuid.equals(SAMPLE_UUID, ignoreCase = true)) {
+                    // Monitor/Sample notifications are rare (device primarily supports READ),
+                    // but handle them if they arrive to keep telemetry timestamp alive.
+                    _state.value = _state.value.copy(lastTelemetryTimestamp = now)
                 } else {
                     Log.d(TAG, "Notify [${event.uuid.take(8)}] ${event.bytes.size}B  ${event.bytes.hexPreview()}")
                     _state.value = _state.value.copy(lastTelemetryTimestamp = now)
@@ -258,6 +404,7 @@ class WorkoutSessionEngine(
 
     fun stopSet() {
         Log.i(TAG, "stopSet -> official STOP [0x50 0x00]")
+        stopMonitorPolling()
         programJob?.cancel(); stopSignal = true
         if (bleClient.state.value is BleConnectionState.Connected)
             sendPacket(BlePacketFactory.createOfficialStopPacket(), "STOP_OFFICIAL")
@@ -278,6 +425,7 @@ class WorkoutSessionEngine(
 
     fun panicStop() {
         Log.w(TAG, "panicStop  conn=${_state.value.connectionState}  phase=${_state.value.sessionPhase}")
+        stopMonitorPolling()
         programJob?.cancel(); stopSignal = true
         if (bleClient.state.value is BleConnectionState.Connected)
             sendPacket(BlePacketFactory.createOfficialStopPacket(), "PANIC_STOP")
@@ -287,6 +435,7 @@ class WorkoutSessionEngine(
 
     fun resetDevice() {
         Log.w(TAG, "resetDevice  conn=${_state.value.connectionState}")
+        stopMonitorPolling()
         if (bleClient.state.value is BleConnectionState.Connected)
             sendPacket(BlePacketFactory.createResetCommand(), "RESET")
         else Log.w(TAG, "resetDevice: not connected - skipping write")
@@ -392,6 +541,8 @@ class WorkoutSessionEngine(
             delay(300L)
             launchPlayerSet(0)
         }
+        // Start polling Monitor characteristic for cable position/force data
+        startMonitorPolling()
         return true
     }
 
@@ -404,6 +555,8 @@ class WorkoutSessionEngine(
         }
         Log.i(TAG, "stopPlayerSet: user-initiated stop at ${_state.value.repsCount} reps")
         playerJob?.cancel()
+        awaitingEccentricFinish = false
+        eccentricTimeoutJob?.cancel()
         bleAdapter.execute(BleCommand.Stop, "PLAYER_STOP")
         completeCurrentPlayerSet()
     }
@@ -415,6 +568,59 @@ class WorkoutSessionEngine(
         Log.i(TAG, "skipRest -> ${phase.next}")
         restJob?.cancel()
         advanceAfterRest(phase.next)
+    }
+
+    /**
+     * Skip the current exercise entirely and advance to the next *different*
+     * exercise in the program (or finish if there are no more).
+     *
+     * Works from both [SessionPhase.ExerciseActive] (mid-set) and
+     * [SessionPhase.Resting] (between sets).  When mid-set the machine is
+     * STOPped first; no stats are recorded for a skipped exercise.
+     */
+    fun skipExercise() {
+        val phase = _state.value.sessionPhase
+
+        // Determine the exercise name we're skipping past
+        val currentExName: String? = when (phase) {
+            is SessionPhase.ExerciseActive   -> phase.exerciseName
+            is SessionPhase.ExerciseComplete -> phase.exerciseName
+            is SessionPhase.Resting          -> playerSets.getOrNull(currentPlayerIndex)?.exerciseName
+            else -> null
+        }
+        if (currentExName == null) {
+            Log.w(TAG, "skipExercise: not in a skippable phase ($phase)")
+            return
+        }
+
+        Log.i(TAG, "skipExercise: skipping past \"$currentExName\" from index $currentPlayerIndex")
+
+        // Stop the machine if mid-set
+        if (phase is SessionPhase.ExerciseActive) {
+            playerJob?.cancel()
+            awaitingEccentricFinish = false
+            eccentricTimeoutJob?.cancel()
+            bleAdapter.execute(BleCommand.Stop, "SKIP_EXERCISE_STOP")
+        }
+        // Cancel rest timer if resting
+        if (phase is SessionPhase.Resting) {
+            restJob?.cancel()
+        }
+
+        // Advance past all remaining sets of the same exercise name
+        var nextIndex = currentPlayerIndex + 1
+        while (nextIndex < playerSets.size &&
+               playerSets[nextIndex].exerciseName == currentExName) {
+            nextIndex++
+        }
+        Log.i(TAG, "skipExercise: advancing from $currentPlayerIndex to $nextIndex (total=${playerSets.size})")
+        currentPlayerIndex = nextIndex
+
+        if (nextIndex < playerSets.size) {
+            launchPlayerSet(nextIndex)
+        } else {
+            finishWorkout()
+        }
     }
 
     /** Update the upcoming sets in the player workout. */
@@ -459,10 +665,13 @@ class WorkoutSessionEngine(
     /** Reset back to Idle after WorkoutComplete is dismissed. */
     fun resetAfterWorkout() {
         playerJob?.cancel(); restJob?.cancel()
+        awaitingEccentricFinish = false
+        eccentricTimeoutJob?.cancel()
         playerSets = emptyList()
         completedStats.clear()
         engineState = EngineState()
         repDetector.reset()
+        lastDispatchedRepCount = 0
         setVolumeAccumulator = VolumeAccumulator.ZERO
         _state.value = _state.value.copy(
             sessionPhase         = SessionPhase.Idle,
@@ -479,11 +688,16 @@ class WorkoutSessionEngine(
         val set = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
         setStartTimeMs = System.currentTimeMillis()
         setVolumeAccumulator = VolumeAccumulator.ZERO  // fresh bucket for each new set
+        // Reset eccentric gate for the new set
+        awaitingEccentricFinish = false
+        eccentricTimeoutJob?.cancel()
+        lastNotificationUp = 0
         // Configure the rep detector for this set's warmup/working targets.
         repDetector.configure(
             warmupTarget  = set.warmupReps,
             workingTarget = set.targetReps ?: 0,
         )
+        lastDispatchedRepCount = 0   // reset monotonic guard for new set
         val isDurationMode = set.targetDurationSec != null && set.targetReps == null
         Log.d(TAG, "launchPlayerSet[$index] workingRes=${set.weightPerCableLb}lb " +
             "warmupReps=${set.warmupReps} isDurationMode=$isDurationMode repTarget=${set.targetReps}")
@@ -634,6 +848,7 @@ class WorkoutSessionEngine(
             calories       = (totalVolumeKg / 0.45359237f * 0.04f).toInt(), // rough placeholder
         )
         Log.i(TAG, "finishWorkout: ${completedStats.size} sets, $totalReps reps, ${totalDurSec}s")
+        stopMonitorPolling()
         com.example.vitruvianredux.data.ActivityStatsStore.recordSession(totalVolumeKg.toDouble())
         _state.value = _state.value.copy(sessionPhase = SessionPhase.WorkoutComplete(stats))
     }
@@ -713,8 +928,27 @@ class WorkoutSessionEngine(
                     Log.i(TAG, "EFFECT_STARTREST  seconds=${effect.seconds}  SETCOMPLETE" +
                         "  setId=${engineState.currentSetId}" +
                         "  workingDone=${engineState.workingRepsCompleted}/${engineState.workingTarget}" +
-                        "  CALLER=executeEffects")
-                    completeCurrentPlayerSet()
+                        "  stopAtTop=$stopAtTop  CALLER=executeEffects")
+
+                    if (stopAtTop) {
+                        // Legacy behaviour: STOP fires immediately at the rep target.
+                        completeCurrentPlayerSet()
+                    } else {
+                        // Default: wait for the eccentric of the final rep to finish
+                        // before sending STOP, so the user gets full resistance on
+                        // the lowering phase.
+                        upCounterAtTarget = lastNotificationUp
+                        awaitingEccentricFinish = true
+                        Log.i(TAG, "ECCENTRIC_GATE  waiting for down >= $upCounterAtTarget")
+                        eccentricTimeoutJob = scope.launch {
+                            delay(4_000L)   // 4 s safety net — covers slow eccentrics
+                            if (awaitingEccentricFinish) {
+                                Log.w(TAG, "ECCENTRIC_TIMEOUT  completing set after 4 s")
+                                awaitingEccentricFinish = false
+                                completeCurrentPlayerSet()
+                            }
+                        }
+                    }
                 }
             }
         }

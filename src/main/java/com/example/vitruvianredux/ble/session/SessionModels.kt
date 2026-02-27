@@ -56,4 +56,6 @@ data class PlayerSetParams(
     val eccentricLoadPct: Int = 75,
     /** Free-lift / AMRAP — sends 0xFF for reps in the BLE packet (unlimited). */
     val isJustLift: Boolean = false,
+    /** Muscle groups for this exercise, e.g. ["CHEST", "ARMS"]. Used for workout history tracking. */
+    val muscleGroups: List<String> = emptyList(),
 )

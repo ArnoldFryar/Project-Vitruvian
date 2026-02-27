@@ -120,7 +120,7 @@ object BlePacketFactory {
         frame[0x04] = if (params.isJustLift || params.isAMRAP)
             0xFF.toByte() else (params.reps + params.warmupReps).toByte()
 
-        frame[5] = 0x03; frame[6] = 0x03; frame[7] = 0x00
+        frame[5] = params.warmupReps.toByte(); frame[6] = 0x03; frame[7] = 0x00
 
         putFloatLE(frame, 0x08, 5.0f)
         putFloatLE(frame, 0x0c, 5.0f)
