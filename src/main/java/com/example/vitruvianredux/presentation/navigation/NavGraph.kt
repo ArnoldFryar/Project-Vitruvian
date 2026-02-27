@@ -14,6 +14,7 @@ import androidx.navigation.navDeepLink
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.presentation.screen.*
+import com.example.vitruvianredux.sync.P2PConnectionManager
 
 enum class Route(val path: String) {
     Activity("activity"),
@@ -30,6 +31,7 @@ enum class Route(val path: String) {
     ProgramEditor("program_editor"),
     ActivityHistory("activity_history"),
     ActivityMetricDetail("activity_metric_detail"),
+    Sync("sync"),
 }
 
 private const val ANIM_DURATION = 280
@@ -40,6 +42,7 @@ fun AppNavHost(
     innerPadding: PaddingValues,
     bleVM: BleViewModel,
     workoutVM: WorkoutSessionViewModel,
+    p2pManager: P2PConnectionManager? = null,
 ) {
     NavHost(
         navController = nav,
@@ -136,6 +139,15 @@ fun AppNavHost(
         composable(route = "${Route.ActivityMetricDetail.path}/{type}") { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: ""
             ActivityMetricDetailScreen(type = type, onBack = { nav.popBackStack() })
+        }
+        if (p2pManager != null) {
+            composable(Route.Sync.path) {
+                SyncScreen(
+                    p2pManager  = p2pManager,
+                    innerPadding = innerPadding,
+                    onBack       = { nav.popBackStack() },
+                )
+            }
         }
     }
 }

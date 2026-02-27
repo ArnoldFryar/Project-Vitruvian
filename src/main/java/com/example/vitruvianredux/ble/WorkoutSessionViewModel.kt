@@ -190,6 +190,7 @@ class WorkoutSessionViewModel(
                 echoLevel         = echoLevel,
                 eccentricLoadPct  = eccentricLoadPct,
                 isJustLift        = isJustLift,
+                muscleGroups      = exercise.muscleGroups,
             )
         )
         engine.startPlayerWorkout(sets)

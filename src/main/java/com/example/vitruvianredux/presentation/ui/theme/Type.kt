@@ -6,17 +6,43 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 val AppTypography = Typography(
+    // Massive metric display — rep counter, rest countdown
+    displayLarge = TextStyle(
+        fontWeight    = FontWeight.Black,
+        fontSize      = 72.sp,
+        lineHeight    = 76.sp,
+        letterSpacing = (-2).sp,
+    ),
+    // Secondary metric — force, weight
+    displayMedium = TextStyle(
+        fontWeight    = FontWeight.Bold,
+        fontSize      = 48.sp,
+        lineHeight    = 52.sp,
+        letterSpacing = (-1).sp,
+    ),
     displaySmall = TextStyle(
         fontWeight    = FontWeight.Bold,
         fontSize      = 36.sp,
         lineHeight    = 44.sp,
         letterSpacing = (-0.5).sp,
     ),
+    headlineLarge = TextStyle(
+        fontWeight    = FontWeight.Bold,
+        fontSize      = 32.sp,
+        lineHeight    = 40.sp,
+        letterSpacing = (-0.25).sp,
+    ),
     headlineMedium = TextStyle(
         fontWeight    = FontWeight.SemiBold,
         fontSize      = 28.sp,
         lineHeight    = 36.sp,
         letterSpacing = (-0.25).sp,
+    ),
+    headlineSmall = TextStyle(
+        fontWeight    = FontWeight.SemiBold,
+        fontSize      = 24.sp,
+        lineHeight    = 32.sp,
+        letterSpacing = 0.sp,
     ),
     titleLarge = TextStyle(
         fontWeight    = FontWeight.SemiBold,

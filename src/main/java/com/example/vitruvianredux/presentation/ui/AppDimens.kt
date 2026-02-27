@@ -17,17 +17,21 @@ object AppDimens {
         val xs: Dp = 4.dp
         /** 8 dp  – standard small gap (icon→label, chip padding) */
         val sm: Dp = 8.dp
+        /** 12 dp – compact section gap, card internal sub-sections */
+        val md_sm: Dp = 12.dp
         /** 16 dp – default content padding / card internal padding */
         val md: Dp = 16.dp
         /** 24 dp – section separation */
         val lg: Dp = 24.dp
         /** 32 dp – large section / page-level breathing room */
         val xl: Dp = 32.dp
+        /** 48 dp – hero section breathing room */
+        val xxl: Dp = 48.dp
     }
 
     object Corner {
-        /** 12 dp – chips, small buttons, compact cards */
-        val sm: Dp = 12.dp
+        /** 8 dp – chips, small buttons, compact cards */
+        val sm: Dp = 8.dp
         /** 16 dp – standard cards and dialogs */
         val md: Dp = 16.dp
         /** 24 dp – hero cards, sheet handles */

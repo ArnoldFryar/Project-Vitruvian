@@ -7,12 +7,14 @@ import androidx.core.view.WindowCompat
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.AppScaffold
+import com.example.vitruvianredux.sync.SyncServiceLocator
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ProgramStore.init(applicationContext)
         UnitsStore.init(applicationContext)
+        SyncServiceLocator.init(applicationContext)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent { AppScaffold() }
     }

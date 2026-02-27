@@ -3,6 +3,9 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -12,15 +15,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,7 +50,8 @@ import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
+import com.example.vitruvianredux.presentation.ui.theme.*
+import com.example.vitruvianredux.presentation.components.CablePositionBar
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -63,21 +74,22 @@ fun ExercisePlayerScreen(
     val phase = sessionState.sessionPhase
 
     // ── Local player UI state ─────────────────────────────────────────────────
-    var selectedTab    by remember { mutableIntStateOf(0) }
-    var isRepsMode     by remember { mutableStateOf(true) }
-    var targetReps     by remember { mutableIntStateOf(10) }
-    var targetDuration by remember { mutableIntStateOf(30) }
-    var warmupReps          by remember { mutableIntStateOf(3) }
-    var resistanceLb        by remember { mutableIntStateOf(40) }
-    var selectedMode   by remember { mutableStateOf("Old School") }
-    var isBeastMode    by remember { mutableStateOf(false) }
-    var modeExpanded   by remember { mutableStateOf(false) }
-    var showDebugPanel by remember { mutableStateOf(false) }
-    var showEditUpcomingSets by remember { mutableStateOf(false) }
-    var isMuted        by remember { mutableStateOf(false) }
-    var isFavourite    by remember { mutableStateOf(false) }
-    var echoLevel      by remember { mutableStateOf(com.example.vitruvianredux.ble.protocol.EchoLevel.HARD) }
-    var eccentricPct   by remember { mutableIntStateOf(75) }
+    var selectedTab    by rememberSaveable { mutableIntStateOf(0) }
+    var isRepsMode     by rememberSaveable { mutableStateOf(true) }
+    var targetReps     by rememberSaveable { mutableIntStateOf(10) }
+    var targetDuration by rememberSaveable { mutableIntStateOf(30) }
+    var warmupReps          by rememberSaveable { mutableIntStateOf(3) }
+    var resistanceLb        by rememberSaveable { mutableIntStateOf(40) }
+    var selectedMode   by rememberSaveable { mutableStateOf("Old School") }
+    var isBeastMode    by rememberSaveable { mutableStateOf(false) }
+    var modeExpanded   by remember { mutableStateOf(false) }  // transient UI, fine to reset
+    var showDebugPanel by remember { mutableStateOf(false) }  // transient UI, fine to reset
+    var showEditUpcomingSets by remember { mutableStateOf(false) }  // transient UI
+    var isMuted        by rememberSaveable { mutableStateOf(false) }
+    var isFavourite    by rememberSaveable { mutableStateOf(false) }
+    var echoLevel      by remember { mutableStateOf(com.example.vitruvianredux.ble.protocol.EchoLevel.HARD) }  // enum, keep as remember
+    var eccentricPct   by rememberSaveable { mutableIntStateOf(75) }
+    var stopAtTop      by rememberSaveable { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -136,12 +148,16 @@ fun ExercisePlayerScreen(
                 },
                 actions = {
                     IconButton(onClick = { isMuted = !isMuted; WiringRegistry.hit(A_PLAYER_MUTE); WiringRegistry.recordOutcome(A_PLAYER_MUTE, ActualOutcome.StateChanged(if (isMuted) "muted" else "unmuted")) }) {
-                        Icon(if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp, contentDescription = if (isMuted) "Unmute" else "Mute")
+                        Icon(if (isMuted) Icons.Default.VolumeOff else Icons.Outlined.VolumeUp, contentDescription = if (isMuted) "Unmute" else "Mute")
                     }
                     IconButton(onClick = { isFavourite = !isFavourite; WiringRegistry.hit(A_PLAYER_FAVOURITE); WiringRegistry.recordOutcome(A_PLAYER_FAVOURITE, ActualOutcome.StateChanged(if (isFavourite) "favourited" else "unfavourited")) }) {
-                        Icon(if (isFavourite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = if (isFavourite) "Unfavourite" else "Favourite")
+                        Icon(if (isFavourite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder, contentDescription = if (isFavourite) "Unfavourite" else "Favourite", tint = if (isFavourite) BrandPink else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                ),
             )
         },
         snackbarHost  = { SnackbarHost(snackbarHostState) },
@@ -174,6 +190,7 @@ fun ExercisePlayerScreen(
                             secondsRemaining = restPhase.secondsRemaining,
                             next             = restPhase.next,
                             onSkip           = { WiringRegistry.hit(A_PLAYER_REST_SKIP); WiringRegistry.recordOutcome(A_PLAYER_REST_SKIP, ActualOutcome.StateChanged("restSkipped")); workoutVM.skipRest() },
+                            onSkipExercise   = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                             onEditUpcomingSets = { showEditUpcomingSets = true },
                             modifier         = Modifier.fillMaxSize(),
                         )
@@ -223,6 +240,8 @@ fun ExercisePlayerScreen(
                         onEchoLevelChange     = { echoLevel = it },
                         eccentricPct          = eccentricPct,
                         onEccentricPctChange  = { eccentricPct = it },
+                        stopAtTop             = stopAtTop,
+                        onStopAtTopChange     = { stopAtTop = it; workoutVM.stopAtTop = it },
                         onPlayStop            = {
                             when (phase) {
                                 is SessionPhase.ExerciseActive -> {
@@ -262,6 +281,7 @@ fun ExercisePlayerScreen(
                             }
                         },
                         onPanicStop            = { WiringRegistry.hit(A_PLAYER_PANIC_STOP); WiringRegistry.recordOutcome(A_PLAYER_PANIC_STOP, ActualOutcome.BleWriteAttempt("PANIC_STOP")); workoutVM.panicStop() },
+                        onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
                     )
                 }
@@ -301,270 +321,272 @@ private fun ActivePlayerContent(
     onEchoLevelChange: (com.example.vitruvianredux.ble.protocol.EchoLevel) -> Unit,
     eccentricPct: Int,
     onEccentricPctChange: (Int) -> Unit,
+    stopAtTop: Boolean,
+    onStopAtTopChange: (Boolean) -> Unit,
     onPlayStop: () -> Unit,
     onPanicStop: () -> Unit,
+    onSkipExercise: () -> Unit,
     onDebugRepIncrement: () -> Unit,
 ) {
     val isActive   = phase is SessionPhase.ExerciseActive
     val isComplete = phase is SessionPhase.ExerciseComplete
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-    ) {
-        // ── Tab row ───────────────────────────────────────────────────────────
-        TabRow(selectedTabIndex = selectedTab) {
-            listOf("Workout", "Overview").forEachIndexed { i, label ->
-                Tab(
-                    selected = selectedTab == i,
-                    onClick  = {
-                        val tabId = if (i == 0) A_PLAYER_TAB_WORKOUT else A_PLAYER_TAB_OVERVIEW
-                        WiringRegistry.hit(tabId)
-                        WiringRegistry.recordOutcome(tabId, ActualOutcome.StateChanged(if (i == 0) "tab0" else "tab1"))
-                        onTabSelected(i)
-                    },
-                    text     = { Text(label) },
-                )
-            }
-        }
+    // ── Rep counter state (CRITICAL — same logic as before) ──────────────────
+    val activePhase   = phase as? SessionPhase.ExerciseActive
+    val activeWarmup  = activePhase?.warmupReps ?: warmupReps
+    val isWarmupPhase = isActive && sessionState.setPhase == SetPhase.WARMUP
+    val displayReps   = when {
+        isActive && !isWarmupPhase -> sessionState.workingRepsCompleted
+        isActive                   -> sessionState.warmupRepsCompleted
+        else                       -> sessionState.repsCount
+    }
+    val displayTarget = when {
+        isWarmupPhase -> activeWarmup
+        isActive      -> activePhase?.targetReps
+        isRepsMode    -> targetReps
+        else          -> null
+    }
+    val phaseLabel = when {
+        isWarmupPhase -> "WARMUP"
+        isActive      -> "WORKING"
+        else          -> "READY"
+    }
+    val ext = LocalExtendedColors.current
+    val hudColor = when {
+        isWarmupPhase -> ext.warmupColor
+        isActive      -> ext.workingColor
+        else          -> MaterialTheme.colorScheme.onSurface
+    }
+    val repScale by animateFloatAsState(
+        targetValue = if (isActive) 1f else 0.92f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "repScale",
+    )
 
-        // ── Tab content ───────────────────────────────────────────────────────
-        if (selectedTab == 1) {
-            // Placeholder overview tab
-            Box(
-                modifier         = Modifier
-                    .fillMaxWidth()
-                    .height(300.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text  = "Exercise overview coming soon",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        } else {
-            // ── Hero area ─────────────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                val videoUrl     = exercise?.videoUrl ?: (phase as? SessionPhase.ExerciseActive)?.videoUrl
-                val thumbnailUrl = exercise?.thumbnailUrl ?: (phase as? SessionPhase.ExerciseActive)?.thumbnailUrl
-                val contentDesc  = exercise?.name ?: (phase as? SessionPhase.ExerciseActive)?.exerciseName
-                when {
-                    videoUrl != null -> ExerciseVideoPlayer(
-                        videoUrl = videoUrl,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    thumbnailUrl != null -> AsyncImage(
-                        model              = thumbnailUrl,
-                        contentDescription = contentDesc,
-                        contentScale       = ContentScale.Crop,
-                        modifier           = Modifier.fillMaxSize(),
-                    )
-                    else -> Icon(
-                        imageVector        = Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        modifier           = Modifier.size(64.dp),
-                        tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                    )
-                }
-                // Connection pill overlay
-                ConnectionStatusPill(
-                    bleState = bleState,
-                    isReady  = isReady,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(AppDimens.Spacing.sm),
-                )
-            }
+    val scaffoldState = rememberBottomSheetScaffoldState()
 
-            // ── ExerciseComplete flash card ───────────────────────────────────
-            if (isComplete) {
-                val cp = phase as SessionPhase.ExerciseComplete
-                ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(AppDimens.Spacing.md),
-                    colors   = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    ),
-                ) {
-                    Row(
-                        modifier  = Modifier
-                            .fillMaxWidth()
-                            .padding(AppDimens.Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                    ) {
-                        Icon(Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint     = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(28.dp))
-                        Column {
-                            Text("Set Complete!", fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer)
-                            Text(buildString {
-                                append("${cp.stats.repsCompleted} working reps")
-                                if (cp.stats.warmupRepsCompleted > 0) append(" + ${cp.stats.warmupRepsCompleted} warmup")
-                                append(" · ${cp.stats.durationSec}s · ${cp.stats.weightPerCableLb} lb/cable")
-                            },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer)
-                        }
-                    }
-                }
-            }
-
-            // ── Control panel card ────────────────────────────────────────────
-            ElevatedCard(
-                modifier  = Modifier
-                    .fillMaxWidth()
-                    .padding(AppDimens.Spacing.md),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-            ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        BottomSheetScaffold(
+            scaffoldState       = scaffoldState,
+            sheetPeekHeight     = 320.dp,
+            sheetShape          = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            sheetContainerColor = MaterialTheme.colorScheme.surface,
+            sheetTonalElevation = 2.dp,
+            sheetContent        = {
+                // ══════════════════════════════════════════════════════════════
+                //  BOTTOM SHEET: workout controls
+                // ══════════════════════════════════════════════════════════════
                 Column(
-                    modifier            = Modifier
+                    modifier = Modifier
                         .fillMaxWidth()
-                        .padding(AppDimens.Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                        .padding(horizontal = AppDimens.Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
-                    // ── Live reps + force row ────────────────────────────────
+                    // ── Compact rep counter + force per cable row ─────────────
                     Row(
-                        modifier              = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = AppDimens.Spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Reps with long-press debug increment
+                        // Left: Rep counter
                         Column(
                             modifier = Modifier
+                                .weight(1f)
                                 .clip(RoundedCornerShape(AppDimens.Corner.sm))
                                 .combinedClickable(
-                                    onClick      = {},
-                                    onLongClick  = onDebugRepIncrement,
+                                    onClick     = {},
+                                    onLongClick = onDebugRepIncrement,
                                 )
-                                .padding(AppDimens.Spacing.xs),
+                                .padding(vertical = AppDimens.Spacing.xs),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            // ── Resolve display values from the active phase ────────────
-                            val activePhase        = phase as? SessionPhase.ExerciseActive
-                            val activeWarmup       = activePhase?.warmupReps ?: warmupReps
-                            // Use the reducer's canonical SetPhase instead of raw repsCount
-                            // comparisons. Raw-count checks break when the device resets its
-                            // counter after WORKING_LOAD (ProgramParams), which caused the
-                            // warmup to visually replay even though engineState.phase == WORKING.
-                            val isWarmupPhase      = isActive && sessionState.setPhase == SetPhase.WARMUP
-                            val displayReps        = when {
-                                isActive && !isWarmupPhase -> sessionState.workingRepsCompleted
-                                isActive                   -> sessionState.warmupRepsCompleted
-                                else                       -> sessionState.repsCount
+                            // Phase pill
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = hudColor.copy(alpha = 0.12f),
+                            ) {
+                                Text(
+                                    text = phaseLabel,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = hudColor,
+                                    letterSpacing = 1.sp,
+                                )
                             }
-                            val displayTarget      = when {
-                                isWarmupPhase          -> activeWarmup
-                                isActive               -> activePhase?.targetReps
-                                isRepsMode             -> targetReps
-                                else                   -> null
+
+                            Spacer(Modifier.height(2.dp))
+
+                            // Rep number row: "Reps  X  of Y"
+                            Row(
+                                verticalAlignment = Alignment.Bottom,
+                                horizontalArrangement = Arrangement.Center,
+                            ) {
+                                Text(
+                                    text = "Reps",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 8.dp, end = 8.dp),
+                                )
+                                AnimatedContent(
+                                    targetState = displayReps,
+                                    transitionSpec = {
+                                        (fadeIn(tween(150)) + scaleIn(
+                                            tween(200),
+                                            initialScale = 0.85f,
+                                        ) togetherWith fadeOut(tween(100)))
+                                            .using(SizeTransform(clip = false))
+                                    },
+                                    label = "rep-counter",
+                                ) { reps ->
+                                    Text(
+                                        text       = "$reps",
+                                        style      = MaterialTheme.typography.headlineLarge,
+                                        fontWeight = FontWeight.Black,
+                                        color      = hudColor,
+                                        modifier   = Modifier.scale(repScale),
+                                    )
+                                }
+                                if (displayTarget != null) {
+                                    Text(
+                                        text = " of $displayTarget",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
+                                    )
+                                }
                             }
-                            val phaseLabel         = when {
-                                isWarmupPhase          -> if (displayTarget != null) "Warmup / $displayTarget" else "Warmup"
-                                isActive               -> if (displayTarget != null) "Working / $displayTarget" else "Reps"
-                                displayTarget != null  -> "Reps / $displayTarget"
-                                else                   -> "Reps"
+
+                            // Progress bar
+                            if (isActive && displayTarget != null && displayTarget > 0) {
+                                Spacer(Modifier.height(4.dp))
+                                val progress by animateFloatAsState(
+                                    targetValue = (displayReps.toFloat() / displayTarget).coerceIn(0f, 1f),
+                                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                                    label = "setProgress",
+                                )
+                                LinearProgressIndicator(
+                                    progress = progress,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.7f)
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp)),
+                                    color = hudColor,
+                                    trackColor = hudColor.copy(alpha = 0.12f),
+                                )
                             }
-                            val hudColor = when {
-                                isWarmupPhase -> MaterialTheme.colorScheme.tertiary
-                                isActive      -> MaterialTheme.colorScheme.primary
-                                else          -> MaterialTheme.colorScheme.onSurface
-                            }
+                        }
+
+                        // Vertical divider
+                        Box(
+                            Modifier
+                                .width(1.dp)
+                                .height(56.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant)
+                        )
+
+                        // Right: Force per cable
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(vertical = AppDimens.Spacing.xs),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
                             Text(
-                                text       = "$displayReps",
-                                style      = MaterialTheme.typography.headlineLarge,
-                                fontWeight = FontWeight.Bold,
-                                color      = hudColor,
-                            )
-                            Text(
-                                text  = phaseLabel,
+                                text = "Force",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
-
-                        // Force per cable — Echo shows "Adaptive" since weight is dynamic
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text       = if (selectedMode == "Echo") "Adaptive" else "—",
-                                style      = if (selectedMode == "Echo")
-                                    MaterialTheme.typography.titleMedium
-                                else
-                                    MaterialTheme.typography.headlineLarge,
+                                text = "per cable",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = if (selectedMode == "Echo") "Adaptive"
+                                       else "$resistanceLb.0",
+                                style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
-                                color      = if (selectedMode == "Echo")
+                                color = if (selectedMode == "Echo")
                                     MaterialTheme.colorScheme.secondary
                                 else
                                     MaterialTheme.colorScheme.onSurface,
                             )
-                            Text(
-                                text  = if (selectedMode == "Echo") "Weight / cable" else "Force / cable",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
                     }
 
-                    Divider()
-
-                    // ── Mode dropdown ────────────────────────────────────────
-                    ExposedDropdownMenuBox(
-                        expanded         = modeExpanded,
-                        onExpandedChange = onModeExpandChange,
+                    // ── Mode dropdown (compact row) ──────────────────────────
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(AppDimens.Corner.sm),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                     ) {
-                        OutlinedTextField(
-                            value         = selectedMode,
-                            onValueChange = {},
-                            readOnly      = true,
-                            enabled       = !isActive,
-                            modifier      = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            label         = { Text("Mode") },
-                            trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(modeExpanded) },
-                            singleLine    = true,
-                            colors        = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                        )
-                        ExposedDropdownMenu(
+                        ExposedDropdownMenuBox(
                             expanded         = modeExpanded,
-                            onDismissRequest = { onModeExpandChange(false) },
+                            onExpandedChange = onModeExpandChange,
                         ) {
-                            MODE_OPTIONS.forEach { mode ->
-                                DropdownMenuItem(
-                                    text    = { Text(mode) },
-                                    onClick = { WiringRegistry.hit(A_PLAYER_MODE_SELECT); WiringRegistry.recordOutcome(A_PLAYER_MODE_SELECT, ActualOutcome.StateChanged("modeSelected")); onModeSelect(mode) },
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
+                                    .clickable(enabled = !isActive) { onModeExpandChange(!modeExpanded) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Default.Tune,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = selectedMode,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        text = "│",
+                                        color = MaterialTheme.colorScheme.outlineVariant,
+                                    )
+                                    Text(
+                                        text = "0.0 lb Progression",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Icon(
+                                    Icons.Default.ExpandMore,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                        }
-                    }
-
-                    if (selectedMode == "TUT") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Beast Mode (Faster Loading)", style = MaterialTheme.typography.bodyMedium)
-                            Switch(
-                                checked = isBeastMode,
-                                onCheckedChange = onBeastModeChange,
-                                enabled = !isActive
-                            )
+                            ExposedDropdownMenu(
+                                expanded         = modeExpanded,
+                                onDismissRequest = { onModeExpandChange(false) },
+                            ) {
+                                MODE_OPTIONS.forEach { mode ->
+                                    DropdownMenuItem(
+                                        text    = { Text(mode) },
+                                        onClick = { WiringRegistry.hit(A_PLAYER_MODE_SELECT); WiringRegistry.recordOutcome(A_PLAYER_MODE_SELECT, ActualOutcome.StateChanged("modeSelected")); onModeSelect(mode) },
+                                    )
+                                }
+                            }
                         }
                     }
 
                     // ── Reps / Duration toggle ───────────────────────────────
                     Row(
-                        modifier              = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
                         FilterChip(
@@ -581,16 +603,134 @@ private fun ActivePlayerContent(
                         )
                     }
 
-                    // ── Target stepper ───────────────────────────────────────
+                    // ── Compact target row (side-by-side) ────────────────────
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                    ) {
+                        // Left stepper: target reps or duration
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(AppDimens.Corner.sm),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                        ) {
+                            if (isRepsMode) {
+                                CompactStepper(
+                                    value   = targetReps,
+                                    unit    = "reps",
+                                    onMinus = { WiringRegistry.hit(A_PLAYER_REPS_MINUS); WiringRegistry.recordOutcome(A_PLAYER_REPS_MINUS, ActualOutcome.StateChanged("repsChanged")); onTargetRepsChange(targetReps - 1) },
+                                    onPlus  = { WiringRegistry.hit(A_PLAYER_REPS_PLUS); WiringRegistry.recordOutcome(A_PLAYER_REPS_PLUS, ActualOutcome.StateChanged("repsChanged")); onTargetRepsChange(targetReps + 1) },
+                                    enabled = !isActive,
+                                )
+                            } else {
+                                CompactStepper(
+                                    value   = targetDuration,
+                                    unit    = "sec",
+                                    onMinus = { WiringRegistry.hit(A_PLAYER_DURATION_MINUS); WiringRegistry.recordOutcome(A_PLAYER_DURATION_MINUS, ActualOutcome.StateChanged("durationChanged")); onTargetDurationChange(targetDuration - 5) },
+                                    onPlus  = { WiringRegistry.hit(A_PLAYER_DURATION_PLUS); WiringRegistry.recordOutcome(A_PLAYER_DURATION_PLUS, ActualOutcome.StateChanged("durationChanged")); onTargetDurationChange(targetDuration + 5) },
+                                    enabled = !isActive,
+                                )
+                            }
+                        }
+
+                        // Right stepper: resistance or eccentric load
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(AppDimens.Corner.sm),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                        ) {
+                            if (selectedMode != "Echo") {
+                                CompactStepper(
+                                    value   = resistanceLb,
+                                    unit    = "lb/cable",
+                                    onMinus = { WiringRegistry.hit(A_PLAYER_RESISTANCE_MINUS); WiringRegistry.recordOutcome(A_PLAYER_RESISTANCE_MINUS, ActualOutcome.StateChanged("resistanceChanged")); onResistanceChange(resistanceLb - 5) },
+                                    onPlus  = { WiringRegistry.hit(A_PLAYER_RESISTANCE_PLUS); WiringRegistry.recordOutcome(A_PLAYER_RESISTANCE_PLUS, ActualOutcome.StateChanged("resistanceChanged")); onResistanceChange(resistanceLb + 5) },
+                                    enabled = !isActive,
+                                )
+                            } else {
+                                CompactStepper(
+                                    value   = eccentricPct,
+                                    unit    = "% eccentric",
+                                    onMinus = { onEccentricPctChange(eccentricPct - 5) },
+                                    onPlus  = { onEccentricPctChange(eccentricPct + 5) },
+                                    enabled = !isActive,
+                                )
+                            }
+                        }
+                    }
+
+                    // ── Action buttons ───────────────────────────────────────
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (isActive) {
+                            OutlinedButton(
+                                onClick  = onPanicStop,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error,
+                                ),
+                            ) {
+                                Icon(Icons.Default.Stop, contentDescription = null,
+                                    modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Stop", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
+                        if (isActive) {
+                            OutlinedButton(
+                                onClick  = onSkipExercise,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                            ) {
+                                Icon(Icons.Default.SkipNext, contentDescription = null,
+                                    modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Skip", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
+                        Button(
+                            onClick  = onPlayStop,
+                            modifier = Modifier
+                                .weight(if (isActive) 2f else 1f)
+                                .height(52.dp),
+                            shape = RoundedCornerShape(AppDimens.Corner.sm),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isActive) AccentRed else BrandPink,
+                                contentColor   = White,
+                            ),
+                        ) {
+                            Icon(
+                                imageVector = if (isActive) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text       = if (isActive) "Stop Set" else "Start Set",
+                                fontWeight = FontWeight.Bold,
+                                fontSize   = 16.sp,
+                            )
+                        }
+                    }
+
+                    // ═══════ EXPANDED SETTINGS (visible when sheet pulled up) ═
+                    Divider(
+                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                    )
+
+                    // Warmup reps
                     if (isRepsMode) {
-                        Stepper(
-                            label     = "Target Reps",
-                            value     = targetReps,
-                            unit      = "reps",
-                            onMinus   = { WiringRegistry.hit(A_PLAYER_REPS_MINUS); WiringRegistry.recordOutcome(A_PLAYER_REPS_MINUS, ActualOutcome.StateChanged("repsChanged")); onTargetRepsChange(targetReps - 1) },
-                            onPlus    = { WiringRegistry.hit(A_PLAYER_REPS_PLUS); WiringRegistry.recordOutcome(A_PLAYER_REPS_PLUS, ActualOutcome.StateChanged("repsChanged")); onTargetRepsChange(targetReps + 1) },
-                            enabled   = !isActive,
-                        )
                         Stepper(
                             label   = "Warmup Reps",
                             value   = warmupReps,
@@ -599,40 +739,42 @@ private fun ActivePlayerContent(
                             onPlus  = { onWarmupRepsChange(warmupReps + 1) },
                             enabled = !isActive,
                         )
-
-                    } else {
-                        Stepper(
-                            label   = "Duration",
-                            value   = targetDuration,
-                            unit    = "sec",
-                            onMinus = { WiringRegistry.hit(A_PLAYER_DURATION_MINUS); WiringRegistry.recordOutcome(A_PLAYER_DURATION_MINUS, ActualOutcome.StateChanged("durationChanged")); onTargetDurationChange(targetDuration - 5) },
-                            onPlus  = { WiringRegistry.hit(A_PLAYER_DURATION_PLUS); WiringRegistry.recordOutcome(A_PLAYER_DURATION_PLUS, ActualOutcome.StateChanged("durationChanged")); onTargetDurationChange(targetDuration + 5) },
-                            enabled = !isActive,
-                        )
                     }
 
-                    // ── Resistance stepper (hidden in Echo — weight is adaptive) ─
-                    if (selectedMode != "Echo") {
-                        Stepper(
-                            label   = "Resistance / cable",
-                            value   = resistanceLb,
-                            unit    = "lb",
-                            onMinus = { WiringRegistry.hit(A_PLAYER_RESISTANCE_MINUS); WiringRegistry.recordOutcome(A_PLAYER_RESISTANCE_MINUS, ActualOutcome.StateChanged("resistanceChanged")); onResistanceChange(resistanceLb - 5) },
-                            onPlus  = { WiringRegistry.hit(A_PLAYER_RESISTANCE_PLUS); WiringRegistry.recordOutcome(A_PLAYER_RESISTANCE_PLUS, ActualOutcome.StateChanged("resistanceChanged")); onResistanceChange(resistanceLb + 5) },
-                            enabled = !isActive,
-                        )                    } else {
-                        // ── Echo settings ──
-                        Stepper(
-                            label   = "Eccentric Load",
-                            value   = eccentricPct,
-                            unit    = "%",
-                            onMinus = { onEccentricPctChange(eccentricPct - 5) },
-                            onPlus  = { onEccentricPctChange(eccentricPct + 5) },
-                            enabled = !isActive,
-                        )
-                        
-                        Spacer(modifier = Modifier.height(AppDimens.Spacing.sm))
-                        
+                    // Stop at Top
+                    if (isRepsMode) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("Stop at Top", style = MaterialTheme.typography.bodyMedium)
+                            Switch(
+                                checked         = stopAtTop,
+                                onCheckedChange = onStopAtTopChange,
+                                enabled         = !isActive,
+                            )
+                        }
+                    }
+
+                    // Beast Mode (TUT only)
+                    if (selectedMode == "TUT") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("Beast Mode (Faster Loading)", style = MaterialTheme.typography.bodyMedium)
+                            Switch(
+                                checked = isBeastMode,
+                                onCheckedChange = onBeastModeChange,
+                                enabled = !isActive,
+                            )
+                        }
+                    }
+
+                    // Echo Level (Echo mode only)
+                    if (selectedMode == "Echo") {
                         Text(
                             text = "Echo Level",
                             style = MaterialTheme.typography.labelSmall,
@@ -640,75 +782,29 @@ private fun ActivePlayerContent(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                         ) {
                             com.example.vitruvianredux.ble.protocol.EchoLevel.entries.forEach { level ->
                                 val isSelected = level == echoLevel
                                 Surface(
-                                    modifier = Modifier.weight(1f).clickable(enabled = !isActive) { onEchoLevelChange(level) },
-                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(AppDimens.Spacing.sm),
-                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable(enabled = !isActive) { onEchoLevelChange(level) },
+                                    shape = RoundedCornerShape(AppDimens.Spacing.sm),
+                                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                            else MaterialTheme.colorScheme.surfaceVariant,
                                 ) {
                                     Text(
                                         text = level.displayName,
                                         modifier = Modifier.padding(vertical = AppDimens.Spacing.sm),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        textAlign = TextAlign.Center,
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     )
                                 }
                             }
-                        }                    }
-
-                    Divider()
-
-                    // ── Action buttons ───────────────────────────────────────
-                    Row(
-                        modifier              = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                        verticalAlignment     = Alignment.CenterVertically,
-                    ) {
-                        // Stop (always visible if active)
-                        if (isActive) {
-                            OutlinedButton(
-                                onClick  = onPanicStop,
-                                modifier = Modifier.weight(1f),
-                                colors   = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error,
-                                ),
-                                border   = ButtonDefaults.outlinedButtonBorder.copy(
-                                    width = 1.dp,
-                                ),
-                            ) {
-                                Icon(Icons.Default.Stop, contentDescription = null,
-                                    modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Stop")
-                            }
-                        }
-
-                        // Play / Stop Set
-                        Button(
-                            onClick  = onPlayStop,
-                            modifier = Modifier.weight(if (isActive) 2f else 1f),
-                            colors   = ButtonDefaults.buttonColors(
-                                containerColor = if (isActive) MaterialTheme.colorScheme.errorContainer
-                                                 else BrandPink,
-                                contentColor   = if (isActive) MaterialTheme.colorScheme.onErrorContainer
-                                                 else MaterialTheme.colorScheme.onPrimary,
-                            ),
-                        ) {
-                            Icon(
-                                imageVector        = if (isActive) Icons.Default.Stop else Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                modifier           = Modifier.size(20.dp),
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text       = if (isActive) "Stop Set" else "Start Set",
-                                fontWeight = FontWeight.Bold,
-                            )
                         }
                     }
 
@@ -719,12 +815,185 @@ private fun ActivePlayerContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         )
                     }
+
+                    Spacer(Modifier.height(48.dp))
+                }
+            },
+        ) { innerPadding ->
+            // ══════════════════════════════════════════════════════════════════
+            //  MAIN CONTENT: Tabs + full-screen video
+            // ══════════════════════════════════════════════════════════════════
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                // ── Tab row ──────────────────────────────────────────────────
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    divider = {},
+                ) {
+                    listOf("Workout", "Overview").forEachIndexed { i, label ->
+                        Tab(
+                            selected = selectedTab == i,
+                            onClick  = {
+                                val tabId = if (i == 0) A_PLAYER_TAB_WORKOUT else A_PLAYER_TAB_OVERVIEW
+                                WiringRegistry.hit(tabId)
+                                WiringRegistry.recordOutcome(tabId, ActualOutcome.StateChanged(if (i == 0) "tab0" else "tab1"))
+                                onTabSelected(i)
+                            },
+                            text = {
+                                Text(
+                                    label,
+                                    fontWeight = if (selectedTab == i) FontWeight.SemiBold else FontWeight.Normal,
+                                )
+                            },
+                        )
+                    }
+                }
+
+                // ── Tab content ──────────────────────────────────────────────
+                if (selectedTab == 1) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text  = "Exercise overview coming soon",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    // ── Video fills the remaining space ──────────────────────
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        val videoUrl     = exercise?.videoUrl ?: (phase as? SessionPhase.ExerciseActive)?.videoUrl
+                        val thumbnailUrl = exercise?.thumbnailUrl ?: (phase as? SessionPhase.ExerciseActive)?.thumbnailUrl
+                        val contentDesc  = exercise?.name ?: (phase as? SessionPhase.ExerciseActive)?.exerciseName
+                        when {
+                            videoUrl != null -> ExerciseVideoPlayer(
+                                videoUrl = videoUrl,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            thumbnailUrl != null -> AsyncImage(
+                                model              = thumbnailUrl,
+                                contentDescription = contentDesc,
+                                contentScale       = ContentScale.Crop,
+                                modifier           = Modifier.fillMaxSize(),
+                            )
+                            else -> Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                                )
+                            }
+                        }
+
+                        // Bottom gradient fade into sheet
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(80.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color.Transparent, MaterialTheme.colorScheme.surface)
+                                    )
+                                )
+                        )
+
+                        // Connection pill overlay
+                        ConnectionStatusPill(
+                            bleState = bleState,
+                            isReady  = isReady,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(AppDimens.Spacing.sm),
+                        )
+
+                        // ExerciseComplete flash overlay
+                        if (isComplete) {
+                            val cp = phase as SessionPhase.ExerciseComplete
+                            ElevatedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 16.dp),
+                                colors = CardDefaults.elevatedCardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                ),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(AppDimens.Spacing.md),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                                ) {
+                                    Icon(Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(28.dp))
+                                    Column {
+                                        Text("Set Complete!", fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                        Text(buildString {
+                                            append("${cp.stats.repsCompleted} working reps")
+                                            if (cp.stats.warmupRepsCompleted > 0) append(" + ${cp.stats.warmupRepsCompleted} warmup")
+                                            append(" · ${cp.stats.durationSec}s · ${cp.stats.weightPerCableLb} lb/cable")
+                                        },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-
-            Spacer(Modifier.height(24.dp))
         }
-    }
+
+        // ── Cable position bar overlays (pinned to edges, above sheet) ────
+        if (isActive && sessionState.leftCable != null) {
+            CablePositionBar(
+                label = "L",
+                cable = sessionState.leftCable,
+                setKey = sessionState.workingRepsCompleted,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(32.dp)
+                    .fillMaxHeight(0.50f)
+                    .padding(start = 6.dp),
+            )
+        }
+        if (isActive && sessionState.rightCable != null) {
+            CablePositionBar(
+                label = "R",
+                cable = sessionState.rightCable,
+                setKey = sessionState.workingRepsCompleted,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(32.dp)
+                    .fillMaxHeight(0.50f)
+                    .padding(end = 6.dp),
+            )
+        }
+    }  // Box
 }
 
 // ─── BLE Diagnostics debug dialog ────────────────────────────────────────────
@@ -792,7 +1061,7 @@ private fun DiagRow(label: String, value: String, isError: Boolean = false) {
     }
 }
 
-// ─── Stepper ─────────────────────────────────────────────────────────────────
+// ─── Stepper — refined with consistent sizing ───────────────────────────────
 
 @Composable
 private fun Stepper(
@@ -803,37 +1072,106 @@ private fun Stepper(
     onPlus: () -> Unit,
     enabled: Boolean = true,
 ) {
+    val alphaModifier = if (enabled) 1f else 0.45f
     Row(
-        modifier              = Modifier.fillMaxWidth(),
+        modifier              = Modifier
+            .fillMaxWidth()
+            .alpha(alphaModifier),
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
             text  = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Row(
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
-            FilledTonalIconButton(onClick = onMinus, enabled = enabled) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease")
+            FilledTonalIconButton(
+                onClick = onMinus,
+                enabled = enabled,
+                modifier = Modifier.size(36.dp),
+                shape = CircleShape,
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(18.dp))
             }
             Text(
                 text       = "$value $unit",
                 style      = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier   = Modifier.widthIn(min = 72.dp),
-                textAlign  = androidx.compose.ui.text.style.TextAlign.Center,
+                textAlign  = TextAlign.Center,
             )
-            FilledTonalIconButton(onClick = onPlus, enabled = enabled) {
-                Icon(Icons.Default.Add, contentDescription = "Increase")
+            FilledTonalIconButton(
+                onClick = onPlus,
+                enabled = enabled,
+                modifier = Modifier.size(36.dp),
+                shape = CircleShape,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(18.dp))
             }
         }
     }
 }
+
+// ─── CompactStepper — fits inside side-by-side cards ─────────────────────────
+
+@Composable
+private fun CompactStepper(
+    value: Int,
+    unit: String,
+    onMinus: () -> Unit,
+    onPlus: () -> Unit,
+    enabled: Boolean = true,
+) {
+    val alphaModifier = if (enabled) 1f else 0.45f
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(alphaModifier)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            FilledTonalIconButton(
+                onClick = onMinus,
+                enabled = enabled,
+                modifier = Modifier.size(32.dp),
+                shape = CircleShape,
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(16.dp))
+            }
+            Text(
+                text       = "$value",
+                style      = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier   = Modifier.widthIn(min = 40.dp),
+                textAlign  = TextAlign.Center,
+            )
+            FilledTonalIconButton(
+                onClick = onPlus,
+                enabled = enabled,
+                modifier = Modifier.size(32.dp),
+                shape = CircleShape,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(16.dp))
+            }
+        }
+        Text(
+            text = unit,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 @Composable
 fun UpcomingSetsSheet(
     workoutVM: WorkoutSessionViewModel,

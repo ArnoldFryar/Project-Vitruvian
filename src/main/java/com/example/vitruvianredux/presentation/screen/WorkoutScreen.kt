@@ -3,6 +3,8 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +35,7 @@ import com.example.vitruvianredux.model.ExerciseSortOrder
 import com.example.vitruvianredux.model.ExerciseVideo
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
+import com.example.vitruvianredux.presentation.components.ExerciseVideoPreviewDialog
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -77,6 +80,7 @@ fun WorkoutScreen(
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
     var showJustLift     by remember { mutableStateOf(false) }
+    var videoPreviewExercise by remember { mutableStateOf<Exercise?>(null) }
 
     // Use capitalised group labels ("Arms", "Back", …) for chips
     val allGroups = remember(allExercises) {
@@ -108,6 +112,15 @@ fun WorkoutScreen(
             exercise  = ex,
             onStart   = { WiringRegistry.hit(A_WORKOUT_DETAIL_START); WiringRegistry.recordOutcome(A_WORKOUT_DETAIL_START, ActualOutcome.Navigated("player")); onStartExercise(ex); selectedExercise = null },
             onDismiss = { selectedExercise = null },
+        )
+    }
+
+    // ── Video preview dialog (long-press) ─────────────────────────
+    videoPreviewExercise?.let { ex ->
+        ExerciseVideoPreviewDialog(
+            exerciseName = ex.name,
+            videoUrl     = ex.videoUrl,
+            onDismiss    = { videoPreviewExercise = null },
         )
     }
 
@@ -256,9 +269,10 @@ fun WorkoutScreen(
                 }
                 else -> items(filtered, key = { it.stableKey }) { ex ->
                     ExerciseCard(
-                        exercise = ex,
-                        onStart  = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
-                        onClick  = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
+                        exercise    = ex,
+                        onStart     = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
+                        onClick     = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
+                        onLongPress = { videoPreviewExercise = ex },
                     )
                     Spacer(Modifier.height(AppDimens.Spacing.sm))
                 }
@@ -281,11 +295,13 @@ fun WorkoutScreen(
 
 // ─── Exercise card ────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ExerciseCard(
     exercise: Exercise,
     onStart: () -> Unit,
     onClick: () -> Unit,
+    onLongPress: () -> Unit = {},
 ) {
     // Use group labels ("Arms", "Legs") as concise tags on the card
     val tags        = exercise.groupLabels
@@ -295,8 +311,10 @@ private fun ExerciseCard(
     val equipmentLabels = exercise.equipment.take(2).map { it.replace('_', ' ').lowercase(java.util.Locale.ROOT).replaceFirstChar { c -> c.uppercaseChar() } }
 
     ElevatedCard(
-        onClick   = onClick,
-        modifier  = Modifier.fillMaxWidth(),
+        modifier  = Modifier.fillMaxWidth().combinedClickable(
+            onClick     = onClick,
+            onLongClick = onLongPress,
+        ),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
     ) {
         Row(

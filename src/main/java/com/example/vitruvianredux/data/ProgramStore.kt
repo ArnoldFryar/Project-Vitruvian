@@ -2,6 +2,8 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
+import android.provider.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +31,9 @@ object ProgramStore {
 
     private lateinit var repo: ProgramRepository
 
+    /** Expose the underlying [ProgramRepository] for sync. */
+    val repository: ProgramRepository get() = repo
+
     private val _programs = MutableStateFlow<List<SavedProgram>>(emptyList())
     val savedProgramsFlow: StateFlow<List<SavedProgram>> = _programs.asStateFlow()
 
@@ -36,8 +41,10 @@ object ProgramStore {
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        repo      = ProgramRepository(SharedPrefsBackingStore(prefs))
-        _programs.value = repo.load()
+        val devId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+            ?: Build.MODEL
+        repo      = ProgramRepository(SharedPrefsBackingStore(prefs), deviceId = devId)
+        _programs.value = repo.loadActive()
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -48,8 +55,9 @@ object ProgramStore {
     }
 
     /**
-     * Remove the program with [id] from the in-memory flow, persist the deletion,
-     * and record a tombstone so it is never re-introduced by a future seed pass.
+     * Soft-delete the program with [id]: sets `deletedAt` on the record so it
+     * is hidden from the UI but retained for sync.  Also records a legacy seed
+     * tombstone so the id is never re-introduced by a future seed pass.
      * No-op if [id] is not found.
      */
     fun deleteProgram(id: String) {

@@ -18,6 +18,11 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.data.ExerciseMode
+import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.util.loadExercises
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ProgramDetailScreen(
@@ -30,6 +35,15 @@ fun ProgramDetailScreen(
     val program = programs.find { it.id == programId }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Load exercise catalog for video/thumbnail URLs
+    val context = LocalContext.current
+    var exerciseCatalog by remember { mutableStateOf<Map<String, Exercise>>(emptyMap()) }
+    LaunchedEffect(Unit) {
+        exerciseCatalog = try {
+            withContext(Dispatchers.IO) { loadExercises(context) }.associateBy { it.stableKey }
+        } catch (_: Exception) { emptyMap() }
+    }
 
     // If the program was deleted (or never existed), return immediately.
     if (program == null) {
@@ -127,16 +141,20 @@ fun ProgramDetailScreen(
                         ActualOutcome.Navigated("workout"),
                     )
                     val sets = program.items.flatMap { item ->
+                        val ex = exerciseCatalog[item.exerciseId]
                         List(item.sets) {
                             PlayerSetParams(
                                 exerciseName = item.exerciseName,
+                                thumbnailUrl = ex?.thumbnailUrl,
+                                videoUrl = ex?.videoUrl,
                                 targetReps = if (item.mode == ExerciseMode.REPS) item.reps else null,
                                 targetDurationSec = if (item.mode == ExerciseMode.TIME) item.durationSec else null,
                                 weightPerCableLb = item.targetWeightLb,
                                 restAfterSec = item.restTimerSec,
-                                warmupReps = 0,
+                                warmupReps = 3,
                                 programMode = item.programMode,
                                 progressionRegressionLb = item.progressionRegressionLb,
+                                muscleGroups = ex?.muscleGroups ?: emptyList(),
                             )
                         }
                     }

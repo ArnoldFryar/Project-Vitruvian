@@ -2,6 +2,7 @@ package com.example.vitruvianredux.presentation.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -12,15 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 
 /**
- * Elevated stat tile: a small icon above a numeric value and a descriptive label.
- *
- * Usage:
- *   StatCard(
- *       icon  = Icons.Default.FitnessCenter,
- *       value = "3,200",
- *       label = "Volume (kg)",
- *       modifier = Modifier.weight(1f),
- *   )
+ * Premium stat tile: icon, numeric value, label — subtle surface layering.
  */
 @Composable
 fun StatCard(
@@ -30,12 +23,11 @@ fun StatCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
-    ElevatedCard(
+    Surface(
         modifier = if (onClick != null) modifier.clickable(onClick = onClick) else modifier,
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
-        colors    = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        ),
+        shape = RoundedCornerShape(AppDimens.Corner.sm),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 1.dp,
     ) {
         Column(
             modifier            = Modifier
@@ -48,7 +40,7 @@ fun StatCard(
                 imageVector       = icon,
                 contentDescription = null,
                 tint              = MaterialTheme.colorScheme.primary,
-                modifier          = Modifier.size(22.dp),
+                modifier          = Modifier.size(20.dp),
             )
             Text(
                 text       = value,

@@ -850,6 +850,17 @@ class WorkoutSessionEngine(
         Log.i(TAG, "finishWorkout: ${completedStats.size} sets, $totalReps reps, ${totalDurSec}s")
         stopMonitorPolling()
         com.example.vitruvianredux.data.ActivityStatsStore.recordSession(totalVolumeKg.toDouble())
+        com.example.vitruvianredux.data.WorkoutHistoryStore.record(
+            com.example.vitruvianredux.data.WorkoutHistoryStore.WorkoutRecord(
+                date          = java.time.LocalDate.now(),
+                exerciseNames = completedStats.map { it.exerciseName }.distinct(),
+                muscleGroups  = playerSets.flatMap { it.muscleGroups }.distinct(),
+                totalVolumeKg = totalVolumeKg.toDouble(),
+                durationSec   = totalDurSec,
+                totalSets     = completedStats.size,
+                totalReps     = totalReps,
+            )
+        )
         _state.value = _state.value.copy(sessionPhase = SessionPhase.WorkoutComplete(stats))
     }
 

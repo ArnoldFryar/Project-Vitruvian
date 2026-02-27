@@ -34,8 +34,10 @@ import com.example.vitruvianredux.presentation.components.BottomBar
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.navigation.AppNavHost
 import com.example.vitruvianredux.presentation.navigation.Route
-import com.example.vitruvianredux.presentation.ui.theme.BrandOrange
 import com.example.vitruvianredux.presentation.ui.theme.VitruvianTheme
+import com.example.vitruvianredux.presentation.components.SyncStatusPill
+import com.example.vitruvianredux.sync.P2PConnectionManager
+import com.example.vitruvianredux.sync.P2pState
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -44,6 +46,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import com.example.vitruvianredux.ble.SessionPhase
 import com.example.vitruvianredux.presentation.screen.ExercisePlayerScreen
+import com.example.vitruvianredux.presentation.screen.SplashScreen
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun AppScaffold() {
@@ -53,6 +57,13 @@ fun AppScaffold() {
     }
 
     VitruvianTheme {
+        // ── Splash overlay ── shows once on cold start ──────────────────────
+        var showSplash by rememberSaveable { mutableStateOf(true) }
+        if (showSplash) {
+            SplashScreen(onFinished = { showSplash = false })
+            return@VitruvianTheme
+        }
+
         val activity = LocalContext.current as ComponentActivity
         // Activity-scoped so it survives recompositions and tab switches
         val bleVM = remember(activity) {
@@ -65,14 +76,38 @@ fun AppScaffold() {
             )[WorkoutSessionViewModel::class.java]
         }
 
+        // P2P connection manager for Wi-Fi Direct sync
+        val p2pManager = remember(activity) {
+            P2PConnectionManager(activity.applicationContext)
+        }
+        DisposableEffect(p2pManager) {
+            p2pManager.register()
+            onDispose { p2pManager.teardown() }
+        }
+        val p2pState by p2pManager.state.collectAsState()
+
         val nav = rememberNavController()
         val backStack = nav.currentBackStackEntryAsState()
         val currentRoute = backStack.value?.destination?.route
         val headerTitle = when (currentRoute) {
-            Route.Activity.path -> "Settings"
-            Route.Profile.path  -> "Profile"
-            else                -> "Daily Routines"
+            Route.Activity.path        -> "Activity"
+            Route.Workout.path         -> "Workout"
+            Route.Coaching.path        -> "Programs"
+            Route.Device.path          -> "Device"
+            Route.Profile.path         -> "Profile"
+            Route.Debug.path           -> "Debug"
+            Route.Repair.path          -> "Check & Repair"
+            Route.Audit.path           -> "Audit"
+            Route.ActivityHistory.path -> "History"
+            Route.Sync.path            -> "Sync"
+            else                       -> "Vitruvian"
         }
+
+        // Bottom bar should only show on top-level tabs
+        val showBottomBar = currentRoute in setOf(
+            Route.Activity.path, Route.Workout.path, Route.Coaching.path,
+            Route.Device.path, Route.Profile.path, Route.Debug.path,
+        )
 
         var showDevicePicker by remember { mutableStateOf(false) }
         val bleState by bleVM.state.collectAsState()
@@ -92,6 +127,8 @@ fun AppScaffold() {
                         AppTopBar(
                             title               = headerTitle,
                             bleState            = bleState,
+                            p2pState            = p2pState,
+                            onSyncPillClick     = { nav.navigate(Route.Sync.path) },
                             onConnectClick      = {
                                 WiringRegistry.hit(A_GLOBAL_CONNECT)
                                 WiringRegistry.recordOutcome(A_GLOBAL_CONNECT, ActualOutcome.SheetOpened("device_picker"))
@@ -105,10 +142,10 @@ fun AppScaffold() {
                             onNavigateToAudit   = { nav.navigate(Route.Audit.path) },
                         )
                     },
-                    bottomBar = { BottomBar(nav) },
+                    bottomBar = { if (showBottomBar) BottomBar(nav) },
                     modifier  = Modifier.fillMaxSize()
                 ) { innerPadding ->
-                    AppNavHost(nav, innerPadding, bleVM, workoutVM)
+                    AppNavHost(nav, innerPadding, bleVM, workoutVM, p2pManager)
                 }
 
                 // Global Workout Overlay
@@ -150,6 +187,8 @@ fun AppScaffold() {
 private fun AppTopBar(
     title: String,
     bleState: BleConnectionState,
+    p2pState: P2pState,
+    onSyncPillClick: () -> Unit,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
     onNavigateToAudit: () -> Unit,
@@ -165,7 +204,7 @@ private fun AppTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -177,8 +216,8 @@ private fun AppTopBar(
                 )
                 Text(
                     text  = "Project Vitruvian",
-                    color = BrandOrange,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.combinedClickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication        = null,
@@ -193,6 +232,9 @@ private fun AppTopBar(
                     ),
                 )
             }
+
+            // Wi-Fi Direct sync status indicator — tap to open Sync screen
+            SyncStatusPill(p2pState = p2pState, onClick = onSyncPillClick)
 
             when (bleState) {
                 is BleConnectionState.Connected -> {

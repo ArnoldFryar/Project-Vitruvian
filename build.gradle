@@ -77,6 +77,8 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/INDEX.LIST"
+            excludes += "/META-INF/io.netty.versions.properties"
         }
     }
 
@@ -128,6 +130,18 @@ dependencies {
     
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3'
+
+    // Ktor – embedded server (hub) & HTTP client (sync client)
+    implementation 'io.ktor:ktor-server-core:2.3.9'
+    implementation 'io.ktor:ktor-server-cio:2.3.9'
+    implementation 'io.ktor:ktor-server-content-negotiation:2.3.9'
+    implementation 'io.ktor:ktor-serialization-kotlinx-json:2.3.9'
+    implementation 'io.ktor:ktor-client-core:2.3.9'
+    implementation 'io.ktor:ktor-client-cio:2.3.9'
+    implementation 'io.ktor:ktor-client-content-negotiation:2.3.9'
+
+    // ZXing – QR code generation for pairing
+    implementation 'com.google.zxing:core:3.5.2'
     
     implementation 'androidx.room:room-runtime:2.6.0'
     implementation 'androidx.room:room-ktx:2.6.0'
