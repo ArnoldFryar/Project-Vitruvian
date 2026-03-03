@@ -1,0 +1,176 @@
+{
+  "id": "builtin_push_pull_legs",
+  "name": "Push / Pull / Legs",
+  "category": "Strength",
+  "description": "Classic 3-day split targeting pushing muscles, pulling muscles, and legs on separate days. Great for intermediate lifters looking for balanced hypertrophy.",
+  "days": [
+    {
+      "name": "Push Day",
+      "focus": "Chest, Shoulders, Triceps",
+      "exercises": [
+        {
+          "exerciseId": "ZZ92N8QsBdp6HCh3",
+          "exerciseName": "Bench Press",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 40,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "b3ba4645-6b3f-4058-b1f4-0d8fc3e49dff",
+          "exerciseName": "Cable Fly",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "3cd0a0cb-8e56-4b0e-83a0-d88ff369749f",
+          "exerciseName": "Arnold Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "DL9vy76nqDUN-C39",
+          "exerciseName": "Front Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "cc0b27a7-679a-406e-a56e-44778bafaec5",
+          "exerciseName": "Bent Over Tricep Extension",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    },
+    {
+      "name": "Pull Day",
+      "focus": "Back, Biceps, Rear Delts",
+      "exercises": [
+        {
+          "exerciseId": "cJt26IdtckFcJsq1",
+          "exerciseName": "Bent Over Row",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 40,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "ku9GWXoCLuBShLm0",
+          "exerciseName": "Bent Over Crossover Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "QPiIhCZA7LwgHjrf",
+          "exerciseName": "Bent Over Crossover Rear Delt Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "k-PGXPztgc5uS42S",
+          "exerciseName": "Bicep Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "XfkITKH5emJFlGv7",
+          "exerciseName": "Alternating Hammer Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    },
+    {
+      "name": "Legs Day",
+      "focus": "Quads, Hamstrings, Glutes",
+      "exercises": [
+        {
+          "exerciseId": "D7IHBdqkHR5z2wFn",
+          "exerciseName": "Arms Crossed Front Squat",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 40,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "rCG6HJi50F2REZCw",
+          "exerciseName": "Alternating Lunges",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "hVN8gR7bdeRE3uzn",
+          "exerciseName": "Alternating Reverse Lunge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "opo1QzcHfFKMx1hI",
+          "exerciseName": "Alternating Curtsy Lunge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "bPCXvQV5baCujiNS",
+          "exerciseName": "Alternating Side Lunge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

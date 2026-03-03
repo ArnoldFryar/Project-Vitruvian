@@ -29,7 +29,6 @@ fun BottomBar(nav: NavController) {
         NavItem(Route.Coaching, Icons.Default.PlayCircle,    Icons.Outlined.PlayCircle,    "Programs"),
         NavItem(Route.Device,   Icons.Default.Bluetooth,     Icons.Outlined.Bluetooth,     "Device"),
         NavItem(Route.Profile,  Icons.Default.Person,        Icons.Outlined.Person,        "Profile"),
-        NavItem(Route.Debug,    Icons.Default.BugReport,     Icons.Outlined.BugReport,     "Debug"),
     )
     // Map route → wiring ID
     val navHitIds = mapOf(
@@ -38,7 +37,6 @@ fun BottomBar(nav: NavController) {
         Route.Coaching to A_NAV_PROGRAMS,
         Route.Device   to A_NAV_DEVICE,
         Route.Profile  to A_NAV_PROFILE,
-        Route.Debug    to A_NAV_DEBUG,
     )
     val backStack = nav.currentBackStackEntryAsState()
     val startDestination = Route.Activity.path

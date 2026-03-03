@@ -1,0 +1,120 @@
+{
+  "id": "builtin_upper_lower",
+  "name": "Upper / Lower Split",
+  "category": "Strength",
+  "description": "Simple 2-day upper/lower split that can be repeated 2–3 times per week. Ideal for beginners or anyone short on time who still wants full-body coverage.",
+  "days": [
+    {
+      "name": "Upper Body",
+      "focus": "Chest, Back, Shoulders, Arms",
+      "exercises": [
+        {
+          "exerciseId": "ZZ92N8QsBdp6HCh3",
+          "exerciseName": "Bench Press",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "cJt26IdtckFcJsq1",
+          "exerciseName": "Bent Over Row",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "3cd0a0cb-8e56-4b0e-83a0-d88ff369749f",
+          "exerciseName": "Arnold Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "k-PGXPztgc5uS42S",
+          "exerciseName": "Bicep Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "cc0b27a7-679a-406e-a56e-44778bafaec5",
+          "exerciseName": "Bent Over Tricep Extension",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    },
+    {
+      "name": "Lower Body",
+      "focus": "Quads, Hamstrings, Glutes, Core",
+      "exercises": [
+        {
+          "exerciseId": "D7IHBdqkHR5z2wFn",
+          "exerciseName": "Arms Crossed Front Squat",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 40,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "rCG6HJi50F2REZCw",
+          "exerciseName": "Alternating Lunges",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "hVN8gR7bdeRE3uzn",
+          "exerciseName": "Alternating Reverse Lunge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "bPCXvQV5baCujiNS",
+          "exerciseName": "Alternating Side Lunge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "4kmhj9yyZcBI54Vi",
+          "exerciseName": "100s",
+          "mode": "TIME",
+          "sets": 3,
+          "durationSec": 30,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        }
+      ]
+    }
+  ]
+}

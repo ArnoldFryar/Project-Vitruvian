@@ -4,8 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
+import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.HealthConnectManager
+import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.data.ProgramStore
+import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.AppScaffold
 import com.example.vitruvianredux.sync.SyncServiceLocator
 
@@ -14,7 +20,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ProgramStore.init(applicationContext)
         UnitsStore.init(applicationContext)
+        WorkoutHistoryStore.init(applicationContext)
+        AnalyticsStore.init(applicationContext)
+        TemplateRepository.init(applicationContext)
+        HealthConnectStore.init(applicationContext)
+        HealthConnectManager.init(applicationContext)
+        LedColorStore.init(applicationContext)
         SyncServiceLocator.init(applicationContext)
+        // Backfill SessionRepository from AnalyticsStore so existing workouts are syncable
+        SyncServiceLocator.exportToSessionRepo()
+        // Reconcile any synced sessions into charts/history stores
+        SyncServiceLocator.reconcileAfterSync()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent { AppScaffold() }
     }

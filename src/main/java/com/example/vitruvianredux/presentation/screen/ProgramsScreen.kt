@@ -85,6 +85,7 @@ fun ProgramsScreen(
     workoutVM: WorkoutSessionViewModel? = null,
     onNavigateToProgramDetail: (String) -> Unit = {},
     onNavigateToTemplates: () -> Unit = {},
+    onNavigateToImport: () -> Unit = {},
 ) {
     val programs     by savedProgramsFlow.collectAsState()
     var showBuilder by remember { mutableStateOf(false) }
@@ -125,6 +126,25 @@ fun ProgramsScreen(
                     Text("Create Program", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(2.dp))
                     Text("Build a routine from your exercise library", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Section A2 – Import Program CTA
+        ElevatedCard(
+            modifier = Modifier.fillMaxWidth().clickable { onNavigateToImport() },
+            shape    = MaterialTheme.shapes.medium,
+        ) {
+            Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.FileDownload, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Import Program", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(2.dp))
+                    Text("Paste or share a JSON program export", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }

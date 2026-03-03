@@ -3,6 +3,8 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -18,6 +20,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.data.ExerciseMode
+import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.util.loadExercises
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +38,7 @@ fun ProgramDetailScreen(
     val program = programs.find { it.id == programId }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var savedAsTemplate by remember { mutableStateOf(false) }
 
     // Load exercise catalog for video/thumbnail URLs
     val context = LocalContext.current
@@ -89,16 +93,14 @@ fun ProgramDetailScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
-                // Do NOT zero windowInsets: let the TopAppBar handle the status-bar
-                // inset itself so the title is never obscured.
             )
         },
-        contentWindowInsets = WindowInsets(0),
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             // ── Summary card ────────────────────────────────────────────────
@@ -158,7 +160,7 @@ fun ProgramDetailScreen(
                             )
                         }
                     }
-                    workoutVM.startPlayerWorkout(sets)
+                    workoutVM.startProgramWorkout(programId, sets)
                     // We don't need to navigate to WorkoutScreen anymore, the global overlay will show
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -181,6 +183,20 @@ fun ProgramDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Edit")
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // ── Save as Template ────────────────────────────────────────
+            OutlinedButton(
+                onClick = {
+                    TemplateRepository.saveAsTemplate(program)
+                    savedAsTemplate = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !savedAsTemplate,
+            ) {
+                Text(if (savedAsTemplate) "Saved as Template ✓" else "Save as Template")
             }
 
             Spacer(Modifier.height(8.dp))

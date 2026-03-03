@@ -131,10 +131,9 @@ fun ProgramEditorScreen(
                     ) {
                         Text("Save")
                     }
-                }
+                },
             )
         },
-        contentWindowInsets = WindowInsets(0),
     ) { innerPadding ->
         Column(
             modifier = Modifier

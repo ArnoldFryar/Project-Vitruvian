@@ -57,7 +57,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private enum class PlayerView { ACTIVE, RESTING, WORKOUT_COMPLETE }
+private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE }
 
 private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo")
 
@@ -94,8 +94,26 @@ fun ExercisePlayerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // ── Sync local steppers from program set when a new set launches ─────────
+    // This keeps the bottom-sheet controls in sync with the active program values
+    // (e.g. the program says 6 reps but the local default was 10).
+    LaunchedEffect(phase) {
+        val active = phase as? SessionPhase.ExerciseActive
+        val ready  = phase as? SessionPhase.SetReady
+        val reps   = active?.targetReps ?: ready?.targetReps
+        val dur    = active?.targetDurationSec ?: ready?.targetDurationSec
+        val wu     = active?.warmupReps ?: ready?.warmupReps
+        val wt     = if (active != null) sessionState.targetWeightLb
+                     else ready?.weightPerCableLb
+        if (reps != null)  { targetReps = reps; isRepsMode = true }
+        if (dur != null)   { targetDuration = dur; isRepsMode = false }
+        if (wu != null)    warmupReps = wu
+        if (wt != null)    resistanceLb = wt
+    }
+
     // Derive view from phase for AnimatedContent key
     val view = when (phase) {
+        is SessionPhase.SetReady        -> PlayerView.SET_READY
         is SessionPhase.Resting         -> PlayerView.RESTING
         is SessionPhase.WorkoutComplete -> PlayerView.WORKOUT_COMPLETE
         else                            -> PlayerView.ACTIVE
@@ -200,13 +218,55 @@ fun ExercisePlayerScreen(
                 PlayerView.WORKOUT_COMPLETE -> {
                     val completePhase = phase as? SessionPhase.WorkoutComplete
                     if (completePhase != null) {
+                        val hasProgramChanges = workoutVM.activeProgramId != null
                         WorkoutCompleteContent(
                             stats    = completePhase.workoutStats,
                             onDismiss = {
                                 workoutVM.resetAfterWorkout()
                                 onBack()
                             },
+                            onSaveAndExit = if (hasProgramChanges) {
+                                {
+                                    workoutVM.saveWorkoutChangesToProgram()
+                                    workoutVM.resetAfterWorkout()
+                                    onBack()
+                                }
+                            } else null,
                             modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+
+                PlayerView.SET_READY -> {
+                    val readyPhase = phase as? SessionPhase.SetReady
+                    if (readyPhase != null) {
+                        SetReadyContent(
+                            exerciseName      = readyPhase.exerciseName,
+                            setIndex          = readyPhase.setIndex,
+                            totalSets         = readyPhase.totalSets,
+                            videoUrl          = readyPhase.videoUrl,
+                            thumbnailUrl      = readyPhase.thumbnailUrl,
+                            targetReps        = targetReps,
+                            targetDuration    = targetDuration,
+                            warmupReps        = warmupReps,
+                            resistanceLb      = resistanceLb,
+                            isRepsMode        = isRepsMode,
+                            onTargetRepsChange = { targetReps = it.coerceIn(1, 100) },
+                            onTargetDurationChange = { targetDuration = it.coerceIn(5, 300) },
+                            onWarmupRepsChange = { warmupReps = it.coerceIn(0, 20) },
+                            onResistanceChange = { resistanceLb = it.coerceIn(1, 400) },
+                            onToggleMode       = { isRepsMode = it },
+                            onGo = {
+                                workoutVM.confirmReady(
+                                    targetRepsOverride    = if (isRepsMode) targetReps else null,
+                                    targetDurationOverride = if (!isRepsMode) targetDuration else null,
+                                    weightOverride        = resistanceLb,
+                                    warmupOverride        = warmupReps,
+                                )
+                            },
+                            onSkipSet      = { workoutVM.skipSet() },
+                            onSkipExercise = { workoutVM.skipExercise() },
+                            modifier       = Modifier.fillMaxSize(),
                         )
                     }
                 }
@@ -281,6 +341,7 @@ fun ExercisePlayerScreen(
                             }
                         },
                         onPanicStop            = { WiringRegistry.hit(A_PLAYER_PANIC_STOP); WiringRegistry.recordOutcome(A_PLAYER_PANIC_STOP, ActualOutcome.BleWriteAttempt("PANIC_STOP")); workoutVM.panicStop() },
+                        onSkipSet              = { workoutVM.skipSet() },
                         onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
                     )
@@ -325,11 +386,16 @@ private fun ActivePlayerContent(
     onStopAtTopChange: (Boolean) -> Unit,
     onPlayStop: () -> Unit,
     onPanicStop: () -> Unit,
+    onSkipSet: () -> Unit,
     onSkipExercise: () -> Unit,
     onDebugRepIncrement: () -> Unit,
 ) {
     val isActive   = phase is SessionPhase.ExerciseActive
     val isComplete = phase is SessionPhase.ExerciseComplete
+
+    // When a set is active the engine holds the real per-exercise weight;
+    // the local `resistanceLb` is only for the pre-start configuration stepper.
+    val displayWeight = if (isActive || isComplete) sessionState.targetWeightLb else resistanceLb
 
     // ── Rep counter state (CRITICAL — same logic as before) ──────────────────
     val activePhase   = phase as? SessionPhase.ExerciseActive
@@ -508,7 +574,7 @@ private fun ActivePlayerContent(
                             )
                             Text(
                                 text = if (selectedMode == "Echo") "Adaptive"
-                                       else "$resistanceLb.0",
+                                       else "$displayWeight.0",
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (selectedMode == "Echo")
@@ -641,7 +707,7 @@ private fun ActivePlayerContent(
                         ) {
                             if (selectedMode != "Echo") {
                                 CompactStepper(
-                                    value   = resistanceLb,
+                                    value   = displayWeight,
                                     unit    = "lb/cable",
                                     onMinus = { WiringRegistry.hit(A_PLAYER_RESISTANCE_MINUS); WiringRegistry.recordOutcome(A_PLAYER_RESISTANCE_MINUS, ActualOutcome.StateChanged("resistanceChanged")); onResistanceChange(resistanceLb - 5) },
                                     onPlus  = { WiringRegistry.hit(A_PLAYER_RESISTANCE_PLUS); WiringRegistry.recordOutcome(A_PLAYER_RESISTANCE_PLUS, ActualOutcome.StateChanged("resistanceChanged")); onResistanceChange(resistanceLb + 5) },
@@ -685,7 +751,7 @@ private fun ActivePlayerContent(
 
                         if (isActive) {
                             OutlinedButton(
-                                onClick  = onSkipExercise,
+                                onClick  = onSkipSet,
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp),
@@ -694,7 +760,7 @@ private fun ActivePlayerContent(
                                 Icon(Icons.Default.SkipNext, contentDescription = null,
                                     modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Skip", fontWeight = FontWeight.SemiBold)
+                                Text("Skip Set", fontWeight = FontWeight.SemiBold)
                             }
                         }
 
@@ -878,11 +944,16 @@ private fun ActivePlayerContent(
                         val videoUrl     = exercise?.videoUrl ?: (phase as? SessionPhase.ExerciseActive)?.videoUrl
                         val thumbnailUrl = exercise?.thumbnailUrl ?: (phase as? SessionPhase.ExerciseActive)?.thumbnailUrl
                         val contentDesc  = exercise?.name ?: (phase as? SessionPhase.ExerciseActive)?.exerciseName
+                        // Key on setIndex so ExoPlayer is recreated for each set
+                        // (prevents stale/released player when same exercise repeats)
+                        val setIndex     = (phase as? SessionPhase.ExerciseActive)?.setIndex ?: 0
                         when {
-                            videoUrl != null -> ExerciseVideoPlayer(
-                                videoUrl = videoUrl,
-                                modifier = Modifier.fillMaxSize(),
-                            )
+                            videoUrl != null -> key(videoUrl, setIndex) {
+                                ExerciseVideoPlayer(
+                                    videoUrl = videoUrl,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
                             thumbnailUrl != null -> AsyncImage(
                                 model              = thumbnailUrl,
                                 contentDescription = contentDesc,
@@ -1282,5 +1353,222 @@ fun UpcomingSetsSheet(
                 }
             }
         }
+    }
+}
+
+// ─── Set Ready / Get Into Position screen ─────────────────────────────────────
+
+@Composable
+private fun SetReadyContent(
+    exerciseName: String,
+    setIndex: Int,
+    totalSets: Int,
+    videoUrl: String?,
+    thumbnailUrl: String?,
+    targetReps: Int,
+    targetDuration: Int,
+    warmupReps: Int,
+    resistanceLb: Int,
+    isRepsMode: Boolean,
+    onTargetRepsChange: (Int) -> Unit,
+    onTargetDurationChange: (Int) -> Unit,
+    onWarmupRepsChange: (Int) -> Unit,
+    onResistanceChange: (Int) -> Unit,
+    onToggleMode: (Boolean) -> Unit,
+    onGo: () -> Unit,
+    onSkipSet: () -> Unit,
+    onSkipExercise: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = AppDimens.Spacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.height(16.dp))
+
+        // ── Exercise name & set info ─────────────────────────────────────
+        Text(
+            text       = exerciseName,
+            style      = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign  = TextAlign.Center,
+            maxLines   = 2,
+            overflow   = TextOverflow.Ellipsis,
+            modifier   = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text  = "Set ${setIndex + 1} of $totalSets",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── Video / thumbnail preview ────────────────────────────────────
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            when {
+                videoUrl != null -> key(videoUrl, setIndex) {
+                    ExerciseVideoPlayer(
+                        videoUrl = videoUrl,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                thumbnailUrl != null -> AsyncImage(
+                    model              = thumbnailUrl,
+                    contentDescription = exerciseName,
+                    contentScale       = ContentScale.Crop,
+                    modifier           = Modifier.fillMaxSize(),
+                )
+                else -> Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── Adjustable settings ──────────────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            FilterChip(
+                selected  = isRepsMode,
+                onClick   = { onToggleMode(true) },
+                label     = { Text("Reps") },
+                modifier  = Modifier.weight(1f),
+            )
+            FilterChip(
+                selected  = !isRepsMode,
+                onClick   = { onToggleMode(false) },
+                label     = { Text("Duration") },
+                modifier  = Modifier.weight(1f),
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+        ) {
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                if (isRepsMode) {
+                    CompactStepper(
+                        value   = targetReps,
+                        unit    = "reps",
+                        onMinus = { onTargetRepsChange(targetReps - 1) },
+                        onPlus  = { onTargetRepsChange(targetReps + 1) },
+                    )
+                } else {
+                    CompactStepper(
+                        value   = targetDuration,
+                        unit    = "sec",
+                        onMinus = { onTargetDurationChange(targetDuration - 5) },
+                        onPlus  = { onTargetDurationChange(targetDuration + 5) },
+                    )
+                }
+            }
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                CompactStepper(
+                    value   = resistanceLb,
+                    unit    = "lb/cable",
+                    onMinus = { onResistanceChange(resistanceLb - 5) },
+                    onPlus  = { onResistanceChange(resistanceLb + 5) },
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Warmup reps stepper
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(AppDimens.Corner.sm),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            CompactStepper(
+                value   = warmupReps,
+                unit    = "warmup",
+                onMinus = { onWarmupRepsChange(warmupReps - 1) },
+                onPlus  = { onWarmupRepsChange(warmupReps + 1) },
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── Action buttons ───────────────────────────────────────────────
+        Button(
+            onClick  = onGo,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(AppDimens.Corner.sm),
+            colors = ButtonDefaults.buttonColors(containerColor = BrandPink),
+        ) {
+            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("GO", fontWeight = FontWeight.Black, fontSize = 18.sp)
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            OutlinedButton(
+                onClick  = onSkipSet,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp),
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+            ) {
+                Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Skip Set", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+
+            OutlinedButton(
+                onClick  = onSkipExercise,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp),
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+            ) {
+                Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Skip Exercise", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
     }
 }

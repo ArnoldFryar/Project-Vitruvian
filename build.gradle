@@ -160,6 +160,9 @@ dependencies {
     implementation 'androidx.media3:media3-exoplayer-hls:1.2.1'
     implementation 'androidx.media3:media3-ui:1.2.1'
 
+    // Health Connect — export workout summaries to Samsung Health
+    implementation 'androidx.health.connect:connect-client:1.1.0-alpha08'
+
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
     // org.json standalone: makes JSONObject/JSONArray available in local JVM unit tests

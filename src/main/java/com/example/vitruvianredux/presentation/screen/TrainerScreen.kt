@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,8 +23,11 @@ import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
+import com.example.vitruvianredux.ble.protocol.BlePacketFactory
+import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
+import com.example.vitruvianredux.presentation.components.LedColorPickerDialog
 import com.example.vitruvianredux.presentation.ui.theme.BrandPink
 
 @Composable
@@ -34,11 +39,34 @@ fun TrainerScreen(
     val cs = MaterialTheme.colorScheme
     val bleState by (bleVM?.state?.collectAsState() ?: remember { mutableStateOf(BleConnectionState.Disconnected) })
     var showDevicePicker by remember { mutableStateOf(false) }
+    var showColorPicker  by remember { mutableStateOf(false) }
+
+    // ── LED colour store ──────────────────────────────────────────────────
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { LedColorStore.init(context) }
+    var ledScheme by remember { mutableStateOf(LedColorStore.current()) }
 
     if (showDevicePicker && bleVM != null) {
         DevicePickerSheet(
             bleVM     = bleVM,
             onDismiss = { showDevicePicker = false },
+        )
+    }
+
+    if (showColorPicker) {
+        LedColorPickerDialog(
+            current  = ledScheme,
+            onSelect = { scheme ->
+                ledScheme = scheme
+                LedColorStore.save(scheme)
+                // Send to trainer if connected
+                bleVM?.sendCommand(
+                    BlePacketFactory.createColorSchemePacket(
+                        scheme.first, scheme.second, scheme.third
+                    )
+                )
+            },
+            onDismiss = { showColorPicker = false },
         )
     }
 
@@ -134,9 +162,10 @@ fun TrainerScreen(
                 )
                 Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
 
-                // Colour indicator
+                // Colour indicator — opens LED colour picker
                 TrainerInfoRow(
                     label = "Colour",
+                    modifier = Modifier.clickable { showColorPicker = true },
                     trailing = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -150,8 +179,9 @@ fun TrainerScreen(
                                     .background(
                                         Brush.horizontalGradient(
                                             colors = listOf(
-                                                Color(0xFFB0E0E6),
-                                                Color(0xFF00CED1),
+                                                ledScheme.color1,
+                                                ledScheme.color2,
+                                                ledScheme.color3,
                                             )
                                         )
                                     )
@@ -308,10 +338,11 @@ fun TrainerScreen(
 private fun TrainerInfoRow(
     label: String,
     value: String? = null,
+    modifier: Modifier = Modifier,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,

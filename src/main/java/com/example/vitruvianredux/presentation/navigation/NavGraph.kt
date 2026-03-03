@@ -7,6 +7,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,6 +34,9 @@ enum class Route(val path: String) {
     ActivityHistory("activity_history"),
     ActivityMetricDetail("activity_metric_detail"),
     Sync("sync"),
+    ImportProgram("import_program"),
+    SessionDetail("session_detail"),
+    TemplatePreview("template_preview"),
 }
 
 private const val ANIM_DURATION = 280
@@ -43,6 +48,8 @@ fun AppNavHost(
     bleVM: BleViewModel,
     workoutVM: WorkoutSessionViewModel,
     p2pManager: P2PConnectionManager? = null,
+    pendingImportJson: String? = null,
+    onImportConsumed: () -> Unit = {},
 ) {
     NavHost(
         navController = nav,
@@ -90,6 +97,7 @@ fun AppNavHost(
                     nav.navigate("${Route.ProgramDetail.path}/$programId")
                 },
                 onNavigateToTemplates    = { nav.navigate(Route.Templates.path) },
+                onNavigateToImport       = { nav.navigate(Route.ImportProgram.path) },
             )
         }
         composable(Route.Device.path)    {
@@ -99,7 +107,13 @@ fun AppNavHost(
                 onNavigateToRepair = { nav.navigate(Route.Repair.path) },
             )
         }
-        composable(Route.Profile.path)   { ProfileScreen(innerPadding, bleVM) }
+        composable(Route.Profile.path)   {
+            ProfileScreen(
+                innerPadding = innerPadding,
+                bleVM = bleVM,
+                onNavigateToDebug = { nav.navigate(Route.Debug.path) },
+            )
+        }
         composable(Route.Debug.path)     { DebugScreen(innerPadding, bleVM, workoutVM) }
         composable(Route.Repair.path) {
             DeviceRepairScreen(
@@ -131,15 +145,62 @@ fun AppNavHost(
             )
         }
         composable(Route.Templates.path) {
-            TemplatesScreen(onBack = { nav.popBackStack() })
+            TemplateLibraryScreen(
+                onBack = { nav.popBackStack() },
+                onNavigateToPreview = { templateId ->
+                    nav.navigate("${Route.TemplatePreview.path}/$templateId")
+                },
+            )
+        }
+        composable(route = "${Route.TemplatePreview.path}/{templateId}") { backStackEntry ->
+            val templateId = backStackEntry.arguments?.getString("templateId") ?: ""
+            TemplatePreviewScreen(
+                templateId = templateId,
+                onBack = { nav.popBackStack() },
+                onNavigateToProgramDetail = { programId ->
+                    nav.navigate("${Route.ProgramDetail.path}/$programId") {
+                        // Pop back to Coaching so the user doesn't have template screens in the back stack
+                        popUpTo(Route.Templates.path) { inclusive = true }
+                    }
+                },
+            )
         }
         composable(Route.ActivityHistory.path) {
-            ActivityHistoryScreen(onBack = { nav.popBackStack() })
+            ActivityHistoryScreen(
+                onBack = { nav.popBackStack() },
+                onNavigateToSessionDetail = { id ->
+                    nav.navigate("${Route.SessionDetail.path}/$id")
+                },
+            )
         }
         composable(route = "${Route.ActivityMetricDetail.path}/{type}") { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: ""
-            ActivityMetricDetailScreen(type = type, onBack = { nav.popBackStack() })
+            ActivityMetricDetailScreen(
+                type = type,
+                onBack = { nav.popBackStack() },
+                onNavigateToSessionDetail = { id ->
+                    nav.navigate("${Route.SessionDetail.path}/$id")
+                },
+            )
         }
+        composable(route = "${Route.SessionDetail.path}/{sessionId}") { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getString("sessionId") ?: ""
+            SessionDetailScreen(
+                sessionId = sessionId,
+                onBack = { nav.popBackStack() },
+            )
+        }
+        // Import program (paste JSON / share-sheet)
+        composable(Route.ImportProgram.path) {
+            // Read JSON from the pending import holder (set by MainActivity on intent)
+            val json = remember { PendingImportHolder.consumeJson() ?: "" }
+            ImportProgramScreen(
+                initialJson      = json,
+                onBack           = { nav.popBackStack() },
+                onImportComplete = { nav.popBackStack() },
+            )
+        }
+
         if (p2pManager != null) {
             composable(Route.Sync.path) {
                 SyncScreen(
@@ -149,5 +210,33 @@ fun AppNavHost(
                 )
             }
         }
+    }
+
+    // Handle intent-delivered import JSON: navigate once then clear
+    LaunchedEffect(pendingImportJson) {
+        if (!pendingImportJson.isNullOrBlank()) {
+            nav.navigate(Route.ImportProgram.path)
+            onImportConsumed()
+        }
+    }
+}
+
+/**
+ * Simple static holder for passing large JSON strings to the import screen
+ * without URL-encoding into the navigation route.
+ *
+ * Thread-safe: only the main thread writes (from intent handling or paste).
+ */
+object PendingImportHolder {
+    @Volatile
+    private var json: String? = null
+
+    fun set(value: String) { json = value }
+
+    /** Read and clear. Returns null if empty. */
+    fun consumeJson(): String? {
+        val v = json
+        json = null
+        return v
     }
 }

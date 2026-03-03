@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -14,7 +13,6 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,7 +26,7 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
-import com.example.vitruvianredux.data.ActivityStatsStore
+import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.UnitsStore
@@ -74,16 +72,19 @@ fun HomeScreen(
         } catch (_: Exception) { emptyMap() }
     }
 
-    // Shared stats — same source used by ProfileScreen.
-    val stats by ActivityStatsStore.statsFlow.collectAsState()
-    val volumeValue = UnitConversions.formatVolumeFromKg(stats.volumeKg, unitSystem)
+    // Real 7-day stats from AnalyticsStore — same data source as ProfileScreen.
+    val allLogs by AnalyticsStore.logsFlow.collectAsState()
+    val weekVolumeKg = remember(allLogs) { AnalyticsStore.weeklyVolumesKg(1).lastOrNull()?.second ?: 0.0 }
+    val weekSessions = remember(allLogs) { AnalyticsStore.sessionCount(7) }
+    val currentStreak = remember(allLogs) { AnalyticsStore.currentStreak() }
+    val volumeValue = UnitConversions.formatVolumeFromKg(weekVolumeKg, unitSystem)
     val volumeLabel = "Volume (${UnitConversions.unitLabel(unitSystem)})"
 
     ScreenScaffold(
         title = "Activity",
         innerPadding = innerPadding,
         actions = {
-            IconButton(onClick = { ActivityStatsStore.resetStats() }) {
+            IconButton(onClick = { AnalyticsStore.clear() }) {
                 Icon(Icons.Default.Refresh, contentDescription = "Reset Stats")
             }
         }
@@ -119,7 +120,7 @@ fun HomeScreen(
             )
             StatCard(
                 icon     = Icons.Default.FitnessCenter,
-                value    = stats.sessions.toString(),
+                value    = weekSessions.toString(),
                 label    = "Sessions",
                 modifier = Modifier.weight(1f),
                 onClick  = {
@@ -133,7 +134,7 @@ fun HomeScreen(
             )
             StatCard(
                 icon     = Icons.Default.LocalFireDepartment,
-                value    = stats.streak.toString(),
+                value    = currentStreak.toString(),
                 label    = "Day streak",
                 modifier = Modifier.weight(1f),
                 onClick  = {
@@ -228,41 +229,6 @@ fun HomeScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ── Connect trainer promo ─────────────────────────────────────
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color    = MaterialTheme.colorScheme.surfaceVariant,
-            shape    = RoundedCornerShape(AppDimens.Corner.md),
-            tonalElevation = 1.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(AppDimens.Spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Bluetooth,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp),
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Connect your Trainer",
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.titleSmall,
-                    )
-                    Text(
-                        "Go to Device tab to pair your V-Form.",
-                        color    = cs.onSurfaceVariant,
-                        style    = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
-
         // ── Workout Calendar ──────────────────────────────────────────
         SectionHeader(title = "Workout Calendar")
         Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -294,27 +260,33 @@ private fun WorkoutCalendar(
         color = cs.surfaceVariant,
         tonalElevation = 1.dp,
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             // ── Month navigation header ────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                IconButton(onClick = { displayMonth = displayMonth.minusMonths(1) }) {
-                    Icon(Icons.Default.ChevronLeft, "Previous month", modifier = Modifier.size(20.dp))
+                IconButton(
+                    onClick = { displayMonth = displayMonth.minusMonths(1) },
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(Icons.Default.ChevronLeft, "Previous month", modifier = Modifier.size(18.dp))
                 }
                 Text(
                     text = "${displayMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${displayMonth.year}",
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
-                IconButton(onClick = { displayMonth = displayMonth.plusMonths(1) }) {
-                    Icon(Icons.Default.ChevronRight, "Next month", modifier = Modifier.size(20.dp))
+                IconButton(
+                    onClick = { displayMonth = displayMonth.plusMonths(1) },
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(Icons.Default.ChevronRight, "Next month", modifier = Modifier.size(18.dp))
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // ── Day-of-week header ─────────────────────────────────────
             val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
@@ -330,7 +302,7 @@ private fun WorkoutCalendar(
                 }
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
 
             // ── Calendar grid ──────────────────────────────────────────
             val firstOfMonth = displayMonth.atDay(1)
@@ -348,7 +320,7 @@ private fun WorkoutCalendar(
 
                         if (dayNum < 1 || dayNum > daysInMonth) {
                             // Empty cell
-                            Spacer(Modifier.weight(1f).aspectRatio(1f))
+                            Spacer(Modifier.weight(1f).height(28.dp))
                         } else {
                             val date = displayMonth.atDay(dayNum)
                             val isToday = date == today
@@ -357,8 +329,8 @@ private fun WorkoutCalendar(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .aspectRatio(1f)
-                                    .padding(2.dp)
+                                    .height(28.dp)
+                                    .padding(1.dp)
                                     .clip(CircleShape)
                                     .then(
                                         when {
@@ -372,7 +344,7 @@ private fun WorkoutCalendar(
                             ) {
                                 Text(
                                     text = dayNum.toString(),
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelSmall,
                                     fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                                     color = when {
                                         isToday && hasWorkout -> cs.onPrimary
@@ -386,7 +358,7 @@ private fun WorkoutCalendar(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // ── Legend ──────────────────────────────────────────────────
             Row(
@@ -396,20 +368,20 @@ private fun WorkoutCalendar(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
+                        .size(8.dp)
                         .clip(CircleShape)
                         .background(BrandPink),
                 )
-                Spacer(Modifier.width(6.dp))
-                Text("Workout day", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Workout", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                Spacer(Modifier.width(12.dp))
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
+                        .size(8.dp)
                         .clip(CircleShape)
                         .background(cs.primary.copy(alpha = 0.12f)),
                 )
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(4.dp))
                 Text("Today", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
             }
         }

@@ -4,10 +4,14 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
 import android.provider.Settings
+import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.ProgramBackingStore
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SessionRepository
+import com.example.vitruvianredux.data.WorkoutHistoryStore
 import timber.log.Timber
+import java.time.Instant
+import java.time.ZoneId
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SyncServiceLocator — application-scoped singleton that wires together all
@@ -95,6 +99,104 @@ object SyncServiceLocator {
     suspend fun sync(hubBaseUrl: String): SyncResult {
         check(isInitialized) { "SyncServiceLocator not initialized" }
         return syncClient.sync(hubBaseUrl)
+    }
+
+    /**
+     * After a successful sync, reconcile [SessionRepository] sessions into
+     * [AnalyticsStore] and [WorkoutHistoryStore] so charts and history
+     * reflect synced data from other devices.
+     */
+    fun reconcileAfterSync() {
+        if (!isInitialized) return
+        try {
+            val synced = sessionRepo.loadActive()
+            val existingLogIds = AnalyticsStore.logsFlow.value.map { it.id }.toSet()
+            val existingLogTimes = AnalyticsStore.logsFlow.value.map { it.endTimeMs }.toSet()
+            val existingHistDates = WorkoutHistoryStore.historyFlow.value
+                .map { "${it.date}_${it.totalSets}_${it.totalReps}_${it.durationSec}" }.toSet()
+
+            var imported = 0
+            for (session in synced) {
+                // Skip if already in AnalyticsStore (by ID or endTime match)
+                if (session.id in existingLogIds || session.endedAt in existingLogTimes) continue
+                if (session.endedAt == 0L || session.durationSec == 0) continue // skip incomplete
+
+                val sessionDate = Instant.ofEpochMilli(session.endedAt)
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
+                val histKey = "${sessionDate}_${session.totalSets}_${session.totalReps}_${session.durationSec}"
+                if (histKey in existingHistDates) continue
+
+                // Import to AnalyticsStore
+                val log = AnalyticsStore.SessionLog(
+                    id              = session.id,
+                    startTimeMs     = session.startedAt,
+                    endTimeMs       = session.endedAt,
+                    durationSec     = session.durationSec,
+                    programName     = session.name.takeIf { it.isNotBlank() },
+                    dayName         = null,
+                    exerciseNames   = emptyList(), // not available from sync record
+                    totalSets       = session.totalSets,
+                    totalReps       = session.totalReps,
+                    totalVolumeKg   = session.totalVolumeKg.toDouble(),
+                    volumeAvailable = session.totalVolumeKg > 0f,
+                    heaviestLiftLb  = 0,
+                    calories        = 0,
+                    createdAt       = session.endedAt,
+                )
+                AnalyticsStore.record(log)
+
+                // Import to WorkoutHistoryStore
+                val histRecord = WorkoutHistoryStore.WorkoutRecord(
+                    date          = sessionDate,
+                    exerciseNames = emptyList(),
+                    muscleGroups  = emptyList(),
+                    totalVolumeKg = session.totalVolumeKg.toDouble(),
+                    durationSec   = session.durationSec,
+                    totalSets     = session.totalSets,
+                    totalReps     = session.totalReps,
+                )
+                WorkoutHistoryStore.record(histRecord)
+                imported++
+            }
+            Timber.tag(TAG).i("reconcileAfterSync: imported $imported session(s)")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "reconcileAfterSync failed")
+        }
+    }
+
+    /**
+     * Backfill [SessionRepository] from [AnalyticsStore] so that workouts
+     * completed before the sync bridge was added become syncable.
+     * Called once on startup.
+     */
+    fun exportToSessionRepo() {
+        if (!isInitialized) return
+        try {
+            val existingIds = sessionRepo.loadAll().map { it.id }.toSet()
+            val logs = AnalyticsStore.logsFlow.value
+            var exported = 0
+            for (log in logs) {
+                if (log.id in existingIds) continue
+                if (log.durationSec == 0) continue
+                sessionRepo.save(
+                    com.example.vitruvianredux.data.WorkoutSessionRecord(
+                        id            = log.id,
+                        programId     = null,
+                        name          = log.programName ?: log.exerciseNames.firstOrNull() ?: "Workout",
+                        startedAt     = log.startTimeMs,
+                        endedAt       = log.endTimeMs,
+                        totalReps     = log.totalReps,
+                        totalSets     = log.totalSets,
+                        totalVolumeKg = log.totalVolumeKg.toFloat(),
+                        durationSec   = log.durationSec,
+                    )
+                )
+                exported++
+            }
+            Timber.tag(TAG).i("exportToSessionRepo: exported $exported session(s)")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "exportToSessionRepo failed")
+        }
     }
 
     // ── SharedPreferences-backed store (reuses ProgramBackingStore interface) ─

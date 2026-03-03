@@ -44,6 +44,24 @@ sealed class SessionPhase {
     data class Error(val message: String) : SessionPhase()
 
     // ── Rich player flow ──────────────────────────────────────────────────────
+
+    /**
+     * Paused "get ready" screen shown before a set begins.
+     * The user presses "Go" to start the warmup/working phase so they
+     * have time to get into position or adjust settings.
+     */
+    data class SetReady(
+        val exerciseName: String,
+        val thumbnailUrl: String?,
+        val videoUrl: String? = null,
+        val setIndex: Int,
+        val totalSets: Int,
+        val targetReps: Int?,
+        val targetDurationSec: Int?,
+        val warmupReps: Int = 0,
+        val weightPerCableLb: Int = 0,
+    ) : SessionPhase()
+
     data class ExerciseActive(
         val exerciseName: String,
         val thumbnailUrl: String?,
@@ -504,18 +522,20 @@ class WorkoutSessionEngine(
     fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
         if (sets.isEmpty()) { Log.w(TAG, "startPlayerWorkout: empty sets list"); return false }
         
-        // Set phase immediately so the UI overlay appears
+        // Set phase immediately so the UI overlay appears — start with SetReady
+        // so the user can get into position before warmup begins.
         val firstSet = sets.first()
         _state.value = _state.value.copy(
-            sessionPhase = SessionPhase.ExerciseActive(
-                exerciseName = firstSet.exerciseName,
-                thumbnailUrl = firstSet.thumbnailUrl,
-                videoUrl = firstSet.videoUrl,
-                setIndex = 0,
-                totalSets = sets.size,
-                targetReps = firstSet.targetReps,
+            sessionPhase = SessionPhase.SetReady(
+                exerciseName      = firstSet.exerciseName,
+                thumbnailUrl      = firstSet.thumbnailUrl,
+                videoUrl          = firstSet.videoUrl,
+                setIndex          = 0,
+                totalSets         = sets.size,
+                targetReps        = firstSet.targetReps,
                 targetDurationSec = firstSet.targetDurationSec,
-                warmupReps = firstSet.warmupReps
+                warmupReps        = firstSet.warmupReps,
+                weightPerCableLb  = firstSet.weightPerCableLb,
             )
         )
         
@@ -534,13 +554,10 @@ class WorkoutSessionEngine(
             sendPacket(BlePacketFactory.createInitCommand(), "INIT")
             sendPacket(BlePacketFactory.createInitPreset(), "INIT_PRESET")
         } else {
-            Log.w(TAG, "startPlayerWorkout: not connected yet – skipping INIT (will retry in launchPlayerSet)")
+            Log.w(TAG, "startPlayerWorkout: not connected yet – skipping INIT (will retry in confirmReady)")
         }
-        
-        scope.launch {
-            delay(300L)
-            launchPlayerSet(0)
-        }
+
+        // User sees SetReady screen and taps "Go" → confirmReady() starts the BLE set.
         // Start polling Monitor characteristic for cable position/force data
         startMonitorPolling()
         return true
@@ -571,6 +588,47 @@ class WorkoutSessionEngine(
     }
 
     /**
+     * Skip the current **set** (not the whole exercise) and advance to the
+     * next set in the playlist — whether it is the same exercise or a new one.
+     *
+     * Works from [SessionPhase.ExerciseActive] (mid-set) and
+     * [SessionPhase.Resting] (between sets). No stats are recorded for a
+     * skipped set.
+     */
+    fun skipSet() {
+        val phase = _state.value.sessionPhase
+        Log.i(TAG, "skipSet: phase=$phase  currentIndex=$currentPlayerIndex  total=${playerSets.size}")
+
+        when (phase) {
+            is SessionPhase.ExerciseActive -> {
+                playerJob?.cancel()
+                awaitingEccentricFinish = false
+                eccentricTimeoutJob?.cancel()
+                bleAdapter.execute(BleCommand.Stop, "SKIP_SET_STOP")
+            }
+            is SessionPhase.SetReady -> {
+                // Not started yet — nothing to stop on the machine
+            }
+            is SessionPhase.Resting -> {
+                restJob?.cancel()
+            }
+            else -> {
+                Log.w(TAG, "skipSet: not in a skippable phase ($phase)")
+                return
+            }
+        }
+
+        val nextIndex = currentPlayerIndex + 1
+        currentPlayerIndex = nextIndex
+        Log.i(TAG, "skipSet: advancing to index $nextIndex (total=${playerSets.size})")
+        if (nextIndex < playerSets.size) {
+            launchPlayerSet(nextIndex)
+        } else {
+            finishWorkout()
+        }
+    }
+
+    /**
      * Skip the current exercise entirely and advance to the next *different*
      * exercise in the program (or finish if there are no more).
      *
@@ -585,6 +643,7 @@ class WorkoutSessionEngine(
         val currentExName: String? = when (phase) {
             is SessionPhase.ExerciseActive   -> phase.exerciseName
             is SessionPhase.ExerciseComplete -> phase.exerciseName
+            is SessionPhase.SetReady         -> phase.exerciseName
             is SessionPhase.Resting          -> playerSets.getOrNull(currentPlayerIndex)?.exerciseName
             else -> null
         }
@@ -686,24 +745,73 @@ class WorkoutSessionEngine(
 
     private fun launchPlayerSet(index: Int) {
         val set = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
-        setStartTimeMs = System.currentTimeMillis()
-        setVolumeAccumulator = VolumeAccumulator.ZERO  // fresh bucket for each new set
-        // Reset eccentric gate for the new set
-        awaitingEccentricFinish = false
-        eccentricTimeoutJob?.cancel()
-        lastNotificationUp = 0
-        // Configure the rep detector for this set's warmup/working targets.
-        repDetector.configure(
-            warmupTarget  = set.warmupReps,
-            workingTarget = set.targetReps ?: 0,
-        )
-        lastDispatchedRepCount = 0   // reset monotonic guard for new set
         val isDurationMode = set.targetDurationSec != null && set.targetReps == null
         Log.d(TAG, "launchPlayerSet[$index] workingRes=${set.weightPerCableLb}lb " +
             "warmupReps=${set.warmupReps} isDurationMode=$isDurationMode repTarget=${set.targetReps}")
 
-        // Set UI phase immediately; the reducer UiEmit cannot fill player-context
-        // fields (setIndex, totalSets, thumbnailUrl), so these are set here directly.
+        // Show the "Get Ready" screen. The user presses Go to start the BLE set.
+        _state.value = _state.value.copy(
+            sessionPhase = SessionPhase.SetReady(
+                exerciseName      = set.exerciseName,
+                thumbnailUrl      = set.thumbnailUrl,
+                videoUrl          = set.videoUrl,
+                setIndex          = index,
+                totalSets         = playerSets.size,
+                targetReps        = set.targetReps,
+                targetDurationSec = set.targetDurationSec,
+                warmupReps        = set.warmupReps,
+                weightPerCableLb  = set.weightPerCableLb,
+            ),
+            currentExerciseName = set.exerciseName,
+            targetWeightLb      = set.weightPerCableLb,
+            repsCount           = 0,
+            lastTelemetryTimestamp = System.currentTimeMillis(),
+        )
+    }
+
+    /**
+     * User confirmed ready — start the BLE set (PARAMS + warmup/working).
+     * Called from the SetReady screen when the user taps "Go".
+     * Accepts optional overrides so the user can tweak weight/reps/mode
+     * from the ready screen before the set begins.
+     */
+    fun confirmReady(
+        targetRepsOverride: Int? = null,
+        targetDurationOverride: Int? = null,
+        weightOverride: Int? = null,
+        warmupOverride: Int? = null,
+    ) {
+        val readyPhase = _state.value.sessionPhase as? SessionPhase.SetReady ?: run {
+            Log.w(TAG, "confirmReady: not in SetReady phase")
+            return
+        }
+        val index = readyPhase.setIndex
+        val original = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
+
+        // Apply any user overrides from the ready screen
+        val set = if (targetRepsOverride != null || targetDurationOverride != null ||
+                      weightOverride != null || warmupOverride != null) {
+            original.copy(
+                targetReps        = targetRepsOverride ?: original.targetReps,
+                targetDurationSec = targetDurationOverride ?: original.targetDurationSec,
+                weightPerCableLb  = weightOverride ?: original.weightPerCableLb,
+                warmupReps        = warmupOverride ?: original.warmupReps,
+            ).also { playerSets = playerSets.toMutableList().also { list -> list[index] = it } }
+        } else original
+
+        Log.i(TAG, "confirmReady: launching set $index (${set.exerciseName}, ${set.weightPerCableLb}lb)")
+
+        setStartTimeMs = System.currentTimeMillis()
+        setVolumeAccumulator = VolumeAccumulator.ZERO
+        awaitingEccentricFinish = false
+        eccentricTimeoutJob?.cancel()
+        lastNotificationUp = 0
+        repDetector.configure(
+            warmupTarget  = set.warmupReps,
+            workingTarget = set.targetReps ?: 0,
+        )
+        lastDispatchedRepCount = 0
+
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.ExerciseActive(
                 exerciseName      = set.exerciseName,
@@ -721,15 +829,11 @@ class WorkoutSessionEngine(
             lastTelemetryTimestamp = System.currentTimeMillis(),
         )
 
-        // Dispatch StartSet: reducer transitions to WARMUP (or WORKING) and
-        // produces BleSend(PARAMS) via the adapter.  No START command — the
-        // config packet alone triggers BASELINE → SOFTWARE on the machine.
         Log.i(TAG, "STARTSET_DISPATCH  setId=set_$index  warmupTarget=${set.warmupReps}" +
             "  workingTarget=${set.targetReps}  curId=${engineState.currentSetId}" +
-            "  curPhase=${engineState.phase}  CALLER=launchPlayerSet")
+            "  curPhase=${engineState.phase}  CALLER=confirmReady")
         val setResult = SessionReducer.reduce(engineState, SessionEvent.StartSet(set, "set_$index"))
         engineState = setResult.newState
-        // Sync canonical set phase so UI immediately knows WARMUP vs WORKING.
         _state.value = _state.value.copy(
             setPhase             = engineState.phase,
             warmupRepsCompleted  = engineState.warmupRepsCompleted,
@@ -737,7 +841,6 @@ class WorkoutSessionEngine(
         )
         Log.i(TAG, "STARTSET_RESULT  setId=set_$index  newPhase=${engineState.phase}" +
             "  warmupTarget=${engineState.warmupTarget}  workingTarget=${engineState.workingTarget}")
-        // UiEmit is suppressed here — we already set the full ExerciseActive phase above.
         executeEffects(setResult.effects.filterNot { it is SessionEffect.UiEmit })
 
         // Duration-based auto-complete
@@ -750,7 +853,6 @@ class WorkoutSessionEngine(
                 }
             }
         }
-        // Rep-based auto-complete is handled in the notify collector
     }
 
     private fun completeCurrentPlayerSet() {

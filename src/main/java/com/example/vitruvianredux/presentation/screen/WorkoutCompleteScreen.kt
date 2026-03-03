@@ -24,6 +24,7 @@ import kotlin.math.roundToInt
 fun WorkoutCompleteContent(
     stats: WorkoutStats,
     onDismiss: () -> Unit,
+    onSaveAndExit: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -149,23 +150,59 @@ fun WorkoutCompleteContent(
             }
         }
 
-        // ── Done button ───────────────────────────────────────────────────────
-        Button(
-            onClick   = onDismiss,
-            modifier  = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape     = RoundedCornerShape(AppDimens.Corner.sm),
-            colors    = ButtonDefaults.buttonColors(
-                containerColor = BrandPink,
-                contentColor = White,
-            ),
-        ) {
-            Text(
-                text       = "Done",
-                fontWeight = FontWeight.Bold,
-                fontSize   = 17.sp,
-            )
+        // ── Action buttons ──────────────────────────────────────────────────
+        if (onSaveAndExit != null) {
+            Button(
+                onClick   = onSaveAndExit,
+                modifier  = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape     = RoundedCornerShape(AppDimens.Corner.sm),
+                colors    = ButtonDefaults.buttonColors(
+                    containerColor = BrandPink,
+                    contentColor = White,
+                ),
+            ) {
+                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text       = "Save Changes & Exit",
+                    fontWeight = FontWeight.Bold,
+                    fontSize   = 17.sp,
+                )
+            }
+
+            OutlinedButton(
+                onClick   = onDismiss,
+                modifier  = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape     = RoundedCornerShape(AppDimens.Corner.sm),
+            ) {
+                Text(
+                    text       = "Exit Without Saving",
+                    fontWeight = FontWeight.Bold,
+                    fontSize   = 17.sp,
+                )
+            }
+        } else {
+            Button(
+                onClick   = onDismiss,
+                modifier  = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape     = RoundedCornerShape(AppDimens.Corner.sm),
+                colors    = ButtonDefaults.buttonColors(
+                    containerColor = BrandPink,
+                    contentColor = White,
+                ),
+            ) {
+                Text(
+                    text       = "Done",
+                    fontWeight = FontWeight.Bold,
+                    fontSize   = 17.sp,
+                )
+            }
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.md))

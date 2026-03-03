@@ -45,6 +45,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import com.example.vitruvianredux.ble.SessionPhase
+import com.example.vitruvianredux.data.AnalyticsRecorder
+import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.HealthConnectManager
+import com.example.vitruvianredux.data.WorkoutHistoryStore
+import com.example.vitruvianredux.data.WorkoutSessionRecord
+import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.sync.SyncServiceLocator
 import com.example.vitruvianredux.presentation.screen.ExercisePlayerScreen
 import com.example.vitruvianredux.presentation.screen.SplashScreen
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -89,6 +96,21 @@ fun AppScaffold() {
         val nav = rememberNavController()
         val backStack = nav.currentBackStackEntryAsState()
         val currentRoute = backStack.value?.destination?.route
+
+        // Pending import JSON from intent (read in MainActivity)
+        var pendingImportJson by remember { mutableStateOf<String?>(null) }
+
+        // Check for intent-delivered JSON on first composition
+        LaunchedEffect(Unit) {
+            val act = activity
+            val intent = act.intent
+            val json = extractImportJson(intent)
+            if (json != null) {
+                com.example.vitruvianredux.presentation.navigation.PendingImportHolder.set(json)
+                pendingImportJson = json
+            }
+        }
+
         val headerTitle = when (currentRoute) {
             Route.Activity.path        -> "Activity"
             Route.Workout.path         -> "Workout"
@@ -100,13 +122,14 @@ fun AppScaffold() {
             Route.Audit.path           -> "Audit"
             Route.ActivityHistory.path -> "History"
             Route.Sync.path            -> "Sync"
+            Route.ImportProgram.path   -> "Import"
             else                       -> "Vitruvian"
         }
 
         // Bottom bar should only show on top-level tabs
         val showBottomBar = currentRoute in setOf(
             Route.Activity.path, Route.Workout.path, Route.Coaching.path,
-            Route.Device.path, Route.Profile.path, Route.Debug.path,
+            Route.Device.path, Route.Profile.path,
         )
 
         var showDevicePicker by remember { mutableStateOf(false) }
@@ -124,36 +147,111 @@ fun AppScaffold() {
             Box(modifier = Modifier.fillMaxSize()) {
                 Scaffold(
                     topBar    = {
-                        AppTopBar(
-                            title               = headerTitle,
-                            bleState            = bleState,
-                            p2pState            = p2pState,
-                            onSyncPillClick     = { nav.navigate(Route.Sync.path) },
-                            onConnectClick      = {
-                                WiringRegistry.hit(A_GLOBAL_CONNECT)
-                                WiringRegistry.recordOutcome(A_GLOBAL_CONNECT, ActualOutcome.SheetOpened("device_picker"))
-                                showDevicePicker = true
-                            },
-                            onDisconnectClick   = {
-                                WiringRegistry.hit(A_GLOBAL_DISCONNECT)
-                                WiringRegistry.recordOutcome(A_GLOBAL_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect"))
-                                bleVM.disconnect()
-                            },
-                            onNavigateToAudit   = { nav.navigate(Route.Audit.path) },
-                        )
+                        if (showBottomBar) {
+                            AppTopBar(
+                                title               = headerTitle,
+                                bleState            = bleState,
+                                p2pState            = p2pState,
+                                onSyncPillClick     = { nav.navigate(Route.Sync.path) },
+                                onConnectClick      = {
+                                    WiringRegistry.hit(A_GLOBAL_CONNECT)
+                                    WiringRegistry.recordOutcome(A_GLOBAL_CONNECT, ActualOutcome.SheetOpened("device_picker"))
+                                    showDevicePicker = true
+                                },
+                                onDisconnectClick   = {
+                                    WiringRegistry.hit(A_GLOBAL_DISCONNECT)
+                                    WiringRegistry.recordOutcome(A_GLOBAL_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect"))
+                                    bleVM.disconnect()
+                                },
+                                onNavigateToAudit   = { nav.navigate(Route.Audit.path) },
+                            )
+                        }
                     },
                     bottomBar = { if (showBottomBar) BottomBar(nav) },
+                    contentWindowInsets = WindowInsets(0),
                     modifier  = Modifier.fillMaxSize()
                 ) { innerPadding ->
-                    AppNavHost(nav, innerPadding, bleVM, workoutVM, p2pManager)
+                    AppNavHost(
+                        nav               = nav,
+                        innerPadding      = innerPadding,
+                        bleVM             = bleVM,
+                        workoutVM         = workoutVM,
+                        p2pManager        = p2pManager,
+                        pendingImportJson = pendingImportJson,
+                        onImportConsumed  = { pendingImportJson = null },
+                    )
                 }
 
                 // Global Workout Overlay
                 val sessionState by workoutVM.state.collectAsState()
                 val phase = sessionState.sessionPhase
                 val playerExercise by workoutVM.playerExercise.collectAsState()
+
+                // ── Health Connect: export workout summary when a session completes ──
+                // ── Analytics: passively record completed session ──
+                LaunchedEffect(phase) {
+                    if (phase is SessionPhase.WorkoutComplete) {
+                        val stats = phase.workoutStats
+                        val endMs = System.currentTimeMillis()
+                        val startMs = endMs - (stats.durationSec * 1_000L)
+
+                        // ── Analytics capture (always) ──
+                        val exerciseNames = WorkoutHistoryStore.historyFlow.value
+                            .lastOrNull()?.exerciseNames ?: emptyList()
+
+                        // Capture per-set data before it's cleared
+                        val exerciseSets = workoutVM.completedExerciseStats.map { es ->
+                            AnalyticsStore.ExerciseSetLog(
+                                exerciseName = es.exerciseName,
+                                setIndex     = es.setIndex,
+                                reps         = es.repsCompleted,
+                                weightLb     = es.weightPerCableLb,
+                                volumeKg     = es.volumeKg,
+                            )
+                        }
+
+                        AnalyticsRecorder.onSessionCompleted(
+                            stats         = stats,
+                            exerciseNames = exerciseNames,
+                            exerciseSets  = exerciseSets,
+                        )
+
+                        // ── Sync-ready session record ──
+                        if (SyncServiceLocator.isInitialized) {
+                            val programName = workoutVM.activeProgramId?.let { pid ->
+                                com.example.vitruvianredux.data.ProgramStore.savedProgramsFlow.value
+                                    .firstOrNull { it.id == pid }?.name
+                            }
+                            SyncServiceLocator.sessionRepo.save(
+                                WorkoutSessionRecord(
+                                    programId     = workoutVM.activeProgramId,
+                                    name          = programName ?: exerciseNames.firstOrNull() ?: "Workout",
+                                    startedAt     = startMs,
+                                    endedAt       = endMs,
+                                    totalReps     = stats.totalReps,
+                                    totalSets     = stats.totalSets,
+                                    totalVolumeKg = stats.totalVolumeKg,
+                                    durationSec   = stats.durationSec,
+                                )
+                            )
+                        }
+
+                        // ── Health Connect export (when enabled) ──
+                        if (HealthConnectStore.isEnabled) {
+                            val title = playerExercise?.name ?: "Vitruvian Workout"
+                            val summary = HealthConnectManager.WorkoutSummary(
+                                title        = title,
+                                startEpochMs = startMs,
+                                endEpochMs   = endMs,
+                                calories     = stats.calories,
+                            )
+                            HealthConnectManager.writeWorkoutSummary(summary)
+                        }
+                    }
+                }
                 
                 val isWorkoutActive = playerExercise != null || 
+                    phase is SessionPhase.SetReady ||
                     phase is SessionPhase.ExerciseActive || 
                     phase is SessionPhase.Resting || 
                     phase is SessionPhase.ExerciseComplete || 
@@ -276,4 +374,37 @@ private fun AppTopBar(
             }
         }
     }
+}
+
+// ── Intent JSON extraction (used by AppScaffold on launch) ──────────────────
+
+/**
+ * Extract program-import JSON from an incoming [android.content.Intent].
+ *
+ * Supports:
+ * - `ACTION_SEND` with `text/plain` or `application/json` extra text
+ * - `ACTION_VIEW` with `vitruvian://import?json=…` URI
+ * - `ACTION_VIEW` with `content://` or `file://` URI pointing to a `.json` file
+ */
+private fun extractImportJson(intent: android.content.Intent?): String? {
+    if (intent == null) return null
+    when (intent.action) {
+        android.content.Intent.ACTION_SEND -> {
+            val text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
+            if (!text.isNullOrBlank() && (text.trimStart().startsWith("{") || text.trimStart().startsWith("["))) {
+                return text
+            }
+        }
+        android.content.Intent.ACTION_VIEW -> {
+            val uri = intent.data ?: return null
+            // vitruvian://import?json=…
+            if (uri.scheme == "vitruvian" && uri.host == "import") {
+                val json = uri.getQueryParameter("json")
+                if (!json.isNullOrBlank()) return json
+            }
+            // content:// or file:// — try to read the URI
+            // (handled below)
+        }
+    }
+    return null
 }

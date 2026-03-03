@@ -13,6 +13,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -97,12 +99,13 @@ fun SyncScreen(
                     }
                 },
             )
-        }
+        },
     ) { scaffoldPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(scaffoldPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -129,6 +132,8 @@ fun SyncScreen(
                             scope.launch(Dispatchers.IO) {
                                 try {
                                     val result = SyncServiceLocator.sync(url)
+                                    // Bridge synced sessions into AnalyticsStore/WorkoutHistoryStore
+                                    SyncServiceLocator.reconcileAfterSync()
                                     lastSyncResult = result
                                 } catch (e: Exception) {
                                     syncError = e.message ?: "Sync failed"
@@ -258,8 +263,8 @@ private fun SyncControls(
                 Text("Scanning…", style = MaterialTheme.typography.bodyMedium)
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(peers, key = { it.deviceAddress }) { device ->
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                peers.forEach { device ->
                     PeerCard(
                         device = device,
                         isConnecting = p2pState is P2pState.Connecting,
