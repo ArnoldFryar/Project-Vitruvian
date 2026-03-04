@@ -82,23 +82,26 @@ fun JustLiftDialog(
     // ── Router (translates controls → existing VM actions) ──
     val router = remember { JustLiftCommandRouter(workoutVM) }
 
-    // ── Persisted controls (loaded from JustLiftStore) ──
-    val saved = remember { JustLiftStore.current() }
-    var weightKgPerCable    by remember { mutableStateOf(saved.weightKgPerCable) }
-    var selectedMode        by remember { mutableStateOf(saved.mode) }
+    // ── Persisted defaults (loaded from JustLiftStore) ──
+    val saved = remember { JustLiftStore.getJustLiftDefaults() }
+    var weightKgPerCable    by remember { mutableStateOf(saved.weightPerCableKg) }
+    var selectedMode        by remember { mutableStateOf(saved.workoutModeId) }
     var showModeMenu        by remember { mutableStateOf(false) }
-    var progressionKg       by remember { mutableStateOf(saved.progressionKg) }
+    var progressionKg       by remember { mutableStateOf(saved.weightChangePerRep) }
     var showProgressionMenu by remember { mutableStateOf(false) }
     var restSeconds         by remember { mutableStateOf(saved.restSeconds) }
     var showRestMenu        by remember { mutableStateOf(false) }
     var soundEnabled        by remember { mutableStateOf(saved.soundEnabled) }
     var mirrorEnabled       by remember { mutableStateOf(saved.mirrorEnabled) }
     var isBeastMode         by remember { mutableStateOf(saved.isBeastMode) }
+    var stallDetection      by remember { mutableStateOf(saved.stallDetectionEnabled) }
+    var repCountTiming      by remember { mutableStateOf(saved.repCountTimingName) }
+    var showTimingMenu      by remember { mutableStateOf(false) }
 
     // ── Echo-specific state ──
-    var eccentricPct        by remember { mutableIntStateOf(saved.eccentricPct) }
+    var eccentricPct        by remember { mutableIntStateOf(saved.eccentricLoadPercentage) }
     var showEccentricMenu   by remember { mutableStateOf(false) }
-    var echoLevel           by remember { mutableStateOf(saved.echoLevel) }
+    var echoLevel           by remember { mutableStateOf(saved.echoLevelValue) }
     var showLevelMenu       by remember { mutableStateOf(false) }
     var showInfoDialog      by remember { mutableStateOf(false) }
 
@@ -123,6 +126,27 @@ fun JustLiftDialog(
     LaunchedEffect(isBeastMode) { router.applyBeastMode(isBeastMode) }
     LaunchedEffect(eccentricPct) { router.applyEccentricPct(eccentricPct) }
     LaunchedEffect(echoLevel) { router.applyEchoLevel(echoLevel) }
+    LaunchedEffect(stallDetection) { router.applyStallDetection(stallDetection) }
+    LaunchedEffect(repCountTiming) { router.applyRepCountTiming(repCountTiming) }
+
+    // ── Explicit save-all snapshot (called on dismiss + connect) ──
+    val saveSnapshot: () -> Unit = {
+        JustLiftStore.saveJustLiftDefaults(
+            JustLiftStore.JustLiftDefaults(
+                weightPerCableKg       = weightKgPerCable,
+                workoutModeId          = selectedMode,
+                weightChangePerRep     = progressionKg,
+                restSeconds            = restSeconds,
+                soundEnabled           = soundEnabled,
+                mirrorEnabled          = mirrorEnabled,
+                isBeastMode            = isBeastMode,
+                eccentricLoadPercentage = eccentricPct,
+                echoLevelValue         = echoLevel,
+                stallDetectionEnabled  = stallDetection,
+                repCountTimingName     = repCountTiming,
+            )
+        )
+    }
 
     val isEcho = selectedMode == JustLiftMode.Echo
     val cs = MaterialTheme.colorScheme
@@ -150,7 +174,7 @@ fun JustLiftDialog(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
-                    TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterStart)) {
+                    TextButton(onClick = { saveSnapshot(); onDismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
                         Text("Done", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                     }
                     Text(
@@ -471,6 +495,41 @@ fun JustLiftDialog(
                         },
                         onClick = null
                     )
+                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = cs.outlineVariant)
+                    SettingsRow(
+                        icon = Icons.Default.Speed, label = "Stall Detection",
+                        valueContent = {
+                            Switch(
+                                checked = stallDetection, onCheckedChange = { stallDetection = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = cs.onPrimary, checkedTrackColor = cs.primary,
+                                    uncheckedThumbColor = cs.onSurface, uncheckedTrackColor = cs.outline
+                                )
+                            )
+                        },
+                        onClick = null
+                    )
+                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = cs.outlineVariant)
+                    SettingsRow(
+                        icon = Icons.Default.Timer, label = "Rep Timing",
+                        valueContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    repCountTiming.replaceFirstChar { it.uppercase() },
+                                    color = cs.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                            }
+                        },
+                        onClick = { showTimingMenu = true }
+                    )
+                    if (showTimingMenu) RepTimingPickerDialog(
+                        current = repCountTiming,
+                        onSelect = { v -> repCountTiming = v; showTimingMenu = false },
+                        onDismiss = { showTimingMenu = false }
+                    )
                 }
 
                 Spacer(Modifier.height(24.dp))
@@ -483,6 +542,7 @@ fun JustLiftDialog(
                         .clip(RoundedCornerShape(50))
                         .background(cs.secondary)
                         .clickable {
+                            saveSnapshot()
                             router.connect()
                             onDismiss()
                         }
@@ -708,6 +768,41 @@ private fun RestPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: (
                         if (s == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(20.dp))
                     }
                     if (s != options.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────
+// Rep-count timing picker dialog
+// ─────────────────────────────────────────────
+@Composable
+private fun RepTimingPickerDialog(current: String, onSelect: (String) -> Unit, onDismiss: () -> Unit) {
+    val cs = MaterialTheme.colorScheme
+    val options = listOf("machine", "concentric", "eccentric")
+    val labels  = listOf("Machine (default)", "Concentric (up)", "Eccentric (down)")
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(modifier = Modifier
+                .fillMaxWidth(0.88f)
+                .background(cs.surface, RoundedCornerShape(16.dp))
+                .padding(vertical = 8.dp)
+            ) {
+                Text("Rep Count Timing", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
+                options.forEachIndexed { idx, opt ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(opt) }
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(labels[idx], color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
+                        if (opt == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(20.dp))
+                    }
+                    if (idx < options.lastIndex) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
                 }
             }
         }

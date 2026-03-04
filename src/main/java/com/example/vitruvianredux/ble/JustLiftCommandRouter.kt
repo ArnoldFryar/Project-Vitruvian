@@ -4,13 +4,13 @@ import android.util.Log
 import com.example.vitruvianredux.ble.protocol.EchoLevel
 import com.example.vitruvianredux.ble.protocol.ProgramMode
 import com.example.vitruvianredux.data.JustLiftStore
-import com.example.vitruvianredux.data.JustLiftStore.JustLiftControls
+import com.example.vitruvianredux.data.JustLiftStore.JustLiftDefaults
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.screen.JustLiftMode
 import kotlin.math.roundToInt
 
 /**
- * Translates [JustLiftControls] changes into calls to the
+ * Translates [JustLiftDefaults] changes into calls to the
  * **existing high-level** [WorkoutSessionViewModel] API that programmed
  * workouts already use.
  *
@@ -48,7 +48,7 @@ class JustLiftCommandRouter(
      */
     fun applyMode(mode: JustLiftMode) {
         Log.d(TAG, "applyMode → $mode (connected=$isConnected)")
-        updateStore { it.copy(mode = mode) }
+        updateStore { it.copy(workoutModeId = mode) }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ class JustLiftCommandRouter(
      */
     fun applyWeightPerCableKg(kg: Float) {
         Log.d(TAG, "applyWeightPerCableKg → $kg (connected=$isConnected)")
-        updateStore { it.copy(weightKgPerCable = kg) }
+        updateStore { it.copy(weightPerCableKg = kg) }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ class JustLiftCommandRouter(
      */
     fun applyProgressionKgPerRep(deltaKg: Float) {
         Log.d(TAG, "applyProgressionKgPerRep → $deltaKg")
-        updateStore { it.copy(progressionKg = deltaKg) }
+        updateStore { it.copy(weightChangePerRep = deltaKg) }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -124,12 +124,12 @@ class JustLiftCommandRouter(
 
     fun applyEccentricPct(pct: Int) {
         Log.d(TAG, "applyEccentricPct → $pct")
-        updateStore { it.copy(eccentricPct = pct) }
+        updateStore { it.copy(eccentricLoadPercentage = pct) }
     }
 
     fun applyEchoLevel(level: EchoLevel) {
         Log.d(TAG, "applyEchoLevel → $level")
-        updateStore { it.copy(echoLevel = level) }
+        updateStore { it.copy(echoLevelValue = level) }
     }
 
     fun applyBeastMode(enabled: Boolean) {
@@ -138,12 +138,39 @@ class JustLiftCommandRouter(
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Stall Detection  (persisted — future engine integration)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Toggle stall detection.  Persisted for future engine use.
+     * The rep detector / engine are NOT modified — this is preference-only.
+     */
+    fun applyStallDetection(enabled: Boolean) {
+        Log.d(TAG, "applyStallDetection → $enabled")
+        updateStore { it.copy(stallDetectionEnabled = enabled) }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Rep Count Timing  (persisted — future engine integration)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Set the rep-counting timing strategy name.
+     * Persisted for future engine use.
+     * The rep detector / engine are NOT modified — this is preference-only.
+     */
+    fun applyRepCountTiming(timingName: String) {
+        Log.d(TAG, "applyRepCountTiming → $timingName")
+        updateStore { it.copy(repCountTimingName = timingName) }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Connect — flush staged controls into a real startPlayerSet call
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * Build [WorkoutSessionViewModel.startPlayerSet] arguments from the
-     * current persisted [JustLiftControls] and kick off the player flow.
+     * current persisted [JustLiftDefaults] and kick off the player flow.
      *
      * This is the single boundary between "what the user configured" and
      * "what the machine receives".  All BLE bytes are produced by the
@@ -164,7 +191,7 @@ class JustLiftCommandRouter(
             videos = emptyList(),
         )
 
-        val isEcho = c.mode == JustLiftMode.Echo
+        val isEcho = c.workoutModeId == JustLiftMode.Echo
 
         if (isEcho) {
             workoutVM.startPlayerSet(
@@ -175,13 +202,13 @@ class JustLiftCommandRouter(
                 weightPerCableLb      = 0,                              // Echo is adaptive
                 programMode           = ProgramMode.Echo.displayName,
                 progressionRegressionLb = 0,
-                echoLevel             = c.echoLevel,
-                eccentricLoadPct      = c.eccentricPct,
+                echoLevel             = c.echoLevelValue,
+                eccentricLoadPct      = c.eccentricLoadPercentage,
                 isJustLift            = true,
                 restAfterSec          = c.restSeconds,
             )
         } else {
-            val mode: ProgramMode = when (c.mode) {
+            val mode: ProgramMode = when (c.workoutModeId) {
                 JustLiftMode.OldSchool -> ProgramMode.OldSchool
                 JustLiftMode.Pump      -> ProgramMode.Pump
                 JustLiftMode.TUT       -> if (c.isBeastMode) ProgramMode.TUTBeast else ProgramMode.TUT
@@ -192,11 +219,11 @@ class JustLiftCommandRouter(
                 targetReps            = null,
                 targetDurationSec     = null,
                 warmupReps            = 0,
-                weightPerCableLb      = kgToLb(c.weightKgPerCable),
+                weightPerCableLb      = kgToLb(c.weightPerCableKg),
                 programMode           = mode.displayName,
-                progressionRegressionLb = kgToLb(c.progressionKg),
-                echoLevel             = c.echoLevel,
-                eccentricLoadPct      = c.eccentricPct,
+                progressionRegressionLb = kgToLb(c.weightChangePerRep),
+                echoLevel             = c.echoLevelValue,
+                eccentricLoadPct      = c.eccentricLoadPercentage,
                 isJustLift            = true,
                 restAfterSec          = c.restSeconds,
             )
@@ -213,8 +240,8 @@ class JustLiftCommandRouter(
     // ─────────────────────────────────────────────────────────────────────────
 
     /** Atomically read-modify-write the persisted controls. */
-    private inline fun updateStore(transform: (JustLiftControls) -> JustLiftControls) {
-        JustLiftStore.save(transform(JustLiftStore.current()))
+    private inline fun updateStore(transform: (JustLiftDefaults) -> JustLiftDefaults) {
+        JustLiftStore.saveJustLiftDefaults(transform(JustLiftStore.getJustLiftDefaults()))
     }
 
     private fun kgToLb(kg: Float): Int = (kg * 2.20462f).roundToInt()
