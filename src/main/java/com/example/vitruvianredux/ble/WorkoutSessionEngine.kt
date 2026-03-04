@@ -12,6 +12,7 @@ import com.example.vitruvianredux.ble.session.IBleTrainerAdapter
 import com.example.vitruvianredux.ble.session.MachineRepDetector
 import com.example.vitruvianredux.ble.session.RepCountPolicy
 import com.example.vitruvianredux.ble.session.RepNotification
+import com.example.vitruvianredux.ble.session.StallDetector
 import com.example.vitruvianredux.ble.session.VolumeAccumulator
 import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.NextStep
@@ -173,6 +174,15 @@ class WorkoutSessionEngine(
      * Configured per-set from [PlayerSetParams.repCountTiming] in [confirmReady].
      */
     private var repCountPolicy = RepCountPolicy(com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM)
+    /**
+     * Stall detector — monitors cable position for inactivity.
+     * When [PlayerSetParams.stallDetectionEnabled] is true and the user stops
+     * moving during the WORKING phase, triggers auto-complete after 5 s.
+     * Configured per-set in [confirmReady]; fed from the monitor polling loop.
+     */
+    private val stallDetector = StallDetector()
+    /** Cached per-set flag — avoids repeated lookups into [EngineState.setDef]. */
+    @Volatile private var stallDetectionEnabled = false
     /** Monotonic guard: highest totalReps dispatched within the current set. */
     private var lastDispatchedRepCount = 0
     /**
@@ -238,6 +248,35 @@ class WorkoutSessionEngine(
                                     rightCable = sample.right,
                                     lastTelemetryTimestamp = System.currentTimeMillis(),
                                 )
+                            }
+
+                            // ── Stall detection ──────────────────────────────
+                            // Feed averaged cable position to the detector,
+                            // then check for stall during active WORKING phase.
+                            if (stallDetectionEnabled && !stallDetector.stallFired) {
+                                val avgPos = (sample.left.position + sample.right.position) / 2f
+                                stallDetector.onSample(avgPos, System.currentTimeMillis())
+
+                                if (stallDetector.isStalled && engineState.phase == SetPhase.WORKING) {
+                                    val phase = _state.value.sessionPhase
+                                    if (phase is SessionPhase.ExerciseActive) {
+                                        Log.i(TAG, "STALL_DETECTED  elapsed=${stallDetector.stallElapsedMs}ms" +
+                                            "  reps=${engineState.workingRepsCompleted}" +
+                                            "  → auto-completing set")
+                                        // Use the same eccentric-finish gate path as target-reached:
+                                        // if stopAtTop → immediate complete, else wait for eccentric.
+                                        if (stopAtTop || awaitingEccentricFinish) {
+                                            // Already waiting or immediate mode — just complete.
+                                            awaitingEccentricFinish = false
+                                            eccentricTimeoutJob?.cancel()
+                                            completeCurrentPlayerSet()
+                                        } else {
+                                            // Fire STOP and complete — stall means user is stationary,
+                                            // so there's no in-flight eccentric to wait for.
+                                            completeCurrentPlayerSet()
+                                        }
+                                    }
+                                }
                             }
                         }
                         if (successCount == 1L || successCount % 500 == 0L) {
@@ -599,6 +638,8 @@ class WorkoutSessionEngine(
         engineState = EngineState()
         repDetector.reset()
         repCountPolicy.reset()
+        stallDetector.reset()
+        stallDetectionEnabled = false
         setVolumeAccumulator = VolumeAccumulator.ZERO
         workoutStartTimeMs = System.currentTimeMillis()
 
@@ -786,6 +827,8 @@ class WorkoutSessionEngine(
         engineState = EngineState()
         repDetector.reset()
         repCountPolicy.reset()
+        stallDetector.reset()
+        stallDetectionEnabled = false
         lastDispatchedRepCount = 0
         setVolumeAccumulator = VolumeAccumulator.ZERO
         justLiftArmed = false
@@ -868,6 +911,8 @@ class WorkoutSessionEngine(
             workingTarget = set.targetReps ?: 0,
         )
         repCountPolicy = RepCountPolicy(set.repCountTiming)
+        stallDetector.reset()
+        stallDetectionEnabled = set.stallDetectionEnabled
         lastDispatchedRepCount = 0
 
         _state.value = _state.value.copy(
