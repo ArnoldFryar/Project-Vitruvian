@@ -90,6 +90,7 @@ fun ExercisePlayerScreen(
     var echoLevel      by remember { mutableStateOf(com.example.vitruvianredux.ble.protocol.EchoLevel.HARD) }  // enum, keep as remember
     var eccentricPct   by rememberSaveable { mutableIntStateOf(75) }
     var stopAtTop      by rememberSaveable { mutableStateOf(false) }
+    var autoPlay       by rememberSaveable { mutableStateOf(workoutVM.autoPlay) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -251,11 +252,13 @@ fun ExercisePlayerScreen(
                             warmupReps        = warmupReps,
                             resistanceLb      = resistanceLb,
                             isRepsMode        = isRepsMode,
+                            autoPlay          = autoPlay,
                             onTargetRepsChange = { targetReps = it.coerceIn(1, 100) },
                             onTargetDurationChange = { targetDuration = it.coerceIn(5, 300) },
                             onWarmupRepsChange = { warmupReps = it.coerceIn(0, 20) },
                             onResistanceChange = { resistanceLb = it.coerceIn(1, 400) },
                             onToggleMode       = { isRepsMode = it },
+                            onAutoPlayChange   = { autoPlay = it; workoutVM.autoPlay = it },
                             onGo = {
                                 workoutVM.confirmReady(
                                     targetRepsOverride    = if (isRepsMode) targetReps else null,
@@ -401,6 +404,8 @@ private fun ActivePlayerContent(
     val activePhase   = phase as? SessionPhase.ExerciseActive
     val activeWarmup  = activePhase?.warmupReps ?: warmupReps
     val isWarmupPhase = isActive && sessionState.setPhase == SetPhase.WARMUP
+    val isDurationMode = isActive && activePhase?.targetDurationSec != null && activePhase.targetReps == null
+    val durationCountdown = sessionState.durationCountdownSec
     val displayReps   = when {
         isActive && !isWarmupPhase -> sessionState.workingRepsCompleted
         isActive                   -> sessionState.warmupRepsCompleted
@@ -408,6 +413,7 @@ private fun ActivePlayerContent(
     }
     val displayTarget = when {
         isWarmupPhase -> activeWarmup
+        isActive && isDurationMode -> null     // Duration mode shows timer instead
         isActive      -> activePhase?.targetReps
         isRepsMode    -> targetReps
         else          -> null
@@ -487,48 +493,103 @@ private fun ActivePlayerContent(
 
                             Spacer(Modifier.height(2.dp))
 
-                            // Rep number row: "Reps  X  of Y"
-                            Row(
-                                verticalAlignment = Alignment.Bottom,
-                                horizontalArrangement = Arrangement.Center,
-                            ) {
-                                Text(
-                                    text = "Reps",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 8.dp, end = 8.dp),
-                                )
-                                AnimatedContent(
-                                    targetState = displayReps,
-                                    transitionSpec = {
-                                        (fadeIn(tween(150)) + scaleIn(
-                                            tween(200),
-                                            initialScale = 0.85f,
-                                        ) togetherWith fadeOut(tween(100)))
-                                            .using(SizeTransform(clip = false))
-                                    },
-                                    label = "rep-counter",
-                                ) { reps ->
+                            if (isDurationMode && durationCountdown != null) {
+                                // ── Duration countdown timer ──
+                                val mins = durationCountdown / 60
+                                val secs = durationCountdown % 60
+                                val timerText = if (mins > 0) "%d:%02d".format(mins, secs) else "${secs}s"
+
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    horizontalArrangement = Arrangement.Center,
+                                ) {
                                     Text(
-                                        text       = "$reps",
-                                        style      = MaterialTheme.typography.headlineLarge,
-                                        fontWeight = FontWeight.Black,
-                                        color      = hudColor,
-                                        modifier   = Modifier.scale(repScale),
-                                    )
-                                }
-                                if (displayTarget != null) {
-                                    Text(
-                                        text = " of $displayTarget",
+                                        text = "Time",
                                         style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
+                                        modifier = Modifier.padding(bottom = 8.dp, end = 8.dp),
                                     )
+                                    AnimatedContent(
+                                        targetState = timerText,
+                                        transitionSpec = {
+                                            (fadeIn(tween(150)) + scaleIn(
+                                                tween(200),
+                                                initialScale = 0.85f,
+                                            ) togetherWith fadeOut(tween(100)))
+                                                .using(SizeTransform(clip = false))
+                                        },
+                                        label = "duration-counter",
+                                    ) { time ->
+                                        Text(
+                                            text       = time,
+                                            style      = MaterialTheme.typography.headlineLarge,
+                                            fontWeight = FontWeight.Black,
+                                            color      = hudColor,
+                                            modifier   = Modifier.scale(repScale),
+                                        )
+                                    }
+                                }
+                            } else {
+                                // ── Rep number row: "Reps  X  of Y" ──
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    horizontalArrangement = Arrangement.Center,
+                                ) {
+                                    Text(
+                                        text = "Reps",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = 8.dp, end = 8.dp),
+                                    )
+                                    AnimatedContent(
+                                        targetState = displayReps,
+                                        transitionSpec = {
+                                            (fadeIn(tween(150)) + scaleIn(
+                                                tween(200),
+                                                initialScale = 0.85f,
+                                            ) togetherWith fadeOut(tween(100)))
+                                                .using(SizeTransform(clip = false))
+                                        },
+                                        label = "rep-counter",
+                                    ) { reps ->
+                                        Text(
+                                            text       = "$reps",
+                                            style      = MaterialTheme.typography.headlineLarge,
+                                            fontWeight = FontWeight.Black,
+                                            color      = hudColor,
+                                            modifier   = Modifier.scale(repScale),
+                                        )
+                                    }
+                                    if (displayTarget != null) {
+                                        Text(
+                                            text = " of $displayTarget",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
+                                        )
+                                    }
                                 }
                             }
 
                             // Progress bar
-                            if (isActive && displayTarget != null && displayTarget > 0) {
+                            if (isDurationMode && durationCountdown != null) {
+                                val totalDuration = activePhase?.targetDurationSec ?: 1
+                                Spacer(Modifier.height(4.dp))
+                                val progress by animateFloatAsState(
+                                    targetValue = (1f - durationCountdown.toFloat() / totalDuration).coerceIn(0f, 1f),
+                                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                                    label = "durationProgress",
+                                )
+                                LinearProgressIndicator(
+                                    progress = progress,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.7f)
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp)),
+                                    color = hudColor,
+                                    trackColor = hudColor.copy(alpha = 0.12f),
+                                )
+                            } else if (isActive && displayTarget != null && displayTarget > 0) {
                                 Spacer(Modifier.height(4.dp))
                                 val progress by animateFloatAsState(
                                     targetValue = (displayReps.toFloat() / displayTarget).coerceIn(0f, 1f),
@@ -1370,11 +1431,13 @@ private fun SetReadyContent(
     warmupReps: Int,
     resistanceLb: Int,
     isRepsMode: Boolean,
+    autoPlay: Boolean,
     onTargetRepsChange: (Int) -> Unit,
     onTargetDurationChange: (Int) -> Unit,
     onWarmupRepsChange: (Int) -> Unit,
     onResistanceChange: (Int) -> Unit,
     onToggleMode: (Boolean) -> Unit,
+    onAutoPlayChange: (Boolean) -> Unit,
     onGo: () -> Unit,
     onSkipSet: () -> Unit,
     onSkipExercise: () -> Unit,
@@ -1523,6 +1586,28 @@ private fun SetReadyContent(
         }
 
         Spacer(Modifier.height(16.dp))
+
+        // ── Autoplay toggle ──────────────────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Autoplay", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Skip this screen after rest",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = autoPlay, onCheckedChange = onAutoPlayChange)
+        }
+
+        Spacer(Modifier.height(8.dp))
 
         // ── Action buttons ───────────────────────────────────────────────
         Button(

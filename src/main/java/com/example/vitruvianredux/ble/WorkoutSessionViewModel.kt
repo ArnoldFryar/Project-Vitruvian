@@ -41,6 +41,15 @@ class WorkoutSessionViewModel(
         get() = engine.stopAtTop
         set(value) { engine.stopAtTop = value }
 
+    /**
+     * When true (default), the engine auto-starts the next set after rest,
+     * skipping the SetReady adjustment screen.  When false, the user must
+     * tap "Go" before each set.
+     */
+    var autoPlay: Boolean
+        get() = engine.autoPlay
+        set(value) { engine.autoPlay = value }
+
     /** True when the BLE client is fully ready (connected + writeChar + notifications). */
     val bleIsReady: StateFlow<Boolean> = engine.bleClient.isReady
 

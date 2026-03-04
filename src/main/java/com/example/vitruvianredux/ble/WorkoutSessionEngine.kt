@@ -113,6 +113,8 @@ data class SessionState(
     val leftCable: CableSample? = null,
     /** Live right-cable telemetry (position/velocity/force). Null until first sample received. */
     val rightCable: CableSample? = null,
+    /** Duration countdown — seconds remaining for duration-mode exercises. Null for reps mode. */
+    val durationCountdownSec: Int? = null,
 )
 
 class WorkoutSessionEngine(
@@ -185,6 +187,13 @@ class WorkoutSessionEngine(
      * release at the concentric peak).
      */
     @Volatile var stopAtTop: Boolean = false
+
+    /**
+     * When true, the engine auto-starts the next set after rest ends,
+     * skipping the SetReady adjustment screen.  When false, the user
+     * must tap "Go" on the SetReady screen before each set begins.
+     */
+    @Volatile var autoPlay: Boolean = true
     /** True while waiting for the eccentric of the final rep to finish. */
     private var awaitingEccentricFinish = false
     /** The `up` counter value when the target was reached. */
@@ -843,15 +852,27 @@ class WorkoutSessionEngine(
             "  warmupTarget=${engineState.warmupTarget}  workingTarget=${engineState.workingTarget}")
         executeEffects(setResult.effects.filterNot { it is SessionEffect.UiEmit })
 
-        // Duration-based auto-complete
+        // Send START command after ProgramParams — required for sets after STOP
+        // so the machine re-engages resistance.  Harmless on the first set.
+        bleAdapter.execute(BleCommand.Start, "START[set_$index]")
+
+        // Duration-based auto-complete with countdown
         if (set.targetDurationSec != null) {
+            _state.update { it.copy(durationCountdownSec = set.targetDurationSec) }
             playerJob = scope.launch {
-                delay(set.targetDurationSec * 1_000L)
+                var remaining = set.targetDurationSec
+                while (isActive && remaining > 0) {
+                    delay(1_000L)
+                    remaining--
+                    _state.update { it.copy(durationCountdownSec = remaining) }
+                }
                 if (isActive) {
                     Log.i(TAG, "Player: duration ${set.targetDurationSec}s elapsed -> completing set $index")
                     completeCurrentPlayerSet()
                 }
             }
+        } else {
+            _state.update { it.copy(durationCountdownSec = null) }
         }
     }
 
@@ -930,7 +951,14 @@ class WorkoutSessionEngine(
 
     private fun advanceAfterRest(next: NextStep) {
         when (next) {
-            is NextStep.NextSet   -> launchPlayerSet(next.setIndex)
+            is NextStep.NextSet -> {
+                launchPlayerSet(next.setIndex)
+                if (autoPlay) {
+                    // Skip the SetReady screen and start the set immediately
+                    Log.i(TAG, "advanceAfterRest: autoPlay ON → auto-confirming set ${next.setIndex}")
+                    confirmReady()
+                }
+            }
             is NextStep.WorkoutDone -> finishWorkout()
         }
     }
@@ -1054,9 +1082,9 @@ class WorkoutSessionEngine(
                         awaitingEccentricFinish = true
                         Log.i(TAG, "ECCENTRIC_GATE  waiting for down >= $upCounterAtTarget")
                         eccentricTimeoutJob = scope.launch {
-                            delay(4_000L)   // 4 s safety net — covers slow eccentrics
+                            delay(8_000L)   // 8 s safety net — covers slow eccentrics (e.g. hamstring curls)
                             if (awaitingEccentricFinish) {
-                                Log.w(TAG, "ECCENTRIC_TIMEOUT  completing set after 4 s")
+                                Log.w(TAG, "ECCENTRIC_TIMEOUT  completing set after 8 s")
                                 awaitingEccentricFinish = false
                                 completeCurrentPlayerSet()
                             }
