@@ -256,6 +256,14 @@ class WorkoutSessionViewModel(
     }
 
     fun dismiss() = engine.dismiss()
+    /**
+     * Arm the engine for a Just Lift quick-start session.
+     * Resets to Idle if not already, sets auto-start flags, enables handle detection.
+     * Call before [startPlayerSet] for Just Lift flow.
+     *
+     * @see WorkoutSessionEngine.prepareForJustLift
+     */
+    fun prepareForJustLift() = engine.prepareForJustLift()
 
     // ── Player-mode API ───────────────────────────────────────────────────────
 

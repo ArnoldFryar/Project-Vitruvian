@@ -525,6 +525,41 @@ class WorkoutSessionEngine(
     // ── Player-mode API ───────────────────────────────────────────────────────
 
     /**
+     * Arm the engine for a Just Lift quick-start session.
+     *
+     * Modeled after Phoenix `ActiveSessionEngine.prepareForJustLift()`:
+     * 1. If not Idle → reset to Idle (clean slate).
+     * 2. Set internal flags: `isJustLift = true`, `useAutoStart = true`.
+     * 3. Enable handle detection on the BLE adapter (no-op if unsupported).
+     * 4. Log "Just Lift ready".
+     *
+     * This does **not** send workout parameters or start a set.
+     * Call [startPlayerWorkout] afterwards to begin the actual set.
+     *
+     * @see resetAfterWorkout
+     */
+    fun prepareForJustLift() {
+        val phase = _state.value.sessionPhase
+        if (phase !is SessionPhase.Idle) {
+            Log.i(TAG, "prepareForJustLift: not Idle (phase=$phase) — resetting")
+            resetAfterWorkout()
+        }
+
+        // Arm flags — consumed by the next startPlayerWorkout / confirmReady.
+        justLiftArmed = true
+        autoPlay = true
+
+        // Enable handle detection (high-level intent; adapter decides the bytes).
+        bleAdapter.enableHandleDetection(true)
+
+        Log.i(TAG, "Just Lift ready")
+    }
+
+    /** True after [prepareForJustLift] until the next [resetAfterWorkout]. */
+    @Volatile var justLiftArmed: Boolean = false
+        private set
+
+    /**
      * Launch the full player experience for a list of sets.
      * Transitions through ExerciseActive → ExerciseComplete → Resting → ... → WorkoutComplete.
      */
@@ -741,6 +776,7 @@ class WorkoutSessionEngine(
         repDetector.reset()
         lastDispatchedRepCount = 0
         setVolumeAccumulator = VolumeAccumulator.ZERO
+        justLiftArmed = false
         _state.value = _state.value.copy(
             sessionPhase         = SessionPhase.Idle,
             repsCount            = 0,

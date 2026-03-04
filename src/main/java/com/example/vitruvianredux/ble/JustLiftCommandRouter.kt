@@ -181,6 +181,10 @@ class JustLiftCommandRouter(
             Log.w(TAG, "connect() called but BLE not ready — settings saved, will apply on next connect")
             return false
         }
+
+        // Arm the engine for Just Lift (reset if busy, set auto-start flags).
+        workoutVM.prepareForJustLift()
+
         val c = JustLiftStore.current()
         Log.d(TAG, "connect() with controls=$c")
 
