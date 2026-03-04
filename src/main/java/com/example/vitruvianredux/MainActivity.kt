@@ -7,6 +7,7 @@ import androidx.core.view.WindowCompat
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.data.JustLiftStore
 import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.TemplateRepository
@@ -26,6 +27,7 @@ class MainActivity : ComponentActivity() {
         HealthConnectStore.init(applicationContext)
         HealthConnectManager.init(applicationContext)
         LedColorStore.init(applicationContext)
+        JustLiftStore.init(applicationContext)
         SyncServiceLocator.init(applicationContext)
         // Backfill SessionRepository from AnalyticsStore so existing workouts are syncable
         SyncServiceLocator.exportToSessionRepo()

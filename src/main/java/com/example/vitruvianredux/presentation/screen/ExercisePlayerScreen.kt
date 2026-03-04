@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +53,7 @@ import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.components.CablePositionBar
+import com.example.vitruvianredux.data.JustLiftStore
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -85,12 +87,16 @@ fun ExercisePlayerScreen(
     var modeExpanded   by remember { mutableStateOf(false) }  // transient UI, fine to reset
     var showDebugPanel by remember { mutableStateOf(false) }  // transient UI, fine to reset
     var showEditUpcomingSets by remember { mutableStateOf(false) }  // transient UI
-    var isMuted        by rememberSaveable { mutableStateOf(false) }
+    var isMuted        by rememberSaveable { mutableStateOf(!workoutVM.soundEnabled.value) }
     var isFavourite    by rememberSaveable { mutableStateOf(false) }
     var echoLevel      by remember { mutableStateOf(com.example.vitruvianredux.ble.protocol.EchoLevel.HARD) }  // enum, keep as remember
     var eccentricPct   by rememberSaveable { mutableIntStateOf(75) }
     var stopAtTop      by rememberSaveable { mutableStateOf(false) }
     var autoPlay       by rememberSaveable { mutableStateOf(workoutVM.autoPlay) }
+
+    // Mirror state from JustLiftStore (flips video + swaps cable bar labels)
+    val justLiftState by JustLiftStore.state.collectAsState()
+    val mirrorEnabled = justLiftState.mirrorEnabled
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -166,7 +172,7 @@ fun ExercisePlayerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { isMuted = !isMuted; WiringRegistry.hit(A_PLAYER_MUTE); WiringRegistry.recordOutcome(A_PLAYER_MUTE, ActualOutcome.StateChanged(if (isMuted) "muted" else "unmuted")) }) {
+                    IconButton(onClick = { isMuted = !isMuted; workoutVM.soundEnabled.value = !isMuted; WiringRegistry.hit(A_PLAYER_MUTE); WiringRegistry.recordOutcome(A_PLAYER_MUTE, ActualOutcome.StateChanged(if (isMuted) "muted" else "unmuted")) }) {
                         Icon(if (isMuted) Icons.Default.VolumeOff else Icons.Outlined.VolumeUp, contentDescription = if (isMuted) "Unmute" else "Mute")
                     }
                     IconButton(onClick = { isFavourite = !isFavourite; WiringRegistry.hit(A_PLAYER_FAVOURITE); WiringRegistry.recordOutcome(A_PLAYER_FAVOURITE, ActualOutcome.StateChanged(if (isFavourite) "favourited" else "unfavourited")) }) {
@@ -281,6 +287,7 @@ fun ExercisePlayerScreen(
                         sessionState          = sessionState,
                         isReady               = isReady,
                         bleState              = sessionState.connectionState,
+                        mirrorEnabled         = mirrorEnabled,
                         selectedTab           = selectedTab,
                         onTabSelected         = { selectedTab = it },
                         isRepsMode            = isRepsMode,
@@ -363,6 +370,7 @@ private fun ActivePlayerContent(
     sessionState: com.example.vitruvianredux.ble.SessionState,
     isReady: Boolean,
     bleState: com.example.vitruvianredux.ble.BleConnectionState,
+    mirrorEnabled: Boolean = false,
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
     isRepsMode: Boolean,
@@ -999,7 +1007,11 @@ private fun ActivePlayerContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
+                            .weight(1f)
+                            .then(
+                                if (mirrorEnabled) Modifier.graphicsLayer(scaleX = -1f)
+                                else Modifier
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         val videoUrl     = exercise?.videoUrl ?: (phase as? SessionPhase.ExerciseActive)?.videoUrl
@@ -1101,10 +1113,13 @@ private fun ActivePlayerContent(
         }
 
         // ── Cable position bar overlays (pinned to edges, above sheet) ────
-        if (isActive && sessionState.leftCable != null) {
+        // When mirror is active, swap the cable data so L bar shows R cable and vice-versa.
+        val leftCable  = if (mirrorEnabled) sessionState.rightCable else sessionState.leftCable
+        val rightCable = if (mirrorEnabled) sessionState.leftCable  else sessionState.rightCable
+        if (isActive && leftCable != null) {
             CablePositionBar(
-                label = "L",
-                cable = sessionState.leftCable,
+                label = if (mirrorEnabled) "R" else "L",
+                cable = leftCable,
                 setKey = sessionState.workingRepsCompleted,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
@@ -1113,10 +1128,10 @@ private fun ActivePlayerContent(
                     .padding(start = 6.dp),
             )
         }
-        if (isActive && sessionState.rightCable != null) {
+        if (isActive && rightCable != null) {
             CablePositionBar(
-                label = "R",
-                cable = sessionState.rightCable,
+                label = if (mirrorEnabled) "L" else "R",
+                cable = rightCable,
                 setKey = sessionState.workingRepsCompleted,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)

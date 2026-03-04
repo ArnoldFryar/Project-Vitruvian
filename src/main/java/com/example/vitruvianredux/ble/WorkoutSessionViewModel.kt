@@ -50,6 +50,9 @@ class WorkoutSessionViewModel(
         get() = engine.autoPlay
         set(value) { engine.autoPlay = value }
 
+    /** When false, TTS rep/rest announcements are silenced. */
+    val soundEnabled = MutableStateFlow(true)
+
     /** True when the BLE client is fully ready (connected + writeChar + notifications). */
     val bleIsReady: StateFlow<Boolean> = engine.bleClient.isReady
 
@@ -148,13 +151,13 @@ class WorkoutSessionViewModel(
     }
 
     private fun speakRep(rep: Int) {
-        if (isTtsInitialized) {
+        if (isTtsInitialized && soundEnabled.value) {
             tts?.speak(rep.toString(), TextToSpeech.QUEUE_FLUSH, null, "rep_$rep")
         }
     }
 
     private fun speakCountdown(seconds: Int) {
-        if (isTtsInitialized) {
+        if (isTtsInitialized && soundEnabled.value) {
             tts?.speak(seconds.toString(), TextToSpeech.QUEUE_FLUSH, null, "rest_$seconds")
         }
     }
@@ -271,6 +274,7 @@ class WorkoutSessionViewModel(
         echoLevel: com.example.vitruvianredux.ble.protocol.EchoLevel = com.example.vitruvianredux.ble.protocol.EchoLevel.HARD,
         eccentricLoadPct: Int = 75,
         isJustLift: Boolean = false,
+        restAfterSec: Int = 0,
     ) {
         _playerExercise.value = exercise
         val sets = listOf(
@@ -281,7 +285,7 @@ class WorkoutSessionViewModel(
                 targetReps        = targetReps,
                 targetDurationSec = targetDurationSec,
                 weightPerCableLb  = weightPerCableLb,
-                restAfterSec      = 0,
+                restAfterSec      = restAfterSec,
                 warmupReps        = warmupReps,
                 programMode       = programMode,
                 progressionRegressionLb = progressionRegressionLb,

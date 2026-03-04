@@ -22,13 +22,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.vitruvianredux.ble.JustLiftCommandRouter
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.protocol.EchoLevel
-import com.example.vitruvianredux.ble.protocol.ProgramMode
-import com.example.vitruvianredux.ble.protocol.WorkoutParameters
+import com.example.vitruvianredux.data.JustLiftStore
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import com.example.vitruvianredux.presentation.ui.theme.WarningContainer
 import com.example.vitruvianredux.presentation.ui.theme.WarningOnContainer
-import kotlin.math.roundToInt
 
 enum class JustLiftMode(val label: String) {
     OldSchool("Old School"),
@@ -77,23 +79,50 @@ fun JustLiftDialog(
     workoutVM: WorkoutSessionViewModel,
     onDismiss: () -> Unit,
 ) {
-    var weightKgPerCable    by remember { mutableStateOf(10.0f) }
-    var selectedMode        by remember { mutableStateOf(JustLiftMode.OldSchool) }
+    // ── Router (translates controls → existing VM actions) ──
+    val router = remember { JustLiftCommandRouter(workoutVM) }
+
+    // ── Persisted controls (loaded from JustLiftStore) ──
+    val saved = remember { JustLiftStore.current() }
+    var weightKgPerCable    by remember { mutableStateOf(saved.weightKgPerCable) }
+    var selectedMode        by remember { mutableStateOf(saved.mode) }
     var showModeMenu        by remember { mutableStateOf(false) }
-    var progressionKg       by remember { mutableStateOf(0.0f) }
+    var progressionKg       by remember { mutableStateOf(saved.progressionKg) }
     var showProgressionMenu by remember { mutableStateOf(false) }
-    var restSeconds         by remember { mutableStateOf(0) }
+    var restSeconds         by remember { mutableStateOf(saved.restSeconds) }
     var showRestMenu        by remember { mutableStateOf(false) }
-    var soundEnabled        by remember { mutableStateOf(true) }
-    var mirrorEnabled       by remember { mutableStateOf(true) }
-    var isBeastMode         by remember { mutableStateOf(false) }
+    var soundEnabled        by remember { mutableStateOf(saved.soundEnabled) }
+    var mirrorEnabled       by remember { mutableStateOf(saved.mirrorEnabled) }
+    var isBeastMode         by remember { mutableStateOf(saved.isBeastMode) }
 
     // ── Echo-specific state ──
-    var eccentricPct        by remember { mutableIntStateOf(100) }
+    var eccentricPct        by remember { mutableIntStateOf(saved.eccentricPct) }
     var showEccentricMenu   by remember { mutableStateOf(false) }
-    var echoLevel           by remember { mutableStateOf(EchoLevel.HARD) }
+    var echoLevel           by remember { mutableStateOf(saved.echoLevel) }
     var showLevelMenu       by remember { mutableStateOf(false) }
     var showInfoDialog      by remember { mutableStateOf(false) }
+
+    // ── BLE connection state ──
+    val bleConnected by workoutVM.bleIsReady.collectAsState()
+
+    // Route every change through the command router.
+    // Weight is debounced (200ms) for rapid knob twiddling; mode is immediate.
+    // All changes persist to JustLiftStore regardless of connection state.
+    // BLE-bound parameters are only meaningful once connected + Connect tapped.
+    @OptIn(FlowPreview::class)
+    LaunchedEffect(Unit) {
+        snapshotFlow { weightKgPerCable }
+            .debounce(200L)
+            .collectLatest { kg -> router.applyWeightPerCableKg(kg) }
+    }
+    LaunchedEffect(selectedMode) { router.applyMode(selectedMode) }
+    LaunchedEffect(progressionKg) { router.applyProgressionKgPerRep(progressionKg) }
+    LaunchedEffect(restSeconds) { router.applyRestSeconds(restSeconds) }
+    LaunchedEffect(soundEnabled) { router.applySound(soundEnabled) }
+    LaunchedEffect(mirrorEnabled) { router.applyMirror(mirrorEnabled) }
+    LaunchedEffect(isBeastMode) { router.applyBeastMode(isBeastMode) }
+    LaunchedEffect(eccentricPct) { router.applyEccentricPct(eccentricPct) }
+    LaunchedEffect(echoLevel) { router.applyEchoLevel(echoLevel) }
 
     val isEcho = selectedMode == JustLiftMode.Echo
     val cs = MaterialTheme.colorScheme
@@ -257,6 +286,18 @@ fun JustLiftDialog(
                     }
                 }
 
+                // ── Connection status hint (weight section) ──
+                if (!bleConnected) {
+                    Text(
+                        "Applies when connected",
+                        color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .padding(top = 4.dp),
+                    )
+                }
+
                 Spacer(Modifier.height(14.dp))
 
                 // ── Mode + Echo settings OR Mode + Progression block ──
@@ -366,6 +407,18 @@ fun JustLiftDialog(
                     }
                 }
 
+                // ── Connection status hint (mode section) ──
+                if (!bleConnected) {
+                    Text(
+                        "Applies when connected",
+                        color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .padding(top = 4.dp),
+                    )
+                }
+
                 Spacer(Modifier.height(14.dp))
 
                 // ── Rest / Sound / Mirror block ──
@@ -430,45 +483,7 @@ fun JustLiftDialog(
                         .clip(RoundedCornerShape(50))
                         .background(cs.secondary)
                         .clickable {
-                            val justLiftExercise = com.example.vitruvianredux.model.Exercise(
-                                id = "just_lift",
-                                name = "Just Lift",
-                                muscleGroups = emptyList(),
-                                videos = emptyList()
-                            )
-                            if (isEcho) {
-                                workoutVM.startPlayerSet(
-                                    exercise = justLiftExercise,
-                                    targetReps = null,
-                                    targetDurationSec = null,
-                                    warmupReps = 0,
-                                    weightPerCableLb = 0,
-                                    programMode = ProgramMode.Echo.displayName,
-                                    progressionRegressionLb = 0,
-                                    echoLevel = echoLevel,
-                                    eccentricLoadPct = eccentricPct,
-                                    isJustLift = true,
-                                )
-                            } else {
-                                val mode = when (selectedMode) {
-                                    JustLiftMode.OldSchool -> ProgramMode.OldSchool
-                                    JustLiftMode.Pump      -> ProgramMode.Pump
-                                    JustLiftMode.TUT       -> if (isBeastMode) ProgramMode.TUTBeast else ProgramMode.TUT
-                                    JustLiftMode.Echo      -> ProgramMode.Echo
-                                }
-                                workoutVM.startPlayerSet(
-                                    exercise = justLiftExercise,
-                                    targetReps = null,
-                                    targetDurationSec = null,
-                                    warmupReps = 0,
-                                    weightPerCableLb = (weightKgPerCable * 2.20462).roundToInt(),
-                                    programMode = mode.displayName,
-                                    progressionRegressionLb = (progressionKg * 2.20462).roundToInt(),
-                                    echoLevel = echoLevel,
-                                    eccentricLoadPct = eccentricPct,
-                                    isJustLift = true,
-                                )
-                            }
+                            router.connect()
                             onDismiss()
                         }
                         .padding(vertical = 18.dp),
