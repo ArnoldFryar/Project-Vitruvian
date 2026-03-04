@@ -10,6 +10,7 @@ import com.example.vitruvianredux.ble.session.BleCommand
 import com.example.vitruvianredux.ble.session.EngineState
 import com.example.vitruvianredux.ble.session.IBleTrainerAdapter
 import com.example.vitruvianredux.ble.session.MachineRepDetector
+import com.example.vitruvianredux.ble.session.RepCountPolicy
 import com.example.vitruvianredux.ble.session.RepNotification
 import com.example.vitruvianredux.ble.session.VolumeAccumulator
 import com.example.vitruvianredux.ble.session.ExerciseStats
@@ -166,6 +167,12 @@ class WorkoutSessionEngine(
      * original Vitruvian app.
      */
     private val repDetector: MachineRepDetector = MachineRepDetector()
+    /**
+     * Display-timing policy — interprets detector events to decide
+     * when a working rep becomes visible in the UI / TTS.
+     * Configured per-set from [PlayerSetParams.repCountTiming] in [confirmReady].
+     */
+    private var repCountPolicy = RepCountPolicy(com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM)
     /** Monotonic guard: highest totalReps dispatched within the current set. */
     private var lastDispatchedRepCount = 0
     /**
@@ -306,6 +313,9 @@ class WorkoutSessionEngine(
                     // Feed the parsed notification into the detector.
                     val detectorEvents = repDetector.process(notification)
 
+                    // Feed detector events into the timing policy layer.
+                    repCountPolicy.processEvents(detectorEvents)
+
                     // Track up counter for eccentric-finish gate
                     lastNotificationUp = notification.up
 
@@ -368,7 +378,7 @@ class WorkoutSessionEngine(
                                 lastTelemetryTimestamp = now,
                                 setPhase             = engineState.phase,
                                 warmupRepsCompleted  = engineState.warmupRepsCompleted,
-                                workingRepsCompleted = engineState.workingRepsCompleted,
+                                workingRepsCompleted = repCountPolicy.displayWorkingReps,
                             )
                         }
                         Log.d(TAG, "UI_STATE -> phase=${engineState.phase}" +
@@ -588,6 +598,7 @@ class WorkoutSessionEngine(
         completedStats.clear()
         engineState = EngineState()
         repDetector.reset()
+        repCountPolicy.reset()
         setVolumeAccumulator = VolumeAccumulator.ZERO
         workoutStartTimeMs = System.currentTimeMillis()
 
@@ -774,6 +785,7 @@ class WorkoutSessionEngine(
         completedStats.clear()
         engineState = EngineState()
         repDetector.reset()
+        repCountPolicy.reset()
         lastDispatchedRepCount = 0
         setVolumeAccumulator = VolumeAccumulator.ZERO
         justLiftArmed = false
@@ -855,6 +867,7 @@ class WorkoutSessionEngine(
             warmupTarget  = set.warmupReps,
             workingTarget = set.targetReps ?: 0,
         )
+        repCountPolicy = RepCountPolicy(set.repCountTiming)
         lastDispatchedRepCount = 0
 
         _state.value = _state.value.copy(
