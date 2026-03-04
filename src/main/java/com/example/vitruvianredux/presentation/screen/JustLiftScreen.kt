@@ -80,7 +80,8 @@ fun JustLiftDialog(
     onDismiss: () -> Unit,
 ) {
     // ── Router (translates controls → existing VM actions) ──
-    val router = remember { JustLiftCommandRouter(workoutVM) }
+    val routerScope = rememberCoroutineScope()
+    val router = remember { JustLiftCommandRouter(workoutVM, routerScope) }
 
     // ── Persisted defaults (loaded from JustLiftStore) ──
     val saved = remember { JustLiftStore.getJustLiftDefaults() }
@@ -780,8 +781,8 @@ private fun RestPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: (
 @Composable
 private fun RepTimingPickerDialog(current: String, onSelect: (String) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val options = listOf("machine", "concentric", "eccentric")
-    val labels  = listOf("Machine (default)", "Concentric (up)", "Eccentric (down)")
+    val options = listOf("TOP", "BOTTOM")
+    val labels  = listOf("Top (concentric peak)", "Bottom (after eccentric)")
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(modifier = Modifier

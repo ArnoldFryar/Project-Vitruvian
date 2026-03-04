@@ -83,6 +83,8 @@ object SessionReducer {
             echoLevel     = set.echoLevel,
             eccentricLoadPct = set.eccentricLoadPct,
             isJustLift    = set.isJustLift,
+            stallDetectionEnabled = set.stallDetectionEnabled,
+            repCountTiming = set.repCountTiming,
         )
         val command: BleCommand = if (params.isEchoMode) BleCommand.EchoControl(params)
                                   else BleCommand.ProgramParams(params)

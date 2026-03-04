@@ -1,6 +1,24 @@
 package com.example.vitruvianredux.ble.protocol
 
 /**
+ * Rep-counting timing strategy, mirroring Phoenix.
+ * - [TOP]: count the rep at the concentric peak (top of movement).
+ * - [BOTTOM]: count the rep after the eccentric (bottom / machine default).
+ */
+enum class RepCountTiming {
+    TOP, BOTTOM;
+
+    companion object {
+        /** Parse from a persisted name, with backward-compat for legacy values. */
+        fun fromName(name: String): RepCountTiming = when (name.lowercase()) {
+            "top", "concentric" -> TOP
+            "bottom", "machine", "eccentric" -> BOTTOM
+            else -> BOTTOM
+        }
+    }
+}
+
+/**
  * Parameters for a single workout set sent to the Vitruvian trainer.
  * Trimmed from Project Phoenix WorkoutParameters — only fields required for BLE packet creation.
  *
@@ -17,6 +35,8 @@ package com.example.vitruvianredux.ble.protocol
  * @param isAMRAP            As-Many-Reps-As-Possible — same as [isJustLift] for packet encoding.
  * @param echoLevel          Echo mode difficulty level (0 = Hard … 3 = Epic).
  * @param eccentricLoadPct   Eccentric load percentage for Echo mode (clamped to 0–150%).
+ * @param stallDetectionEnabled Whether stall detection is active (Phoenix: stallDetectionEnabled). Not consumed by BLE packets.
+ * @param repCountTiming     Rep-counting timing strategy (Phoenix: repCountTiming). Not consumed by BLE packets.
  */
 data class WorkoutParameters(
     val exerciseName: String                = "",
@@ -29,6 +49,8 @@ data class WorkoutParameters(
     val isAMRAP: Boolean                    = false,
     val echoLevel: EchoLevel                = EchoLevel.HARD,
     val eccentricLoadPct: Int               = 75,
+    val stallDetectionEnabled: Boolean      = true,
+    val repCountTiming: RepCountTiming      = RepCountTiming.BOTTOM,
 ) {
     val isEchoMode: Boolean get() = programMode is ProgramMode.Echo
 
@@ -54,6 +76,8 @@ data class WorkoutParameters(
             eccentricLoadPct: Int = 75,
             progressionRegressionLb: Int = 0,
             isJustLift: Boolean = false,
+            stallDetectionEnabled: Boolean = true,
+            repCountTiming: RepCountTiming = RepCountTiming.BOTTOM,
         ): WorkoutParameters {
             val mode = when (programMode) {
                 "Pump" -> ProgramMode.Pump
@@ -74,6 +98,8 @@ data class WorkoutParameters(
                 isJustLift       = isJustLift,
                 echoLevel        = echoLevel,
                 eccentricLoadPct = eccentricLoadPct,
+                stallDetectionEnabled = stallDetectionEnabled,
+                repCountTiming   = repCountTiming,
             )
         }
     }

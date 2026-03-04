@@ -3,10 +3,17 @@ package com.example.vitruvianredux.ble
 import android.util.Log
 import com.example.vitruvianredux.ble.protocol.EchoLevel
 import com.example.vitruvianredux.ble.protocol.ProgramMode
+import com.example.vitruvianredux.ble.protocol.RepCountTiming
+import com.example.vitruvianredux.ble.protocol.WorkoutParameters
 import com.example.vitruvianredux.data.JustLiftStore
 import com.example.vitruvianredux.data.JustLiftStore.JustLiftDefaults
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.screen.JustLiftMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlin.math.roundToInt
 
 /**
@@ -25,11 +32,40 @@ import kotlin.math.roundToInt
  */
 class JustLiftCommandRouter(
     private val workoutVM: WorkoutSessionViewModel,
+    scope: CoroutineScope,
 ) {
 
     private companion object {
         const val TAG = "JustLiftRouter"
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Observable WorkoutParameters — mirrors Phoenix
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Live [WorkoutParameters] derived from persisted [JustLiftDefaults].
+     *
+     * Every UI control change flows through the router's `applyXxx()` methods
+     * → [JustLiftStore] → this [StateFlow].  Observers (e.g. Compose) can
+     * collect to see the current configuration as a Phoenix-compatible
+     * [WorkoutParameters] object:
+     *
+     * | UI control             | WorkoutParameters field          |
+     * |------------------------|----------------------------------|
+     * | Weight (kg/cable)      | weightPerCableKg                 |
+     * | Mode                   | programMode (+ echoLevel)        |
+     * | Progression (+kg)      | progressionRegressionKg          |
+     * | Rep Count Timing       | repCountTiming (TOP / BOTTOM)    |
+     * | Stall Detection        | stallDetectionEnabled            |
+     */
+    val workoutParameters: StateFlow<WorkoutParameters> =
+        JustLiftStore.state
+            .map { it.toWorkoutParameters() }
+            .stateIn(scope, SharingStarted.Eagerly, JustLiftStore.current().toWorkoutParameters())
+
+    /** Snapshot of the current parameters (non-suspending). */
+    val currentParams: WorkoutParameters get() = workoutParameters.value
 
     /** Whether the BLE trainer is currently connected and ready for commands. */
     val isConnected: Boolean
@@ -185,8 +221,9 @@ class JustLiftCommandRouter(
         // Arm the engine for Just Lift (reset if busy, set auto-start flags).
         workoutVM.prepareForJustLift()
 
+        val p = currentParams
         val c = JustLiftStore.current()
-        Log.d(TAG, "connect() with controls=$c")
+        Log.d(TAG, "connect() with workoutParameters=$p")
 
         val justLiftExercise = Exercise(
             id = "just_lift",
@@ -195,43 +232,21 @@ class JustLiftCommandRouter(
             videos = emptyList(),
         )
 
-        val isEcho = c.workoutModeId == JustLiftMode.Echo
-
-        if (isEcho) {
-            workoutVM.startPlayerSet(
-                exercise              = justLiftExercise,
-                targetReps            = null,
-                targetDurationSec     = null,
-                warmupReps            = 0,
-                weightPerCableLb      = 0,                              // Echo is adaptive
-                programMode           = ProgramMode.Echo.displayName,
-                progressionRegressionLb = 0,
-                echoLevel             = c.echoLevelValue,
-                eccentricLoadPct      = c.eccentricLoadPercentage,
-                isJustLift            = true,
-                restAfterSec          = c.restSeconds,
-            )
-        } else {
-            val mode: ProgramMode = when (c.workoutModeId) {
-                JustLiftMode.OldSchool -> ProgramMode.OldSchool
-                JustLiftMode.Pump      -> ProgramMode.Pump
-                JustLiftMode.TUT       -> if (c.isBeastMode) ProgramMode.TUTBeast else ProgramMode.TUT
-                JustLiftMode.Echo      -> ProgramMode.Echo              // unreachable
-            }
-            workoutVM.startPlayerSet(
-                exercise              = justLiftExercise,
-                targetReps            = null,
-                targetDurationSec     = null,
-                warmupReps            = 0,
-                weightPerCableLb      = kgToLb(c.weightPerCableKg),
-                programMode           = mode.displayName,
-                progressionRegressionLb = kgToLb(c.weightChangePerRep),
-                echoLevel             = c.echoLevelValue,
-                eccentricLoadPct      = c.eccentricLoadPercentage,
-                isJustLift            = true,
-                restAfterSec          = c.restSeconds,
-            )
-        }
+        workoutVM.startPlayerSet(
+            exercise              = justLiftExercise,
+            targetReps            = null,
+            targetDurationSec     = null,
+            warmupReps            = 0,
+            weightPerCableLb      = if (p.isEchoMode) 0 else kgToLb(p.weightPerCableKg),
+            programMode           = p.programMode.displayName,
+            progressionRegressionLb = if (p.isEchoMode) 0 else kgToLb(p.progressionRegressionKg),
+            echoLevel             = p.echoLevel,
+            eccentricLoadPct      = p.eccentricLoadPct,
+            isJustLift            = true,
+            restAfterSec          = c.restSeconds,
+            stallDetectionEnabled = p.stallDetectionEnabled,
+            repCountTiming        = p.repCountTiming,
+        )
 
         // Push sound preference so the TTS respects the Just Lift setting
         workoutVM.soundEnabled.value = c.soundEnabled
@@ -249,4 +264,35 @@ class JustLiftCommandRouter(
     }
 
     private fun kgToLb(kg: Float): Int = (kg * 2.20462f).roundToInt()
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // JustLiftDefaults → WorkoutParameters conversion
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Convert the persisted [JustLiftDefaults] to a Phoenix-compatible
+     * [WorkoutParameters] object.  This is the single mapping between the
+     * user-facing model and the engine/BLE model.
+     */
+    private fun JustLiftDefaults.toWorkoutParameters(): WorkoutParameters {
+        val mode: ProgramMode = when (workoutModeId) {
+            JustLiftMode.OldSchool -> ProgramMode.OldSchool
+            JustLiftMode.Pump      -> ProgramMode.Pump
+            JustLiftMode.TUT       -> if (isBeastMode) ProgramMode.TUTBeast else ProgramMode.TUT
+            JustLiftMode.Echo      -> ProgramMode.Echo
+        }
+        return WorkoutParameters(
+            exerciseName          = "Just Lift",
+            programMode           = mode,
+            reps                  = 0,
+            weightPerCableKg      = if (mode is ProgramMode.Echo) 0f else weightPerCableKg,
+            progressionRegressionKg = if (mode is ProgramMode.Echo) 0f else weightChangePerRep,
+            warmupReps            = 0,
+            isJustLift            = true,
+            echoLevel             = echoLevelValue,
+            eccentricLoadPct      = eccentricLoadPercentage,
+            stallDetectionEnabled = stallDetectionEnabled,
+            repCountTiming        = RepCountTiming.fromName(repCountTimingName),
+        )
+    }
 }

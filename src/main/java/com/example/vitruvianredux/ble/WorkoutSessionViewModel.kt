@@ -283,6 +283,9 @@ class WorkoutSessionViewModel(
         eccentricLoadPct: Int = 75,
         isJustLift: Boolean = false,
         restAfterSec: Int = 0,
+        stallDetectionEnabled: Boolean = true,
+        repCountTiming: com.example.vitruvianredux.ble.protocol.RepCountTiming =
+            com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
     ) {
         _playerExercise.value = exercise
         val sets = listOf(
@@ -300,6 +303,8 @@ class WorkoutSessionViewModel(
                 echoLevel         = echoLevel,
                 eccentricLoadPct  = eccentricLoadPct,
                 isJustLift        = isJustLift,
+                stallDetectionEnabled = stallDetectionEnabled,
+                repCountTiming    = repCountTiming,
                 muscleGroups      = exercise.muscleGroups,
             )
         )

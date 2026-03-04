@@ -56,7 +56,7 @@ object JustLiftStore {
         /** Whether stall detection is active (Phoenix: stallDetectionEnabled). */
         val stallDetectionEnabled: Boolean = true,
         /** Rep-counting timing strategy (Phoenix: repCountTimingName). */
-        val repCountTimingName: String = "machine",
+        val repCountTimingName: String = "BOTTOM",
         // ── UI-only fields (not in Phoenix JustLiftDefaults) ──
         val restSeconds: Int = 0,
         val soundEnabled: Boolean = true,
