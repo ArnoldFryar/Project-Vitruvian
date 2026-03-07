@@ -101,18 +101,6 @@ fun ProgramsScreen(
         orderedPrograms = existing + newOnes
         if (orderedPrograms.size < 2) isReorderMode = false
     }
-    val programReorderState = rememberReorderableLazyListState(
-        onMove = { from, to ->
-            val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
-            val toKey   = to.key   as? String ?: return@rememberReorderableLazyListState
-            val fromIdx = orderedPrograms.indexOfFirst { it.id == fromKey }
-            val toIdx   = orderedPrograms.indexOfFirst { it.id == toKey }
-            if (fromIdx != -1 && toIdx != -1) {
-                orderedPrograms = orderedPrograms.toMutableList().apply { add(toIdx, removeAt(fromIdx)) }
-            }
-        },
-        onDragEnd = { _, _ -> ProgramStore.reorderPrograms(orderedPrograms.map { it.id }) },
-    )
 
     // Connection state for the status pill
     val sessionState = workoutVM?.state?.collectAsState()?.value
@@ -198,67 +186,64 @@ fun ProgramsScreen(
                     modifier = Modifier.padding(16.dp),
                 )
             } else {
-                LazyColumn(
-                    state             = programReorderState.listState,
-                    userScrollEnabled = false,
-                    modifier          = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                        .reorderable(programReorderState)
-                        .detectReorderAfterLongPress(programReorderState),
-                ) {
-                    items(orderedPrograms, key = { it.id }) { p ->
-                        ReorderableItem(programReorderState, key = p.id) { isDragging ->
-                            val elevation by animateDpAsState(
-                                targetValue = if (isDragging) 6.dp else 0.dp,
-                                label       = "programCardElevation",
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .shadow(elevation, RoundedCornerShape(0.dp))
-                                    .background(MaterialTheme.colorScheme.surface),
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .then(
-                                            if (!isReorderMode) Modifier.clickable {
-                                                WiringRegistry.hit(A_PROGRAMS_SAVED_OPEN)
-                                                WiringRegistry.recordOutcome(
-                                                    A_PROGRAMS_SAVED_OPEN,
-                                                    ActualOutcome.Navigated("program_detail"),
-                                                )
-                                                onNavigateToProgramDetail(p.id)
-                                            } else Modifier
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    orderedPrograms.forEachIndexed { index, p ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (!isReorderMode) Modifier.clickable {
+                                        WiringRegistry.hit(A_PROGRAMS_SAVED_OPEN)
+                                        WiringRegistry.recordOutcome(
+                                            A_PROGRAMS_SAVED_OPEN,
+                                            ActualOutcome.Navigated("program_detail"),
                                         )
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    if (isReorderMode) {
-                                        Icon(
-                                            Icons.Default.DragHandle,
-                                            contentDescription = "Drag to reorder",
-                                            tint     = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(28.dp),
-                                        )
-                                    } else {
-                                        Icon(Icons.Default.FitnessCenter, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(28.dp))
-                                    }
-                                    Spacer(Modifier.width(16.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                        Spacer(Modifier.height(2.dp))
-                                        Text("${p.exerciseCount} exercise · Custom program", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    if (!isReorderMode) {
-                                        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                }
-                                if (p.id != orderedPrograms.last().id) {
-                                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                                }
+                                        onNavigateToProgramDetail(p.id)
+                                    } else Modifier
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (!isReorderMode) {
+                                Icon(Icons.Default.FitnessCenter, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(28.dp))
                             }
+                            Spacer(Modifier.width(if (isReorderMode) 0.dp else 16.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Spacer(Modifier.height(2.dp))
+                                Text("${p.exerciseCount} exercise · Custom program", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            if (isReorderMode) {
+                                IconButton(
+                                    onClick = {
+                                        if (index > 0) {
+                                            val updated = orderedPrograms.toMutableList().apply { add(index - 1, removeAt(index)) }
+                                            orderedPrograms = updated
+                                            ProgramStore.reorderPrograms(updated.map { it.id })
+                                        }
+                                    },
+                                    enabled = index > 0,
+                                ) {
+                                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up", tint = if (index > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (index < orderedPrograms.lastIndex) {
+                                            val updated = orderedPrograms.toMutableList().apply { add(index + 1, removeAt(index)) }
+                                            orderedPrograms = updated
+                                            ProgramStore.reorderPrograms(updated.map { it.id })
+                                        }
+                                    },
+                                    enabled = index < orderedPrograms.lastIndex,
+                                ) {
+                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down", tint = if (index < orderedPrograms.lastIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f))
+                                }
+                            } else {
+                                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        if (index < orderedPrograms.lastIndex) {
+                            Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                         }
                     }
                 }
