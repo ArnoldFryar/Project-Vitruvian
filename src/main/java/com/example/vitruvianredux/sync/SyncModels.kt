@@ -52,6 +52,7 @@ data class SyncProgram(
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
     override val deviceId: String = "",
+    val sortOrder: Int = 0,
 ) : SyncEntity
 
 // ── Session DTO ───────────────────────────────────────────────────────────────

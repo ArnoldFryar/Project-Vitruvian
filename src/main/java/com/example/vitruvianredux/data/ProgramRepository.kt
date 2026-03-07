@@ -48,6 +48,8 @@ data class SavedProgram(
     val deletedAt: Long? = null,
     /** Originating device identifier (hostname / Android ID). */
     val deviceId: String = "",
+    /** Zero-based display position in the programs list (user-defined order). */
+    val sortOrder: Int = 0,
 )
 
 // ── Backing-store interface ────────────────────────────────────────────────────
@@ -147,19 +149,22 @@ class ProgramRepository(
      * to the configured device id.
      */
     fun add(program: SavedProgram): List<SavedProgram> {
+        val existing = parsePrograms()
+        val isNew = existing.none { it.id == program.id }
+        val maxOrder = existing.filter { it.deletedAt == null }.maxOfOrNull { it.sortOrder } ?: -1
         val stamped = program.copy(
             updatedAt = System.currentTimeMillis(),
             deviceId  = program.deviceId.ifBlank { deviceId },
             deletedAt = null,  // un-delete if re-added
+            sortOrder = if (isNew) maxOrder + 1 else program.sortOrder,
         )
-        val existing = parsePrograms()
-        val programs = if (existing.any { it.id == stamped.id }) {
+        val programs = if (!isNew) {
             existing.map { if (it.id == stamped.id) stamped else it }
         } else {
             existing + stamped
         }
         writePrograms(programs)
-        return programs.filter { it.deletedAt == null }
+        return programs.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
     }
 
     /**
@@ -176,13 +181,31 @@ class ProgramRepository(
         }
         writePrograms(programs)
         writeMeta(readMeta().copy(deletedIds = readMeta().deletedIds + id))
-        return programs.filter { it.deletedAt == null }
+        return programs.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
+    }
+
+    /**
+     * Persist a new user-defined ordering of programs.
+     * [orderedIds] contains the ids of active programs in the desired display order.
+     * Programs not in [orderedIds] are left unchanged.
+     *
+     * @return the updated active program list sorted by [SavedProgram.sortOrder].
+     */
+    fun reorder(orderedIds: List<String>): List<SavedProgram> {
+        val orderMap = orderedIds.withIndex().associate { (idx, id) -> id to idx }
+        val all = parsePrograms()
+        val updated = all.map { p ->
+            val newOrder = orderMap[p.id]
+            if (newOrder != null) p.copy(sortOrder = newOrder) else p
+        }
+        writePrograms(updated)
+        return updated.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
     }
 
     /**
      * Return only active (non-deleted) programs.  Convenience for UI layers.
      */
-    fun loadActive(): List<SavedProgram> = load().filter { it.deletedAt == null }
+    fun loadActive(): List<SavedProgram> = load().filter { it.deletedAt == null }.sortedBy { it.sortOrder }
 
     // ── Serialization (internal — visible for testing) ────────────────────────
 
@@ -229,11 +252,12 @@ class ProgramRepository(
                         }
                     }
                     
-                    val updatedAt = obj.optLong("updatedAt", 0L)
-                    val deletedAt = if (obj.has("deletedAt") && !obj.isNull("deletedAt")) obj.optLong("deletedAt") else null
-                    val devId     = obj.optString("deviceId", "")
+                    val updatedAt  = obj.optLong("updatedAt", 0L)
+                    val deletedAt  = if (obj.has("deletedAt") && !obj.isNull("deletedAt")) obj.optLong("deletedAt") else null
+                    val devId      = obj.optString("deviceId", "")
+                    val sortOrder  = obj.optInt("sortOrder", 0)
 
-                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId)
+                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder)
                 }
         } catch (_: Exception) {
             backing.writePrograms("[]")
@@ -268,6 +292,7 @@ class ProgramRepository(
                 put("updatedAt", p.updatedAt)
                 if (p.deletedAt != null) put("deletedAt", p.deletedAt) else put("deletedAt", JSONObject.NULL)
                 put("deviceId", p.deviceId)
+                put("sortOrder", p.sortOrder)
             })
         }
         backing.writePrograms(array.toString())

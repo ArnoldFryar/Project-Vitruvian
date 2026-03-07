@@ -64,6 +64,15 @@ object ProgramStore {
         _programs.value = repo.delete(id)
     }
 
+    /**
+     * Persist a new user-defined display order for programs.
+     * [orderedIds] must list active program ids in the desired order.
+     * Programs omitted are left unchanged.
+     */
+    fun reorderPrograms(orderedIds: List<String>) {
+        _programs.value = repo.reorder(orderedIds)
+    }
+
     // ── SharedPreferences-backed store ────────────────────────────────────────
 
     private class SharedPrefsBackingStore(private val prefs: SharedPreferences) : ProgramBackingStore {

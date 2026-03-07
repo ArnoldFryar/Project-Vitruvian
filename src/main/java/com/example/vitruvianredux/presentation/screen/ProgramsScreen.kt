@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -90,6 +91,29 @@ fun ProgramsScreen(
     val programs     by savedProgramsFlow.collectAsState()
     var showBuilder by remember { mutableStateOf(false) }
 
+    // ── Program list reorder state ─────────────────────────────────────────────
+    var isReorderMode by remember { mutableStateOf(false) }
+    var orderedPrograms by remember { mutableStateOf(programs) }
+    LaunchedEffect(programs) {
+        // Preserve existing user order; remove deleted, append brand-new programs at end.
+        val existing = orderedPrograms.filter { p -> programs.any { it.id == p.id } }
+        val newOnes  = programs.filter { p -> orderedPrograms.none { it.id == p.id } }
+        orderedPrograms = existing + newOnes
+        if (orderedPrograms.size < 2) isReorderMode = false
+    }
+    val programReorderState = rememberReorderableLazyListState(
+        onMove = { from, to ->
+            val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
+            val toKey   = to.key   as? String ?: return@rememberReorderableLazyListState
+            val fromIdx = orderedPrograms.indexOfFirst { it.id == fromKey }
+            val toIdx   = orderedPrograms.indexOfFirst { it.id == toKey }
+            if (fromIdx != -1 && toIdx != -1) {
+                orderedPrograms = orderedPrograms.toMutableList().apply { add(toIdx, removeAt(fromIdx)) }
+            }
+        },
+        onDragEnd = { _, _ -> ProgramStore.reorderPrograms(orderedPrograms.map { it.id }) },
+    )
+
     // Connection state for the status pill
     val sessionState = workoutVM?.state?.collectAsState()?.value
     val isReady      = workoutVM?.bleIsReady?.collectAsState()?.value ?: false
@@ -153,9 +177,20 @@ fun ProgramsScreen(
         Spacer(Modifier.height(24.dp))
 
         // Section B – Your Programs
-        Text("Your Programs", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = AppDimens.Spacing.sm))
+        Row(
+            modifier          = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Your Programs", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.weight(1f))
+            if (orderedPrograms.size > 1) {
+                TextButton(onClick = { isReorderMode = !isReorderMode }) {
+                    Text(if (isReorderMode) "Done" else "Reorder")
+                }
+            }
+        }
         ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
-            if (programs.isEmpty()) {
+            if (orderedPrograms.isEmpty()) {
                 Text(
                     "No programs yet. Tap \"Create Program\" to build one.",
                     style    = MaterialTheme.typography.bodySmall,
@@ -163,31 +198,69 @@ fun ProgramsScreen(
                     modifier = Modifier.padding(16.dp),
                 )
             } else {
-                programs.forEachIndexed { i, p ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                WiringRegistry.hit(A_PROGRAMS_SAVED_OPEN)
-                                WiringRegistry.recordOutcome(
-                                    A_PROGRAMS_SAVED_OPEN,
-                                    ActualOutcome.Navigated("program_detail"),
-                                )
-                                onNavigateToProgramDetail(p.id)
+                LazyColumn(
+                    state             = programReorderState.listState,
+                    userScrollEnabled = false,
+                    modifier          = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .reorderable(programReorderState)
+                        .detectReorderAfterLongPress(programReorderState),
+                ) {
+                    items(orderedPrograms, key = { it.id }) { p ->
+                        ReorderableItem(programReorderState, key = p.id) { isDragging ->
+                            val elevation by animateDpAsState(
+                                targetValue = if (isDragging) 6.dp else 0.dp,
+                                label       = "programCardElevation",
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .shadow(elevation, RoundedCornerShape(0.dp))
+                                    .background(MaterialTheme.colorScheme.surface),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(
+                                            if (!isReorderMode) Modifier.clickable {
+                                                WiringRegistry.hit(A_PROGRAMS_SAVED_OPEN)
+                                                WiringRegistry.recordOutcome(
+                                                    A_PROGRAMS_SAVED_OPEN,
+                                                    ActualOutcome.Navigated("program_detail"),
+                                                )
+                                                onNavigateToProgramDetail(p.id)
+                                            } else Modifier
+                                        )
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    if (isReorderMode) {
+                                        Icon(
+                                            Icons.Default.DragHandle,
+                                            contentDescription = "Drag to reorder",
+                                            tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(28.dp),
+                                        )
+                                    } else {
+                                        Icon(Icons.Default.FitnessCenter, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(28.dp))
+                                    }
+                                    Spacer(Modifier.width(16.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                        Spacer(Modifier.height(2.dp))
+                                        Text("${p.exerciseCount} exercise · Custom program", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    if (!isReorderMode) {
+                                        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                                if (p.id != orderedPrograms.last().id) {
+                                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                                }
                             }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Default.FitnessCenter, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(28.dp))
-                        Spacer(Modifier.width(16.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(2.dp))
-                            Text("${p.exerciseCount} exercise · Custom program", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if (i < programs.lastIndex) Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
         }
@@ -743,6 +816,8 @@ fun EditExerciseSheet(
             Column(
                 modifier            = Modifier
                     .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = AppDimens.Spacing.md)
                     .padding(top = AppDimens.Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),

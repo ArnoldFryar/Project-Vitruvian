@@ -19,6 +19,7 @@ fun SavedProgram.toSync(): SyncProgram = SyncProgram(
     updatedAt      = updatedAt,
     deletedAt      = deletedAt,
     deviceId       = deviceId,
+    sortOrder      = sortOrder,
 )
 
 fun SyncProgram.toDomain(): SavedProgram = SavedProgram(
@@ -29,6 +30,7 @@ fun SyncProgram.toDomain(): SavedProgram = SavedProgram(
     updatedAt      = updatedAt,
     deletedAt      = deletedAt,
     deviceId       = deviceId,
+    sortOrder      = sortOrder,
 )
 
 fun ProgramItemDraft.toSync(): SyncProgramItem = SyncProgramItem(
