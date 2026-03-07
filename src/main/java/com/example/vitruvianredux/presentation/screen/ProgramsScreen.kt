@@ -549,7 +549,9 @@ private fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onDi
                             WiringRegistry.hit(A_PROGRAMS_SAVE)
                             WiringRegistry.recordOutcome(A_PROGRAMS_SAVE, ActualOutcome.StateChanged("programDraftSaved"))
                             if (isSaveEnabled) {
-                                val newId = programName.trim().lowercase().replace(" ", "_") +
+                                val newId = programName.trim().lowercase()
+                                    .replace(Regex("[^a-z0-9]+"), "_")
+                                    .trim('_') +
                                     "_" + System.currentTimeMillis().toString(36)
                                 ProgramStore.addProgram(
                                     SavedProgram(

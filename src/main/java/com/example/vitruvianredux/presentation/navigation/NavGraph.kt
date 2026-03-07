@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import android.net.Uri
 import androidx.navigation.navDeepLink
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
@@ -76,7 +77,7 @@ fun AppNavHost(
                     nav.navigate("${Route.ActivityMetricDetail.path}/$type")
                 },
                 onNavigateToProgramDetail = { programId ->
-                    nav.navigate("${Route.ProgramDetail.path}/$programId")
+                    nav.navigate("${Route.ProgramDetail.path}/${Uri.encode(programId)}")
                 },
             )
         }
@@ -94,7 +95,7 @@ fun AppNavHost(
                 innerPadding             = innerPadding,
                 workoutVM                = workoutVM,
                 onNavigateToProgramDetail = { programId ->
-                    nav.navigate("${Route.ProgramDetail.path}/$programId")
+                    nav.navigate("${Route.ProgramDetail.path}/${Uri.encode(programId)}")
                 },
                 onNavigateToTemplates    = { nav.navigate(Route.Templates.path) },
                 onNavigateToImport       = { nav.navigate(Route.ImportProgram.path) },
@@ -134,7 +135,7 @@ fun AppNavHost(
                 programId       = programId,
                 workoutVM       = workoutVM,
                 onBack          = { nav.popBackStack() },
-                onEditProgram   = { nav.navigate("${Route.ProgramEditor.path}/$programId") },
+                onEditProgram   = { nav.navigate("${Route.ProgramEditor.path}/${Uri.encode(programId)}") },
             )
         }
         composable(route = "${Route.ProgramEditor.path}/{programId}") { backStackEntry ->
@@ -158,7 +159,7 @@ fun AppNavHost(
                 templateId = templateId,
                 onBack = { nav.popBackStack() },
                 onNavigateToProgramDetail = { programId ->
-                    nav.navigate("${Route.ProgramDetail.path}/$programId") {
+                    nav.navigate("${Route.ProgramDetail.path}/${Uri.encode(programId)}") {
                         // Pop back to Coaching so the user doesn't have template screens in the back stack
                         popUpTo(Route.Templates.path) { inclusive = true }
                     }
