@@ -58,8 +58,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
-private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE }
+private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE, PAUSED }
 
 private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo")
 
@@ -123,6 +124,7 @@ fun ExercisePlayerScreen(
         is SessionPhase.SetReady        -> PlayerView.SET_READY
         is SessionPhase.Resting         -> PlayerView.RESTING
         is SessionPhase.WorkoutComplete -> PlayerView.WORKOUT_COMPLETE
+        is SessionPhase.Paused          -> PlayerView.PAUSED
         else                            -> PlayerView.ACTIVE
     }
 
@@ -350,13 +352,94 @@ fun ExercisePlayerScreen(
                                 }
                             }
                         },
-                        onPanicStop            = { WiringRegistry.hit(A_PLAYER_PANIC_STOP); WiringRegistry.recordOutcome(A_PLAYER_PANIC_STOP, ActualOutcome.BleWriteAttempt("PANIC_STOP")); workoutVM.panicStop() },
+                        onPanicStop            = { WiringRegistry.hit(A_PLAYER_PANIC_STOP); WiringRegistry.recordOutcome(A_PLAYER_PANIC_STOP, ActualOutcome.StateChanged("paused")); workoutVM.pausePlayerWorkout() },
                         onSkipSet              = { workoutVM.skipSet() },
                         onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
                     )
                 }
+
+                PlayerView.PAUSED -> {
+                    val pausedPhase = phase as? SessionPhase.Paused
+                    if (pausedPhase != null) {
+                        PausedContent(
+                            exerciseName = pausedPhase.exerciseName,
+                            setIndex     = pausedPhase.setIndex,
+                            totalSets    = pausedPhase.totalSets,
+                            onResume     = { workoutVM.resumePlayerWorkout() },
+                            onStop       = { workoutVM.panicStop(); onBack() },
+                            modifier     = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+// ─── Paused screen ───────────────────────────────────────────────────────────
+
+@Composable
+private fun PausedContent(
+    exerciseName: String,
+    setIndex: Int,
+    totalSets: Int,
+    onResume: () -> Unit,
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .padding(horizontal = 32.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            Icons.Default.Pause,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "Paused",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = exerciseName,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = "Set ${setIndex + 1} of $totalSets",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(40.dp))
+        Button(
+            onClick = onResume,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Resume Workout", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        }
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(
+            onClick = onStop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+        ) {
+            Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("End Workout", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }
@@ -624,32 +707,52 @@ private fun ActivePlayerContent(
                                 .background(MaterialTheme.colorScheme.outlineVariant)
                         )
 
-                        // Right: Force per cable
+                        // Right: Set Point + Live Resistance
+                        val leftForce  = sessionState.leftCable?.force  ?: 0f
+                        val rightForce = sessionState.rightCable?.force ?: 0f
+                        val hasLiveData = sessionState.leftCable != null || sessionState.rightCable != null
+                        val liveResistanceLb = ((leftForce + rightForce) / 2f * 2.205f).roundToInt()
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(vertical = AppDimens.Spacing.xs),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
+                            // Set Point — programmed weight for this set
                             Text(
-                                text = "Force",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = "per cable",
+                                text = "Set Point",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
                                 text = if (selectedMode == "Echo") "Adaptive"
-                                       else "$displayWeight.0",
-                                style = MaterialTheme.typography.headlineMedium,
+                                       else "$displayWeight lb",
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = if (selectedMode == "Echo")
                                     MaterialTheme.colorScheme.secondary
                                 else
                                     MaterialTheme.colorScheme.onSurface,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Box(
+                                Modifier
+                                    .fillMaxWidth(0.6f)
+                                    .height(1.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant)
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            // Live Resistance — real-time average cable force from BLE telemetry
+                            Text(
+                                text = "Live Resistance",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = if (hasLiveData) "$liveResistanceLb lb" else "— lb",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
@@ -805,38 +908,23 @@ private fun ActivePlayerContent(
                                 onClick  = onPanicStop,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(48.dp),
+                                    .height(52.dp),
                                 shape = RoundedCornerShape(AppDimens.Corner.sm),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
                                 ),
                             ) {
-                                Icon(Icons.Default.Stop, contentDescription = null,
-                                    modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Stop", fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-
-                        if (isActive) {
-                            OutlinedButton(
-                                onClick  = onSkipSet,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp),
-                                shape = RoundedCornerShape(AppDimens.Corner.sm),
-                            ) {
-                                Icon(Icons.Default.SkipNext, contentDescription = null,
-                                    modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Skip Set", fontWeight = FontWeight.SemiBold)
+                                Icon(Icons.Default.Pause, contentDescription = null,
+                                    modifier = Modifier.size(22.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Pause Set", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
 
                         Button(
                             onClick  = onPlayStop,
                             modifier = Modifier
-                                .weight(if (isActive) 2f else 1f)
+                                .weight(if (isActive) 1f else 1f)
                                 .height(52.dp),
                             shape = RoundedCornerShape(AppDimens.Corner.sm),
                             colors = ButtonDefaults.buttonColors(

@@ -8,6 +8,8 @@ import com.example.vitruvianredux.ble.protocol.CableSample
 import com.example.vitruvianredux.ble.protocol.WorkoutParameters
 import com.example.vitruvianredux.ble.session.BleCommand
 import com.example.vitruvianredux.ble.session.EngineState
+import com.example.vitruvianredux.ble.session.HandleState
+import com.example.vitruvianredux.ble.session.HandleStateDetector
 import com.example.vitruvianredux.ble.session.IBleTrainerAdapter
 import com.example.vitruvianredux.ble.session.MachineRepDetector
 import com.example.vitruvianredux.ble.session.RepCountPolicy
@@ -90,6 +92,19 @@ sealed class SessionPhase {
 
     data class WorkoutComplete(
         val workoutStats: WorkoutStats,
+    ) : SessionPhase()
+
+    /**
+     * Workout is paused mid-exercise. The machine has been stopped, but the
+     * workout position (set index, upcoming sets, completed stats) is preserved
+     * so the user can resume from exactly the same set.
+     */
+    data class Paused(
+        val setIndex: Int,
+        val totalSets: Int,
+        val exerciseName: String,
+        val thumbnailUrl: String?,
+        val videoUrl: String? = null,
     ) : SessionPhase()
 }
 
@@ -183,6 +198,36 @@ class WorkoutSessionEngine(
     private val stallDetector = StallDetector()
     /** Cached per-set flag — avoids repeated lookups into [EngineState.setDef]. */
     @Volatile private var stallDetectionEnabled = false
+
+    // ── Handle-state detection (Phoenix auto-start / auto-stop) ───────────
+    /**
+     * 4-state handle detector — processes monitor samples to detect
+     * [HandleState.Grabbed] (auto-start) and [HandleState.Released] (auto-stop).
+     * Enabled by [prepareForJustLift] and re-armed by [reArmJustLift].
+     */
+    private val handleStateDetector = HandleStateDetector()
+    /** Auto-start countdown job — fires [confirmReady] when handles stay grabbed. */
+    private var autoStartJob: Job? = null
+    /** Timestamp when handle-release auto-stop timer started (null = inactive). */
+    @Volatile private var handleAutoStopStartMs: Long? = null
+    /** Last processed deload event timestamp for debouncing. */
+    private var lastDeloadTimeMs: Long = 0L
+
+    companion object {
+        /** Duration handles must stay released before auto-stopping (Phoenix: 2.5 s). */
+        private const val HANDLE_RELEASE_AUTO_STOP_MS = 2_500L
+        /** Grace period after auto-start before auto-stop can trigger (prevent immediate re-stop). */
+        private const val AUTO_START_GRACE_MS = 1_000L
+        /** Delay before auto-start confirms after handles are grabbed. */
+        private const val AUTO_START_DELAY_MS = 1_000L
+        /** Deload event debounce window (Phoenix: 2 s). */
+        private const val DELOAD_DEBOUNCE_MS = 2_000L
+        /** Status flag bit 15 — machine detected cable safety release. */
+        private const val DELOAD_OCCURRED_MASK = 0x8000
+    }
+    /** Timestamp when the current set became active (for auto-stop grace period). */
+    private var setActiveTimestampMs: Long = 0L
+
     /** Monotonic guard: highest totalReps dispatched within the current set. */
     private var lastDispatchedRepCount = 0
     /**
@@ -253,7 +298,9 @@ class WorkoutSessionEngine(
                             // ── Stall detection ──────────────────────────────
                             // Feed averaged cable position to the detector,
                             // then check for stall during active WORKING phase.
-                            if (stallDetectionEnabled && !stallDetector.stallFired) {
+                            // Only for Just Lift — programmed sets have a rep target
+                            // and the user may legitimately pause between reps.
+                            if (stallDetectionEnabled && justLiftArmed && !stallDetector.stallFired) {
                                 val avgPos = (sample.left.position + sample.right.position) / 2f
                                 stallDetector.onSample(avgPos, System.currentTimeMillis())
 
@@ -276,6 +323,29 @@ class WorkoutSessionEngine(
                                             completeCurrentPlayerSet()
                                         }
                                     }
+                                }
+                            }
+
+                            // ── Handle-state detection (Phoenix 4-state) ─────
+                            if (handleStateDetector.isEnabled) {
+                                val prevHandleState = handleStateDetector.currentState
+                                val newHandleState = handleStateDetector.processSample(
+                                    sample.left.position, sample.left.velocity,
+                                    sample.right.position, sample.right.velocity,
+                                )
+                                if (newHandleState != prevHandleState) {
+                                    onHandleStateChanged(prevHandleState, newHandleState)
+                                }
+                                // Tick the handle-release auto-stop timer
+                                checkHandleAutoStop()
+                            }
+
+                            // ── Deload event detection (status bit 15) ───────
+                            if (justLiftArmed && (sample.status and DELOAD_OCCURRED_MASK) != 0) {
+                                val now = System.currentTimeMillis()
+                                if (now - lastDeloadTimeMs > DELOAD_DEBOUNCE_MS) {
+                                    lastDeloadTimeMs = now
+                                    onDeloadOccurred()
                                 }
                             }
                         }
@@ -506,7 +576,7 @@ class WorkoutSessionEngine(
         if (bleClient.state.value is BleConnectionState.Connected)
             sendPacket(BlePacketFactory.createOfficialStopPacket(), "PANIC_STOP")
         else Log.w(TAG, "panicStop: not connected - skipping write")
-        _state.value = _state.value.copy(sessionPhase = SessionPhase.Idle)
+        clearPlayerSessionState(sessionPhase = SessionPhase.Idle)
     }
 
     fun resetDevice() {
@@ -598,10 +668,13 @@ class WorkoutSessionEngine(
         justLiftArmed = true
         autoPlay = true
 
-        // Enable handle detection (high-level intent; adapter decides the bytes).
+        // Enable handle-state detection for auto-start (Phoenix 4-state machine).
+        handleStateDetector.enable(autoStart = true)
+
+        // Legacy adapter call (no-op by default; real adapter may start BLE polling).
         bleAdapter.enableHandleDetection(true)
 
-        Log.i(TAG, "Just Lift ready")
+        Log.i(TAG, "Just Lift ready — handle detection enabled, waiting for grab")
     }
 
     /** True after [prepareForJustLift] until the next [resetAfterWorkout]. */
@@ -672,6 +745,60 @@ class WorkoutSessionEngine(
         eccentricTimeoutJob?.cancel()
         bleAdapter.execute(BleCommand.Stop, "PLAYER_STOP")
         completeCurrentPlayerSet()
+    }
+
+    /**
+     * Pause the active player set.
+     *
+     * Stops the BLE machine and transitions to [SessionPhase.Paused], preserving
+     * [playerSets], [currentPlayerIndex], and [completedStats] so the workout can
+     * be resumed exactly where it left off.  The in-progress set itself restarts
+     * from rep 0 when resumed (the machine has no mid-rep save/restore capability).
+     */
+    fun pausePlayerWorkout() {
+        val phase = _state.value.sessionPhase
+        if (phase !is SessionPhase.ExerciseActive) {
+            Log.w(TAG, "pausePlayerWorkout: not in ExerciseActive (phase=$phase) – ignoring")
+            return
+        }
+        Log.i(TAG, "pausePlayerWorkout: pausing at set $currentPlayerIndex \"${phase.exerciseName}\"")
+        playerJob?.cancel()
+        awaitingEccentricFinish = false
+        eccentricTimeoutJob?.cancel()
+        bleAdapter.execute(BleCommand.Stop, "PAUSE")
+        _state.value = _state.value.copy(
+            sessionPhase = SessionPhase.Paused(
+                setIndex     = currentPlayerIndex,
+                totalSets    = playerSets.size,
+                exerciseName = phase.exerciseName,
+                thumbnailUrl = phase.thumbnailUrl,
+                videoUrl     = phase.videoUrl,
+            )
+        )
+    }
+
+    /**
+     * Resume a paused player workout.
+     *
+     * Re-launches [SetReady] for the paused set so the user can confirm ready
+     * before the BLE machine re-engages.  All state needed to continue the
+     * remaining sets is already preserved in [playerSets] and [completedStats].
+     */
+    fun resumePlayerWorkout() {
+        val phase = _state.value.sessionPhase
+        if (phase !is SessionPhase.Paused) {
+            Log.w(TAG, "resumePlayerWorkout: not Paused (phase=$phase) – ignoring")
+            return
+        }
+        Log.i(TAG, "resumePlayerWorkout: resuming from set ${phase.setIndex} \"${phase.exerciseName}\"")
+        // Reset per-set tracking so the restarted set begins cleanly
+        engineState = EngineState()
+        repDetector.reset()
+        repCountPolicy.reset()
+        stallDetector.reset()
+        lastDispatchedRepCount = 0
+        setVolumeAccumulator = VolumeAccumulator.ZERO
+        launchPlayerSet(phase.setIndex)
     }
 
     /** Skip the current rest countdown and transition immediately to the next step. */
@@ -819,9 +946,19 @@ class WorkoutSessionEngine(
 
     /** Reset back to Idle after WorkoutComplete is dismissed. */
     fun resetAfterWorkout() {
+        clearPlayerSessionState(sessionPhase = SessionPhase.Idle)
+    }
+
+    private fun clearPlayerSessionState(sessionPhase: SessionPhase = SessionPhase.Idle) {
+        stopMonitorPolling()
         playerJob?.cancel(); restJob?.cancel()
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
+        cancelAutoStartTimer()
+        handleAutoStopStartMs = null
+        handleStateDetector.reset()
+        bleAdapter.enableHandleDetection(false)
+        lastDeloadTimeMs = 0L
         playerSets = emptyList()
         completedStats.clear()
         engineState = EngineState()
@@ -833,11 +970,12 @@ class WorkoutSessionEngine(
         setVolumeAccumulator = VolumeAccumulator.ZERO
         justLiftArmed = false
         _state.value = _state.value.copy(
-            sessionPhase         = SessionPhase.Idle,
+            sessionPhase         = sessionPhase,
             repsCount            = 0,
             setPhase             = SetPhase.IDLE,
             warmupRepsCompleted  = 0,
             workingRepsCompleted = 0,
+            durationCountdownSec = null,
         )
     }
 
@@ -902,10 +1040,14 @@ class WorkoutSessionEngine(
         Log.i(TAG, "confirmReady: launching set $index (${set.exerciseName}, ${set.weightPerCableLb}lb)")
 
         setStartTimeMs = System.currentTimeMillis()
+        setActiveTimestampMs = setStartTimeMs
         setVolumeAccumulator = VolumeAccumulator.ZERO
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
         lastNotificationUp = 0
+        // Cancel any pending auto-start/auto-stop from the previous set
+        cancelAutoStartTimer()
+        handleAutoStopStartMs = null
         repDetector.configure(
             warmupTarget  = set.warmupReps,
             workingTarget = set.targetReps ?: 0,
@@ -1013,11 +1155,191 @@ class WorkoutSessionEngine(
         // Show ExerciseComplete for 1.5 s, then transition to Resting or WorkoutComplete
         scope.launch {
             delay(1_500L)
-            if (next is NextStep.WorkoutDone && set.restAfterSec <= 0) {
+            if (set.isJustLift) {
+                if (set.restAfterSec > 0) {
+                    startRest(
+                        seconds = set.restAfterSec,
+                        next = NextStep.NextSet(
+                            setIndex = currentPlayerIndex,
+                            totalSets = playerSets.size,
+                            exerciseName = set.exerciseName,
+                            thumbnailUrl = set.thumbnailUrl,
+                        ),
+                    )
+                } else {
+                    // ── Just Lift re-arm ────────────────────────────
+                    // Like Phoenix handleSetCompletion(): reset counters
+                    // and loop back to Idle/ready state for the next set
+                    // instead of finishing the workout.
+                    reArmJustLift()
+                }
+            } else if (next is NextStep.WorkoutDone && set.restAfterSec <= 0) {
                 finishWorkout()
             } else {
                 startRest(set.restAfterSec, next)
                 currentPlayerIndex = nextIndex
+            }
+        }
+    }
+
+    /**
+     * Re-arm the Just Lift session after a set ends (stall, handle release, or manual stop).
+     *
+     * Mirrors Phoenix `handleSetCompletion()` for Just Lift:
+     * 1. Reset rep counter, stall detector, volume accumulator.
+     * 2. Re-launch SetReady for the same set index.
+     * 3. Re-arm handle-state detector to [HandleState.WaitingForRest].
+     * 4. **Do not** auto-confirm — wait for handles to be grabbed again.
+     *
+     * The user must release handles (→ rest) and re-grab them for the next set,
+     * enforcing a natural rest gate between sets.
+     */
+    private fun reArmJustLift() {
+        Log.i(TAG, "reArmJustLift: resetting for next Just Lift set (completed ${completedStats.size} so far)")
+        // Reset internal counters but keep completedStats intact for summary
+        engineState = EngineState()
+        repDetector.reset()
+        repCountPolicy.reset()
+        stallDetector.reset()
+        stallDetectionEnabled = false
+        lastDispatchedRepCount = 0
+        setVolumeAccumulator = VolumeAccumulator.ZERO
+        handleAutoStopStartMs = null
+        cancelAutoStartTimer()
+
+        // Re-launch the same set (index 0 — Just Lift only has one PlayerSetParams entry)
+        launchPlayerSet(currentPlayerIndex)
+
+        // Re-arm the 4-state handle detector — waits for handles at rest
+        // before allowing Grabbed → auto-start for the next set.
+        handleStateDetector.enableJustLiftWaiting()
+        Log.i(TAG, "reArmJustLift: handle detection re-armed, waiting for grab")
+    }
+
+    // ── Handle-state auto-start / auto-stop (Phoenix wiring) ─────────────────
+
+    /**
+     * Called from the monitor polling loop when the [HandleStateDetector]
+     * reports a state transition.  Drives auto-start and auto-stop.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    private fun onHandleStateChanged(prev: HandleState, next: HandleState) {
+        val phase = _state.value.sessionPhase
+
+        when (next) {
+            HandleState.Grabbed -> {
+                // ── Auto-start: Grabbed while in SetReady → start countdown ──
+                if (phase is SessionPhase.SetReady && justLiftArmed) {
+                    Log.i(TAG, "HANDLE_AUTO_START: Grabbed in SetReady → starting timer")
+                    startAutoStartTimer()
+                }
+                // Cancel any pending auto-stop (user re-grabbed mid-set)
+                cancelHandleAutoStop()
+            }
+
+            HandleState.Released -> {
+                // ── Auto-stop: Released while Active in Just Lift → start timer ──
+                if (phase is SessionPhase.ExerciseActive && justLiftArmed) {
+                    val elapsed = System.currentTimeMillis() - setActiveTimestampMs
+                    if (elapsed > AUTO_START_GRACE_MS) {
+                        Log.i(TAG, "HANDLE_AUTO_STOP: Released during active set → starting ${HANDLE_RELEASE_AUTO_STOP_MS}ms timer")
+                        startHandleAutoStop()
+                    } else {
+                        Log.d(TAG, "HANDLE_AUTO_STOP: Released but within grace period (${elapsed}ms) — ignoring")
+                    }
+                }
+                // Cancel any pending auto-start (user released before countdown finished)
+                cancelAutoStartTimer()
+            }
+
+            HandleState.Moving -> {
+                // Moving = extended but no velocity → don't trigger auto-start, but
+                // don't cancel auto-stop either (user may be repositioning)
+            }
+
+            HandleState.WaitingForRest -> {
+                // Transitional — cancel any pending auto-start
+                cancelAutoStartTimer()
+            }
+        }
+    }
+
+    /**
+     * Start the auto-start countdown.  After [AUTO_START_DELAY_MS], if handles
+     * are still grabbed and we're in SetReady, auto-confirm to begin the set.
+     */
+    private fun startAutoStartTimer() {
+        if (autoStartJob != null) return
+        autoStartJob = scope.launch {
+            delay(AUTO_START_DELAY_MS)
+            val curState = handleStateDetector.currentState
+            if (curState != HandleState.Grabbed && curState != HandleState.Moving) {
+                Log.d(TAG, "AUTO_START: aborted — handles no longer grabbed (state=$curState)")
+                autoStartJob = null
+                return@launch
+            }
+            val phase = _state.value.sessionPhase
+            if (phase is SessionPhase.SetReady) {
+                Log.i(TAG, "AUTO_START: Timer complete — auto-confirming set")
+                confirmReady()
+            } else {
+                Log.d(TAG, "AUTO_START: aborted — no longer in SetReady (phase=$phase)")
+            }
+            autoStartJob = null
+        }
+    }
+
+    /** Cancel a pending auto-start countdown. */
+    private fun cancelAutoStartTimer() {
+        autoStartJob?.cancel()
+        autoStartJob = null
+    }
+
+    /** Start the handle-release auto-stop timer. */
+    private fun startHandleAutoStop() {
+        if (handleAutoStopStartMs != null) return  // already ticking
+        handleAutoStopStartMs = System.currentTimeMillis()
+    }
+
+    /** Cancel the handle-release auto-stop timer. */
+    private fun cancelHandleAutoStop() {
+        if (handleAutoStopStartMs != null) {
+            Log.d(TAG, "HANDLE_AUTO_STOP: cancelled — handles active again")
+            handleAutoStopStartMs = null
+        }
+    }
+
+    /**
+     * Called every monitor poll (~30 ms).  Checks whether the handle-release
+     * auto-stop timer has expired and should trigger set completion.
+     */
+    private fun checkHandleAutoStop() {
+        val startMs = handleAutoStopStartMs ?: return
+        if (!justLiftArmed) return
+        val phase = _state.value.sessionPhase
+        if (phase !is SessionPhase.ExerciseActive) { handleAutoStopStartMs = null; return }
+        val elapsed = System.currentTimeMillis() - startMs
+        if (elapsed >= HANDLE_RELEASE_AUTO_STOP_MS) {
+            Log.i(TAG, "HANDLE_AUTO_STOP: Timer expired (${elapsed}ms) → auto-completing set")
+            handleAutoStopStartMs = null
+            completeCurrentPlayerSet()
+        }
+    }
+
+    /**
+     * Called when bit 15 (DELOAD_OCCURRED) is detected in the monitor status
+     * field.  Mirrors Phoenix deloadOccurredEvents — starts the auto-stop
+     * timer if we're in an active Just Lift set.
+     */
+    private fun onDeloadOccurred() {
+        val phase = _state.value.sessionPhase
+        if (phase is SessionPhase.ExerciseActive && justLiftArmed) {
+            val elapsed = System.currentTimeMillis() - setActiveTimestampMs
+            if (elapsed > AUTO_START_GRACE_MS) {
+                Log.i(TAG, "DELOAD_OCCURRED: Machine safety release → starting auto-stop timer")
+                startHandleAutoStop()
+            } else {
+                Log.d(TAG, "DELOAD_OCCURRED: within grace period — ignoring")
             }
         }
     }
@@ -1046,6 +1368,10 @@ class WorkoutSessionEngine(
     private fun advanceAfterRest(next: NextStep) {
         when (next) {
             is NextStep.NextSet -> {
+                if (justLiftArmed && playerSets.getOrNull(next.setIndex)?.isJustLift == true) {
+                    reArmJustLift()
+                    return
+                }
                 launchPlayerSet(next.setIndex)
                 if (autoPlay) {
                     // Skip the SetReady screen and start the set immediately

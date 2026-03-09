@@ -317,6 +317,16 @@ class WorkoutSessionViewModel(
      */
     fun stopPlayerSet() = engine.stopPlayerSet()
 
+    /**
+     * Pause the active player set without losing workout position.
+     * Stops the BLE machine and transitions to [SessionPhase.Paused].
+     * Call [resumePlayerWorkout] to continue from the same set.
+     */
+    fun pausePlayerWorkout() = engine.pausePlayerWorkout()
+
+    /** Resume a paused player workout, re-launching SetReady for the paused set. */
+    fun resumePlayerWorkout() = engine.resumePlayerWorkout()
+
     /** Skip the rest countdown and advance immediately to the next step. */
     fun skipRest() = engine.skipRest()
 
