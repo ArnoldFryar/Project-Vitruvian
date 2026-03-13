@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Template Preview — shows days, exercises, focus; "Use Template" button
@@ -96,9 +95,6 @@ fun TemplatePreviewScreen(
                     Button(
                         onClick = { showConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BrandPink,
-                        ),
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
@@ -167,7 +163,7 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Category badge
             Surface(
-                color = BrandPink.copy(alpha = 0.15f),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
                 shape = MaterialTheme.shapes.small,
             ) {
                 Text(
@@ -175,7 +171,7 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = BrandPink,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
 
@@ -250,7 +246,7 @@ private fun DayHeader(dayNumber: Int, dayName: String, focus: String, exerciseCo
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(BrandPink),
+                .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center,
         ) {
             Text(

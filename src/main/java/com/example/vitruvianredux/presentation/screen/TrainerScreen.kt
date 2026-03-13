@@ -28,7 +28,8 @@ import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.components.LedColorPickerDialog
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
+import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.BuildConfig
 
 @Composable
 fun TrainerScreen(
@@ -80,7 +81,7 @@ fun TrainerScreen(
             .fillMaxSize()
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
     ) {
         // ═══════════════════════════════════════════════════════
         //  HEADER — "Your Trainer"
@@ -90,7 +91,7 @@ fun TrainerScreen(
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // ═══════════════════════════════════════════════════════
         //  GENERAL section
@@ -101,13 +102,13 @@ fun TrainerScreen(
             color = cs.onSurfaceVariant,
             letterSpacing = 1.sp,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
             color = cs.surfaceVariant,
-            tonalElevation = 1.dp,
+            tonalElevation = AppDimens.Elevation.selector,
         ) {
             Column {
                 // Connection row
@@ -198,7 +199,7 @@ fun TrainerScreen(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // ═══════════════════════════════════════════════════════
         //  VERSIONS section
@@ -209,13 +210,13 @@ fun TrainerScreen(
             color = cs.onSurfaceVariant,
             letterSpacing = 1.sp,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
             color = cs.surfaceVariant,
-            tonalElevation = 1.dp,
+            tonalElevation = AppDimens.Elevation.selector,
         ) {
             Column {
                 TrainerInfoRow(label = "Firmware", value = "\u2013")
@@ -230,7 +231,7 @@ fun TrainerScreen(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = "v1.0.0",
+                                text = "v${BuildConfig.VERSION_NAME}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = cs.onSurfaceVariant,
                             )
@@ -246,7 +247,7 @@ fun TrainerScreen(
             }
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.xl))
 
         // ═══════════════════════════════════════════════════════
         //  CONNECT / DISCONNECT button (large, full width)
@@ -254,19 +255,19 @@ fun TrainerScreen(
         when {
             isConnected -> {
                 Button(
-                    onClick  = { WiringRegistry.hit(A_DEVICE_DISCONNECT); WiringRegistry.recordOutcome(A_DEVICE_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect")); bleVM?.disconnect() },
+                    onClick  = { WiringRegistry.hit(A_DEVICE_DISCONNECT); WiringRegistry.recordOutcome(A_DEVICE_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect")); bleVM?.clearAutoReconnect(); bleVM?.disconnect() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = cs.errorContainer,
                         contentColor   = cs.onErrorContainer,
                     ),
                 ) {
                     Icon(Icons.Default.BluetoothDisabled, null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Disconnect", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text("Disconnect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             }
             isScanning || isConnecting -> {
@@ -276,18 +277,18 @@ fun TrainerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
                         color = cs.onPrimary,
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text(
                         if (isScanning) "Scanning\u2026" else "Connecting\u2026",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
                     )
                 }
             }
@@ -297,20 +298,20 @@ fun TrainerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = BrandPink,
-                        contentColor = Color.White,
+                        containerColor = cs.primary,
+                        contentColor = cs.onPrimary,
                     ),
                 ) {
                     Icon(Icons.Default.Bluetooth, null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Connect", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text("Connect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
         // ── Check & Repair button
         OutlinedButton(
@@ -318,9 +319,9 @@ fun TrainerScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
             colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = BrandPink,
+                contentColor = cs.primary,
             ),
         ) {
             Icon(Icons.Default.Build, null, modifier = Modifier.size(18.dp))
@@ -328,11 +329,11 @@ fun TrainerScreen(
             Text("Check & Repair", fontWeight = FontWeight.SemiBold)
         }
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.xl))
     }
 }
 
-// ─── Reusable info row for the "Your Trainer" card ──────────────────────────
+// ─── Reusable info row for the "Your Trainer" card ──────────────────────────────
 
 @Composable
 private fun TrainerInfoRow(
@@ -344,7 +345,7 @@ private fun TrainerInfoRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

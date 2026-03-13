@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -150,7 +149,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.padding(16.dp)) {
-                            val barColor = BrandPink
+                            val barColor = MaterialTheme.colorScheme.primary
                             val bgBar = MaterialTheme.colorScheme.surface
                             Canvas(Modifier.fillMaxWidth().height(120.dp)) {
                                 val gap = size.width / weeklyData.size
@@ -250,7 +249,7 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
                 Icons.Default.ShowChart,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
-                tint = BrandPink.copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
             )
             Text(
                 "Volume insights will appear once enough data is recorded",
@@ -338,7 +337,7 @@ private fun StreakContent(onBack: () -> Unit) {
                             Icons.Default.LocalFireDepartment,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
-                            tint = BrandPink.copy(alpha = 0.6f),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                         )
                         Text(
                             "No sessions recorded yet",
@@ -444,8 +443,8 @@ private fun StreakContent(onBack: () -> Unit) {
                                                 modifier = Modifier.size(26.dp),
                                                 shape = CircleShape,
                                                 color = when {
-                                                    hasWorkout -> BrandPink
-                                                    isToday    -> BrandPink.copy(alpha = 0.2f)
+                                                    hasWorkout -> MaterialTheme.colorScheme.primary
+                                                    isToday    -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                                                     else       -> MaterialTheme.colorScheme.surface
                                                 },
                                             ) {
@@ -555,7 +554,7 @@ private fun StreakCard(
                 value,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = if (highlight) BrandPink else MaterialTheme.colorScheme.onSurface,
+                color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             )
             Spacer(Modifier.height(4.dp))
             Text(

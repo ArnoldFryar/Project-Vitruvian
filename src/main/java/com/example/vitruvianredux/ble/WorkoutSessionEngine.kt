@@ -64,6 +64,8 @@ sealed class SessionPhase {
         val targetDurationSec: Int?,
         val warmupReps: Int = 0,
         val weightPerCableLb: Int = 0,
+        val programMode: String = "Old School",
+        val isJustLift: Boolean = false,
     ) : SessionPhase()
 
     data class ExerciseActive(
@@ -76,6 +78,7 @@ sealed class SessionPhase {
         val targetDurationSec: Int?,
         /** Warmup reps the device counts before working reps begin. */
         val warmupReps: Int = 0,
+        val programMode: String = "Old School",
     ) : SessionPhase()
 
     data class Resting(
@@ -206,16 +209,30 @@ class WorkoutSessionEngine(
      * Enabled by [prepareForJustLift] and re-armed by [reArmJustLift].
      */
     private val handleStateDetector = HandleStateDetector()
+    /**
+     * Public observable handle state — updated on every [HandleState] transition
+     * detected during monitor polling.  Observers (UI, ViewModel, tests) can
+     * collect this flow to drive countdown animations or injection fixtures.
+     *
+     * Emits regardless of [justLiftArmed] so the UI can always show live state.
+     */
+    private val _handleStateFlow = MutableStateFlow<HandleState>(HandleState.Released)
+    /** Observable [HandleState] emitted on every state transition by [handleStateDetector]. */
+    val handleStateFlow: StateFlow<HandleState> = _handleStateFlow.asStateFlow()
     /** Auto-start countdown job — fires [confirmReady] when handles stay grabbed. */
     private var autoStartJob: Job? = null
     /** Timestamp when handle-release auto-stop timer started (null = inactive). */
     @Volatile private var handleAutoStopStartMs: Long? = null
+    /** Guards against double-starting the duration countdown (e.g. if warmup fires multiple transitions). */
+    private var durationTimerStarted = false
+    /** Program name passed from the ViewModel at workout start; written into the history record. */
+    private var activeWorkoutProgramName: String? = null
     /** Last processed deload event timestamp for debouncing. */
     private var lastDeloadTimeMs: Long = 0L
 
     companion object {
-        /** Duration handles must stay released before auto-stopping (Phoenix: 2.5 s). */
-        private const val HANDLE_RELEASE_AUTO_STOP_MS = 2_500L
+        /** Duration handles must stay released before auto-stopping (spec: >5 s). */
+        private const val HANDLE_RELEASE_AUTO_STOP_MS = 5_000L
         /** Grace period after auto-start before auto-stop can trigger (prevent immediate re-stop). */
         private const val AUTO_START_GRACE_MS = 1_000L
         /** Delay before auto-start confirms after handles are grabbed. */
@@ -476,8 +493,19 @@ class WorkoutSessionEngine(
                             "  warmup=${engineState.warmupRepsCompleted}/${engineState.warmupTarget}" +
                             "  working=${engineState.workingRepsCompleted}/${engineState.workingTarget}" +
                             "  CALLER=notifyCollector")
+                        val prevPhase = engineState.phase
                         val result = SessionReducer.reduce(engineState, SessionEvent.MachineRepDetected(count))
                         engineState = result.newState
+
+                        // Deferred duration timer: start counting only once warmup is done.
+                        if (!durationTimerStarted
+                            && prevPhase == SetPhase.WARMUP
+                            && engineState.phase == SetPhase.WORKING) {
+                            val currentSet = playerSets.getOrNull(currentPlayerIndex)
+                            if (currentSet?.targetDurationSec != null) {
+                                startDurationCountdown(currentSet.targetDurationSec, currentPlayerIndex)
+                            }
+                        }
 
                         // ATOMIC state update: combine repsCount + reducer fields in one shot
                         // so the polling loop can't trigger a recomposition with stale values.
@@ -685,7 +713,8 @@ class WorkoutSessionEngine(
      * Launch the full player experience for a list of sets.
      * Transitions through ExerciseActive → ExerciseComplete → Resting → ... → WorkoutComplete.
      */
-    fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
+    fun startPlayerWorkout(sets: List<PlayerSetParams>, programName: String? = null): Boolean {
+        activeWorkoutProgramName = programName
         if (sets.isEmpty()) { Log.w(TAG, "startPlayerWorkout: empty sets list"); return false }
         
         // Set phase immediately so the UI overlay appears — start with SetReady
@@ -702,6 +731,8 @@ class WorkoutSessionEngine(
                 targetDurationSec = firstSet.targetDurationSec,
                 warmupReps        = firstSet.warmupReps,
                 weightPerCableLb  = firstSet.weightPerCableLb,
+                programMode       = firstSet.programMode,
+                isJustLift        = firstSet.isJustLift,
             )
         )
         
@@ -999,6 +1030,8 @@ class WorkoutSessionEngine(
                 targetDurationSec = set.targetDurationSec,
                 warmupReps        = set.warmupReps,
                 weightPerCableLb  = set.weightPerCableLb,
+                programMode       = set.programMode,
+                isJustLift        = set.isJustLift,
             ),
             currentExerciseName = set.exerciseName,
             targetWeightLb      = set.weightPerCableLb,
@@ -1067,6 +1100,7 @@ class WorkoutSessionEngine(
                 targetReps        = set.targetReps,
                 targetDurationSec = set.targetDurationSec,
                 warmupReps        = set.warmupReps,
+                programMode       = set.programMode,
             ),
             currentExerciseName = set.exerciseName,
             targetWeightLb      = set.weightPerCableLb,
@@ -1088,27 +1122,47 @@ class WorkoutSessionEngine(
             "  warmupTarget=${engineState.warmupTarget}  workingTarget=${engineState.workingTarget}")
         executeEffects(setResult.effects.filterNot { it is SessionEffect.UiEmit })
 
-        // Send START command after ProgramParams — required for sets after STOP
-        // so the machine re-engages resistance.  Harmless on the first set.
-        bleAdapter.execute(BleCommand.Start, "START[set_$index]")
-
-        // Duration-based auto-complete with countdown
+        // Duration-based auto-complete with countdown.
+        // The timer must NOT start until warmup reps are done — otherwise those
+        // seconds are silently consumed and the set ends early.  If there is no
+        // warmup (phase is already WORKING after StartSet) we start immediately;
+        // otherwise the rep-notification handler triggers startDurationCountdown()
+        // on the WARMUP→WORKING transition.
+        playerJob?.cancel()
+        durationTimerStarted = false
         if (set.targetDurationSec != null) {
+            // Show the full duration in the UI immediately so the user sees it during warmup.
             _state.update { it.copy(durationCountdownSec = set.targetDurationSec) }
-            playerJob = scope.launch {
-                var remaining = set.targetDurationSec
-                while (isActive && remaining > 0) {
-                    delay(1_000L)
-                    remaining--
-                    _state.update { it.copy(durationCountdownSec = remaining) }
-                }
-                if (isActive) {
-                    Log.i(TAG, "Player: duration ${set.targetDurationSec}s elapsed -> completing set $index")
-                    completeCurrentPlayerSet()
-                }
+            if (engineState.phase == SetPhase.WORKING) {
+                // No warmup configured — begin counting down right away.
+                startDurationCountdown(set.targetDurationSec, index)
             }
+            // else: deferred — startDurationCountdown() called from rep handler on phase flip.
         } else {
             _state.update { it.copy(durationCountdownSec = null) }
+        }
+    }
+
+    /**
+     * Start the duration countdown for the current TUT/duration set.
+     * Idempotent: the [durationTimerStarted] flag prevents double-starts.
+     */
+    private fun startDurationCountdown(totalSec: Int, setIndex: Int) {
+        if (durationTimerStarted) return
+        durationTimerStarted = true
+        playerJob?.cancel()
+        Log.i(TAG, "startDurationCountdown: ${totalSec}s for set $setIndex (working phase begun)")
+        playerJob = scope.launch {
+            var remaining = totalSec
+            while (isActive && remaining > 0) {
+                delay(1_000L)
+                remaining--
+                _state.update { it.copy(durationCountdownSec = remaining) }
+            }
+            if (isActive) {
+                Log.i(TAG, "Player: duration ${totalSec}s elapsed -> completing set $setIndex")
+                completeCurrentPlayerSet()
+            }
         }
     }
 
@@ -1224,6 +1278,9 @@ class WorkoutSessionEngine(
      */
     @Suppress("UNUSED_PARAMETER")
     private fun onHandleStateChanged(prev: HandleState, next: HandleState) {
+        // Publish the new state on the observable flow (always, regardless of mode).
+        _handleStateFlow.value = next
+
         val phase = _state.value.sessionPhase
 
         when (next) {
@@ -1409,6 +1466,7 @@ class WorkoutSessionEngine(
                 durationSec   = totalDurSec,
                 totalSets     = completedStats.size,
                 totalReps     = totalReps,
+                programName   = activeWorkoutProgramName,
             )
         )
         _state.value = _state.value.copy(sessionPhase = SessionPhase.WorkoutComplete(stats))

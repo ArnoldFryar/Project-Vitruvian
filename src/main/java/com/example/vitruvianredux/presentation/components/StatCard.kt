@@ -1,6 +1,5 @@
 package com.example.vitruvianredux.presentation.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -14,6 +13,8 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 
 /**
  * Premium stat tile: icon, numeric value, label — subtle surface layering.
+ *
+ * Uses [Surface]'s onClick overload for proper bounded ripple + accessibility.
  */
 @Composable
 fun StatCard(
@@ -23,35 +24,55 @@ fun StatCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
-    Surface(
-        modifier = if (onClick != null) modifier.clickable(onClick = onClick) else modifier,
-        shape = RoundedCornerShape(AppDimens.Corner.sm),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 1.dp,
-    ) {
-        Column(
-            modifier            = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+    val shape = RoundedCornerShape(AppDimens.Corner.sm)
+    val color = MaterialTheme.colorScheme.surfaceVariant
+
+    if (onClick != null) {
+        Surface(
+            onClick = onClick,
+            modifier = modifier,
+            shape = shape,
+            color = color,
+            tonalElevation = 1.dp,
         ) {
-            Icon(
-                imageVector       = icon,
-                contentDescription = null,
-                tint              = MaterialTheme.colorScheme.primary,
-                modifier          = Modifier.size(20.dp),
-            )
-            Text(
-                text       = value,
-                style      = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text  = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            StatCardContent(icon = icon, value = value, label = label)
         }
+    } else {
+        Surface(
+            modifier = modifier,
+            shape = shape,
+            color = color,
+            tonalElevation = 1.dp,
+        ) {
+            StatCardContent(icon = icon, value = value, label = label)
+        }
+    }
+}
+
+@Composable
+private fun StatCardContent(icon: ImageVector, value: String, label: String) {
+    Column(
+        modifier            = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+    ) {
+        Icon(
+            imageVector       = icon,
+            contentDescription = null,
+            tint              = MaterialTheme.colorScheme.primary,
+            modifier          = Modifier.size(20.dp),
+        )
+        Text(
+            text       = value,
+            style      = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text  = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

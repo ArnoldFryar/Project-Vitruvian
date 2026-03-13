@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.sync.P2pState
 
 /**
@@ -35,14 +36,15 @@ fun SyncStatusPill(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
+    val ext = LocalExtendedColors.current
     val (label, dotColor) = when (p2pState) {
-        is P2pState.Idle          -> "Sync Idle" to Color(0xFFB0BEC5)
-        is P2pState.GroupCreating -> "Creating…" to Color(0xFFFF9800)
-        is P2pState.GroupOwner    -> "Hub Ready" to Color(0xFF4CAF50)
-        is P2pState.Discovering   -> "Scanning…" to Color(0xFFFF9800)
-        is P2pState.Connecting    -> "Connecting…" to Color(0xFFFF9800)
-        is P2pState.Connected     -> "Synced" to Color(0xFF4CAF50)
-        is P2pState.Error         -> "Sync Error" to Color(0xFFF44336)
+        is P2pState.Idle          -> "Sync Idle" to ext.statusDisconnected
+        is P2pState.GroupCreating -> "Creating…" to ext.statusConnecting
+        is P2pState.GroupOwner    -> "Hub Ready" to ext.statusReady
+        is P2pState.Discovering   -> "Scanning…" to ext.statusConnecting
+        is P2pState.Connecting    -> "Connecting…" to ext.statusConnecting
+        is P2pState.Connected     -> "Synced" to ext.statusConnected
+        is P2pState.Error         -> "Sync Error" to ext.statusError
     }
 
     Surface(
@@ -65,7 +67,6 @@ fun SyncStatusPill(
             Text(
                 text     = label,
                 style    = MaterialTheme.typography.labelSmall,
-                fontSize = 11.sp,
             )
         }
     }

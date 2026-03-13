@@ -44,7 +44,7 @@ object JustLiftStore {
 
     data class JustLiftDefaults(
         /** Weight per cable in kg (Phoenix: weightPerCableKg). */
-        val weightPerCableKg: Float = 10.0f,
+        val weightPerCableKg: Float = 4.536f,
         /** Per-rep weight change in kg (Phoenix: weightChangePerRep). */
         val weightChangePerRep: Float = 0.0f,
         /** Workout mode (Phoenix: workoutModeId). */
@@ -60,7 +60,7 @@ object JustLiftStore {
         // ── UI-only fields (not in Phoenix JustLiftDefaults) ──
         val restSeconds: Int = 0,
         val soundEnabled: Boolean = true,
-        val mirrorEnabled: Boolean = true,
+        val mirrorEnabled: Boolean = false,
         val isBeastMode: Boolean = false,
     )
 

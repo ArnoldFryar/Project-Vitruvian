@@ -17,13 +17,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
 import java.time.LocalDate
@@ -32,7 +31,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 /**
- * Workout History screen — Phoenix-style date-grouped training log.
+ * Workout History screen — date-grouped training log.
  * Shows sessions grouped by date with workout name, duration, and points.
  */
 @Composable
@@ -77,18 +76,18 @@ fun ActivityHistoryScreen(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     tonalElevation = 2.dp,
-                    modifier = Modifier.padding(32.dp),
+                    modifier = Modifier.padding(AppDimens.Spacing.xl),
                 ) {
                     Column(
-                        modifier = Modifier.padding(32.dp),
+                        modifier = Modifier.padding(AppDimens.Spacing.xl),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                     ) {
                         Icon(
                             Icons.Default.FitnessCenter,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
-                            tint = BrandPink.copy(alpha = 0.6f),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                         )
                         Text(
                             "Start your training log",
@@ -110,8 +109,8 @@ fun ActivityHistoryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 12.dp),
+                .padding(horizontal = AppDimens.Spacing.md),
+            contentPadding = PaddingValues(vertical = AppDimens.Spacing.md_sm),
         ) {
             sessionsByDate.forEach { (date, sessions) ->
                 // ── Date header ──────────────────────────────────────
@@ -174,7 +173,7 @@ private fun WorkoutHistoryCard(
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 2.dp,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
             // Title row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -183,7 +182,7 @@ private fun WorkoutHistoryCard(
                 Icon(
                     Icons.Default.FitnessCenter,
                     contentDescription = null,
-                    tint = BrandPink,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(10.dp))
@@ -229,13 +228,13 @@ private fun WorkoutHistoryCard(
                 )
                 // Points
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
+                    Icon(Icons.Default.Star, contentDescription = null, tint = LocalExtendedColors.current.gold, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(2.dp))
                     Text(
                         "$points pts",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold,
-                        color = BrandPink,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                 }
             }
@@ -261,7 +260,7 @@ private fun WorkoutHistoryCard(
                             name,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = BrandPink,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(bottom = 4.dp),
                         )
                         sets.forEach { setLog ->

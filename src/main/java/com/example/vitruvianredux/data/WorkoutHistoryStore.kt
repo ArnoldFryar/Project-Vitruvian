@@ -39,6 +39,7 @@ object WorkoutHistoryStore {
         val durationSec: Int,
         val totalSets: Int,
         val totalReps: Int,
+        val programName: String? = null,
     )
 
     private lateinit var prefs: SharedPreferences
@@ -187,6 +188,7 @@ object WorkoutHistoryStore {
                     put("durationSec", record.durationSec)
                     put("totalSets", record.totalSets)
                     put("totalReps", record.totalReps)
+                    put("programName", record.programName ?: "")
                 })
             }
             prefs.edit().putString(KEY_HISTORY, arr.toString()).apply()
@@ -213,6 +215,7 @@ object WorkoutHistoryStore {
                     durationSec   = obj.getInt("durationSec"),
                     totalSets     = obj.getInt("totalSets"),
                     totalReps     = obj.getInt("totalReps"),
+                    programName   = obj.optString("programName").takeIf { it.isNotBlank() },
                 )
             }
         } catch (e: Exception) {

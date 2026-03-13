@@ -32,6 +32,8 @@ import com.example.vitruvianredux.sync.P2pState
 import com.example.vitruvianredux.sync.QrHelper
 import com.example.vitruvianredux.sync.SyncResult
 import com.example.vitruvianredux.sync.SyncServiceLocator
+import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -106,8 +108,8 @@ fun SyncScreen(
                 .fillMaxSize()
                 .padding(scaffoldPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
             // ── Status card ──────────────────────────────────────────────────
             SyncStatusCard(p2pState)
@@ -379,23 +381,24 @@ private fun SyncControls(
 
 @Composable
 private fun SyncStatusCard(state: P2pState) {
+    val ext = LocalExtendedColors.current
     val (label, color) = when (state) {
-        is P2pState.Idle          -> "Idle" to Color(0xFFB0BEC5)
-        is P2pState.GroupCreating -> "Creating Group…" to Color(0xFFFF9800)
-        is P2pState.GroupOwner    -> "Hub Ready (${state.hostAddress})" to Color(0xFF4CAF50)
-        is P2pState.Discovering   -> "Discovering Peers…" to Color(0xFFFF9800)
-        is P2pState.Connecting    -> "Connecting to ${state.deviceName}…" to Color(0xFFFF9800)
-        is P2pState.Connected     -> "Connected → ${state.groupOwnerAddress}" to Color(0xFF4CAF50)
-        is P2pState.Error         -> "Error: ${state.message}" to Color(0xFFF44336)
+        is P2pState.Idle          -> "Idle" to ext.statusDisconnected
+        is P2pState.GroupCreating -> "Creating Group\u2026" to ext.statusConnecting
+        is P2pState.GroupOwner    -> "Hub Ready (${state.hostAddress})" to ext.statusReady
+        is P2pState.Discovering   -> "Discovering Peers\u2026" to ext.statusConnecting
+        is P2pState.Connecting    -> "Connecting to ${state.deviceName}\u2026" to ext.statusConnecting
+        is P2pState.Connected     -> "Connected \u2192 ${state.groupOwnerAddress}" to ext.statusConnected
+        is P2pState.Error         -> "Error: ${state.message}" to ext.statusError
     }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.12f)),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
             Icon(
                 imageVector = when (state) {
@@ -448,16 +451,17 @@ private fun PeerCard(
 
 @Composable
 private fun SyncResultCard(result: SyncResult) {
+    val ext = LocalExtendedColors.current
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF4CAF50).copy(alpha = 0.12f),
+            containerColor = ext.statusReady.copy(alpha = 0.12f),
         ),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Sync Complete", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+            Text("Sync Complete", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = LocalExtendedColors.current.statusReady)
             Text("Pulled: ${result.pullPrograms} programs, ${result.pullSessions} sessions", style = MaterialTheme.typography.bodySmall)
             Text("Pushed: ${result.pushPrograms} programs, ${result.pushSessions} sessions", style = MaterialTheme.typography.bodySmall)
             if (result.pushProgramsRejected > 0 || result.pushSessionsRejected > 0) {

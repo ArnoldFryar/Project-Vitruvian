@@ -87,6 +87,11 @@ data class WorkoutParameters(
                 "Eccentric Only" -> ProgramMode.EccentricOnly
                 else -> if (durationSec != null && reps == null) ProgramMode.TUT else ProgramMode.OldSchool
             }
+            // Duration sets must send 0xFF (unlimited) for the rep count so the machine
+            // never self-terminates based on reps. The software countdown timer in
+            // WorkoutSessionEngine.startDurationCountdown() is the sole completion trigger.
+            // Official Vitruvian app confirmed: repCounts.total=255 for all duration sets.
+            val isDurationSet = durationSec != null && reps == null
             val effectiveReps = reps ?: ((durationSec ?: 30) / 3).coerceAtLeast(1)
             return WorkoutParameters(
                 exerciseName     = exerciseName,
@@ -96,6 +101,7 @@ data class WorkoutParameters(
                 progressionRegressionKg = lbsToKg(progressionRegressionLb),
                 warmupReps       = warmupReps,
                 isJustLift       = isJustLift,
+                isAMRAP          = isDurationSet,
                 echoLevel        = echoLevel,
                 eccentricLoadPct = eccentricLoadPct,
                 stallDetectionEnabled = stallDetectionEnabled,

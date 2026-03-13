@@ -1,0 +1,236 @@
+{
+  "id": "builtin_full_body_beginner",
+  "name": "Full Body Beginner",
+  "category": "Beginner",
+  "description": "Simple 3-day full-body routine for those new to cable-based training. One movement per major muscle group, 3 sets of 10, light weights. Repeat Mon / Wed / Fri.",
+  "days": [
+    {
+      "name": "Full Body A",
+      "focus": "Chest, Back, Shoulders, Arms, Legs",
+      "exercises": [
+        {
+          "exerciseId": "ZZ92N8QsBdp6HCh3",
+          "exerciseName": "Bench Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "cJt26IdtckFcJsq1",
+          "exerciseName": "Bent Over Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "3cd0a0cb-8e56-4b0e-83a0-d88ff369749f",
+          "exerciseName": "Arnold Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "D7IHBdqkHR5z2wFn",
+          "exerciseName": "Arms Crossed Front Squat",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "rCG6HJi50F2REZCw",
+          "exerciseName": "Alternating Lunges",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "k-PGXPztgc5uS42S",
+          "exerciseName": "Bicep Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 10,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "cc0b27a7-679a-406e-a56e-44778bafaec5",
+          "exerciseName": "Bent Over Tricep Extension",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 10,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    },
+    {
+      "name": "Full Body B",
+      "focus": "Back, Chest, Shoulders, Arms, Legs",
+      "exercises": [
+        {
+          "exerciseId": "ku9GWXoCLuBShLm0",
+          "exerciseName": "Bent Over Crossover Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "b3ba4645-6b3f-4058-b1f4-0d8fc3e49dff",
+          "exerciseName": "Cable Fly",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "DL9vy76nqDUN-C39",
+          "exerciseName": "Front Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 10,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "49c4594c-f997-4d70-8008-b293e247e2e4",
+          "exerciseName": "Romanian Deadlift",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "hVN8gR7bdeRE3uzn",
+          "exerciseName": "Alternating Reverse Lunge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "XfkITKH5emJFlGv7",
+          "exerciseName": "Alternating Hammer Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 10,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "4kmhj9yyZcBI54Vi",
+          "exerciseName": "100s",
+          "mode": "TIME",
+          "sets": 2,
+          "durationSec": 20,
+          "targetWeightLb": 10,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        }
+      ]
+    },
+    {
+      "name": "Full Body C",
+      "focus": "Chest, Back, Legs, Core",
+      "exercises": [
+        {
+          "exerciseId": "ZZ92N8QsBdp6HCh3",
+          "exerciseName": "Bench Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "cJt26IdtckFcJsq1",
+          "exerciseName": "Bent Over Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "3cd0a0cb-8e56-4b0e-83a0-d88ff369749f",
+          "exerciseName": "Arnold Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "D7IHBdqkHR5z2wFn",
+          "exerciseName": "Arms Crossed Front Squat",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "39689096-7fb9-46aa-a411-59c5c6886c5d",
+          "exerciseName": "Hip Thrust",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "k-PGXPztgc5uS42S",
+          "exerciseName": "Bicep Curl",
+          "mode": "REPS",
+          "sets": 2,
+          "reps": 12,
+          "targetWeightLb": 10,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "cc0b27a7-679a-406e-a56e-44778bafaec5",
+          "exerciseName": "Bent Over Tricep Extension",
+          "mode": "REPS",
+          "sets": 2,
+          "reps": 12,
+          "targetWeightLb": 10,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

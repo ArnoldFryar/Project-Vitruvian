@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
 import java.time.LocalDate
@@ -61,11 +60,32 @@ fun SessionDetailScreen(
                 Modifier.fillMaxSize().padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    "Session not found",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
+                ) {
+                    Icon(
+                        Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    )
+                    Text(
+                        "Session not found",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "This session may have been deleted.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
+                    OutlinedButton(onClick = onBack) {
+                        Text("Go Back")
+                    }
+                }
             }
             return@Scaffold
         }
@@ -80,8 +100,8 @@ fun SessionDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
             // ── Date & Time card ─────────────────────────────────────────
             DetailCard {
@@ -169,7 +189,7 @@ fun SessionDetailScreen(
                                     Icons.Default.FitnessCenter,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
-                                    tint = BrandPink,
+                                    tint = MaterialTheme.colorScheme.primary,
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Text(

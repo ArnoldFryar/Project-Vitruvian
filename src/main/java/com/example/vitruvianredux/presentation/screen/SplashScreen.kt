@@ -78,7 +78,7 @@ fun SplashScreen(
                 text = "V",
                 fontSize = 80.sp,
                 fontWeight = FontWeight.Black,
-                color = BrandPink,
+                color = MaterialTheme.colorScheme.primary,
                 letterSpacing = (-4).sp,
                 modifier = Modifier.scale(pulseScale),
             )

@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -26,15 +25,11 @@ import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.*
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.Success
+import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.presentation.util.loadExercises
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-// ── Brand colours (UI only — no BLE dependency) ─────────────────────────────
-private val BrandPink = Color(0xFFE91E63)
-private val SuccessGreen = Color(0xFF4CAF50)
-private val WarningAmber = Color(0xFFFFA000)
-private val ErrorRed = Color(0xFFE53935)
 
 /**
  * Full-screen import preview & confirmation UI.
@@ -240,7 +235,7 @@ fun ImportProgramScreen(
                         importedCount++
                     }
                     importDone = true
-                }) { Text("Replace", color = ErrorRed) }
+                }) { Text("Replace", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 Row {
@@ -310,10 +305,10 @@ private fun PasteInputContent(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(BrandPink.copy(alpha = 0.12f)),
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.FileDownload, null, tint = BrandPink, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.FileDownload, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Column {
@@ -361,7 +356,7 @@ private fun PasteInputContent(
                 enabled = rawJson.isNotBlank(),
                 modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPink),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
                 Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
@@ -402,10 +397,10 @@ private fun PreviewContent(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(SuccessGreen.copy(alpha = 0.12f)),
+                            .background(Success.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.CheckCircle, null, tint = Success, modifier = Modifier.size(24.dp))
                     }
                     Spacer(Modifier.width(12.dp))
                     Column {
@@ -446,7 +441,7 @@ private fun PreviewContent(
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     colors = CardDefaults.elevatedCardColors(
-                        containerColor = WarningAmber.copy(alpha = 0.08f),
+                        containerColor = Warning.copy(alpha = 0.08f),
                     ),
                     shape = MaterialTheme.shapes.medium,
                 ) {
@@ -454,7 +449,7 @@ private fun PreviewContent(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.Warning, null, tint = WarningAmber, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Warning, null, tint = Warning, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(
                             "Some exercises need confirmation. Tap them to choose from matching catalog entries.",
@@ -470,7 +465,7 @@ private fun PreviewContent(
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(containerColor = BrandPink),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 enabled = allResolved,
             ) {
                 Icon(Icons.Default.Download, null, modifier = Modifier.size(20.dp))
@@ -507,7 +502,7 @@ private fun ProgramPreviewCard(
         ) {
             Icon(
                 Icons.Default.FitnessCenter, null,
-                tint = BrandPink,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(28.dp),
             )
             Spacer(Modifier.width(12.dp))
@@ -555,9 +550,9 @@ private fun ExercisePreviewRow(
     onClick: () -> Unit,
 ) {
     val matchColor = when {
-        resolved.selectedExercise != null -> SuccessGreen
-        resolved.match is ProgramImporter.ExerciseMatch.Exact -> SuccessGreen
-        resolved.match is ProgramImporter.ExerciseMatch.Ambiguous -> WarningAmber
+        resolved.selectedExercise != null -> Success
+        resolved.match is ProgramImporter.ExerciseMatch.Exact -> Success
+        resolved.match is ProgramImporter.ExerciseMatch.Ambiguous -> Warning
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val matchLabel = when {
@@ -649,10 +644,10 @@ private fun ErrorContent(
             modifier = Modifier
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(ErrorRed.copy(alpha = 0.10f)),
+                .background(MaterialTheme.colorScheme.error.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.ErrorOutline, null, tint = ErrorRed, modifier = Modifier.size(36.dp))
+            Icon(Icons.Default.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(36.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Import Failed", fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -692,10 +687,10 @@ private fun ImportSuccessContent(
             modifier = Modifier
                 .size(72.dp)
                 .clip(CircleShape)
-                .background(SuccessGreen.copy(alpha = 0.12f)),
+                .background(Success.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(40.dp))
+            Icon(Icons.Default.CheckCircle, null, tint = Success, modifier = Modifier.size(40.dp))
         }
         Spacer(Modifier.height(16.dp))
         Text("Import Complete!", fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -709,7 +704,7 @@ private fun ImportSuccessContent(
         Button(
             onClick = onDone,
             shape = MaterialTheme.shapes.medium,
-            colors = ButtonDefaults.buttonColors(containerColor = BrandPink),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             modifier = Modifier.height(48.dp),
         ) {
             Text("Done", fontWeight = FontWeight.Bold)

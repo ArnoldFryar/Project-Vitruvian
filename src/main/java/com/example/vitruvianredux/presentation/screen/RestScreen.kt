@@ -19,8 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.session.NextStep
+import com.example.vitruvianredux.presentation.repquality.FatigueTrendGraph
+import com.example.vitruvianredux.presentation.repquality.RepQuality
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.AccentCyan
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /** Full-screen rest countdown — embedded into ExercisePlayerScreen via AnimatedContent. */
 @Composable
@@ -30,12 +33,14 @@ fun RestScreenContent(
     onSkip: () -> Unit,
     onSkipExercise: () -> Unit = {},
     onEditUpcomingSets: () -> Unit = {},
+    repScores: List<RepQuality> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     val totalSeconds = remember { secondsRemaining.coerceAtLeast(1) }
     val progress = (secondsRemaining.toFloat() / totalSeconds).coerceIn(0f, 1f)
+    val ext = LocalExtendedColors.current
 
-    val ringColor     = AccentCyan
+    val ringColor     = ext.accentCyan
     val trackColor    = MaterialTheme.colorScheme.surfaceVariant
     val surfaceColor  = MaterialTheme.colorScheme.background
 
@@ -47,7 +52,7 @@ fun RestScreenContent(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(32.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
         ) {
             // ── Title ─────────────────────────────────────────────────────────
             Text(
@@ -98,7 +103,7 @@ fun RestScreenContent(
                         text       = "$secondsRemaining",
                         style      = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Black,
-                        color      = AccentCyan,
+                        color      = ext.accentCyan,
                     )
                     Text(
                         text  = "sec",
@@ -106,6 +111,11 @@ fun RestScreenContent(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     )
                 }
+            }
+
+            // ── Fatigue trend graph (shown when ≥ 2 reps scored) ──────────
+            if (repScores.size >= 2) {
+                FatigueTrendGraph(scores = repScores)
             }
 
             // ── Next step hint ────────────────────────────────────────────────
@@ -123,7 +133,7 @@ fun RestScreenContent(
             }
 
             // ── Skip button ───────────────────────────────────────────────────
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm)) {
                 FilledTonalButton(
                     onClick  = onSkip,
                     modifier = Modifier

@@ -1,7 +1,9 @@
 package com.example.vitruvianredux.presentation.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -133,6 +135,18 @@ fun CablePositionBar(
     val displayRange = 500f
     val normalizedPos = ((smoothed.position + displayRange / 2) / displayRange).coerceIn(0f, 1f)
 
+    // Spring-animate the normalised position so the pill glides smoothly
+    // between sensor updates without any allocation inside DrawScope.
+    // NoBouncy + MediumLow stiffness keeps motion crisp yet fluid.
+    val animatedPos by animateFloatAsState(
+        targetValue   = normalizedPos,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness    = Spring.StiffnessMediumLow,
+        ),
+        label = "CablePos",
+    )
+
     val indicatorColor = activeColor
 
     Column(
@@ -155,7 +169,7 @@ fun CablePositionBar(
         Canvas(
             modifier = Modifier
                 .weight(1f)
-                .width(40.dp)
+                .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         ) {
@@ -163,16 +177,16 @@ fun CablePositionBar(
             val barHeight = size.height
 
             // 1. Draw glow effect around indicator position
-            val indicatorY = barHeight * (1f - normalizedPos)
+            val indicatorY = barHeight * (1f - animatedPos)
             drawGlowEffect(barWidth, barHeight, indicatorY, indicatorColor)
 
-            // 2. Draw direction trail (28px gradient band trailing behind indicator)
+            // 2. Draw direction trail (44px gradient band trailing behind indicator)
             if (phase != MovementPhase.STATIC) {
                 drawDirectionTrail(barWidth, barHeight, indicatorY, phase, indicatorColor)
             }
 
             // 3. Draw position indicator pill
-            drawPositionIndicator(barWidth, barHeight, normalizedPos, indicatorColor)
+            drawPositionIndicator(barWidth, barHeight, animatedPos, indicatorColor)
 
             // 4. Draw direction chevron inside pill
             if (phase != MovementPhase.STATIC) {
@@ -198,15 +212,28 @@ private fun DrawScope.drawGlowEffect(
     indicatorY: Float,
     color: Color,
 ) {
-    val glowRadius = barWidth * 1.2f
+    val cx = barWidth / 2f
+    // Outer diffuse halo — wide, very translucent
+    val outerRadius = barWidth * 1.55f
     drawCircle(
         brush = Brush.radialGradient(
-            colors = listOf(color.copy(alpha = 0.25f), Color.Transparent),
-            center = Offset(barWidth / 2, indicatorY),
-            radius = glowRadius,
+            colors = listOf(color.copy(alpha = 0.18f), Color.Transparent),
+            center = Offset(cx, indicatorY),
+            radius = outerRadius,
         ),
-        radius = glowRadius,
-        center = Offset(barWidth / 2, indicatorY),
+        radius = outerRadius,
+        center = Offset(cx, indicatorY),
+    )
+    // Inner bright core — tight, higher opacity
+    val innerRadius = barWidth * 0.65f
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(color.copy(alpha = 0.50f), Color.Transparent),
+            center = Offset(cx, indicatorY),
+            radius = innerRadius,
+        ),
+        radius = innerRadius,
+        center = Offset(cx, indicatorY),
     )
 }
 
@@ -216,8 +243,8 @@ private fun DrawScope.drawPositionIndicator(
     progress: Float,
     color: Color,
 ) {
-    val pillWidth = barWidth * 0.7f
-    val pillHeight = 14f
+    val pillWidth  = barWidth * 0.84f
+    val pillHeight = 18f
     val y = barHeight * (1f - progress)
     val startX = (barWidth - pillWidth) / 2
 
@@ -271,9 +298,9 @@ private fun DrawScope.drawDirectionTrail(
     phase: MovementPhase,
     color: Color,
 ) {
-    val trailLength = 28f
-    val inset = 6f
-    val trailColor = color.copy(alpha = 0.25f)
+    val trailLength = 44f
+    val inset = 5f
+    val trailColor = color.copy(alpha = 0.32f)
 
     val (topY, bottomY) = if (phase == MovementPhase.CONCENTRIC) {
         // Trail below indicator (came from below)

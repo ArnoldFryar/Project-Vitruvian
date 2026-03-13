@@ -30,7 +30,9 @@ import com.example.vitruvianredux.ble.SessionState
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.model.ExerciseSortOrder
 import com.example.vitruvianredux.model.ExerciseVideo
 import com.example.vitruvianredux.presentation.audit.*
@@ -67,7 +69,7 @@ fun WorkoutScreen(
                 val raw = context.assets.open("exercises.json").bufferedReader().readText()
                 jsonParser.decodeFromString<List<Exercise>>(raw)
                     .filter { it.archived == null }   // hide retired exercises
-            }
+            } + CustomExerciseStore.getAll()
         } catch (e: Exception) {
             loadError = e.message ?: "Failed to load exercises"
         }
@@ -359,6 +361,17 @@ private fun ExerciseCard(
                     style      = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
+                // "Custom" badge for user-created exercises
+                if (exercise.source == ExerciseSource.CUSTOM) {
+                    SuggestionChip(
+                        onClick = {},
+                        label   = { Text("Custom", style = MaterialTheme.typography.labelSmall) },
+                        colors  = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            labelColor     = MaterialTheme.colorScheme.onTertiaryContainer,
+                        ),
+                    )
+                }
                 if (tags.isNotEmpty()) {
                     Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                         visibleTags.forEach { t ->

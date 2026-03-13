@@ -1,4 +1,4 @@
-﻿@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.example.vitruvianredux.presentation.screen
 
@@ -96,12 +96,12 @@ fun ProgramEditorScreen(
                 title = {
                     Column {
                         Text(
-                            if (program != null) "Edit Program" else "Edit Program",
+                            if (program != null) "Edit Program" else "New Program",
                             fontWeight = FontWeight.Bold,
                         )
                         AnimatedVisibility(visible = draftItems.isNotEmpty()) {
                             Text(
-                                "${draftItems.size} exercise${if (draftItems.size != 1) "s" else ""} · ${draftItems.sumOf { it.sets }} total sets",
+                                "${draftItems.size} exercise${if (draftItems.size != 1) "s" else ""} � ${draftItems.sumOf { it.sets }} total sets",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -186,7 +186,7 @@ fun ProgramEditorScreen(
                                 "EXERCISES",
                                 style         = MaterialTheme.typography.labelMedium,
                                 color         = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 1.2.sp,
+                                letterSpacing = 1.sp,
                             )
                             Spacer(Modifier.weight(1f))
                             Surface(

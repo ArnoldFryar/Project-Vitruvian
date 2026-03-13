@@ -154,6 +154,7 @@ object SyncServiceLocator {
                     durationSec   = session.durationSec,
                     totalSets     = session.totalSets,
                     totalReps     = session.totalReps,
+                    programName   = session.name.takeIf { it.isNotBlank() },
                 )
                 WorkoutHistoryStore.record(histRecord)
                 imported++

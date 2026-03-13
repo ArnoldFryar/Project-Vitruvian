@@ -134,7 +134,7 @@ fun OnboardingScreen(
             // Dot indicators
             Row(
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.lg),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 repeat(pages.size) { index ->
@@ -168,16 +168,16 @@ fun OnboardingScreen(
                     .fillMaxWidth()
                     .padding(horizontal = AppDimens.Spacing.xl)
                     .height(52.dp),
-                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = BrandPink,
-                    contentColor = White,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) {
                 Text(
                     text = if (isLastPage) "Get Started" else "Next",
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
                 )
             }
 

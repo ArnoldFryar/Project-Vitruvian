@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.vitruvianredux.ble.BleConnectionState
@@ -72,16 +71,10 @@ fun AppScaffold() {
         }
 
         val activity = LocalContext.current as ComponentActivity
-        // Activity-scoped so it survives recompositions and tab switches
-        val bleVM = remember(activity) {
-            ViewModelProvider(activity)[BleViewModel::class.java]
-        }
-        val workoutVM = remember(activity) {
-            ViewModelProvider(
-                activity,
-                WorkoutSessionViewModel.Factory(activity.application, bleVM.client),
-            )[WorkoutSessionViewModel::class.java]
-        }
+        val vitruvianApp = activity.application as com.example.vitruvianredux.VitruvianApp
+        // Application-scoped: same instances survive Activity recreation and tab switching.
+        val bleVM = vitruvianApp.bleViewModel
+        val workoutVM = vitruvianApp.workoutViewModel
 
         // P2P connection manager for Wi-Fi Direct sync
         val p2pManager = remember(activity) {
@@ -161,6 +154,7 @@ fun AppScaffold() {
                                 onDisconnectClick   = {
                                     WiringRegistry.hit(A_GLOBAL_DISCONNECT)
                                     WiringRegistry.recordOutcome(A_GLOBAL_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect"))
+                                    bleVM.clearAutoReconnect()
                                     bleVM.disconnect()
                                 },
                                 onNavigateToAudit   = { nav.navigate(Route.Audit.path) },
@@ -238,7 +232,9 @@ fun AppScaffold() {
 
                         // ── Health Connect export (when enabled) ──
                         if (HealthConnectStore.isEnabled) {
-                            val title = playerExercise?.name ?: "Vitruvian Workout"
+                            val title = workoutVM.activeProgramName
+                                ?: playerExercise?.name
+                                ?: "Vitruvian Workout"
                             val summary = HealthConnectManager.WorkoutSummary(
                                 title        = title,
                                 startEpochMs = startMs,

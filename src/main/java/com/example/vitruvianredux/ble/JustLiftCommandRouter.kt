@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
 
 /**
@@ -27,7 +28,7 @@ import kotlin.math.roundToInt
  * - Parameters that can only take effect at set-start (mode, weight,
  *   progression) are staged in [JustLiftStore] and flushed into a fresh
  *   `startPlayerSet` call via [connect].
- * - Parameters that are purely UI-side (rest, sound, mirror) are persisted
+ * - Parameters that are purely UI-side (sound) are persisted
  *   to [JustLiftStore] and exposed via its [JustLiftStore.state] flow.
  */
 class JustLiftCommandRouter(
@@ -119,9 +120,9 @@ class JustLiftCommandRouter(
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Persist the rest-between-sets duration.
-     * Just Lift is a single open-ended set so this value is stored for
-     * future use when multi-set Just Lift is introduced.
+    * Persist the rest-between-sets duration.
+    * Just Lift re-arms the same set repeatedly, so this value controls
+    * the optional rest countdown before the next handle-grab cycle.
      */
     fun applyRestSeconds(seconds: Int) {
         Log.d(TAG, "applyRestSeconds → $seconds")
@@ -236,7 +237,7 @@ class JustLiftCommandRouter(
             exercise              = justLiftExercise,
             targetReps            = null,
             targetDurationSec     = null,
-            warmupReps            = 0,
+            warmupReps            = 3,
             weightPerCableLb      = if (p.isEchoMode) 0 else kgToLb(p.weightPerCableKg),
             programMode           = p.programMode.displayName,
             progressionRegressionLb = if (p.isEchoMode) 0 else kgToLb(p.progressionRegressionKg),
@@ -263,7 +264,7 @@ class JustLiftCommandRouter(
         JustLiftStore.saveJustLiftDefaults(transform(JustLiftStore.getJustLiftDefaults()))
     }
 
-    private fun kgToLb(kg: Float): Int = (kg * 2.20462f).roundToInt()
+    private fun kgToLb(kg: Float): Int = (kg * UnitConversions.LB_PER_KG.toFloat()).roundToInt()
 
     // ─────────────────────────────────────────────────────────────────────────
     // JustLiftDefaults → WorkoutParameters conversion
@@ -287,7 +288,7 @@ class JustLiftCommandRouter(
             reps                  = 0,
             weightPerCableKg      = if (mode is ProgramMode.Echo) 0f else weightPerCableKg,
             progressionRegressionKg = if (mode is ProgramMode.Echo) 0f else weightChangePerRep,
-            warmupReps            = 0,
+            warmupReps            = 3,
             isJustLift            = true,
             echoLevel             = echoLevelValue,
             eccentricLoadPct      = eccentricLoadPercentage,

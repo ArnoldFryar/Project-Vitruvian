@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import kotlin.math.roundToInt
 
 /** Workout summary screen — shown inside ExercisePlayerScreen via AnimatedContent. */
@@ -27,6 +28,8 @@ fun WorkoutCompleteContent(
     onSaveAndExit: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -42,7 +45,7 @@ fun WorkoutCompleteContent(
             imageVector        = Icons.Default.EmojiEvents,
             contentDescription = null,
             modifier           = Modifier.size(64.dp),
-            tint               = AccentCyan,
+            tint               = ext.accentCyan,
         )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -142,7 +145,7 @@ fun WorkoutCompleteContent(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
                     )
                     Text(
-                        text  = "Force chart — coming soon",
+                        text  = "Force curve visualization",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     )
@@ -157,18 +160,18 @@ fun WorkoutCompleteContent(
                 modifier  = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                shape     = RoundedCornerShape(AppDimens.Corner.sm),
+                shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
                 colors    = ButtonDefaults.buttonColors(
-                    containerColor = BrandPink,
-                    contentColor = White,
+                    containerColor = cs.primary,
+                    contentColor = cs.onPrimary,
                 ),
             ) {
                 Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.sm))
                 Text(
                     text       = "Save Changes & Exit",
+                    style      = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize   = 17.sp,
                 )
             }
 
@@ -177,12 +180,12 @@ fun WorkoutCompleteContent(
                 modifier  = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                shape     = RoundedCornerShape(AppDimens.Corner.sm),
+                shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
             ) {
                 Text(
                     text       = "Exit Without Saving",
+                    style      = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize   = 17.sp,
                 )
             }
         } else {
@@ -191,16 +194,16 @@ fun WorkoutCompleteContent(
                 modifier  = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                shape     = RoundedCornerShape(AppDimens.Corner.sm),
+                shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
                 colors    = ButtonDefaults.buttonColors(
-                    containerColor = BrandPink,
-                    contentColor = White,
+                    containerColor = cs.primary,
+                    contentColor = cs.onPrimary,
                 ),
             ) {
                 Text(
                     text       = "Done",
+                    style      = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    fontSize   = 17.sp,
                 )
             }
         }
@@ -221,13 +224,13 @@ private fun StatTile(
         modifier  = modifier,
         shape = RoundedCornerShape(AppDimens.Corner.sm),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 1.dp,
+        tonalElevation = AppDimens.Elevation.selector,
     ) {
         Column(
             modifier            = Modifier
                 .fillMaxWidth()
                 .padding(AppDimens.Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
             Icon(
                 imageVector        = icon,
@@ -237,9 +240,8 @@ private fun StatTile(
             )
             Text(
                 text       = value,
+                style      = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                fontSize   = 24.sp,
-                lineHeight = 26.sp,
             )
             Text(
                 text  = unit,

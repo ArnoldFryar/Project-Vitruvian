@@ -1,5 +1,6 @@
 package com.example.vitruvianredux.data
 
+import com.example.vitruvianredux.util.ResistanceLimits
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -53,9 +54,24 @@ data class ImportedExercise(
     val restTimerSec: Int,
 )
 
-data class ImportedProgram(
+data class ImportedDay(
     val name: String,
     val exercises: List<ImportedExercise>,
+)
+
+/**
+ * A program as parsed from an import payload.
+ *
+ * - **v1 schema** (`programs → exercises`): [days] is empty; [exercises] holds the flat list.
+ * - **v2 schema** (`programs → days → exercises`): [days] is populated; [exercises] is the
+ *   concatenation of all days' exercise lists for backward-compatible downstream access.
+ */
+data class ImportedProgram(
+    val name: String,
+    /** All exercises, flattened across days (or direct from v1 format). Always use this for save logic. */
+    val exercises: List<ImportedExercise>,
+    /** Non-empty only when the source JSON used the v2 `days` wrapper. */
+    val days: List<ImportedDay> = emptyList(),
 )
 
 data class ProgramImportPayload(
@@ -75,7 +91,7 @@ sealed class ImportParseResult {
 
 object ProgramImportParser {
 
-    private const val SUPPORTED_SCHEMA = 1
+    private const val SUPPORTED_SCHEMA = ImportValidator.MAX_SUPPORTED_SCHEMA
 
     /**
      * Parse and validate a raw JSON string into [ProgramImportPayload].
@@ -87,6 +103,17 @@ object ProgramImportParser {
     fun parse(raw: String): ImportParseResult {
         val trimmed = raw.trim()
         if (trimmed.isBlank()) return ImportParseResult.Error("Empty input — nothing to import.")
+
+        // ── Pre-parse structural / type-level validation ──────────────────
+        // Only apply to payloads that look like the full wrapper format (have
+        // schemaVersion). Single-program shorthands are handled below.
+        val looksLikeWrapper = trimmed.contains("schemaVersion")
+        if (looksLikeWrapper) {
+            val report = ImportValidator.validate(trimmed)
+            if (!report.isValid) {
+                return ImportParseResult.Error(report.firstError ?: "Validation failed.")
+            }
+        }
 
         val root: JSONObject = try {
             JSONObject(trimmed)
@@ -160,12 +187,31 @@ object ProgramImportParser {
 
     private fun parseProgramObject(obj: JSONObject, @Suppress("UNUSED_PARAMETER") index: Int): ImportedProgram? {
         val name = obj.optString("name").takeIf { it.isNotBlank() } ?: return null
+
+        // v2 schema: programs → days → exercises
+        val daysArr = obj.optJSONArray("days")
+        if (daysArr != null) {
+            val days = (0 until daysArr.length()).mapNotNull { d ->
+                val dayObj = daysArr.optJSONObject(d) ?: return@mapNotNull null
+                val dayName = dayObj.optString("name").ifBlank { "Day ${d + 1}" }
+                val exArr = dayObj.optJSONArray("exercises") ?: JSONArray()
+                val exercises = (0 until exArr.length()).mapNotNull { i ->
+                    val eObj = exArr.optJSONObject(i) ?: return@mapNotNull null
+                    parseExercise(eObj)
+                }
+                if (exercises.isEmpty()) null else ImportedDay(dayName, exercises)
+            }
+            val flatExercises = days.flatMap { it.exercises }
+            return ImportedProgram(name = name, exercises = flatExercises, days = days)
+        }
+
+        // v1 schema: programs → exercises (flat)
         val exArr = obj.optJSONArray("exercises") ?: JSONArray()
         val exercises = (0 until exArr.length()).mapNotNull { i ->
             val eObj = exArr.optJSONObject(i) ?: return@mapNotNull null
             parseExercise(eObj)
         }
-        return ImportedProgram(name, exercises)
+        return ImportedProgram(name = name, exercises = exercises)
     }
 
     private fun parseExercise(obj: JSONObject): ImportedExercise? {
@@ -185,7 +231,7 @@ object ProgramImportParser {
         val durationSec = if (obj.has("durationSec") && !obj.isNull("durationSec"))
             sanitizeInt(obj.optInt("durationSec", 30), min = 5, max = 600, default = 30)
         else null
-        val targetWeightLb = sanitizeInt(obj.optInt("targetWeightLb", 30), min = 0, max = 440, default = 30)
+        val targetWeightLb = sanitizeInt(obj.optInt("targetWeightLb", 30), min = 0, max = ResistanceLimits.maxPerHandleLb.toInt(), default = 30)
         val programMode = obj.optString("programMode", "Old School").takeIf { it.isNotBlank() } ?: "Old School"
         val progressionLb = sanitizeInt(obj.optInt("progressionRegressionLb", 0), min = 0, max = 50, default = 0)
         val restTimerSec = sanitizeInt(obj.optInt("restTimerSec", 60), min = 0, max = 600, default = 60)

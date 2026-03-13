@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.vitruvianredux.ble.protocol.WorkoutParameters
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.ble.session.ExerciseStats
+import com.example.vitruvianredux.ble.session.HandleState
 import com.example.vitruvianredux.ble.session.NextStep
 import com.example.vitruvianredux.model.Exercise
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,6 +64,18 @@ class WorkoutSessionViewModel(
     val sessionEvents: StateFlow<List<SessionEventLog.Event>> = SessionEventLog.events
 
     /**
+     * Live [HandleState] from the 4-state handle-activity detector.
+     *
+     * Reflects what the engine's [HandleStateDetector] last emitted —
+     * always current whether or not Just Lift mode is active.  Collect
+     * in Compose to drive grab-countdown animations or show handle-state
+     * badges on the player screen.
+     *
+     * State machine: WaitingForRest → Released ⇔ Moving ⇔ Grabbed.
+     */
+    val handleStateFlow: StateFlow<HandleState> = engine.handleStateFlow
+
+    /**
      * The exercise currently loaded in the player screen.
      * Set via [setPlayerExercise] before navigating to the player route.
      */
@@ -72,6 +85,18 @@ class WorkoutSessionViewModel(
     // ── Program workout tracking (for "Save Changes" on completion) ──────────
     /** The program ID from which the current workout was started (null for ad-hoc). */
     var activeProgramId: String? = null
+        private set
+
+    /** Human-readable program name stored at session start for the session recorder. */
+    var activeProgramName: String? = null
+        private set
+
+    /** Day/split label within the program (e.g. "Push Day"); null if not applicable. */
+    var activeDayName: String? = null
+        private set
+
+    /** Epoch millis captured when the workout starts; used to compute session startTime. */
+    var sessionStartMs: Long = 0L
         private set
 
     /** Per-set stats captured as each set completes during the workout. */
@@ -85,7 +110,24 @@ class WorkoutSessionViewModel(
     /** Tracks the last rest-countdown second we spoke so we don't repeat. */
     private var lastSpokenRestSecond = -1
 
+    /**
+     * Passive desync watchdog — observes BLE metrics, rep counter, and session
+     * state to surface anomalies without touching BLE protocol or rep math.
+     *
+     * Anomalies are logged via `Log.w(WorkoutWatchdog, …)` and [onAnomalyDetected]
+     * is **not** wired to any UI by default; add a collector in the player screen
+     * or here if you want in-app warnings.
+     *
+     * [WorkoutEngineWatchdog.WatchdogAnomaly.SILENT_BLE] also calls [panicStop]
+     * automatically as a safe recovery action.
+     */
+    internal val watchdog: WorkoutEngineWatchdog = WorkoutEngineWatchdog(
+        state       = engine.state,
+        onSafeReset = { panicStop() },
+    )
+
     init {
+        watchdog.start(viewModelScope)
         tts = TextToSpeech(app, this)
         
         // Voice rep counter — matches Phoenix: only announce WORKING rep numbers.
@@ -174,6 +216,7 @@ class WorkoutSessionViewModel(
     fun setPlayerExercise(exercise: Exercise?) {
         _playerExercise.value = exercise
         if (exercise != null) {
+            sessionStartMs = System.currentTimeMillis()
             engine.startPlayerWorkout(
                 listOf(
                     PlayerSetParams(
@@ -208,16 +251,24 @@ class WorkoutSessionViewModel(
 
     fun startProgram(sets: List<WorkoutParameters>) = engine.startProgram(sets)
 
-    fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean = engine.startPlayerWorkout(sets)
+    fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
+        sessionStartMs = System.currentTimeMillis()
+        return engine.startPlayerWorkout(sets)
+    }
 
     /**
      * Start a player workout from a saved program.
-     * Tracks the program ID so changes can be saved back on completion.
+     * Tracks the program ID and name so changes can be saved back on completion
+     * and the session recorder can label the log entry.
      */
     fun startProgramWorkout(programId: String, sets: List<PlayerSetParams>): Boolean {
-        activeProgramId = programId
+        activeProgramId   = programId
+        activeProgramName = com.example.vitruvianredux.data.ProgramStore
+            .savedProgramsFlow.value.find { it.id == programId }?.name
+        activeDayName     = null   // Day/split support can be wired here in future
+        sessionStartMs    = System.currentTimeMillis()
         _completedExerciseStats.clear()
-        return engine.startPlayerWorkout(sets)
+        return engine.startPlayerWorkout(sets, programName = activeProgramName)
     }
 
     /**
@@ -259,11 +310,17 @@ class WorkoutSessionViewModel(
     /**
      * Arm the engine for a Just Lift quick-start session.
      * Resets to Idle if not already, sets auto-start flags, enables handle detection.
+     * Also clears the currently selected exercise (selectedExerciseId = null) so the
+     * Just Lift flow always starts from a clean slate.
      * Call before [startPlayerSet] for Just Lift flow.
      *
      * @see WorkoutSessionEngine.prepareForJustLift
      */
-    fun prepareForJustLift() = engine.prepareForJustLift()
+    fun prepareForJustLift() {
+        // Clear the player exercise selection (mirrors Phoenix selectedExerciseId = null).
+        _playerExercise.value = null
+        engine.prepareForJustLift()
+    }
 
     // ── Player-mode API ───────────────────────────────────────────────────────
 
@@ -352,7 +409,10 @@ class WorkoutSessionViewModel(
 
     /** Reset from WorkoutComplete back to Idle. Call after user dismisses the summary. */
     fun resetAfterWorkout() {
-        activeProgramId = null
+        activeProgramId   = null
+        activeProgramName = null
+        activeDayName     = null
+        sessionStartMs    = 0L
         _completedExerciseStats.clear()
         engine.resetAfterWorkout()
     }

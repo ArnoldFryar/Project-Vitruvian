@@ -24,19 +24,37 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.ble.JustLiftCommandRouter
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.presentation.components.ResistanceTumbler
+import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.ble.protocol.EchoLevel
 import com.example.vitruvianredux.data.JustLiftStore
+import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.util.ResistanceLimits
+import com.example.vitruvianredux.util.ResistanceStepPolicy
+import com.example.vitruvianredux.util.UnitConversions
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import com.example.vitruvianredux.presentation.ui.theme.WarningContainer
 import com.example.vitruvianredux.presentation.ui.theme.WarningOnContainer
+import com.example.vitruvianredux.presentation.ui.AppDimens
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 enum class JustLiftMode(val label: String) {
     OldSchool("Old School"),
     Pump("Pump"),
     TUT("TUT"),
     Echo("Echo")
+}
+
+private fun formatSignedUnitValue(value: Float, unitLabel: String): String {
+    val sign = when {
+        value > 0f -> "+"
+        value < 0f -> "-"
+        else -> ""
+    }
+    return "$sign${"%.1f".format(abs(value))} $unitLabel"
 }
 
 // ─────────────────────────────────────────────
@@ -50,7 +68,7 @@ fun JustLiftFab(onClick: () -> Unit) {
             .clip(RoundedCornerShape(50))
             .background(Brush.horizontalGradient(listOf(cs.primary, cs.secondary)))
             .clickable { onClick() }
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = AppDimens.Spacing.lg, vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -60,12 +78,11 @@ fun JustLiftFab(onClick: () -> Unit) {
                 tint = cs.onPrimary,
                 modifier = Modifier.size(22.dp)
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.sm))
             Text(
                 text = "Just Lift",
                 color = cs.onPrimary,
                 style = MaterialTheme.typography.labelLarge,
-                fontSize = 16.sp
             )
         }
     }
@@ -85,6 +102,7 @@ fun JustLiftDialog(
 
     // ── Persisted defaults (loaded from JustLiftStore) ──
     val saved = remember { JustLiftStore.getJustLiftDefaults() }
+    // Weight stored in kg internally; displayed in user's preferred unit (lb default).
     var weightKgPerCable    by remember { mutableStateOf(saved.weightPerCableKg) }
     var selectedMode        by remember { mutableStateOf(saved.workoutModeId) }
     var showModeMenu        by remember { mutableStateOf(false) }
@@ -149,6 +167,25 @@ fun JustLiftDialog(
         )
     }
 
+    // ── Unit-aware display helpers ──
+    // Canonical storage is always kg; display uses profile preference.
+    val unitSystem = UnitsStore.current
+    val isLb = unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB
+    val unitLabel = if (isLb) "lb" else "kg"
+    // Convert kg to display value
+    fun kgToDisplay(kg: Float): Float =
+        if (isLb) (kg * UnitConversions.LB_PER_KG.toFloat()) else kg
+    // Convert display value back to kg
+    fun displayToKg(display: Float): Float =
+        if (isLb) (display * UnitConversions.KG_PER_LB.toFloat()) else display
+    // Step size: 0.5 lb or 0.5 kg (ResistanceStepPolicy)
+    val weightStep = ResistanceStepPolicy.stepForUnit(unitSystem).toFloat()
+    // Max: 220 lb or ~99.8 kg (ResistanceLimits)
+    val weightMax = if (isLb) ResistanceLimits.maxPerHandleLb.toFloat()
+                   else ResistanceLimits.maxPerHandleKg.toFloat()
+    // Current display value
+    val weightDisplay = kgToDisplay(weightKgPerCable)
+
     val isEcho = selectedMode == JustLiftMode.Echo
     val cs = MaterialTheme.colorScheme
 
@@ -164,16 +201,17 @@ fun JustLiftDialog(
         ) {
             Column(
                 modifier = Modifier
+                    .widthIn(max = AppDimens.Layout.maxContentWidth)
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .background(cs.background, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .background(cs.background, RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg))
                     .verticalScroll(rememberScrollState())
             ) {
                 // ── Top bar ──
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                        .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md)
                 ) {
                     TextButton(onClick = { saveSnapshot(); onDismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
                         Text("Done", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
@@ -213,13 +251,13 @@ fun JustLiftDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .background(WarningContainer, RoundedCornerShape(10.dp))
-                        .padding(12.dp),
+                        .padding(horizontal = AppDimens.Spacing.md)
+                        .background(WarningContainer, RoundedCornerShape(AppDimens.Corner.sm))
+                        .padding(AppDimens.Spacing.md_sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.Warning, contentDescription = null, tint = WarningOnContainer, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text(
                         "For safety, only use the handle accessories",
                         color = WarningOnContainer,
@@ -227,43 +265,42 @@ fun JustLiftDialog(
                     )
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.lg))
 
                 // ── Weight control ──
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .background(cs.surface, RoundedCornerShape(14.dp))
-                        .padding(vertical = 20.dp, horizontal = 24.dp)
+                        .padding(horizontal = AppDimens.Spacing.md)
+                        .background(cs.surface, RoundedCornerShape(AppDimens.Corner.md))
+                        .padding(vertical = AppDimens.Spacing.lg, horizontal = AppDimens.Spacing.lg)
                 ) {
                     Text(
-                        "Weight (kg/cable)",
+                        "Weight ($unitLabel/cable)",
                         color = cs.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     if (isEcho) {
                         // Echo mode: isokinetic — no user-set weight
                         Text(
                             "Adaptive",
                             color = cs.secondary,
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.Light
+                            style = MaterialTheme.typography.displaySmall,
                         )
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(AppDimens.Spacing.sm))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(cs.surfaceVariant, RoundedCornerShape(10.dp))
-                                .padding(12.dp),
+                                .background(cs.surfaceVariant, RoundedCornerShape(AppDimens.Corner.sm))
+                                .padding(AppDimens.Spacing.md_sm),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.Info, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text(
                                     "The stronger you lift up, the heavier you'll lower down",
                                     color = cs.onSurfaceVariant,
@@ -272,37 +309,32 @@ fun JustLiftDialog(
                             }
                         }
                     } else {
-                        // Regular modes: user sets weight
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                            Text(
-                                text = "%.1f".format(weightKgPerCable),
-                                color = cs.onSurface,
-                                fontSize = 48.sp,
-                                fontWeight = FontWeight.Light
+                        // Regular modes: user sets weight via tumbler
+                        SelectorCard(
+                            title    = "Weight / Cable",
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            ResistanceTumbler(
+                                valueKg         = weightKgPerCable,
+                                onValueKgChange = { weightKgPerCable = it },
+                                modifier        = Modifier.fillMaxWidth(),
+                                surfaceColor    = MaterialTheme.colorScheme.surfaceVariant,
                             )
-                            Spacer(Modifier.width(8.dp))
-                            Column {
-                                IconButton(onClick = { if (weightKgPerCable < 90f) weightKgPerCable += 0.5f }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Increase", tint = cs.onSurfaceVariant, modifier = Modifier.size(20.dp))
-                                }
-                                IconButton(onClick = { if (weightKgPerCable > 0f) weightKgPerCable -= 0.5f }, modifier = Modifier.size(32.dp)) {
-                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Decrease", tint = cs.onSurfaceVariant, modifier = Modifier.size(20.dp))
-                                }
-                            }
                         }
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(AppDimens.Spacing.sm))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(cs.surfaceVariant, RoundedCornerShape(10.dp))
-                                .padding(12.dp),
+                                .background(cs.surfaceVariant, RoundedCornerShape(AppDimens.Corner.sm))
+                                .padding(AppDimens.Spacing.md_sm),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Outlined.Info, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                val totalDisplay = "%.1f $unitLabel".format(weightDisplay * 2)
                                 Text(
-                                    "Total weight for 2 cables: ${"%.1f".format(weightKgPerCable * 2)} kg",
+                                    "Total weight for 2 cables: $totalDisplay",
                                     color = cs.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -318,18 +350,18 @@ fun JustLiftDialog(
                         color = cs.onSurfaceVariant.copy(alpha = 0.6f),
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier
-                            .padding(horizontal = 20.dp)
-                            .padding(top = 4.dp),
+                            .padding(horizontal = AppDimens.Spacing.lg)
+                            .padding(top = AppDimens.Spacing.xs),
                     )
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
                 // ── Mode + Echo settings OR Mode + Progression block ──
                 Column(modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .background(cs.surface, RoundedCornerShape(14.dp))
+                    .padding(horizontal = AppDimens.Spacing.md)
+                    .background(cs.surface, RoundedCornerShape(AppDimens.Corner.md))
                 ) {
                     // Mode row (always shown)
                     SettingsRow(
@@ -403,7 +435,9 @@ fun JustLiftDialog(
                             icon = Icons.Default.SwapVert, label = "Progression/Regression",
                             valueContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("${if (progressionKg >= 0) "+" else ""}${"%.1f".format(progressionKg)} kg", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+                                    val progDisplay = kgToDisplay(progressionKg)
+                                    val progText = formatSignedUnitValue(progDisplay, unitLabel)
+                                    Text(progText, color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                                     Spacer(Modifier.width(4.dp))
                                     Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                 }
@@ -439,18 +473,18 @@ fun JustLiftDialog(
                         color = cs.onSurfaceVariant.copy(alpha = 0.6f),
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier
-                            .padding(horizontal = 20.dp)
-                            .padding(top = 4.dp),
+                            .padding(horizontal = AppDimens.Spacing.lg)
+                            .padding(top = AppDimens.Spacing.xs),
                     )
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
                 // ── Rest / Sound / Mirror block ──
                 Column(modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .background(cs.surface, RoundedCornerShape(14.dp))
+                    .padding(horizontal = AppDimens.Spacing.md)
+                    .background(cs.surface, RoundedCornerShape(AppDimens.Corner.md))
                 ) {
                     SettingsRow(
                         icon = Icons.Default.Bedtime, label = "Rest",
@@ -489,7 +523,7 @@ fun JustLiftDialog(
                             Switch(
                                 checked = mirrorEnabled, onCheckedChange = { mirrorEnabled = it },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = cs.onPrimary, checkedTrackColor = cs.tertiary,
+                                    checkedThumbColor = cs.onPrimary, checkedTrackColor = cs.primary,
                                     uncheckedThumbColor = cs.onSurface, uncheckedTrackColor = cs.outline
                                 )
                             )
@@ -533,28 +567,31 @@ fun JustLiftDialog(
                     )
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.lg))
 
                 // ── Connect button ──
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = AppDimens.Spacing.md)
                         .clip(RoundedCornerShape(50))
-                        .background(cs.secondary)
-                        .clickable {
+                        .background(if (bleConnected) cs.secondary else cs.surfaceVariant)
+                        .clickable(enabled = bleConnected) {
                             saveSnapshot()
-                            router.connect()
-                            onDismiss()
+                            if (router.connect()) onDismiss()
                         }
                         .padding(vertical = 18.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Connect", color = cs.onSecondary, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (bleConnected) "Connect" else "Connect trainer first",
+                        color = if (bleConnected) cs.onSecondary else cs.onSurfaceVariant,
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
 
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.md))
             }
         }
     }
@@ -574,19 +611,20 @@ private fun SettingsRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(AppDimens.Corner.sm))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = AppDimens.Spacing.md, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .background(cs.surfaceVariant, RoundedCornerShape(8.dp)),
+                .background(cs.surfaceVariant, RoundedCornerShape(AppDimens.Corner.sm)),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(18.dp))
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
         Text(label, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         valueContent()
     }
@@ -713,7 +751,10 @@ private fun LevelPickerDialog(current: EchoLevel, onSelect: (EchoLevel) -> Unit,
 @Composable
 private fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    val options = listOf(-10f, -5f, -2.5f, -1f, 0f, 1f, 2.5f, 5f, 10f)
+    val isLb = UnitsStore.current == UnitsStore.UnitSystem.IMPERIAL_LB
+    val unitLabel = if (isLb) "lb" else "kg"
+    // Options stored in kg — displayed in user's preferred unit
+    val options = listOf(-10f, -5f, -2.5f, -1f, -0.5f, 0f, 0.5f, 1f, 2.5f, 5f, 10f)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(modifier = Modifier
@@ -731,7 +772,9 @@ private fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, o
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("${if (v > 0) "+" else ""}${"%.1f".format(v)} kg", color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
+                        val displayVal = if (isLb) UnitConversions.kgToLb(v.toDouble()).toFloat() else v
+                        val text = formatSignedUnitValue(displayVal, unitLabel)
+                        Text(text, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
                         if (v == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(20.dp))
                     }
                     if (v != options.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)

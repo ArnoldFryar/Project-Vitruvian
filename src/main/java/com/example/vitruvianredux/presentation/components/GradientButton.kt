@@ -54,7 +54,7 @@ fun GradientButton(
             )
         )
     }
-    val contentColor = if (enabled) Color.White else cs.onSurface.copy(alpha = 0.38f)
+    val contentColor = if (enabled) cs.onPrimary else cs.onSurface.copy(alpha = 0.38f)
     val interactionSource = remember { MutableInteractionSource() }
     val shape = RoundedCornerShape(AppDimens.Corner.lg)
 
@@ -66,12 +66,12 @@ fun GradientButton(
                 .background(gradient)
                 .clickable(
                     interactionSource = interactionSource,
-                    indication        = rememberRipple(color = Color.White),
+                    indication        = rememberRipple(color = cs.onPrimary),
                     enabled           = enabled,
                     role              = Role.Button,
                     onClick           = onClick,
                 )
-                .padding(horizontal = AppDimens.Spacing.md, vertical = 14.dp),
+                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
             contentAlignment = Alignment.Center,
         ) {
             Row(

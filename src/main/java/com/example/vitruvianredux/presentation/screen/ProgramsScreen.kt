@@ -44,6 +44,7 @@ import org.burnoutcrew.reorderable.reorderable
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.ScreenScaffold
 import com.example.vitruvianredux.presentation.util.loadExercises
+import com.example.vitruvianredux.presentation.util.loadAllExercises
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
@@ -51,9 +52,19 @@ import com.example.vitruvianredux.ble.protocol.ProgramMode
 import com.example.vitruvianredux.ble.protocol.WorkoutParameters
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
+import com.example.vitruvianredux.presentation.components.CreateCustomExerciseSheet
+import com.example.vitruvianredux.presentation.components.ResistanceTumbler
+import com.example.vitruvianredux.presentation.components.SelectorCard
+import com.example.vitruvianredux.presentation.components.SmoothValuePicker
+import com.example.vitruvianredux.presentation.components.ValueStepper
+import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.data.ProgramStore
+import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.util.UnitConversions
+import kotlin.math.roundToInt
 import com.example.vitruvianredux.data.SavedProgram
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -108,13 +119,13 @@ fun ProgramsScreen(
 
     if (showBuilder) ProgramBuilderSheet(workoutVM = workoutVM, onDismiss = { showBuilder = false })
 
-    ScreenScaffold(title = "Programs", innerPadding = innerPadding) {
+    ScreenScaffold(title = "Programs", innerPadding = innerPadding, fillWidth = true) {
 
         Text(
             text     = "Project Vitruvian",
             style    = MaterialTheme.typography.bodyMedium,
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 24.dp),
+            modifier = Modifier.padding(bottom = AppDimens.Spacing.lg),
         )
 
         // Connection pill
@@ -122,7 +133,7 @@ fun ProgramsScreen(
             ConnectionStatusPill(
                 bleState = sessionState.connectionState,
                 isReady  = isReady,
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = AppDimens.Spacing.md),
             )
         }
 
@@ -133,7 +144,7 @@ fun ProgramsScreen(
         ) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.AddCircleOutline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.md))
                 Column(Modifier.weight(1f)) {
                     Text("Create Program", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(2.dp))
@@ -143,7 +154,7 @@ fun ProgramsScreen(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
         // Section A2 – Import Program CTA
         ElevatedCard(
@@ -152,7 +163,7 @@ fun ProgramsScreen(
         ) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.FileDownload, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.md))
                 Column(Modifier.weight(1f)) {
                     Text("Import Program", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(2.dp))
@@ -162,7 +173,7 @@ fun ProgramsScreen(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // Section B – Your Programs
         Row(
@@ -250,7 +261,7 @@ fun ProgramsScreen(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // Section C – Templates
         Text("Templates", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = AppDimens.Spacing.sm))
@@ -267,7 +278,7 @@ fun ProgramsScreen(
         ) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.GridView, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.md))
                 Column(Modifier.weight(1f)) {
                     Text("Browse Templates", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(2.dp))
@@ -447,7 +458,7 @@ private fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onDi
                                 "EXERCISES",
                                 style         = MaterialTheme.typography.labelMedium,
                                 color         = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 1.2.sp,
+                                letterSpacing = 1.sp,
                             )
                             Spacer(Modifier.weight(1f))
                             Surface(
@@ -753,7 +764,7 @@ fun EditExerciseSheet(
     var sets          by remember { mutableIntStateOf(item.sets) }
     var reps          by remember { mutableIntStateOf(item.reps ?: 10) }
     var durationSec   by remember { mutableIntStateOf(item.durationSec ?: 30) }
-    var weightLb      by remember { mutableIntStateOf(item.targetWeightLb) }
+    var weightKg      by remember { mutableFloatStateOf(UnitConversions.lbToKg(item.targetWeightLb.toDouble()).toFloat()) }
     var programMode   by remember { mutableStateOf(if (item.programMode == "TUT Beast") "TUT" else item.programMode) }
     var isBeastMode   by remember { mutableStateOf(item.programMode == "TUT Beast") }
     var progRegLb     by remember { mutableIntStateOf(item.progressionRegressionLb) }
@@ -866,66 +877,110 @@ fun EditExerciseSheet(
                     }
                 }
 
-                // Sets stepper
-                StepperRow(label = "Sets", value = sets, min = 1, max = 10,
-                    onMinus = { sets-- }, onPlus = { sets++ })
+                // Sets picker
+                SelectorCard(
+                    title    = "Sets",
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    ValueStepper(
+                        value         = sets,
+                        onValueChange = { sets = it },
+                        range         = 1..10,
+                        unitLabel     = "sets",
+                        compact       = true,
+                    )
+                }
 
-                // Reps or Duration stepper
+                // Reps or Duration picker
                 if (mode == ExerciseMode.REPS) {
-                    StepperRow(label = "Reps", value = reps, min = 1, max = 30,
-                        onMinus = { reps-- }, onPlus = { reps++ })
+                    SelectorCard(
+                        title    = "Reps",
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        ValueStepper(
+                            value         = reps,
+                            onValueChange = { reps = it },
+                            range         = 1..30,
+                            unitLabel     = "reps",
+                            compact       = true,
+                        )
+                    }
                 } else {
-                    StepperRow(label = "Duration (s)", value = durationSec, min = 10, max = 300,
-                        onMinus = { if (durationSec > 10) durationSec -= 5 },
-                        onPlus  = { if (durationSec < 300) durationSec += 5 })
+                    SelectorCard(
+                        title    = "Duration",
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        SmoothValuePicker(
+                            value         = durationSec.toFloat(),
+                            onValueChange = { durationSec = it.toInt() },
+                            range         = 10f..300f,
+                            step          = 5f,
+                            unitLabel     = "sec",
+                            formatLabel   = { "%d".format(it.toInt()) },
+                            compact       = true,
+                            visibleItemCount = 3,
+                            itemHeight    = 32.dp,
+                            surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier      = Modifier.width(140.dp),
+                        )
+                    }
                 }
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                 // ── Section: Resistance ──────────────────────────────────────
                 SectionHeader("Resistance")
-                Column {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Weight", style = MaterialTheme.typography.bodyMedium)
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(AppDimens.Corner.sm),
-                        ) {
-                            Text(
-                                "$weightLb lb",
-                                style      = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color      = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier   = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(AppDimens.Spacing.xs))
-                    Slider(
-                        value         = weightLb.toFloat(),
-                        onValueChange = { weightLb = it.toInt() },
-                        valueRange    = 0f..200f,
-                        steps         = 199,
-                        modifier      = Modifier.fillMaxWidth(),
+                SelectorCard(modifier = Modifier.fillMaxWidth()) {
+                    ResistanceTumbler(
+                        valueKg         = weightKg,
+                        onValueKgChange = { weightKg = it },
+                        modifier        = Modifier.fillMaxWidth(),
+                        surfaceColor    = MaterialTheme.colorScheme.surfaceVariant,
                     )
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("0 lb",   style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("200 lb", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
                 }
 
                 // Progression / Regression
-                StepperRow(label = "Progression / Regression (lb)", value = progRegLb,
-                    min = -10, max = 10, onMinus = { progRegLb-- }, onPlus = { progRegLb++ })
+                SelectorCard(
+                    title    = "Prog / Reg (lb)",
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    SmoothValuePicker(
+                        value         = progRegLb.toFloat(),
+                        onValueChange = { progRegLb = it.toInt() },
+                        range         = -10f..10f,
+                        step          = 1f,
+                        unitLabel     = "lb",
+                        formatLabel   = { v -> val i = v.toInt(); if (i > 0) "+$i" else "$i" },
+                        compact       = true,
+                        visibleItemCount = 3,
+                        itemHeight    = 32.dp,
+                        surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier      = Modifier.width(140.dp),
+                    )
+                }
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                 // ── Section: Recovery ────────────────────────────────────────
                 SectionHeader("Recovery")
-                StepperRow(label = "Rest Timer (s)", value = restTimerSec,
-                    min = 0, max = 300,
-                    onMinus = { if (restTimerSec > 0) restTimerSec -= 5 },
-                    onPlus  = { if (restTimerSec < 300) restTimerSec += 5 })
+                SelectorCard(
+                    title    = "Rest Timer",
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    SmoothValuePicker(
+                        value         = restTimerSec.toFloat(),
+                        onValueChange = { restTimerSec = it.toInt() },
+                        range         = 0f..300f,
+                        step          = 5f,
+                        unitLabel     = "sec",
+                        formatLabel   = { v -> val s = v.toInt(); if (s == 0) "Off" else "%d:%02d".format(s / 60, s % 60) },
+                        compact       = true,
+                        visibleItemCount = 3,
+                        itemHeight    = 32.dp,
+                        surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier      = Modifier.width(140.dp),
+                    )
+                }
 
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
 
@@ -952,7 +1007,7 @@ fun EditExerciseSheet(
                                 sets                    = sets,
                                 reps                    = if (mode == ExerciseMode.REPS) reps else null,
                                 durationSec             = if (mode == ExerciseMode.TIME) durationSec else null,
-                                targetWeightLb          = weightLb,
+                                targetWeightLb          = (weightKg * UnitConversions.LB_PER_KG).roundToInt(),
                                 programMode             = if (programMode == "TUT" && isBeastMode) "TUT Beast" else programMode,
                                 progressionRegressionLb = progRegLb,
                                 restTimerSec            = restTimerSec,
@@ -974,78 +1029,9 @@ private fun SectionHeader(title: String) {
         text          = title.uppercase(),
         style         = MaterialTheme.typography.labelMedium,
         color         = MaterialTheme.colorScheme.onSurfaceVariant,
-        letterSpacing = 1.2.sp,
+        letterSpacing = 1.sp,
         modifier      = Modifier.padding(bottom = AppDimens.Spacing.xs),
     )
-}
-
-// ── Premium stepper row ───────────────────────────────────────────────────────
-
-@Composable
-fun StepperRow(
-    label: String,
-    value: Int,
-    min: Int,
-    max: Int,
-    onMinus: () -> Unit,
-    onPlus: () -> Unit,
-) {
-    Row(
-        modifier          = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            label,
-            style    = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        // Minus button
-        Surface(
-            onClick  = onMinus,
-            enabled  = value > min,
-            modifier = Modifier.size(40.dp),
-            shape    = RoundedCornerShape(AppDimens.Corner.sm),
-            color    = if (value > min) MaterialTheme.colorScheme.secondaryContainer
-                       else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(
-                    Icons.Default.Remove,
-                    contentDescription = "Decrease",
-                    modifier = Modifier.size(20.dp),
-                    tint     = if (value > min) MaterialTheme.colorScheme.onSecondaryContainer
-                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                )
-            }
-        }
-        // Value
-        Text(
-            text       = value.toString(),
-            style      = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier   = Modifier.widthIn(min = 48.dp).wrapContentWidth(),
-            textAlign  = TextAlign.Center,
-        )
-        // Plus button
-        Surface(
-            onClick  = onPlus,
-            enabled  = value < max,
-            modifier = Modifier.size(40.dp),
-            shape    = RoundedCornerShape(AppDimens.Corner.sm),
-            color    = if (value < max) MaterialTheme.colorScheme.secondaryContainer
-                       else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Increase",
-                    modifier = Modifier.size(20.dp),
-                    tint     = if (value < max) MaterialTheme.colorScheme.onSecondaryContainer
-                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                )
-            }
-        }
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1061,15 +1047,19 @@ fun ExercisePickerSheet(
     val context    = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var allExercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
+    var builtInExercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
+    val customExercises  by CustomExerciseStore.exercises.collectAsState()
+    val allExercises     = remember(builtInExercises, customExercises) { builtInExercises + customExercises }
+
     var searchQuery  by rememberSaveable { mutableStateOf("") }
     // Use a List (not Set) to preserve selection order
     var selectedKeys by remember { mutableStateOf(alreadySelected.map { it.stableKey }) }
     var selectedMuscles by remember { mutableStateOf(setOf<String>()) }
     var videoPreviewExercise by remember { mutableStateOf<Exercise?>(null) }
+    var showCreateSheet  by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        allExercises = try { loadExercises(context) } catch (e: Exception) { emptyList() }
+        builtInExercises = try { loadExercises(context) } catch (e: Exception) { emptyList() }
     }
 
     val allGroups = remember(allExercises) {
@@ -1126,7 +1116,7 @@ fun ExercisePickerSheet(
 
             // ── Filter chips ──────────────────────────────────────────
             if (allGroups.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                     contentPadding        = PaddingValues(horizontal = 16.dp),
@@ -1152,7 +1142,7 @@ fun ExercisePickerSheet(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // ── Exercise list ─────────────────────────────────────────
             if (allExercises.isEmpty()) {
@@ -1165,6 +1155,32 @@ fun ExercisePickerSheet(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
+                    // ── Create custom exercise action ─────────────────
+                    item(key = "__create_custom__") {
+                        OutlinedCard(
+                            onClick   = { showCreateSheet = true },
+                            modifier  = Modifier.fillMaxWidth(),
+                            colors    = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+                            ),
+                        ) {
+                            Row(
+                                modifier              = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                                verticalAlignment     = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Text(
+                                    text  = "Create Custom Exercise",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
+                    }
                     if (filtered.isEmpty()) {
                         item {
                             Box(
@@ -1243,6 +1259,17 @@ fun ExercisePickerSheet(
                                         style      = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.SemiBold,
                                     )
+                                    // "Custom" badge for user-created exercises
+                                    if (ex.source == ExerciseSource.CUSTOM) {
+                                        SuggestionChip(
+                                            onClick = {},
+                                            label   = { Text("Custom", style = MaterialTheme.typography.labelSmall) },
+                                            colors  = SuggestionChipDefaults.suggestionChipColors(
+                                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                                labelColor     = MaterialTheme.colorScheme.onTertiaryContainer,
+                                            ),
+                                        )
+                                    }
                                     if (tags.isNotEmpty()) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                                             visibleTags.forEach { t ->
@@ -1294,6 +1321,13 @@ fun ExercisePickerSheet(
             exerciseName = ex.name,
             videoUrl     = ex.videoUrl,
             onDismiss    = { videoPreviewExercise = null },
+        )
+    }
+
+    // ── Create custom exercise sheet ──────────────────────────────
+    if (showCreateSheet) {
+        CreateCustomExerciseSheet(
+            onDismiss = { showCreateSheet = false },
         )
     }
 }

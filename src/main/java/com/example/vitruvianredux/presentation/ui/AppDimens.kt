@@ -32,9 +32,21 @@ object AppDimens {
     object Corner {
         /** 8 dp – chips, small buttons, compact cards */
         val sm: Dp = 8.dp
+        /** 12 dp – medium-small cards, player buttons */
+        val md_sm: Dp = 12.dp
         /** 16 dp – standard cards and dialogs */
         val md: Dp = 16.dp
         /** 24 dp – hero cards, sheet handles */
         val lg: Dp = 24.dp
+    }
+
+    object Layout {
+        /** Maximum content width for tablets / foldables */
+        val maxContentWidth: Dp = 600.dp
+    }
+
+    object Elevation {
+        /** Subtle tonal elevation for selector cards */
+        val selector: Dp = 1.dp
     }
 }

@@ -1,4 +1,4 @@
-package com.example.vitruvianredux.presentation.screen
+﻿package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -36,7 +36,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.ScreenScaffold
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -56,7 +56,7 @@ fun ProfileScreen(
     val history by WorkoutHistoryStore.historyFlow.collectAsState()
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
-    // ── Exercise catalog lookup for weighted muscle group distribution ────────
+    // â”€â”€ Exercise catalog lookup for weighted muscle group distribution â”€â”€â”€â”€â”€â”€â”€â”€
     val context = androidx.compose.ui.platform.LocalContext.current
     val exerciseLookup = remember {
         mutableStateOf<Map<String, List<String>>>(emptyMap())
@@ -70,7 +70,7 @@ fun ProfileScreen(
         }
     }
 
-    // ── Real 7-day stats ─────────────────────────────────────────────────────
+    // â”€â”€ Real 7-day stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Prefer AnalyticsStore (richer model); fall back to WorkoutHistoryStore
     // for charts and when AnalyticsStore is empty (migration period).
     val weekVolumeKg = remember(allLogs, history) {
@@ -103,11 +103,13 @@ fun ProfileScreen(
         )
     }
 
-    ScreenScaffold(title = "Profile", innerPadding = innerPadding) {
+    val cs = MaterialTheme.colorScheme
 
-        // ═══════════════════════════════════════════════════════
+    ScreenScaffold(title = "Profile", innerPadding = innerPadding, fillWidth = true) {
+
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  Profile header
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -126,14 +128,14 @@ fun ProfileScreen(
                     )
                 }
             }
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.md))
             Column(modifier = Modifier.weight(1f)) {
-                Text("A. Fryar", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Athlete", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Star,
                         contentDescription = null,
-                        tint = Color(0xFFFFD700),
+                        tint = LocalExtendedColors.current.gold,
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(Modifier.width(4.dp))
@@ -152,6 +154,7 @@ fun ProfileScreen(
                 isConnected -> IconButton(onClick = {
                     WiringRegistry.hit(A_PROFILE_DISCONNECT)
                     WiringRegistry.recordOutcome(A_PROFILE_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect"))
+                    bleVM?.clearAutoReconnect()
                     bleVM?.disconnect()
                 }) {
                     Icon(Icons.Default.BluetoothConnected, null, tint = MaterialTheme.colorScheme.primary)
@@ -167,11 +170,11 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  This Week stats row
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Text("This Week", style = MaterialTheme.typography.titleSmall,
              color = MaterialTheme.colorScheme.onSurfaceVariant,
              modifier = Modifier.padding(bottom = AppDimens.Spacing.sm))
@@ -183,10 +186,10 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // ═══════════════════════════════════════════════════════
-        //  Volume chart — Phoenix-style with week navigation
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        //  Volume chart — with week navigation
         //  Real data from WorkoutHistoryStore
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
         ProfileSection(title = "Volume") {
             var selectedTab by remember { mutableIntStateOf(0) }
@@ -195,7 +198,7 @@ fun ProfileScreen(
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
-                contentColor = BrandPink,
+                contentColor = cs.primary,
                 divider = {},
             ) {
                 tabs.forEachIndexed { i, label ->
@@ -204,11 +207,11 @@ fun ProfileScreen(
                         onClick = {
                             selectedTab = i
                         },
-                        text = { Text(label, fontSize = 13.sp, fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal) },
+                        text = { Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal) },
                     )
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
             val today = LocalDate.now()
             // Period offset for navigation (0 = current, 1 = previous, etc.)
@@ -218,7 +221,7 @@ fun ProfileScreen(
 
             when (selectedTab) {
                 0 -> {
-                    // ── Week view: Mon–Sun, navigable ────────────────────
+                    // â”€â”€ Week view: Monâ€“Sun, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     val monday = today.with(java.time.DayOfWeek.MONDAY).minusWeeks(periodOffset.toLong())
                     val sunday = monday.plusDays(6)
                     val rangeFmt = DateTimeFormatter.ofPattern("d MMMM")
@@ -270,7 +273,7 @@ fun ProfileScreen(
                         "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = BrandPink,
+                        color = cs.primary,
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                     Spacer(Modifier.height(8.dp))
@@ -283,7 +286,7 @@ fun ProfileScreen(
                         )
                     } else {
                         val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-                        val barColor = BrandPink
+                        val barColor = cs.primary
                         val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
 
@@ -316,7 +319,7 @@ fun ProfileScreen(
                                 Text(
                                     label,
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (i == todayIndex) BrandPink else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (i == todayIndex) cs.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.weight(1f),
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 )
@@ -325,7 +328,7 @@ fun ProfileScreen(
                     }
                 }
                 1 -> {
-                    // ── Month view: ~30 days, navigable ──────────────────
+                    // â”€â”€ Month view: ~30 days, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     val refMonth = today.minusMonths(periodOffset.toLong())
                     val monthStart = refMonth.withDayOfMonth(1)
                     val monthEnd = refMonth.withDayOfMonth(refMonth.lengthOfMonth())
@@ -360,7 +363,7 @@ fun ProfileScreen(
                         "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = BrandPink,
+                        color = cs.primary,
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                     Spacer(Modifier.height(8.dp))
@@ -374,7 +377,7 @@ fun ProfileScreen(
                     if (weeklyBuckets.all { it == 0.0 }) {
                         Text("No workouts this month", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        val barColor = BrandPink
+                        val barColor = cs.primary
                         val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         Canvas(modifier = Modifier.fillMaxWidth().height(100.dp)) {
                             val totalBars = weeklyBuckets.size
@@ -395,7 +398,7 @@ fun ProfileScreen(
                     }
                 }
                 2 -> {
-                    // ── Year view: 12 months, navigable ──────────────────
+                    // â”€â”€ Year view: 12 months, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     val refYear = today.year - periodOffset
 
                     Row(
@@ -429,7 +432,7 @@ fun ProfileScreen(
                         "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = BrandPink,
+                        color = cs.primary,
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                     Spacer(Modifier.height(8.dp))
@@ -443,7 +446,7 @@ fun ProfileScreen(
                     if (monthlyBuckets.all { it == 0.0 }) {
                         Text("No workouts this year", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        val barColor = BrandPink
+                        val barColor = cs.primary
                         val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         Canvas(modifier = Modifier.fillMaxWidth().height(100.dp)) {
                             val totalBars = 12
@@ -466,12 +469,12 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ═══════════════════════════════════════════════════════
-        //  Sessions chart — navigable (same style as Volume)
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        //  Sessions chart â€” navigable (same style as Volume)
         //  Real data from WorkoutHistoryStore
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         ProfileSection(title = "Sessions") {
             var selectedTab by remember { mutableIntStateOf(0) }
             val tabs = listOf("Week", "Month", "Year")
@@ -479,18 +482,18 @@ fun ProfileScreen(
             TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = Color.Transparent,
-                contentColor = BrandPink,
+                contentColor = cs.primary,
                 divider = {},
             ) {
                 tabs.forEachIndexed { i, label ->
                     Tab(
                         selected = selectedTab == i,
                         onClick = { selectedTab = i },
-                        text = { Text(label, fontSize = 13.sp, fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal) },
+                        text = { Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal) },
                     )
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
             val today = LocalDate.now()
             var periodOffset by remember { mutableIntStateOf(0) }
@@ -607,11 +610,11 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ═══════════════════════════════════════════════════════
-        //  Muscle Groups donut chart — real data with date filter
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        //  Muscle Groups donut chart â€” real data with date filter
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         ProfileSection(title = "Muscle Groups") {
             val periodOptions = listOf("Last 7 days" to 7, "Last 14 days" to 14, "Last 30 days" to 30, "All time" to null)
             var selectedPeriodIdx by remember { mutableIntStateOf(2) } // default: 30 days
@@ -630,8 +633,8 @@ fun ProfileScreen(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(periodOptions[selectedPeriodIdx].first, style = MaterialTheme.typography.labelMedium, color = BrandPink)
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = BrandPink, modifier = Modifier.size(18.dp))
+                        Text(periodOptions[selectedPeriodIdx].first, style = MaterialTheme.typography.labelMedium, color = cs.primary)
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cs.primary, modifier = Modifier.size(18.dp))
                     }
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -643,7 +646,7 @@ fun ProfileScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
             val distribution = remember(history, selectedDays, exerciseLookup.value) {
                 // Weighted distribution: count muscle groups per exercise, not per workout
@@ -726,11 +729,11 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ═══════════════════════════════════════════════════════
-        //  Exercise History — expandable cards with per-set data
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        //  Exercise History â€” expandable cards with per-set data
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Text(
             "Exercise History",
             style = MaterialTheme.typography.titleSmall,
@@ -779,7 +782,7 @@ fun ProfileScreen(
                     }
                     val workoutTitle = when {
                         !session.programName.isNullOrBlank() && !session.dayName.isNullOrBlank() ->
-                            "${session.programName} — ${session.dayName}"
+                            "${session.programName} â€” ${session.dayName}"
                         !session.programName.isNullOrBlank() -> session.programName
                         session.exerciseNames.isNotEmpty() -> session.exerciseNames.take(2).joinToString(", ") +
                             if (session.exerciseNames.size > 2) " +${session.exerciseNames.size - 2}" else ""
@@ -803,7 +806,7 @@ fun ProfileScreen(
                                 Icon(
                                     Icons.Default.FitnessCenter,
                                     contentDescription = null,
-                                    tint = BrandPink,
+                                    tint = cs.primary,
                                     modifier = Modifier.size(24.dp),
                                 )
                                 Spacer(Modifier.width(12.dp))
@@ -825,7 +828,7 @@ fun ProfileScreen(
                                 )
                             }
 
-                            // ── Expandable per-exercise breakdown ──
+                            // â”€â”€ Expandable per-exercise breakdown â”€â”€
                             if (expanded) {
                                 Spacer(Modifier.height(10.dp))
                                 Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
@@ -839,7 +842,7 @@ fun ProfileScreen(
                                             name,
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = BrandPink,
+                                            color = cs.primary,
                                             modifier = Modifier.padding(bottom = 4.dp),
                                         )
                                         sets.forEach { setLog ->
@@ -927,7 +930,7 @@ fun ProfileScreen(
                             Icon(
                                 Icons.Default.FitnessCenter,
                                 contentDescription = null,
-                                tint = BrandPink,
+                                tint = cs.primary,
                                 modifier = Modifier.size(24.dp),
                             )
                             Spacer(Modifier.width(12.dp))
@@ -948,9 +951,9 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(24.dp))
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  Settings
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Text(
             "Settings",
             style    = MaterialTheme.typography.titleSmall,
@@ -990,7 +993,7 @@ fun ProfileScreen(
             }
         }
 
-        // ── Samsung Health (Health Connect) sync toggle ──────────────────────
+        // â”€â”€ Samsung Health (Health Connect) sync toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         val hcAvailability = HealthConnectManager.availability
         if (hcAvailability == HealthConnectManager.Availability.AVAILABLE) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -999,7 +1002,7 @@ fun ProfileScreen(
             val hcScope = rememberCoroutineScope()
 
             // Health Connect permission launcher (stable 1.1.0 handles both
-            // APK-based HC on API ≤33 and platform HC on API 34+).
+            // APK-based HC on API â‰¤33 and platform HC on API 34+).
             val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                 contract = androidx.health.connect.client.PermissionController.createRequestPermissionResultContract(),
             ) { granted ->
@@ -1045,7 +1048,7 @@ fun ProfileScreen(
                         checked = hcEnabled,
                         onCheckedChange = { wantEnabled ->
                             if (wantEnabled) {
-                                // Request permissions first — toggle turns ON only after grant
+                                // Request permissions first â€” toggle turns ON only after grant
                                 hcScope.launch {
                                     val alreadyGranted = HealthConnectManager.hasPermissions()
                                     if (alreadyGranted) {
@@ -1063,7 +1066,7 @@ fun ProfileScreen(
             }
         }
 
-        // ── Debug tools ──────────────────────────────────────────────────────
+        // â”€â”€ Debug tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDebug) {
             Row(
@@ -1082,9 +1085,9 @@ fun ProfileScreen(
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    //  Detail bottom sheets – triggered by tapping stat tiles
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    //  Detail bottom sheets â€“ triggered by tapping stat tiles
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     if (showVolumeDetail) {
         VolumeDetailSheet(
@@ -1111,7 +1114,7 @@ fun ProfileScreen(
     }
 }
 
-// ─── Section card wrapper ───────────────────────────────────────────────────
+// â”€â”€â”€ Section card wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ProfileSection(
@@ -1167,9 +1170,9 @@ private fun PressScaleCard(
     )
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Volume Detail bottom-sheet
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1195,7 +1198,7 @@ private fun VolumeDetailSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 32.dp)) {
-            Text("Volume — Last 7 Days", style = MaterialTheme.typography.titleMedium,
+            Text("Volume â€” Last 7 Days", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Text(
@@ -1214,14 +1217,14 @@ private fun VolumeDetailSheet(
                 ) {
                     Text(label, style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.width(40.dp),
-                        color = if (day == today) BrandPink else MaterialTheme.colorScheme.onSurfaceVariant)
+                        color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     Box(Modifier.weight(1f).height(20.dp)) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .fillMaxWidth(fraction.coerceAtLeast(0.02f)),
                             shape = MaterialTheme.shapes.small,
-                            color = if (day == today) BrandPink else BrandPink.copy(alpha = 0.5f),
+                            color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                         ) {}
                     }
                     Spacer(Modifier.width(8.dp))
@@ -1234,9 +1237,9 @@ private fun VolumeDetailSheet(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Sessions Detail bottom-sheet
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1256,7 +1259,7 @@ private fun SessionsDetailSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 32.dp)) {
-            Text("Sessions — Last 7 Days", style = MaterialTheme.typography.titleMedium,
+            Text("Sessions â€” Last 7 Days", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(4.dp))
             Text(
@@ -1282,19 +1285,37 @@ private fun SessionsDetailSheet(
                         Column(Modifier.padding(12.dp)) {
                             Text(dateFmt.format(workout.date),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = BrandPink)
+                                color = MaterialTheme.colorScheme.primary)
                             Spacer(Modifier.height(4.dp))
-                            Text(
-                                workout.exerciseNames.joinToString(" · "),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 2,
-                            )
+                            if (workout.programName != null) {
+                                Text(
+                                    workout.programName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                )
+                                if (workout.exerciseNames.isNotEmpty()) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        workout.exerciseNames.joinToString(" Â· "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    workout.exerciseNames.joinToString(" Â· "),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 2,
+                                )
+                            }
                             Spacer(Modifier.height(4.dp))
                             val volDisplay = UnitConversions.formatVolumeFromKg(workout.totalVolumeKg, unitSystem)
                             val mins = workout.durationSec / 60
                             Text(
-                                "${workout.totalSets} sets · ${workout.totalReps} reps · $volDisplay ${UnitConversions.unitLabel(unitSystem)} · ${mins}m",
+                                "${workout.totalSets} sets Â· ${workout.totalReps} reps Â· $volDisplay ${UnitConversions.unitLabel(unitSystem)} Â· ${mins}m",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -1306,9 +1327,9 @@ private fun SessionsDetailSheet(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Streak Detail bottom-sheet
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1322,7 +1343,7 @@ private fun StreakDetailSheet(
     val today = LocalDate.now()
     val workoutDays = history.map { it.date }.toSet()
 
-    // Show a 4-week mini-calendar (Mon–Sun rows)
+    // Show a 4-week mini-calendar (Monâ€“Sun rows)
     val startOfGrid = today.minusDays(27) // 28 days including today
     val gridDays = (0L..27L).map { startOfGrid.plusDays(it) }
     val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
@@ -1339,7 +1360,7 @@ private fun StreakDetailSheet(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$currentStreak", style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold, color = BrandPink)
+                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Text("Current", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -1382,8 +1403,8 @@ private fun StreakDetailSheet(
                                 modifier = Modifier.size(24.dp),
                                 shape = CircleShape,
                                 color = when {
-                                    hasWorkout -> BrandPink
-                                    isToday    -> BrandPink.copy(alpha = 0.2f)
+                                    hasWorkout -> MaterialTheme.colorScheme.primary
+                                    isToday    -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                                     else       -> MaterialTheme.colorScheme.surfaceVariant
                                 },
                             ) {

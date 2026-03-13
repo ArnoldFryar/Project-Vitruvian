@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
@@ -101,7 +102,7 @@ fun ProgramDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
         ) {
             // ── Summary card ────────────────────────────────────────────────
             ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
@@ -132,7 +133,7 @@ fun ProgramDetailScreen(
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xl))
 
             // ── Start ───────────────────────────────────────────────────────
             Button(
@@ -168,7 +169,7 @@ fun ProgramDetailScreen(
                 Text("Start Workout")
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // ── Edit ───────────────────────────────────────────────────
             OutlinedButton(
@@ -185,7 +186,7 @@ fun ProgramDetailScreen(
                 Text("Edit")
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // ── Save as Template ────────────────────────────────────────
             OutlinedButton(
@@ -199,7 +200,7 @@ fun ProgramDetailScreen(
                 Text(if (savedAsTemplate) "Saved as Template ✓" else "Save as Template")
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // ── Delete ───────────────────────────────────────────────────────
             OutlinedButton(

@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
@@ -28,6 +31,7 @@
     </queries>
 
     <application
+        android:name=".VitruvianApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -74,6 +78,12 @@
                 <data android:mimeType="application/json" />
             </intent-filter>
         </activity>
+
+        <!-- BLE foreground service — keeps process alive while trainer is connected -->
+        <service
+            android:name=".ble.BleForegroundService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
 
         <!-- Health Connect privacy policy — pre-Android 14 (APK-based HC) -->
         <activity-alias

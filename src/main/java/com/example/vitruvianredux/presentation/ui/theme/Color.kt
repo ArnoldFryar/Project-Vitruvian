@@ -45,6 +45,16 @@ val WarningOnContainer = Color(0xFFFFB87A)
 val Error           = Color(0xFFE00020)
 val ErrorContainer  = Color(0xFF5C0011)
 
+// ── Points / gamification ──────────────────────────────────────────────
+val Gold = Color(0xFFFFD700)
+
+// ── Status indicator dots ──────────────────────────────────────────────
+val StatusError        = Color(0xFFF44336)
+val StatusDisconnected = Color(0xFFB0BEC5)
+val StatusConnecting   = Color(0xFFFF9800)
+val StatusReady        = Color(0xFF4CAF50)
+val StatusConnected    = Color(0xFF2196F3)
+
 // ── Extended color tokens (available via LocalExtendedColors) ──────────
 @Immutable
 data class ExtendedColors(
@@ -60,6 +70,12 @@ data class ExtendedColors(
     val workingColor: Color = BrandPink,
     val restColor: Color = AccentCyan,
     val repCounterGlow: Color = BrandPink.copy(alpha = 0.15f),
+    val gold: Color = Gold,
+    val statusError: Color = StatusError,
+    val statusDisconnected: Color = StatusDisconnected,
+    val statusConnecting: Color = StatusConnecting,
+    val statusReady: Color = StatusReady,
+    val statusConnected: Color = StatusConnected,
 )
 
 val LocalExtendedColors = staticCompositionLocalOf { ExtendedColors() }

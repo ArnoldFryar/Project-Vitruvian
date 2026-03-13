@@ -1,6 +1,7 @@
 package com.example.vitruvianredux
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
@@ -10,6 +11,7 @@ import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.data.JustLiftStore
 import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.data.ProgramStore
+import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
@@ -23,6 +25,7 @@ class MainActivity : ComponentActivity() {
         UnitsStore.init(applicationContext)
         WorkoutHistoryStore.init(applicationContext)
         AnalyticsStore.init(applicationContext)
+        SessionLogRepository.init(applicationContext)
         TemplateRepository.init(applicationContext)
         HealthConnectStore.init(applicationContext)
         HealthConnectManager.init(applicationContext)
@@ -34,6 +37,7 @@ class MainActivity : ComponentActivity() {
         // Reconcile any synced sessions into charts/history stores
         SyncServiceLocator.reconcileAfterSync()
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent { AppScaffold() }
     }
 }

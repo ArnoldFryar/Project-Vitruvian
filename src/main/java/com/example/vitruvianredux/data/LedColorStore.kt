@@ -37,14 +37,14 @@ object LedColorStore {
     }
 
     val presets: List<ColorScheme> = listOf(
-        ColorScheme("Phoenix Pink",  0xFFFF004C.toInt(), 0xFFFF238C.toInt(), 0xFFFF8C8C.toInt()),
-        ColorScheme("Ocean Blue",    0xFF0047AB.toInt(), 0xFF2396FF.toInt(), 0xFF8CC8FF.toInt()),
-        ColorScheme("Forest Green",  0xFF00804C.toInt(), 0xFF23B88C.toInt(), 0xFF8CFF8C.toInt()),
-        ColorScheme("Sunset Orange", 0xFFFF4500.toInt(), 0xFFFF8C23.toInt(), 0xFFFFB88C.toInt()),
-        ColorScheme("Royal Purple",  0xFF6A0DAD.toInt(), 0xFF9B59B6.toInt(), 0xFFD8B4FE.toInt()),
-        ColorScheme("Arctic White",  0xFFFFFFFF.toInt(), 0xFFE0E0E0.toInt(), 0xFFC0C0C0.toInt()),
-        ColorScheme("Flame Red",     0xFFFF0000.toInt(), 0xFFFF4444.toInt(), 0xFFFF8888.toInt()),
-        ColorScheme("Electric Cyan", 0xFF00E5FF.toInt(), 0xFF18FFFF.toInt(), 0xFF84FFFF.toInt()),
+        ColorScheme("Magenta",    0xFFFF004C.toInt(), 0xFFFF238C.toInt(), 0xFFFF8C8C.toInt()),
+        ColorScheme("Deep Blue",  0xFF0047AB.toInt(), 0xFF2396FF.toInt(), 0xFF8CC8FF.toInt()),
+        ColorScheme("Emerald",    0xFF00804C.toInt(), 0xFF23B88C.toInt(), 0xFF8CFF8C.toInt()),
+        ColorScheme("Amber",      0xFFFF4500.toInt(), 0xFFFF8C23.toInt(), 0xFFFFB88C.toInt()),
+        ColorScheme("Violet",     0xFF6A0DAD.toInt(), 0xFF9B59B6.toInt(), 0xFFD8B4FE.toInt()),
+        ColorScheme("Glacier",    0xFFFFFFFF.toInt(), 0xFFE0E0E0.toInt(), 0xFFC0C0C0.toInt()),
+        ColorScheme("Crimson",    0xFFFF0000.toInt(), 0xFFFF4444.toInt(), 0xFFFF8888.toInt()),
+        ColorScheme("Cyan Pulse", 0xFF00E5FF.toInt(), 0xFF18FFFF.toInt(), 0xFF84FFFF.toInt()),
     )
 
     /** Default scheme (same as the hard-coded createInitPreset colours). */

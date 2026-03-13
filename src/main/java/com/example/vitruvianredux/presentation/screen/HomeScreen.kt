@@ -83,6 +83,7 @@ fun HomeScreen(
     ScreenScaffold(
         title = "Activity",
         innerPadding = innerPadding,
+        fillWidth = true,
         actions = {
             IconButton(onClick = { AnalyticsStore.clear() }) {
                 Icon(Icons.Default.Refresh, contentDescription = "Reset Stats")
@@ -334,8 +335,8 @@ private fun WorkoutCalendar(
                                     .clip(CircleShape)
                                     .then(
                                         when {
-                                            isToday && hasWorkout -> Modifier.background(BrandPink)
-                                            hasWorkout -> Modifier.background(BrandPink.copy(alpha = 0.25f))
+                                            isToday && hasWorkout -> Modifier.background(cs.primary)
+                                            hasWorkout -> Modifier.background(cs.primary.copy(alpha = 0.25f))
                                             isToday -> Modifier.background(cs.primary.copy(alpha = 0.12f))
                                             else -> Modifier
                                         }
@@ -370,7 +371,7 @@ private fun WorkoutCalendar(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(BrandPink),
+                        .background(cs.primary),
                 )
                 Spacer(Modifier.width(4.dp))
                 Text("Workout", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)

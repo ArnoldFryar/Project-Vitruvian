@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Template Library — categorized list of built-in + user templates
@@ -36,8 +35,14 @@ fun TemplateLibraryScreen(
         allTemplates.map { it.category }.distinct().sorted()
     }
 
+    // Track loading state so we can distinguish "loading" from "truly empty"
+    var isLoading by remember { mutableStateOf(true) }
+
     // Load built-in templates on first composition
-    LaunchedEffect(Unit) { TemplateRepository.loadBuiltIn() }
+    LaunchedEffect(Unit) {
+        TemplateRepository.loadBuiltIn()
+        isLoading = false
+    }
 
     Scaffold(
         topBar = {
@@ -53,26 +58,38 @@ fun TemplateLibraryScreen(
     ) { innerPadding ->
 
         if (allTemplates.isEmpty()) {
-            // Empty state while loading or truly empty
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.GridView,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
                     )
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        "No templates available",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.GridView,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "No templates available",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Import a program and save it as a template to see it here.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        )
+                    }
                 }
             }
         } else {
@@ -129,14 +146,14 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
             modifier = Modifier
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(BrandPink.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 icon,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
-                tint = BrandPink,
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
         Spacer(Modifier.width(12.dp))
@@ -244,7 +261,10 @@ private fun TemplateCard(
 
 private fun categoryIcon(category: String): ImageVector = when (category.lowercase()) {
     "strength" -> Icons.Default.FitnessCenter
+    "hypertrophy" -> Icons.Default.TrendingUp
     "conditioning" -> Icons.Default.LocalFireDepartment
+    "beginner" -> Icons.Default.School
+    "rehab & recovery", "rehabilitation", "recovery" -> Icons.Default.Healing
     "flexibility", "mobility" -> Icons.Default.SelfImprovement
     "my templates" -> Icons.Default.Person
     else -> Icons.Default.GridView
