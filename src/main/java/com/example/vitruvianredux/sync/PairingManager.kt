@@ -95,7 +95,7 @@ class PairingManager(
     // ── Pending pairings (hub side) ───────────────────────────────────────────
 
     /** Pending pairing attempts keyed by pairingId. */
-    private val pendingPairings = mutableMapOf<String, PendingPairing>()
+    private val pendingPairings = java.util.concurrent.ConcurrentHashMap<String, PendingPairing>()
 
     private data class PendingPairing(
         val pairingId: String,

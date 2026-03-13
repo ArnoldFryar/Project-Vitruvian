@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Supabase configuration — safe for mobile clients when RLS is enabled.
+    Replace the placeholder values with your Supabase project details.
+    These are NOT secrets — the anon key is designed for client-side use.
+-->
+<resources>
+    <string name="supabase_url" translatable="false">https://jvejurmwbedrvygeleqp.supabase.co</string>
+    <string name="supabase_anon_key" translatable="false">sb_publishable_gtHyW18vXVwtOEIxIOC-SA__KniZ5uF</string>
+</resources>

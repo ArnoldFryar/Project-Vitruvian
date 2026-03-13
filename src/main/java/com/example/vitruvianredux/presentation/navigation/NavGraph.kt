@@ -17,7 +17,7 @@ import androidx.navigation.navDeepLink
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.presentation.screen.*
-import com.example.vitruvianredux.sync.P2PConnectionManager
+import com.example.vitruvianredux.sync.LanSyncManager
 import com.vitruvian.trainer.BuildConfig
 
 enum class Route(val path: String) {
@@ -36,6 +36,7 @@ enum class Route(val path: String) {
     ActivityHistory("activity_history"),
     ActivityMetricDetail("activity_metric_detail"),
     Sync("sync"),
+    Account("account"),
     ImportProgram("import_program"),
     SessionDetail("session_detail"),
     TemplatePreview("template_preview"),
@@ -49,7 +50,7 @@ fun AppNavHost(
     innerPadding: PaddingValues,
     bleVM: BleViewModel,
     workoutVM: WorkoutSessionViewModel,
-    p2pManager: P2PConnectionManager? = null,
+    lanSyncManager: LanSyncManager? = null,
     pendingImportJson: String? = null,
     onImportConsumed: () -> Unit = {},
 ) {
@@ -114,7 +115,11 @@ fun AppNavHost(
                 innerPadding = innerPadding,
                 bleVM = bleVM,
                 onNavigateToDebug = { if (BuildConfig.IS_DEBUG_BUILD) nav.navigate(Route.Debug.path) },
+                onNavigateToAccount = { nav.navigate(Route.Account.path) },
             )
+        }
+        composable(Route.Account.path) {
+            AccountScreen(onBack = { nav.popBackStack() })
         }
         if (BuildConfig.IS_DEBUG_BUILD) {
             composable(Route.Debug.path) { DebugScreen(innerPadding, bleVM, workoutVM) }
@@ -205,12 +210,12 @@ fun AppNavHost(
             )
         }
 
-        if (p2pManager != null) {
+        if (lanSyncManager != null) {
             composable(Route.Sync.path) {
                 SyncScreen(
-                    p2pManager  = p2pManager,
-                    innerPadding = innerPadding,
-                    onBack       = { nav.popBackStack() },
+                    lanSyncManager = lanSyncManager,
+                    innerPadding   = innerPadding,
+                    onBack         = { nav.popBackStack() },
                 )
             }
         }

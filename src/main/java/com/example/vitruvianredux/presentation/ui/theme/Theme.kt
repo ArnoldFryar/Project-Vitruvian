@@ -88,10 +88,17 @@ val VitruvianShapes = Shapes(
 
 @Composable
 fun VitruvianTheme(
-    darkTheme: Boolean = true,       // dark-first: always default to dark
+    themeMode: com.example.vitruvianredux.data.ThemeStore.ThemeMode =
+        com.example.vitruvianredux.data.ThemeStore.ThemeMode.SYSTEM,
     dynamicColor: Boolean = false,    // disabled: our curated brand palette always
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        com.example.vitruvianredux.data.ThemeStore.ThemeMode.DARK   -> true
+        com.example.vitruvianredux.data.ThemeStore.ThemeMode.LIGHT  -> false
+        com.example.vitruvianredux.data.ThemeStore.ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

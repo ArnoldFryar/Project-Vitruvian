@@ -49,25 +49,46 @@ class SyncHub(
             Timber.tag(TAG).w("Hub already running — ignoring start()")
             return
         }
+        // Guard against BindException inside Ktor's internal async coroutines:
+        // Ktor CIO binds the socket AFTER start(wait=false) returns, so a try/catch
+        // around start() would not catch it — the exception escapes to the JVM crash handler.
+        // Pre-checking here prevents the bind from ever being attempted when the port is busy.
+        if (isPortInUse(port)) {
+            Timber.tag(TAG).w("Hub: port $port already in use — skipping start (previous instance may not have released it yet)")
+            return
+        }
         Timber.tag(TAG).i("Starting hub on port $port …")
 
-        server = embeddedServer(CIO, port = port) {
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    encodeDefaults = true
-                    prettyPrint = false
-                })
-            }
-            routing {
-                postPair()          // unauthenticated — bootstraps trust
-                getManifest()       // HMAC-protected
-                postPull()          // HMAC-protected
-                postPush()          // HMAC-protected
-            }
-        }.also { it.start(wait = false) }
+        try {
+            server = embeddedServer(CIO, port = port) {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        encodeDefaults = true
+                        prettyPrint = false
+                    })
+                }
+                routing {
+                    postPair()          // unauthenticated — bootstraps trust
+                    getManifest()       // HMAC-protected
+                    postPull()          // HMAC-protected
+                    postPush()          // HMAC-protected
+                }
+            }.also { it.start(wait = false) }
 
-        Timber.tag(TAG).i("Hub started on port $port")
+            Timber.tag(TAG).i("Hub started on port $port")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Hub failed to start on port $port")
+            server = null
+        }
+    }
+
+    /** Returns true if something is already bound on [port]. */
+    private fun isPortInUse(port: Int): Boolean = try {
+        java.net.ServerSocket(port).close()
+        false
+    } catch (_: java.io.IOException) {
+        true
     }
 
     /** Gracefully stop the server. */

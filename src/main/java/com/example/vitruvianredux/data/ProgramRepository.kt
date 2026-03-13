@@ -202,10 +202,27 @@ class ProgramRepository(
         return updated.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
     }
 
+    /** Return all programs including soft-deleted (for sync). */
+    fun loadAll(): List<SavedProgram> = load()
+
     /**
      * Return only active (non-deleted) programs.  Convenience for UI layers.
      */
     fun loadActive(): List<SavedProgram> = load().filter { it.deletedAt == null }.sortedBy { it.sortOrder }
+
+    /**
+     * Import a synced program (from cloud or LAN).
+     * Preserves the original timestamps and device id — does NOT re-stamp.
+     */
+    fun importSynced(program: SavedProgram) {
+        val existing = parsePrograms()
+        val programs = if (existing.any { it.id == program.id }) {
+            existing.map { if (it.id == program.id) program else it }
+        } else {
+            existing + program
+        }
+        writePrograms(programs)
+    }
 
     // ── Serialization (internal — visible for testing) ────────────────────────
 

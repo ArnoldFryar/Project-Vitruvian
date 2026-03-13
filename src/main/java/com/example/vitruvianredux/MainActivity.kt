@@ -7,6 +7,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.vitruvianredux.cloud.AuthRepository
+import com.example.vitruvianredux.cloud.CloudSyncRepository
+import com.example.vitruvianredux.cloud.CloudSyncWorker
+import com.example.vitruvianredux.cloud.SupabaseProvider
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.example.vitruvianredux.data.HealthConnectStore
@@ -15,6 +19,7 @@ import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.data.TemplateRepository
+import com.example.vitruvianredux.data.ThemeStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.AppScaffold
@@ -35,6 +40,7 @@ class MainActivity : ComponentActivity() {
         LedColorStore.init(applicationContext)
         HealthConnectStore.init(applicationContext)
         HealthConnectManager.init(applicationContext)
+        ThemeStore.init(applicationContext)
 
         // Warn the user (and any tester) that this is a debug build so it is
         // never silently distributed as a production APK.
@@ -75,6 +81,12 @@ class MainActivity : ComponentActivity() {
             SyncServiceLocator.exportToSessionRepo()
             // Reconcile any synced sessions into charts/history stores.
             SyncServiceLocator.reconcileAfterSync()
+
+            // Initialise cloud sync repository and schedule background sync.
+            CloudSyncRepository.init(applicationContext)
+            if (SupabaseProvider.isInitialized && AuthRepository.isSignedIn) {
+                CloudSyncWorker.enqueue(applicationContext)
+            }
         }
     }
 }

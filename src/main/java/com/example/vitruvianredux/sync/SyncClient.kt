@@ -124,12 +124,18 @@ class SyncClient(
         // ── 1. Fetch manifest ──────────────────────────────────────────────
 
         Timber.tag(TAG).d("1/5  GET /manifest …")
-        val manifest: SyncManifest = httpClient.get("$base/manifest") {
+        val manifestResp = httpClient.get("$base/manifest") {
             // HMAC over the URI for GET requests
             hmacOf("/manifest".toByteArray(Charsets.UTF_8))?.let { mac ->
                 header(SyncHub.HMAC_HEADER, mac)
             }
-        }.body()
+        }
+        if (manifestResp.status == HttpStatusCode.Unauthorized) {
+            throw IllegalStateException(
+                "Hub requires authentication — scan the Hub QR code on this device first to pair"
+            )
+        }
+        val manifest: SyncManifest = manifestResp.body()
         Timber.tag(TAG).d(
             "     manifest received: ${manifest.programs.size} programs, ${manifest.sessions.size} sessions"
         )

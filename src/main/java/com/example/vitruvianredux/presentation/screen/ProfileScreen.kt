@@ -1,4 +1,4 @@
-﻿package com.example.vitruvianredux.presentation.screen
+package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -26,10 +26,13 @@ import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import kotlinx.coroutines.launch
@@ -50,11 +53,14 @@ fun ProfileScreen(
     innerPadding: PaddingValues = PaddingValues(),
     bleVM: BleViewModel? = null,
     onNavigateToDebug: () -> Unit = {},
+    onNavigateToAccount: () -> Unit = {},
 ) {
     val bleState by (bleVM?.state?.collectAsState() ?: remember { mutableStateOf(BleConnectionState.Disconnected) })
     var showDevicePicker by remember { mutableStateOf(false) }
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val history by WorkoutHistoryStore.historyFlow.collectAsState()
+    val displayName by ProfileStore.displayNameFlow.collectAsState()
+    var showEditNameDialog by remember { mutableStateOf(false) }
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
     // â”€â”€ Exercise catalog lookup for weighted muscle group distribution â”€â”€â”€â”€â”€â”€â”€â”€
@@ -104,6 +110,47 @@ fun ProfileScreen(
         )
     }
 
+    // ── Edit display name dialog ──────────────────────────────────────────────
+    if (showEditNameDialog) {
+        var editText by remember { mutableStateOf(displayName) }
+        val focusRequester = remember { FocusRequester() }
+        AlertDialog(
+            onDismissRequest = { showEditNameDialog = false },
+            title = { Text("Edit Name") },
+            text = {
+                OutlinedTextField(
+                    value = editText,
+                    onValueChange = { editText = it },
+                    label = { Text("Display name") },
+                    singleLine = true,
+                    isError = editText.isBlank(),
+                    supportingText = if (editText.isBlank()) {
+                        { Text("Name cannot be empty") }
+                    } else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val trimmed = editText.trim()
+                        if (trimmed.isNotBlank()) {
+                            ProfileStore.setDisplayName(trimmed)
+                            showEditNameDialog = false
+                        }
+                    },
+                    enabled = editText.isNotBlank(),
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditNameDialog = false }) { Text("Cancel") }
+            },
+        )
+        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    }
+
     val cs = MaterialTheme.colorScheme
 
     ScreenScaffold(title = "Profile", innerPadding = innerPadding, fillWidth = true) {
@@ -122,7 +169,7 @@ fun ProfileScreen(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
-                        "A",
+                        displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "A",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -131,7 +178,19 @@ fun ProfileScreen(
             }
             Spacer(Modifier.width(AppDimens.Spacing.md))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Athlete", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable(onClick = { showEditNameDialog = true }),
+                ) {
+                    Text(displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit name",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Star,
@@ -952,6 +1011,44 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(24.dp))
 
+
+        // ── Cloud Account ────────────────────────────────────────────
+        if (com.example.vitruvianredux.cloud.SupabaseProvider.isInitialized) {
+            val sessionStatus by com.example.vitruvianredux.cloud.AuthRepository.sessionStatus
+                .collectAsState(initial = io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated(false))
+            val isSignedIn = sessionStatus is io.github.jan.supabase.gotrue.SessionStatus.Authenticated
+            val userEmail = com.example.vitruvianredux.cloud.AuthRepository.currentUser?.email
+
+            PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToAccount) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.Cloud,
+                        contentDescription = null,
+                        tint = if (isSignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            if (isSignedIn) "Cloud Sync" else "Cloud Account",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            if (isSignedIn) userEmail ?: "Signed in" else "Sign in to sync across devices",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+        }
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  Settings
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -994,6 +1091,31 @@ fun ProfileScreen(
             }
         }
 
+
+        // ── Theme mode ───────────────────────────────────────────────────
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        val themeMode by com.example.vitruvianredux.data.ThemeStore.modeFlow.collectAsState()
+        PressScaleCard(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier          = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Theme", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(2.dp))
+                    Text("App appearance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    com.example.vitruvianredux.data.ThemeStore.ThemeMode.entries.forEach { mode ->
+                        FilterChip(
+                            selected = themeMode == mode,
+                            onClick  = { com.example.vitruvianredux.data.ThemeStore.setMode(mode) },
+                            label = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                        )
+                    }
+                }
+            }
+        }
         // â”€â”€ Samsung Health (Health Connect) sync toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         val hcAvailability = HealthConnectManager.availability
         if (hcAvailability == HealthConnectManager.Availability.AVAILABLE) {

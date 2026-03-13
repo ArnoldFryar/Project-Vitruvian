@@ -71,6 +71,11 @@ object ProgramStore {
         _programs.value = repo.reorder(orderedIds)
     }
 
+    /** Re-read from disk and refresh the UI flow. Called after cloud sync merges. */
+    fun refreshFromDisk() {
+        _programs.value = repo.loadActive()
+    }
+
     // ── SharedPreferences-backed store ────────────────────────────────────────
 
     private class SharedPrefsBackingStore(private val prefs: SharedPreferences) : ProgramBackingStore {

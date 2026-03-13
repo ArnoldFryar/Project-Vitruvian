@@ -16,35 +16,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
-import com.example.vitruvianredux.sync.P2pState
+import com.example.vitruvianredux.sync.LanSyncState
 
 /**
- * A compact pill that reflects the current Wi-Fi Direct sync connection state.
- *
- * States and their colours:
- *  - **Idle**           → grey   (#B0BEC5)
- *  - **GroupCreating**  → amber  (#FF9800)
- *  - **GroupOwner**     → green  (#4CAF50) — hub is ready to accept clients
- *  - **Discovering**    → amber  (#FF9800)
- *  - **Connecting**     → amber  (#FF9800)
- *  - **Connected**      → green  (#4CAF50) — client connected to hub
- *  - **Error**          → red    (#F44336)
+ * A compact pill that reflects the current LAN sync state.
  */
 @Composable
 fun SyncStatusPill(
-    p2pState: P2pState,
+    lanState: LanSyncState,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
 ) {
     val ext = LocalExtendedColors.current
-    val (label, dotColor) = when (p2pState) {
-        is P2pState.Idle          -> "Sync Idle" to ext.statusDisconnected
-        is P2pState.GroupCreating -> "Creating…" to ext.statusConnecting
-        is P2pState.GroupOwner    -> "Hub Ready" to ext.statusReady
-        is P2pState.Discovering   -> "Scanning…" to ext.statusConnecting
-        is P2pState.Connecting    -> "Connecting…" to ext.statusConnecting
-        is P2pState.Connected     -> "Synced" to ext.statusConnected
-        is P2pState.Error         -> "Sync Error" to ext.statusError
+    val (label, dotColor) = when (lanState) {
+        is LanSyncState.Idle          -> "Sync" to ext.statusDisconnected
+        is LanSyncState.HubRegistered -> "Hub" to ext.statusReady
+        is LanSyncState.Discovering   -> "Scanning…" to ext.statusConnecting
+        is LanSyncState.HubFound      -> "Hub Found" to ext.statusConnected
+        is LanSyncState.Error         -> "Sync Error" to ext.statusError
     }
 
     Surface(

@@ -5,7 +5,9 @@ import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.BleForegroundService
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.data.CustomExerciseStore
+import com.example.vitruvianredux.data.ProfileStore
 import com.vitruvian.trainer.BuildConfig
+import com.example.vitruvianredux.cloud.SupabaseProvider
 import timber.log.Timber
 
 /**
@@ -47,5 +49,9 @@ class VitruvianApp : Application() {
         bleViewModel.initAutoReconnect()
         // Load any user-created custom exercises from SharedPreferences.
         CustomExerciseStore.init(this)
+        // Load the user's editable display name.
+        ProfileStore.init(this)
+        // Initialise Supabase client for cloud sync (reads config from resources).
+        SupabaseProvider.init(this)
     }
 }

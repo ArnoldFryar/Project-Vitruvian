@@ -1,3 +1,10 @@
+# ── Application entry points ─────────────────────────────────────────────────
+# R8 must never rename Application, Activity, or Service subclasses because
+# they are referenced by class name in AndroidManifest.xml.
+-keep class * extends android.app.Application { *; }
+-keep class * extends android.app.Activity { *; }
+-keep class * extends android.app.Service { *; }
+
 # ── BLE client classes ────────────────────────────────────────────────────────
 # Keep all BLE communication, session engine, and rep-detection code intact.
 # R8 must not rename or remove anything under the ble package.
@@ -66,3 +73,19 @@
     public static **[] values();
     public static ** valueOf(java.lang.String);
 }
+
+# ── Supabase / Ktor client (cloud sync) ──────────────────────────────────────
+-keep class io.github.jan.supabase.** { *; }
+-keep class io.ktor.** { *; }
+-dontwarn io.ktor.**
+-dontwarn io.github.jan.supabase.**
+# Supabase Auth uses reflection for session storage
+-keep class io.github.jan.supabase.gotrue.** { *; }
+# Supabase Postgrest needs serializable DTOs
+-keep class com.example.vitruvianredux.cloud.Remote* { *; }
+-keepclassmembers class com.example.vitruvianredux.cloud.Remote* { *; }
+
+# ── WorkManager ───────────────────────────────────────────────────────────────
+-keep class * extends androidx.work.Worker { *; }
+-keep class * extends androidx.work.ListenableWorker { *; }
+-keep class com.example.vitruvianredux.cloud.CloudSyncWorker { *; }

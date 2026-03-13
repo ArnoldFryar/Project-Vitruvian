@@ -35,8 +35,8 @@ import com.example.vitruvianredux.presentation.navigation.AppNavHost
 import com.example.vitruvianredux.presentation.navigation.Route
 import com.example.vitruvianredux.presentation.ui.theme.VitruvianTheme
 import com.example.vitruvianredux.presentation.components.SyncStatusPill
-import com.example.vitruvianredux.sync.P2PConnectionManager
-import com.example.vitruvianredux.sync.P2pState
+import com.example.vitruvianredux.sync.LanSyncManager
+import com.example.vitruvianredux.sync.LanSyncState
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -45,6 +45,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import com.example.vitruvianredux.ble.SessionPhase
 import com.example.vitruvianredux.data.AnalyticsRecorder
+import com.example.vitruvianredux.data.ExerciseHistoryRecorder
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.example.vitruvianredux.data.WorkoutHistoryStore
@@ -62,7 +63,9 @@ fun AppScaffold() {
         WiringRegistry.registerActions(ALL_ACTION_DEFINITIONS)
     }
 
-    VitruvianTheme {
+    val themeMode by com.example.vitruvianredux.data.ThemeStore.modeFlow.collectAsState()
+
+    VitruvianTheme(themeMode = themeMode) {
         // ── Splash overlay ── shows once on cold start ──────────────────────
         var showSplash by rememberSaveable { mutableStateOf(true) }
         if (showSplash) {
@@ -76,15 +79,14 @@ fun AppScaffold() {
         val bleVM = vitruvianApp.bleViewModel
         val workoutVM = vitruvianApp.workoutViewModel
 
-        // P2P connection manager for Wi-Fi Direct sync
-        val p2pManager = remember(activity) {
-            P2PConnectionManager(activity.applicationContext)
+        // LAN sync manager for mDNS-based hub discovery
+        val lanSyncManager = remember(activity) {
+            LanSyncManager(activity.applicationContext)
         }
-        DisposableEffect(p2pManager) {
-            p2pManager.register()
-            onDispose { p2pManager.teardown() }
+        DisposableEffect(lanSyncManager) {
+            onDispose { lanSyncManager.reset() }
         }
-        val p2pState by p2pManager.state.collectAsState()
+        val lanSyncState by lanSyncManager.state.collectAsState()
 
         val nav = rememberNavController()
         val backStack = nav.currentBackStackEntryAsState()
@@ -115,6 +117,7 @@ fun AppScaffold() {
             Route.Audit.path           -> "Audit"
             Route.ActivityHistory.path -> "History"
             Route.Sync.path            -> "Sync"
+            Route.Account.path         -> "Account"
             Route.ImportProgram.path   -> "Import"
             else                       -> "Vitruvian"
         }
@@ -144,7 +147,7 @@ fun AppScaffold() {
                             AppTopBar(
                                 title               = headerTitle,
                                 bleState            = bleState,
-                                p2pState            = p2pState,
+                                lanSyncState        = lanSyncState,
                                 onSyncPillClick     = { nav.navigate(Route.Sync.path) },
                                 onConnectClick      = {
                                     WiringRegistry.hit(A_GLOBAL_CONNECT)
@@ -170,7 +173,7 @@ fun AppScaffold() {
                         innerPadding      = innerPadding,
                         bleVM             = bleVM,
                         workoutVM         = workoutVM,
-                        p2pManager        = p2pManager,
+                        lanSyncManager    = lanSyncManager,
                         pendingImportJson = pendingImportJson,
                         onImportConsumed  = { pendingImportJson = null },
                     )
@@ -189,12 +192,16 @@ fun AppScaffold() {
                         val endMs = System.currentTimeMillis()
                         val startMs = endMs - (stats.durationSec * 1_000L)
 
+                        // Shared stable session ID for linking records
+                        val sessionId = java.util.UUID.randomUUID().toString()
+
                         // ── Analytics capture (always) ──
                         val exerciseNames = WorkoutHistoryStore.historyFlow.value
                             .lastOrNull()?.exerciseNames ?: emptyList()
 
                         // Capture per-set data before it's cleared
-                        val exerciseSets = workoutVM.completedExerciseStats.map { es ->
+                        val completedStats = workoutVM.completedExerciseStats
+                        val exerciseSets = completedStats.map { es ->
                             AnalyticsStore.ExerciseSetLog(
                                 exerciseName = es.exerciseName,
                                 setIndex     = es.setIndex,
@@ -210,6 +217,13 @@ fun AppScaffold() {
                             exerciseSets  = exerciseSets,
                         )
 
+                        // ── Durable exercise/set history (Room, pending sync) ──
+                        ExerciseHistoryRecorder.record(
+                            sessionId      = sessionId,
+                            completedStats = completedStats,
+                            completedAtMs  = endMs,
+                        )
+
                         // ── Sync-ready session record ──
                         if (SyncServiceLocator.isInitialized) {
                             val programName = workoutVM.activeProgramId?.let { pid ->
@@ -218,6 +232,7 @@ fun AppScaffold() {
                             }
                             SyncServiceLocator.sessionRepo.save(
                                 WorkoutSessionRecord(
+                                    id            = sessionId,
                                     programId     = workoutVM.activeProgramId,
                                     name          = programName ?: exerciseNames.firstOrNull() ?: "Workout",
                                     startedAt     = startMs,
@@ -282,7 +297,7 @@ fun AppScaffold() {
 private fun AppTopBar(
     title: String,
     bleState: BleConnectionState,
-    p2pState: P2pState,
+    lanSyncState: LanSyncState,
     onSyncPillClick: () -> Unit,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
@@ -328,8 +343,8 @@ private fun AppTopBar(
                 )
             }
 
-            // Wi-Fi Direct sync status indicator — tap to open Sync screen
-            SyncStatusPill(p2pState = p2pState, onClick = onSyncPillClick)
+            // LAN sync status indicator — tap to open Sync screen
+            SyncStatusPill(lanState = lanSyncState, onClick = onSyncPillClick)
 
             when (bleState) {
                 is BleConnectionState.Connected -> {

@@ -59,9 +59,17 @@ fun HomeScreen(
 ) {
     val cs = MaterialTheme.colorScheme
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
-    // Up Next: read from the repository — never a hardcoded program name.
+    // Up Next: resolved via UpNextResolver — accounts for active program and history.
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
-    val nextProgram = programs.firstOrNull()
+    val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
+    val activeProgramId = workoutVM?.activeProgramId
+    val nextProgram = remember(programs, workoutHistory, activeProgramId) {
+        com.example.vitruvianredux.data.UpNextResolver.resolveUpNextWorkout(
+            programs         = programs,
+            workoutHistory   = workoutHistory,
+            activeProgramId  = activeProgramId,
+        )
+    }
 
     // Load exercise catalog for video/thumbnail URLs
     val context = LocalContext.current

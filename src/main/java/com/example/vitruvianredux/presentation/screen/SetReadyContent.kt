@@ -101,8 +101,8 @@ internal fun SetReadyContent(
         // ── Video / thumbnail preview ────────────────────────────────────
         Box(
             modifier = Modifier
+                .widthIn(max = 720.dp)
                 .fillMaxWidth()
-                .heightIn(min = 200.dp, max = 280.dp)
                 .aspectRatio(ratio = 16f / 9f, matchHeightConstraintsFirst = false)
                 .clip(RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center,

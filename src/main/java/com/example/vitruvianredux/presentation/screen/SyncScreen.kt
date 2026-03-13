@@ -1,18 +1,9 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+﻿@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.example.vitruvianredux.presentation.screen
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.net.wifi.p2p.WifiP2pDevice
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,80 +12,103 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import com.example.vitruvianredux.sync.P2PConnectionManager
-import com.example.vitruvianredux.sync.P2pState
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.example.vitruvianredux.presentation.components.QrScannerView
+import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.sync.LanSyncManager
+import com.example.vitruvianredux.sync.LanSyncState
 import com.example.vitruvianredux.sync.QrHelper
 import com.example.vitruvianredux.sync.SyncResult
 import com.example.vitruvianredux.sync.SyncServiceLocator
-import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import timber.log.Timber
 
 @Composable
 fun SyncScreen(
-    p2pManager: P2PConnectionManager,
+    lanSyncManager: LanSyncManager,
     innerPadding: PaddingValues = PaddingValues(),
     onBack: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val p2pState by p2pManager.state.collectAsState()
-    val peers by p2pManager.peers.collectAsState()
+    val lanState by lanSyncManager.state.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // ── Sync state ───────────────────────────────────────────────────────────
+    DisposableEffect(Unit) {
+        onDispose {
+            lanSyncManager.reset()
+            if (SyncServiceLocator.isInitialized) SyncServiceLocator.stopHub()
+        }
+    }
+
+    var showQrScanner by remember { mutableStateOf(false) }
+    var qrScannedHubUrl by remember { mutableStateOf<String?>(null) }
+    var isPairing by remember { mutableStateOf(false) }
+    var pairingError by remember { mutableStateOf<String?>(null) }
+    var clientIsPaired by remember {
+        mutableStateOf(SyncServiceLocator.isInitialized && SyncServiceLocator.pairingManager.isPaired())
+    }
+
     var isSyncing by remember { mutableStateOf(false) }
     var lastSyncResult by remember { mutableStateOf<SyncResult?>(null) }
     var syncError by remember { mutableStateOf<String?>(null) }
 
-    // ── Hub auto-start / auto-stop ───────────────────────────────────────────
-    LaunchedEffect(p2pState) {
-        when (p2pState) {
-            is P2pState.GroupOwner -> {
-                if (SyncServiceLocator.isInitialized) {
-                    SyncServiceLocator.startHub()
-                }
-            }
-            else -> {
-                // Stop hub when leaving GroupOwner state
-                if (SyncServiceLocator.isInitialized) {
-                    SyncServiceLocator.stopHub()
-                }
-            }
+    val hubUrl: String? = when {
+        lanState is LanSyncState.HubFound -> (lanState as LanSyncState.HubFound).hubUrl
+        qrScannedHubUrl != null -> qrScannedHubUrl
+        else -> null
+    }
+
+    val isHub = lanState is LanSyncState.HubRegistered
+    val isClient = lanState is LanSyncState.Discovering || lanState is LanSyncState.HubFound
+
+    if (showQrScanner) {
+        Dialog(
+            onDismissRequest = { showQrScanner = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            QrScannerView(
+                onQrScanned = { qrJson ->
+                    showQrScanner = false
+                    isPairing = true
+                    pairingError = null
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val ok = SyncServiceLocator.isInitialized &&
+                                    SyncServiceLocator.pairWithHub(qrJson)
+                            if (ok) {
+                                qrScannedHubUrl = SyncServiceLocator.pairingManager
+                                    .payloadFromJson(qrJson).hubAddress
+                                clientIsPaired = true
+                            } else {
+                                pairingError = "Pairing rejected — ensure Hub is running"
+                            }
+                        } catch (e: kotlinx.serialization.SerializationException) {
+                            // The camera scanned something that isn't a Hub QR code.
+                            // Show the first 60 chars of what was scanned to help the user diagnose.
+                            val preview = qrJson.take(60).let { if (qrJson.length > 60) "$it…" else it }
+                            pairingError = "Not a Vitruvian Hub QR code.\nScanned: \"$preview\"\n\nMake sure the Hub device is showing the pairing QR (tap Start Hub on the other device first)."
+                        } catch (e: Exception) {
+                            pairingError = "Pairing failed: ${e.message?.take(120)}"
+                        } finally {
+                            isPairing = false
+                        }
+                    }
+                },
+                onDismiss = { showQrScanner = false },
+            )
         }
-    }
-
-    // ── Permissions ─────────────────────────────────────────────────────────
-    // Wi-Fi Direct on SDK 33+ needs both NEARBY_WIFI_DEVICES and
-    // ACCESS_FINE_LOCATION (the P2P broadcast receiver requires location).
-    val requiredPermissions = if (Build.VERSION.SDK_INT >= 33)
-        listOf(Manifest.permission.NEARBY_WIFI_DEVICES, Manifest.permission.ACCESS_FINE_LOCATION)
-    else
-        listOf(Manifest.permission.ACCESS_FINE_LOCATION)
-
-    var hasPermission by remember {
-        mutableStateOf(
-            requiredPermissions.all { perm ->
-                ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
-            }
-        )
-    }
-    val permLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        hasPermission = results.values.all { it }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Wi-Fi Direct Sync") },
+                title = { Text("Wi-Fi Sync") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -111,357 +125,252 @@ fun SyncScreen(
                 .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
-            // ── Status card ──────────────────────────────────────────────────
-            SyncStatusCard(p2pState)
+            Text("Choose Role", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Both devices must be on the same Wi-Fi network.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
-            // ── Main content: permission gate OR controls ────────────────────
-            if (!hasPermission) {
-                PermissionCard(onGrant = { permLauncher.launch(requiredPermissions.toTypedArray()) })
-            } else {
-                SyncControls(
-                    p2pManager = p2pManager,
-                    p2pState = p2pState,
-                    peers = peers,
-                    isSyncing = isSyncing,
-                    lastSyncResult = lastSyncResult,
-                    syncError = syncError,
-                    onSyncNow = {
-                        val url = p2pManager.hubBaseUrl()
-                        if (url != null && SyncServiceLocator.isInitialized) {
-                            isSyncing = true
-                            syncError = null
-                            lastSyncResult = null
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                FilledTonalButton(
+                    onClick = {
+                        if (isHub) {
+                            lanSyncManager.stopHub()
+                            scope.launch(Dispatchers.IO) {
+                                try { SyncServiceLocator.stopHub() } catch (_: Exception) {}
+                            }
+                        } else {
+                            lanSyncManager.stopDiscovery()
                             scope.launch(Dispatchers.IO) {
                                 try {
-                                    val result = SyncServiceLocator.sync(url)
-                                    // Bridge synced sessions into AnalyticsStore/WorkoutHistoryStore
-                                    SyncServiceLocator.reconcileAfterSync()
-                                    lastSyncResult = result
+                                    SyncServiceLocator.startHub()
+                                    lanSyncManager.startHub()
                                 } catch (e: Exception) {
-                                    syncError = e.message ?: "Sync failed"
-                                } finally {
-                                    isSyncing = false
+                                    Timber.e(e, "Hub start failed")
                                 }
                             }
                         }
                     },
-                )
-            }
-        }
-    }
-}
-
-// ── Permission card ──────────────────────────────────────────────────────────
-
-@Composable
-private fun PermissionCard(onGrant: () -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-        ),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                "Wi-Fi Direct requires location / nearby-devices permission.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Button(onClick = onGrant) {
-                Text("Grant Permission")
-            }
-        }
-    }
-}
-
-// ── Sync controls (only shown when permission granted) ───────────────────────
-
-@Composable
-private fun SyncControls(
-    p2pManager: P2PConnectionManager,
-    p2pState: P2pState,
-    peers: List<WifiP2pDevice>,
-    isSyncing: Boolean,
-    lastSyncResult: SyncResult?,
-    syncError: String?,
-    onSyncNow: () -> Unit,
-) {
-    val isHub = p2pState is P2pState.GroupOwner || p2pState is P2pState.GroupCreating
-    val isClient = p2pState is P2pState.Discovering ||
-            p2pState is P2pState.Connecting ||
-            p2pState is P2pState.Connected
-
-    Text(
-        "Choose Role",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-    )
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        FilledTonalButton(
-            onClick = {
-                if (isHub) p2pManager.removeGroup() else p2pManager.createGroup()
-            },
-            enabled = !isClient,
-            modifier = Modifier.weight(1f),
-            colors = if (isHub) ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ) else ButtonDefaults.filledTonalButtonColors(),
-        ) {
-            Icon(Icons.Default.Hub, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(if (isHub) "Stop Hub" else "Start Hub")
-        }
-
-        FilledTonalButton(
-            onClick = {
-                if (isClient) {
-                    p2pManager.stopDiscovery()
-                    p2pManager.disconnect()
-                } else {
-                    p2pManager.startDiscovery()
-                }
-            },
-            enabled = !isHub,
-            modifier = Modifier.weight(1f),
-            colors = if (isClient) ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ) else ButtonDefaults.filledTonalButtonColors(),
-        ) {
-            Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(if (isClient) "Stop Client" else "Find Hub")
-        }
-    }
-
-    if (p2pState is P2pState.Error) {
-        OutlinedButton(
-            onClick = { p2pManager.removeGroup() },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Reset")
-        }
-    }
-
-    Divider()
-
-    // ── Peers list (client mode) ─────────────────────────────────────────
-    if (p2pState is P2pState.Discovering || peers.isNotEmpty()) {
-        Text(
-            "Discovered Peers",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        if (peers.isEmpty()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                Text("Scanning…", style = MaterialTheme.typography.bodyMedium)
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                peers.forEach { device ->
-                    PeerCard(
-                        device = device,
-                        isConnecting = p2pState is P2pState.Connecting,
-                        onConnect = { p2pManager.connect(device) },
-                    )
-                }
-            }
-        }
-    }
-
-    // ── Connected / Hub info ─────────────────────────────────────────────
-    val currentState = p2pState
-    if (currentState is P2pState.Connected) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            ),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text("Ready to Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text("Hub address: ${currentState.groupOwnerAddress}:8099", style = MaterialTheme.typography.bodySmall)
-
-                Button(
-                    onClick = onSyncNow,
-                    enabled = !isSyncing,
-                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isClient,
+                    modifier = Modifier.weight(1f),
+                    colors = if (isHub) ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ) else ButtonDefaults.filledTonalButtonColors(),
                 ) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Syncing…")
-                    } else {
-                        Icon(Icons.Default.Sync, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Sync Now")
+                    Icon(Icons.Default.Hub, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (isHub) "Stop Hub" else "Start Hub")
+                }
+
+                FilledTonalButton(
+                    onClick = {
+                        if (isClient) {
+                            lanSyncManager.stopDiscovery()
+                        } else {
+                            lanSyncManager.stopHub()
+                            scope.launch(Dispatchers.IO) {
+                                try { SyncServiceLocator.stopHub() } catch (_: Exception) {}
+                            }
+                            lanSyncManager.startDiscovery()
+                        }
+                    },
+                    enabled = !isHub,
+                    modifier = Modifier.weight(1f),
+                    colors = if (isClient) ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ) else ButtonDefaults.filledTonalButtonColors(),
+                ) {
+                    Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (isClient) "Stop" else "Find Hub")
+                }
+            }
+
+            Divider()
+
+            if (lanState is LanSyncState.HubRegistered) {
+                val reg = lanState as LanSyncState.HubRegistered
+                val registeredHubUrl = "http://${reg.address}:${reg.port}"
+                // Generate QR off the main thread so key I/O and crypto don't block composition.
+                var qrBitmap by remember(reg.address) { mutableStateOf<android.graphics.Bitmap?>(null) }
+                var qrGenError by remember(reg.address) { mutableStateOf<String?>(null) }
+                LaunchedEffect(reg.address) {
+                    if (!SyncServiceLocator.isInitialized) {
+                        qrGenError = "SyncServiceLocator not ready yet — wait a moment and re-open this screen"
+                        return@LaunchedEffect
+                    }
+                    try {
+                        val bmp = withContext(Dispatchers.Default) {
+                            val payload = SyncServiceLocator.pairingManager
+                                .generatePairingPayload(hubAddress = registeredHubUrl)
+                            QrHelper.fromPayload(payload, SyncServiceLocator.pairingManager)
+                        }
+                        qrBitmap = bmp
+                    } catch (e: Exception) {
+                        Timber.e(e, "QR generation failed")
+                        qrGenError = "QR generation failed: ${e.message}"
+                    }
+                }
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                    Column(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("Hub Active", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Listening on $registeredHubUrl", style = MaterialTheme.typography.bodySmall)
+                        when {
+                            qrGenError != null -> Text(qrGenError!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            qrBitmap != null -> {
+                                Text(
+                                    "Scan from the other device to pair:",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Image(bitmap = qrBitmap!!.asImageBitmap(), contentDescription = "Pairing QR Code", modifier = Modifier.size(200.dp))
+                            }
+                            else -> {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                Text("Generating QR code…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (lanState is LanSyncState.Discovering) {
+                Card {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Column {
+                            Text("Searching for Hub\u2026", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                "Make sure the Hub device is on the same Wi-Fi and has tapped \u201cStart Hub\u201d",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (hubUrl != null) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Ready to Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text("Hub: $hubUrl", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                        if (clientIsPaired) {
+                            Button(
+                                onClick = {
+                                    isSyncing = true
+                                    syncError = null
+                                    lastSyncResult = null
+                                    scope.launch(Dispatchers.IO) {
+                                        try {
+                                            val result = SyncServiceLocator.sync(hubUrl)
+                                            SyncServiceLocator.reconcileAfterSync()
+                                            lastSyncResult = result
+                                        } catch (e: Exception) {
+                                            syncError = e.message ?: "Sync failed"
+                                        } finally {
+                                            isSyncing = false
+                                        }
+                                    }
+                                },
+                                enabled = !isSyncing,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                if (isSyncing) {
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Syncing\u2026")
+                                } else {
+                                    Icon(Icons.Default.Sync, null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Sync Now")
+                                }
+                            }
+                        } else {
+                            Text(
+                                "Pair with this Hub first \u2014 scan the QR code shown on the Hub device",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedButton(onClick = { showQrScanner = true }, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Default.QrCodeScanner, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Scan Hub QR Code")
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (isPairing) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text("Pairing with hub\u2026", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+            if (pairingError != null) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Pairing Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(pairingError!!, style = MaterialTheme.typography.bodySmall)
+                        // Only allow re-scanning once the hub has been found — avoids scanning
+                        // random QR codes from the environment when no pairing QR is on screen.
+                        if (hubUrl != null) {
+                            OutlinedButton(onClick = { showQrScanner = true; pairingError = null }, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Default.QrCodeScanner, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Scan Again")
+                            }
+                        } else {
+                            Text(
+                                "First make sure the Hub device has tapped \"Start Hub\", then tap \"Find Hub\" on this device and wait for it to appear.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (lastSyncResult != null) LanSyncResultCard(lastSyncResult!!)
+            if (syncError != null) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Sync Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(syncError!!, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
+            if (lanState is LanSyncState.Error) {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Network Error", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text((lanState as LanSyncState.Error).message, style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = { lanSyncManager.reset() }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Reset")
+                        }
                     }
                 }
             }
         }
     }
-    if (currentState is P2pState.GroupOwner) {
-        // Generate QR code with pairing payload
-        val qrBitmap = remember(currentState.hostAddress) {
-            if (SyncServiceLocator.isInitialized) {
-                val hubUrl = "http://${currentState.hostAddress}:8099"
-                val payload = SyncServiceLocator.pairingManager.generatePairingPayload(
-                    hubAddress = hubUrl,
-                )
-                QrHelper.fromPayload(payload, SyncServiceLocator.pairingManager)
-            } else null
-        }
-
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            ),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text("Hub Active", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text("Listening on: ${currentState.hostAddress}:8099", style = MaterialTheme.typography.bodySmall)
-
-                if (qrBitmap != null) {
-                    Text("Scan this QR code from the client device to pair:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Image(
-                        bitmap = qrBitmap.asImageBitmap(),
-                        contentDescription = "Pairing QR Code",
-                        modifier = Modifier.size(200.dp),
-                    )
-                } else {
-                    Text("SyncHub server running — waiting for client…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-
-    // ── Sync result or error ─────────────────────────────────────────────
-    if (lastSyncResult != null) {
-        SyncResultCard(lastSyncResult)
-    }
-    if (syncError != null) {
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-            ),
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Sync Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(syncError, style = MaterialTheme.typography.bodySmall)
-            }
-        }
-    }
 }
 
-// ── Sub-composables ──────────────────────────────────────────────────────────
-
 @Composable
-private fun SyncStatusCard(state: P2pState) {
+private fun LanSyncResultCard(result: SyncResult) {
     val ext = LocalExtendedColors.current
-    val (label, color) = when (state) {
-        is P2pState.Idle          -> "Idle" to ext.statusDisconnected
-        is P2pState.GroupCreating -> "Creating Group\u2026" to ext.statusConnecting
-        is P2pState.GroupOwner    -> "Hub Ready (${state.hostAddress})" to ext.statusReady
-        is P2pState.Discovering   -> "Discovering Peers\u2026" to ext.statusConnecting
-        is P2pState.Connecting    -> "Connecting to ${state.deviceName}\u2026" to ext.statusConnecting
-        is P2pState.Connected     -> "Connected \u2192 ${state.groupOwnerAddress}" to ext.statusConnected
-        is P2pState.Error         -> "Error: ${state.message}" to ext.statusError
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.12f)),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
-        ) {
-            Icon(
-                imageVector = when (state) {
-                    is P2pState.GroupOwner, is P2pState.Connected -> Icons.Default.Wifi
-                    is P2pState.Error -> Icons.Default.WifiOff
-                    else -> Icons.Default.SyncAlt
-                },
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(24.dp),
-            )
-            Column {
-                Text("Wi-Fi Direct Status", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PeerCard(
-    device: WifiP2pDevice,
-    isConnecting: Boolean,
-    onConnect: () -> Unit,
-) {
-    Card {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(device.deviceName.ifBlank { "Unknown Device" }, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                Text(device.deviceAddress, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            FilledTonalButton(
-                onClick = onConnect,
-                enabled = !isConnecting,
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                if (isConnecting) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(6.dp))
-                }
-                Text("Connect")
-            }
-        }
-    }
-}
-
-@Composable
-private fun SyncResultCard(result: SyncResult) {
-    val ext = LocalExtendedColors.current
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = ext.statusReady.copy(alpha = 0.12f),
-        ),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text("Sync Complete", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = LocalExtendedColors.current.statusReady)
+    Card(colors = CardDefaults.cardColors(containerColor = ext.statusReady.copy(alpha = 0.12f))) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Sync Complete", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = ext.statusReady)
             Text("Pulled: ${result.pullPrograms} programs, ${result.pullSessions} sessions", style = MaterialTheme.typography.bodySmall)
             Text("Pushed: ${result.pushPrograms} programs, ${result.pushSessions} sessions", style = MaterialTheme.typography.bodySmall)
             if (result.pushProgramsRejected > 0 || result.pushSessionsRejected > 0) {

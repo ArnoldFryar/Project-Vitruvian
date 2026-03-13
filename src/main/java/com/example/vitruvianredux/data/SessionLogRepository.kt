@@ -2,6 +2,7 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import timber.log.Timber
+import com.example.vitruvianredux.data.db.ExerciseHistoryDao
 import com.example.vitruvianredux.data.db.SessionLog
 import com.example.vitruvianredux.data.db.SessionLogDatabase
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +43,9 @@ object SessionLogRepository {
         database = SessionLogDatabase.getInstance(context)
         Timber.tag("storage").i("init: Room database opened")
     }
+
+    /** Expose the exercise history DAO for [ExerciseHistoryRecorder] and sync. */
+    fun exerciseHistoryDao(): ExerciseHistoryDao = database.exerciseHistoryDao()
 
     // ── Write ─────────────────────────────────────────────────────────────────
 

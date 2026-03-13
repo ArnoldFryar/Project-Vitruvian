@@ -93,6 +93,18 @@ object SyncServiceLocator {
         }
     }
 
+    /**
+     * Pair with a hub by processing the scanned QR payload JSON.
+     * Verifies the payload signature, performs the POST /pair handshake,
+     * and stores the shared secret so subsequent sync calls are authenticated.
+     *
+     * @return true if pairing succeeded
+     */
+    suspend fun pairWithHub(qrJson: String): Boolean {
+        check(isInitialized) { "SyncServiceLocator not initialized" }
+        return syncClient.pairWithHub(qrJson)
+    }
+
     /** Run a full sync cycle against the hub at [hubBaseUrl]. */
     suspend fun sync(hubBaseUrl: String): SyncResult {
         check(isInitialized) { "SyncServiceLocator not initialized" }
