@@ -62,11 +62,11 @@ class ProgramRepositoryTest {
 
     @Test fun `seed then delete then restart — program remains deleted`() {
         repo.load()                   // applies seed → "upper_b" added
-        repo.delete("upper_b")        // tombstone recorded, persisted
+        repo.delete("upper_b")        // tombstone recorded, soft-deleted
 
         // Simulate restart — new instance, same backing store
         val fresh    = restart()
-        val programs = fresh.load()
+        val programs = fresh.loadActive()
 
         assertFalse(
             "upper_b must NOT come back after restart (tombstone must prevent re-seeding)",
@@ -101,7 +101,7 @@ class ProgramRepositoryTest {
         repo.writeMeta(meta.copy(seedVersion = 0))
 
         val fresh    = restart()
-        val programs = fresh.load()
+        val programs = fresh.loadActive()
 
         assertFalse(
             "tombstoned upper_b must not be re-added even when seedVersion is rewound",
@@ -128,11 +128,13 @@ class ProgramRepositoryTest {
 
     // ── Delete non-seeded programs ────────────────────────────────────────────
 
-    @Test fun `deleting a user-created program removes it from list`() {
+    @Test fun `deleting a user-created program soft-deletes it from active list`() {
         repo.load()
         repo.add(SavedProgram("leg_day", "Leg Day", 3))
-        repo.delete("leg_day")
-        assertFalse(repo.parsePrograms().any { it.id == "leg_day" })
+        val active = repo.delete("leg_day")
+        assertFalse(active.any { it.id == "leg_day" })
+        // But the row persists in storage with deletedAt set
+        assertTrue(repo.parsePrograms().any { it.id == "leg_day" && it.deletedAt != null })
     }
 
     @Test fun `deleting a non-existent id is a no-op`() {
@@ -150,31 +152,38 @@ class ProgramRepositoryTest {
         assertFalse("returned list must not contain deleted program", uiList.any { it.id == "upper_b" })
     }
 
-    @Test fun `after deleting sole seeded program UI list is empty`() {
+    @Test fun `after deleting sole seeded program active list is empty`() {
         repo.load()
         assertEquals(1, repo.parsePrograms().size)  // only upper_b
 
         val afterDelete = repo.delete("upper_b")
-        assertTrue("UI list must be empty after deleting sole program", afterDelete.isEmpty())
+        assertTrue("active list must be empty after deleting sole program", afterDelete.isEmpty())
+        // But row persists in storage
+        assertEquals(1, repo.parsePrograms().size)
     }
 
-    @Test fun `after seed delete restart UI list remains empty`() {
+    @Test fun `after seed delete restart active list remains empty`() {
         repo.load()
         repo.delete("upper_b")
 
         val fresh = restart()
-        val uiList = fresh.load()
-        assertTrue("UI list remains empty after restart — activity tab must show no program", uiList.isEmpty())
+        val uiList = fresh.loadActive()
+        assertTrue("active list remains empty after restart", uiList.isEmpty())
     }
 
     // ── Serialization round-trip ──────────────────────────────────────────────
 
-    @Test fun `program survives JSON serialization round-trip`() {
-        val p = SavedProgram("my_id", "My Program", 7)
+    @Test fun `program survives JSON serialization round-trip with sync fields`() {
+        val now = System.currentTimeMillis()
+        val p = SavedProgram("my_id", "My Program", 7, updatedAt = now, deviceId = "dev1")
         repo.writePrograms(listOf(p))
         val loaded = repo.parsePrograms()
         assertEquals(1, loaded.size)
-        assertEquals(p, loaded.single())
+        assertEquals(p.id, loaded.single().id)
+        assertEquals(p.name, loaded.single().name)
+        assertEquals(now, loaded.single().updatedAt)
+        assertNull(loaded.single().deletedAt)
+        assertEquals("dev1", loaded.single().deviceId)
     }
 
     @Test fun `meta with deletedIds survives JSON serialization round-trip`() {
@@ -204,5 +213,57 @@ class ProgramRepositoryTest {
         val meta = repo.readMeta()
         assertEquals(0, meta.seedVersion)
         assertTrue(meta.deletedIds.isEmpty())
+    }
+
+    // ── Sync metadata ─────────────────────────────────────────────────────────
+
+    @Test fun `add stamps updatedAt`() {
+        val before = System.currentTimeMillis()
+        repo.add(SavedProgram("x", "X", 1))
+        val p = repo.parsePrograms().single { it.id == "x" }
+        assertTrue("updatedAt should be >= call time", p.updatedAt >= before)
+    }
+
+    @Test fun `add stamps deviceId from repository`() {
+        val repoWithDev = ProgramRepository(backing, deviceId = "phone-123")
+        repoWithDev.add(SavedProgram("x", "X", 1))
+        assertEquals("phone-123", repoWithDev.parsePrograms().single { it.id == "x" }.deviceId)
+    }
+
+    @Test fun `delete sets deletedAt and updatedAt`() {
+        repo.load()
+        val before = System.currentTimeMillis()
+        repo.delete("upper_b")
+        val p = repo.parsePrograms().single { it.id == "upper_b" }
+        assertNotNull(p.deletedAt)
+        assertTrue(p.deletedAt!! >= before)
+        assertTrue(p.updatedAt >= before)
+    }
+
+    @Test fun `soft-deleted program survives JSON round-trip with deletedAt`() {
+        val now = System.currentTimeMillis()
+        val p = SavedProgram("del", "Deleted", 0, deletedAt = now, updatedAt = now, deviceId = "d")
+        repo.writePrograms(listOf(p))
+        val loaded = repo.parsePrograms().single()
+        assertEquals(now, loaded.deletedAt)
+        assertEquals(now, loaded.updatedAt)
+        assertEquals("d", loaded.deviceId)
+    }
+
+    @Test fun `re-adding a soft-deleted program clears deletedAt`() {
+        repo.load()
+        repo.delete("upper_b")
+        // Re-add same id
+        val active = repo.add(SavedProgram("upper_b", "Upper B v2", 2))
+        assertTrue(active.any { it.id == "upper_b" })
+        assertNull(repo.parsePrograms().single { it.id == "upper_b" }.deletedAt)
+    }
+
+    @Test fun `loadActive filters out soft-deleted programs`() {
+        repo.load()
+        repo.delete("upper_b")
+        assertTrue(repo.loadActive().isEmpty())
+        // parsePrograms still has the tombstoned row
+        assertEquals(1, repo.parsePrograms().size)
     }
 }

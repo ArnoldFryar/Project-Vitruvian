@@ -56,4 +56,11 @@ data class PlayerSetParams(
     val eccentricLoadPct: Int = 75,
     /** Free-lift / AMRAP — sends 0xFF for reps in the BLE packet (unlimited). */
     val isJustLift: Boolean = false,
+    /** Whether stall detection is active (Phoenix: stallDetectionEnabled). */
+    val stallDetectionEnabled: Boolean = true,
+    /** Rep-counting timing strategy (Phoenix: repCountTiming). */
+    val repCountTiming: com.example.vitruvianredux.ble.protocol.RepCountTiming =
+        com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
+    /** Muscle groups for this exercise, e.g. ["CHEST", "ARMS"]. Used for workout history tracking. */
+    val muscleGroups: List<String> = emptyList(),
 )

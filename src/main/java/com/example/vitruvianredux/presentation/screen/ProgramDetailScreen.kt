@@ -3,6 +3,8 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -14,10 +16,17 @@ import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.data.ExerciseMode
+import com.example.vitruvianredux.data.TemplateRepository
+import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.util.loadExercises
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ProgramDetailScreen(
@@ -30,6 +39,16 @@ fun ProgramDetailScreen(
     val program = programs.find { it.id == programId }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var savedAsTemplate by remember { mutableStateOf(false) }
+
+    // Load exercise catalog for video/thumbnail URLs
+    val context = LocalContext.current
+    var exerciseCatalog by remember { mutableStateOf<Map<String, Exercise>>(emptyMap()) }
+    LaunchedEffect(Unit) {
+        exerciseCatalog = try {
+            withContext(Dispatchers.IO) { loadExercises(context) }.associateBy { it.stableKey }
+        } catch (_: Exception) { emptyMap() }
+    }
 
     // If the program was deleted (or never existed), return immediately.
     if (program == null) {
@@ -75,17 +94,15 @@ fun ProgramDetailScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
-                // Do NOT zero windowInsets: let the TopAppBar handle the status-bar
-                // inset itself so the title is never obscured.
             )
         },
-        contentWindowInsets = WindowInsets(0),
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
         ) {
             // ── Summary card ────────────────────────────────────────────────
             ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
@@ -116,7 +133,7 @@ fun ProgramDetailScreen(
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xl))
 
             // ── Start ───────────────────────────────────────────────────────
             Button(
@@ -127,20 +144,24 @@ fun ProgramDetailScreen(
                         ActualOutcome.Navigated("workout"),
                     )
                     val sets = program.items.flatMap { item ->
+                        val ex = exerciseCatalog[item.exerciseId]
                         List(item.sets) {
                             PlayerSetParams(
                                 exerciseName = item.exerciseName,
+                                thumbnailUrl = ex?.thumbnailUrl,
+                                videoUrl = ex?.videoUrl,
                                 targetReps = if (item.mode == ExerciseMode.REPS) item.reps else null,
                                 targetDurationSec = if (item.mode == ExerciseMode.TIME) item.durationSec else null,
                                 weightPerCableLb = item.targetWeightLb,
                                 restAfterSec = item.restTimerSec,
-                                warmupReps = 0,
+                                warmupReps = 3,
                                 programMode = item.programMode,
                                 progressionRegressionLb = item.progressionRegressionLb,
+                                muscleGroups = ex?.muscleGroups ?: emptyList(),
                             )
                         }
                     }
-                    workoutVM.startPlayerWorkout(sets)
+                    workoutVM.startProgramWorkout(programId, sets)
                     // We don't need to navigate to WorkoutScreen anymore, the global overlay will show
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -148,7 +169,7 @@ fun ProgramDetailScreen(
                 Text("Start Workout")
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // ── Edit ───────────────────────────────────────────────────
             OutlinedButton(
@@ -165,7 +186,21 @@ fun ProgramDetailScreen(
                 Text("Edit")
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+            // ── Save as Template ────────────────────────────────────────
+            OutlinedButton(
+                onClick = {
+                    TemplateRepository.saveAsTemplate(program)
+                    savedAsTemplate = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !savedAsTemplate,
+            ) {
+                Text(if (savedAsTemplate) "Saved as Template ✓" else "Save as Template")
+            }
+
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // ── Delete ───────────────────────────────────────────────────────
             OutlinedButton(

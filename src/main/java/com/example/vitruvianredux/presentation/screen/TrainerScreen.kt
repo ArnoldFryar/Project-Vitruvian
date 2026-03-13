@@ -1,12 +1,21 @@
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -14,9 +23,13 @@ import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
+import com.example.vitruvianredux.ble.protocol.BlePacketFactory
+import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
-import com.example.vitruvianredux.presentation.ui.ScreenScaffold
+import com.example.vitruvianredux.presentation.components.LedColorPickerDialog
+import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.BuildConfig
 
 @Composable
 fun TrainerScreen(
@@ -27,6 +40,12 @@ fun TrainerScreen(
     val cs = MaterialTheme.colorScheme
     val bleState by (bleVM?.state?.collectAsState() ?: remember { mutableStateOf(BleConnectionState.Disconnected) })
     var showDevicePicker by remember { mutableStateOf(false) }
+    var showColorPicker  by remember { mutableStateOf(false) }
+
+    // ── LED colour store ──────────────────────────────────────────────────
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { LedColorStore.init(context) }
+    var ledScheme by remember { mutableStateOf(LedColorStore.current()) }
 
     if (showDevicePicker && bleVM != null) {
         DevicePickerSheet(
@@ -35,135 +54,314 @@ fun TrainerScreen(
         )
     }
 
-    ScreenScaffold(title = "Device", innerPadding = innerPadding) {
-
-        // Capture as a local val so Kotlin can smart-cast inside when blocks
-        val state        = bleState
-        val isConnected  = state is BleConnectionState.Connected
-        val isConnecting = state is BleConnectionState.Connecting
-        val isScanning   = state is BleConnectionState.Scanning
-
-        // -- Status card -----------------------------------------------
-        ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = when {
-                        isConnected              -> Icons.Default.BluetoothConnected
-                        isScanning || isConnecting -> Icons.Default.BluetoothSearching
-                        else                     -> Icons.Default.Bluetooth
-                    },
-                    contentDescription = null,
-                    tint = if (isConnected) cs.primary else cs.onSurfaceVariant,
-                    modifier = Modifier.size(36.dp),
+    if (showColorPicker) {
+        LedColorPickerDialog(
+            current  = ledScheme,
+            onSelect = { scheme ->
+                ledScheme = scheme
+                LedColorStore.save(scheme)
+                // Send to trainer if connected
+                bleVM?.sendCommand(
+                    BlePacketFactory.createColorSchemePacket(
+                        scheme.first, scheme.second, scheme.third
+                    )
                 )
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = when {
-                            isConnected  -> "Connected"
-                            isConnecting -> "Connecting�"
-                            isScanning   -> "Scanning�"
-                            bleState is BleConnectionState.Error -> "Error"
-                            else         -> "Not Connected"
-                        },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = when (state) {
-                            is BleConnectionState.Connected  -> state.device.name
-                            is BleConnectionState.Connecting -> state.device.name
-                            is BleConnectionState.Scanning   -> "Scanning for nearby devices\u2026"
-                            is BleConnectionState.Error      -> state.message
-                            else -> "Scan and connect to your V-Form Trainer."
-                        },
-                        color = cs.onSurfaceVariant,
-                        fontSize = 13.sp,
-                    )
-                }
+            },
+            onDismiss = { showColorPicker = false },
+        )
+    }
+
+    val state        = bleState
+    val isConnected  = state is BleConnectionState.Connected
+    val isConnecting = state is BleConnectionState.Connecting
+    val isScanning   = state is BleConnectionState.Scanning
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
+    ) {
+        // ═══════════════════════════════════════════════════════
+        //  HEADER — "Your Trainer"
+        // ═══════════════════════════════════════════════════════
+        Text(
+            text = "Your Trainer",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+        // ═══════════════════════════════════════════════════════
+        //  GENERAL section
+        // ═══════════════════════════════════════════════════════
+        Text(
+            text = "GENERAL",
+            style = MaterialTheme.typography.labelMedium,
+            color = cs.onSurfaceVariant,
+            letterSpacing = 1.sp,
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = cs.surfaceVariant,
+            tonalElevation = AppDimens.Elevation.selector,
+        ) {
+            Column {
+                // Connection row
+                TrainerInfoRow(
+                    label = "Connection",
+                    trailing = {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = when {
+                                isConnected -> cs.primary.copy(alpha = 0.12f)
+                                isScanning || isConnecting -> cs.tertiary.copy(alpha = 0.12f)
+                                else -> cs.onSurfaceVariant.copy(alpha = 0.12f)
+                            },
+                        ) {
+                            Text(
+                                text = when {
+                                    isConnected  -> "Connected"
+                                    isConnecting -> "Connecting\u2026"
+                                    isScanning   -> "Scanning\u2026"
+                                    state is BleConnectionState.Error -> "Error"
+                                    else -> "Disconnected"
+                                },
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = when {
+                                    isConnected -> cs.primary
+                                    isScanning || isConnecting -> cs.tertiary
+                                    else -> cs.onSurfaceVariant
+                                },
+                            )
+                        }
+                    },
+                )
+                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+
+                // Machine ID
+                TrainerInfoRow(
+                    label = "Machine ID",
+                    value = if (isConnected) (state as BleConnectionState.Connected).device.address else "\u2013",
+                )
+                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+
+                // Status
+                TrainerInfoRow(
+                    label = "Status",
+                    value = when {
+                        isConnected -> "Ready"
+                        isScanning || isConnecting -> "Busy"
+                        else -> "\u2013"
+                    },
+                )
+                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+
+                // Colour indicator — opens LED colour picker
+                TrainerInfoRow(
+                    label = "Colour",
+                    modifier = Modifier.clickable { showColorPicker = true },
+                    trailing = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(80.dp)
+                                    .height(24.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            colors = listOf(
+                                                ledScheme.color1,
+                                                ledScheme.color2,
+                                                ledScheme.color3,
+                                            )
+                                        )
+                                    )
+                            )
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = cs.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    },
+                )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // -- Action button ---------------------------------------------
+        // ═══════════════════════════════════════════════════════
+        //  VERSIONS section
+        // ═══════════════════════════════════════════════════════
+        Text(
+            text = "VERSIONS",
+            style = MaterialTheme.typography.labelMedium,
+            color = cs.onSurfaceVariant,
+            letterSpacing = 1.sp,
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = cs.surfaceVariant,
+            tonalElevation = AppDimens.Elevation.selector,
+        ) {
+            Column {
+                TrainerInfoRow(label = "Firmware", value = "\u2013")
+                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+                TrainerInfoRow(label = "Hardware", value = "\u2013")
+                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+                TrainerInfoRow(
+                    label = "App",
+                    trailing = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = "v${BuildConfig.VERSION_NAME}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = cs.onSurfaceVariant,
+                            )
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = cs.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    },
+                )
+            }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.xl))
+
+        // ═══════════════════════════════════════════════════════
+        //  CONNECT / DISCONNECT button (large, full width)
+        // ═══════════════════════════════════════════════════════
         when {
             isConnected -> {
                 Button(
-                    onClick  = { WiringRegistry.hit(A_DEVICE_DISCONNECT); WiringRegistry.recordOutcome(A_DEVICE_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect")); bleVM?.disconnect() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape    = MaterialTheme.shapes.medium,
-                    colors   = ButtonDefaults.buttonColors(
+                    onClick  = { WiringRegistry.hit(A_DEVICE_DISCONNECT); WiringRegistry.recordOutcome(A_DEVICE_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect")); bleVM?.clearAutoReconnect(); bleVM?.disconnect() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = cs.errorContainer,
                         contentColor   = cs.onErrorContainer,
                     ),
                 ) {
-                    Icon(Icons.Default.BluetoothDisabled, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Disconnect", fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Default.BluetoothDisabled, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text("Disconnect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             }
             isScanning || isConnecting -> {
-                OutlinedButton(
+                Button(
                     onClick  = {},
                     enabled  = false,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape    = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (isScanning) "Scanning�" else "Connecting�")
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = cs.onPrimary,
+                    )
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text(
+                        if (isScanning) "Scanning\u2026" else "Connecting\u2026",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
             else -> {
                 Button(
                     onClick  = { WiringRegistry.hit(A_DEVICE_CONNECT); WiringRegistry.recordOutcome(A_DEVICE_CONNECT, ActualOutcome.SheetOpened("device_picker")); showDevicePicker = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape    = MaterialTheme.shapes.medium,
-                    colors   = ButtonDefaults.buttonColors(containerColor = cs.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = cs.primary,
+                        contentColor = cs.onPrimary,
+                    ),
                 ) {
-                    Icon(Icons.Default.Bluetooth, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Connect Device", fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Default.Bluetooth, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text("Connect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
-        // -- Check & Repair button
+        // ── Check & Repair button
         OutlinedButton(
             onClick  = { WiringRegistry.hit(A_DEVICE_REPAIR); WiringRegistry.recordOutcome(A_DEVICE_REPAIR, ActualOutcome.Navigated("repair")); onNavigateToRepair() },
-            modifier = Modifier.fillMaxWidth(),
-            shape    = MaterialTheme.shapes.medium,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = cs.primary,
+            ),
         ) {
             Icon(Icons.Default.Build, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text("Check & Repair", fontWeight = FontWeight.SemiBold)
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.xl))
+    }
+}
 
-        // -- Info card -------------------------------------------------
-        ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
-            Column(Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, null, tint = cs.primary, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Connect your Trainer", fontWeight = FontWeight.SemiBold,
-                         style = MaterialTheme.typography.bodyMedium)
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text  = "Tap \"Connect Device\" to scan for nearby Bluetooth devices. Make sure your V-Form Trainer is powered on.",
-                    color = cs.onSurfaceVariant,
-                    fontSize = 13.sp,
-                )
-            }
+// ─── Reusable info row for the "Your Trainer" card ──────────────────────────────
+
+@Composable
+private fun TrainerInfoRow(
+    label: String,
+    value: String? = null,
+    modifier: Modifier = Modifier,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Normal,
+        )
+        if (trailing != null) {
+            trailing()
+        } else {
+            Text(
+                text = value ?: "\u2013",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

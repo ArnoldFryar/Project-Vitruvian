@@ -67,6 +67,7 @@ const val A_PLAYER_START_SET        = "player_start_set"
 const val A_PLAYER_STOP_SET         = "player_stop_set"
 const val A_PLAYER_PANIC_STOP       = "player_panic_stop"
 const val A_PLAYER_REST_SKIP        = "player_rest_skip"
+const val A_PLAYER_SKIP_EXERCISE    = "player_skip_exercise"
 
 // Programs tab
 const val A_PROGRAMS_CREATE_OPEN   = "programs_create_open"
@@ -149,6 +150,7 @@ val ALL_ACTION_DEFINITIONS: List<ActionDefinition> = listOf(
     ActionDefinition(A_PLAYER_STOP_SET,         "Stop Set",           SCR_PLAYER, ExpectedOutcome.BleTx("STOP")),
     ActionDefinition(A_PLAYER_PANIC_STOP,       "Panic Stop",         SCR_PLAYER, ExpectedOutcome.BleTx("PANIC_STOP")),
     ActionDefinition(A_PLAYER_REST_SKIP,        "Rest: Skip",         SCR_PLAYER, ExpectedOutcome.StateChange("restSkipped")),
+    ActionDefinition(A_PLAYER_SKIP_EXERCISE,    "Skip Exercise",      SCR_PLAYER, ExpectedOutcome.StateChange("exerciseSkipped")),
     // ── Programs ──────────────────────────────────────────────────────────────
     ActionDefinition(A_PROGRAMS_CREATE_OPEN,   "Create Program",     SCR_PROGRAMS, ExpectedOutcome.OpenSheet("program_builder")),
     ActionDefinition(A_PROGRAMS_SAVED_OPEN,    "Open Saved Prog.",   SCR_PROGRAMS, ExpectedOutcome.Navigate("program_detail")),

@@ -1,0 +1,84 @@
+{
+  "id": "builtin_knee_friendly_lower",
+  "name": "Knee Friendly Lower",
+  "category": "Rehab & Recovery",
+  "description": "Hip-hinge and glute-dominant lower body program that avoids deep knee flexion. Ideal for anyone managing knee discomfort, post-rehab, or returning to training after injury. No squats or impact lunges.",
+  "days": [
+    {
+      "name": "Hinge & Glutes",
+      "focus": "Hamstrings, Glutes, Lower Back, Calves",
+      "exercises": [
+        {
+          "exerciseId": "39689096-7fb9-46aa-a411-59c5c6886c5d",
+          "exerciseName": "Hip Thrust",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "49c4594c-f997-4d70-8008-b293e247e2e4",
+          "exerciseName": "Romanian Deadlift",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "HFrc4ELZxjSKX8PW",
+          "exerciseName": "Good Morning",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "eh2ElKDA1-0NYgK1",
+          "exerciseName": "Glute Bridge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "e280829c-aa17-4812-b8fa-bcd0d89ad815",
+          "exerciseName": "Glute Kickbacks",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "4kmhj9yyZcBI54Vi",
+          "exerciseName": "100s",
+          "mode": "TIME",
+          "sets": 3,
+          "durationSec": 30,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "287a9e39-fd0f-426f-bac1-2b121befb397",
+          "exerciseName": "Calf Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        }
+      ]
+    }
+  ]
+}

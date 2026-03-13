@@ -27,4 +27,16 @@ interface IBleTrainerAdapter {
      * @param tag      Human-readable label for logging / diagnostics.
      */
     fun execute(command: BleCommand, tag: String = "")
+
+    /**
+     * Enable or disable handle-detection mode on the trainer.
+     *
+     * Modeled after Phoenix `BleRepository.enableHandleDetection(Boolean)`.
+     * The real implementation may send a specific BLE characteristic write;
+     * **no packet bytes are defined here** — this is a high-level intent that
+     * the adapter maps to whatever the hardware supports.
+     *
+     * Default is a no-op so existing adapters (tests, legacy) are unaffected.
+     */
+    fun enableHandleDetection(enable: Boolean) { /* no-op by default */ }
 }

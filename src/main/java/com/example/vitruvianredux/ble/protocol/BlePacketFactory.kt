@@ -120,7 +120,7 @@ object BlePacketFactory {
         frame[0x04] = if (params.isJustLift || params.isAMRAP)
             0xFF.toByte() else (params.reps + params.warmupReps).toByte()
 
-        frame[5] = 0x03; frame[6] = 0x03; frame[7] = 0x00
+        frame[5] = params.warmupReps.toByte(); frame[6] = 0x03; frame[7] = 0x00
 
         putFloatLE(frame, 0x08, 5.0f)
         putFloatLE(frame, 0x0c, 5.0f)
@@ -322,5 +322,57 @@ object BlePacketFactory {
             EchoLevel.HARDEST -> base.copy(gain = 1.667f, cap = 30.0f)
             EchoLevel.EPIC    -> base.copy(gain = 3.333f, cap = 15.0f)
         }
+    }
+
+    // ── LED colour scheme (34 bytes, cmd=0x11) ────────────────────────────────
+
+    /**
+     * Build a 34-byte LED colour-scheme packet (cmd=0x11).
+     *
+     * Same structure as [createInitPreset] but with caller-supplied RGB colours
+     * for the three LED zones.  Each colour is an Android colour-int (0xAARRGGBB);
+     * only the lower 24 bits (RGB) are used.
+     *
+     * Protocol (from decompiled Phoenix `DeviceColorSchemePacket`):
+     *   int32-LE  17          → command id (0x11)
+     *   float-LE  0.0         → reserved
+     *   float-LE  0.0         → reserved
+     *   float-LE  0.4         → brightness / coefficient
+     *   3× RGB bytes (first, second, third)   → first colour set
+     *   3× RGB bytes (first, second, third)   → repeated second set
+     */
+    fun createColorSchemePacket(first: Int, second: Int, third: Int): ByteArray {
+        val buf = ByteArray(34)
+
+        // Command id (0x11 = 17)
+        putIntLE(buf, 0, 17)
+
+        // Three floats: 0.0, 0.0, 0.4
+        putFloatLE(buf, 4,  0.0f)
+        putFloatLE(buf, 8,  0.0f)
+        putFloatLE(buf, 12, 0.4f)
+
+        // Helper: write RGB from a colour-int at the given offset
+        fun putRgb(offset: Int, color: Int) {
+            buf[offset]     = ((color shr 16) and 0xFF).toByte()  // R
+            buf[offset + 1] = ((color shr 8)  and 0xFF).toByte()  // G
+            buf[offset + 2] = (color and 0xFF).toByte()            // B
+        }
+
+        // First set of 3 colours
+        putRgb(16, first)
+        putRgb(19, second)
+        putRgb(22, third)
+
+        // Repeated set
+        putRgb(25, first)
+        putRgb(28, second)
+        putRgb(31, third)
+
+        Log.d(TAG, "createColorSchemePacket → 34B [0x11 ...] " +
+                "c1=#${Integer.toHexString(first and 0xFFFFFF)} " +
+                "c2=#${Integer.toHexString(second and 0xFFFFFF)} " +
+                "c3=#${Integer.toHexString(third and 0xFFFFFF)}")
+        return buf
     }
 }

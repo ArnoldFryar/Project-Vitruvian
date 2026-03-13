@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
@@ -18,7 +19,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.session.NextStep
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
+import com.example.vitruvianredux.presentation.repquality.FatigueTrendGraph
+import com.example.vitruvianredux.presentation.repquality.RepQuality
+import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.AccentCyan
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /** Full-screen rest countdown — embedded into ExercisePlayerScreen via AnimatedContent. */
 @Composable
@@ -26,15 +31,18 @@ fun RestScreenContent(
     secondsRemaining: Int,
     next: NextStep,
     onSkip: () -> Unit,
+    onSkipExercise: () -> Unit = {},
     onEditUpcomingSets: () -> Unit = {},
+    repScores: List<RepQuality> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     val totalSeconds = remember { secondsRemaining.coerceAtLeast(1) }
     val progress = (secondsRemaining.toFloat() / totalSeconds).coerceIn(0f, 1f)
+    val ext = LocalExtendedColors.current
 
-    val ringColor     = MaterialTheme.colorScheme.primary
+    val ringColor     = ext.accentCyan
     val trackColor    = MaterialTheme.colorScheme.surfaceVariant
-    val surfaceColor  = MaterialTheme.colorScheme.surface
+    val surfaceColor  = MaterialTheme.colorScheme.background
 
     Box(
         modifier         = modifier
@@ -44,7 +52,7 @@ fun RestScreenContent(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(32.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
         ) {
             // ── Title ─────────────────────────────────────────────────────────
             Text(
@@ -52,7 +60,7 @@ fun RestScreenContent(
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 6.sp,
-                color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
             )
 
             // ── Circular countdown ────────────────────────────────────────────
@@ -61,7 +69,7 @@ fun RestScreenContent(
                 contentAlignment = Alignment.Center,
             ) {
                 Canvas(modifier = Modifier.size(220.dp)) {
-                    val strokeWidth = 14.dp.toPx()
+                    val strokeWidth = 10.dp.toPx()
                     val radius      = size.minDimension / 2f - strokeWidth / 2f
                     val center      = Offset(size.width / 2f, size.height / 2f)
                     val arcSize     = Size(radius * 2f, radius * 2f)
@@ -93,16 +101,21 @@ fun RestScreenContent(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text       = "$secondsRemaining",
-                        fontSize   = 72.sp,
+                        style      = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Black,
-                        lineHeight = 72.sp,
+                        color      = ext.accentCyan,
                     )
                     Text(
                         text  = "sec",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     )
                 }
+            }
+
+            // ── Fatigue trend graph (shown when ≥ 2 reps scored) ──────────
+            if (repScores.size >= 2) {
+                FatigueTrendGraph(scores = repScores)
             }
 
             // ── Next step hint ────────────────────────────────────────────────
@@ -110,33 +123,52 @@ fun RestScreenContent(
                 is NextStep.NextSet -> Text(
                     text  = "Next: ${next.exerciseName}  (set ${next.setIndex + 1}/${next.totalSets})",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
                 is NextStep.WorkoutDone -> Text(
                     text  = "Workout complete after this rest",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 )
             }
 
             // ── Skip button ───────────────────────────────────────────────────
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm)) {
                 FilledTonalButton(
                     onClick  = onSkip,
-                    modifier = Modifier.defaultMinSize(minWidth = 160.dp),
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 120.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.sm),
                 ) {
                     Icon(Icons.Default.SkipNext, contentDescription = null,
                         modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Skip Rest", fontWeight = FontWeight.SemiBold)
                 }
-                
+
                 OutlinedButton(
-                    onClick = onEditUpcomingSets,
-                    modifier = Modifier.defaultMinSize(minWidth = 160.dp),
+                    onClick = onSkipExercise,
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 120.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.sm),
                 ) {
-                    Text("Edit Upcoming Sets", fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Default.SkipNext, contentDescription = null,
+                        modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Skip Exercise", fontWeight = FontWeight.SemiBold)
                 }
+            }
+
+            OutlinedButton(
+                onClick = onEditUpcomingSets,
+                modifier = Modifier
+                    .defaultMinSize(minWidth = 160.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+            ) {
+                Text("Edit Sets", fontWeight = FontWeight.SemiBold)
             }
         }
     }

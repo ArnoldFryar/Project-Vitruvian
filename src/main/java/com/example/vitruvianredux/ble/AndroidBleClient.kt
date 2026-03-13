@@ -11,10 +11,16 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.example.vitruvianredux.ble.protocol.BleProtocolConstants
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.UUID
+import kotlin.coroutines.resume
 
 private const val TAG = "BleClient"
 
@@ -63,6 +69,14 @@ class AndroidBleClient(context: Context) {
     private val writeQueue = ArrayDeque<QueuedWrite>()
     @Volatile private var writeInFlight = false
 
+    // Read support: pending continuation for characteristic reads
+    @Volatile private var pendingReadContinuation: kotlin.coroutines.Continuation<ByteArray?>? = null
+    @Volatile private var readInFlight = false
+    private var readTimeoutRunnable: Runnable? = null
+    private companion object {
+        private const val READ_TIMEOUT_MS = 2_000L
+    }
+
     // Exposed state
     private val _state = MutableStateFlow<BleConnectionState>(BleConnectionState.Disconnected)
     val state: StateFlow<BleConnectionState> = _state.asStateFlow()
@@ -70,8 +84,12 @@ class AndroidBleClient(context: Context) {
     private val _devices = MutableStateFlow<List<BleDevice>>(emptyList())
     val devices: StateFlow<List<BleDevice>> = _devices.asStateFlow()
 
-    private val _notifyEvents = MutableStateFlow<NotifyEvent?>(null)
-    val notifyEvents: StateFlow<NotifyEvent?> = _notifyEvents.asStateFlow()
+    private val _notifyEvents = MutableSharedFlow<NotifyEvent>(
+        replay = 0,
+        extraBufferCapacity = 64,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val notifyEvents: SharedFlow<NotifyEvent> = _notifyEvents.asSharedFlow()
 
     private val _isReady = MutableStateFlow(false)
     val isReady: StateFlow<Boolean> = _isReady.asStateFlow()
@@ -265,6 +283,67 @@ class AndroidBleClient(context: Context) {
         }
     }
 
+    /**
+     * Read a BLE characteristic by UUID.  Returns the raw bytes or null on timeout / error.
+     * This is a **suspend** function that waits for `onCharacteristicRead` —
+     * used by the monitor polling loop to read cable position/force data,
+     * matching Phoenix's MetricPollingEngine approach.
+     *
+     * Must NOT be called concurrently — only one read at a time.
+     */
+    suspend fun readCharacteristic(charUuid: String): ByteArray? {
+        val g = gatt ?: run { Log.w(TAG, "readCharacteristic: no GATT"); return null }
+        val char = g.services.firstNotNullOfOrNull {
+            it.getCharacteristic(UUID.fromString(charUuid))
+        } ?: run {
+            Log.w(TAG, "readCharacteristic: char $charUuid not found")
+            return null
+        }
+        return suspendCancellableCoroutine { cont ->
+            // Post to mainHandler so all GATT ops (read/write/cccd) are serialized
+            mainHandler.post {
+                if (writeInFlight || readInFlight || writeQueue.isNotEmpty()) {
+                    // Yield to pending writes — cable bars are cosmetic, writes are critical
+                    if (cont.isActive) cont.resume(null)
+                    return@post
+                }
+                pendingReadContinuation = cont
+                cont.invokeOnCancellation {
+                    mainHandler.post {
+                        pendingReadContinuation = null
+                        readInFlight = false
+                        readTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+                        readTimeoutRunnable = null
+                        drainWriteQueue()
+                    }
+                }
+                // Safety timeout
+                val timeout = Runnable {
+                    Log.w(TAG, "readCharacteristic: timeout for $charUuid")
+                    pendingReadContinuation = null
+                    readInFlight = false
+                    readTimeoutRunnable = null
+                    if (cont.isActive) cont.resume(null)
+                    drainWriteQueue()
+                }
+                readTimeoutRunnable = timeout
+                mainHandler.postDelayed(timeout, READ_TIMEOUT_MS)
+
+                readInFlight = true
+                @Suppress("DEPRECATION")
+                val ok = g.readCharacteristic(char)
+                if (!ok) {
+                    Log.w(TAG, "readCharacteristic: readCharacteristic returned false for $charUuid")
+                    readInFlight = false
+                    pendingReadContinuation = null
+                    mainHandler.removeCallbacks(timeout)
+                    readTimeoutRunnable = null
+                    if (cont.isActive) cont.resume(null)
+                }
+            }
+        }
+    }
+
     fun release() {
         stopScan()
         disconnect()
@@ -274,7 +353,7 @@ class AndroidBleClient(context: Context) {
     // Write queue (runs on mainHandler)
 
     private fun drainWriteQueue() {
-        if (writeInFlight) return
+        if (writeInFlight || readInFlight) return
         val next = writeQueue.removeFirstOrNull() ?: return
 
         val g = gatt ?: run {
@@ -315,8 +394,9 @@ class AndroidBleClient(context: Context) {
             writeTimeoutRunnable = wt
             mainHandler.postDelayed(wt, WRITE_TIMEOUT_MS)
         } else {
-            Log.e(TAG, "drainWriteQueue: writeCharacteristic returned false for [${next.label}]")
-            drainWriteQueue()
+            Log.e(TAG, "drainWriteQueue: writeCharacteristic returned false for [${next.label}], re-enqueuing")
+            writeQueue.addFirst(next)
+            mainHandler.postDelayed({ drainWriteQueue() }, 50)
         }
     }
 
@@ -421,7 +501,7 @@ class AndroidBleClient(context: Context) {
             _lastGattEventAt.value = now
             BleDebugLog.onNotify(uuid, bytes)
             SessionEventLog.append(SessionEventLog.EventType.RX, "[RX] ${uuid.take(8)} ${bytes.hexPreview()}")
-            _notifyEvents.value = NotifyEvent(uuid, bytes.copyOf(), now)
+            _notifyEvents.tryEmit(NotifyEvent(uuid, bytes.copyOf(), now))
             updateDiagnostics()
         }
 
@@ -437,8 +517,53 @@ class AndroidBleClient(context: Context) {
             _lastGattEventAt.value = now
             BleDebugLog.onNotify(uuid, value)
             SessionEventLog.append(SessionEventLog.EventType.RX, "[RX] ${uuid.take(8)} ${value.hexPreview()}")
-            _notifyEvents.value = NotifyEvent(uuid, value.copyOf(), now)
+            _notifyEvents.tryEmit(NotifyEvent(uuid, value.copyOf(), now))
             updateDiagnostics()
+        }
+
+        // ── Characteristic read callback (for monitor polling) ─────────
+        @Suppress("DEPRECATION")
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int,
+        ) {
+            _lastGattEventAt.value = System.currentTimeMillis()
+            _lastRxAt.value = System.currentTimeMillis()
+            val bytes = if (status == BluetoothGatt.GATT_SUCCESS) characteristic.value else null
+            Log.d(TAG, "onCharacteristicRead: ${characteristic.uuid}  status=$status  bytes=${bytes?.size}")
+            mainHandler.post {
+                readTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+                readTimeoutRunnable = null
+                readInFlight = false
+                val cont = pendingReadContinuation
+                pendingReadContinuation = null
+                cont?.resume(bytes?.copyOf())
+                updateDiagnostics()
+                drainWriteQueue()
+            }
+        }
+
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray,
+            status: Int,
+        ) {
+            _lastGattEventAt.value = System.currentTimeMillis()
+            _lastRxAt.value = System.currentTimeMillis()
+            val bytes = if (status == BluetoothGatt.GATT_SUCCESS) value else null
+            Log.d(TAG, "onCharacteristicRead(33+): ${characteristic.uuid}  status=$status  bytes=${bytes?.size}")
+            mainHandler.post {
+                readTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+                readTimeoutRunnable = null
+                readInFlight = false
+                val cont = pendingReadContinuation
+                pendingReadContinuation = null
+                cont?.resume(bytes?.copyOf())
+                updateDiagnostics()
+                drainWriteQueue()
+            }
         }
 
         override fun onCharacteristicWrite(
@@ -460,10 +585,12 @@ class AndroidBleClient(context: Context) {
 
     private fun enableNextNotification(gatt: BluetoothGatt) {
         val uuid = pendingNotifyQueue.removeFirstOrNull() ?: run {
-            Log.i(TAG, "enableNextNotification: all notifications enabled")
-            allNotificationsEnabled = true
-            updateReadiness()
-            SessionEventLog.append(SessionEventLog.EventType.STATE, "All notifications enabled - trainer READY")
+            if (!allNotificationsEnabled) {
+                Log.i(TAG, "enableNextNotification: all notifications enabled")
+                allNotificationsEnabled = true
+                updateReadiness()
+                SessionEventLog.append(SessionEventLog.EventType.STATE, "All notifications enabled - trainer READY")
+            }
             return
         }
         val char = gatt.services.firstNotNullOfOrNull { it.getCharacteristic(UUID.fromString(uuid)) }
@@ -485,6 +612,9 @@ class AndroidBleClient(context: Context) {
         val ok = gatt.writeDescriptor(cccd)
         Log.d(TAG, "enableNextNotification: $uuid  writeDescriptor queued=$ok")
     }
+
+    // NOTE: Monitor/Sample characteristic is POLLED via readCharacteristic(),
+    // not notified, matching Phoenix's MetricPollingEngine approach.
 
     // Readiness helpers
 

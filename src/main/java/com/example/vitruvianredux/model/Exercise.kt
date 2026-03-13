@@ -3,6 +3,10 @@ package com.example.vitruvianredux.model
 import kotlinx.serialization.Serializable
 import java.util.Locale
 
+enum class ExerciseSource { BUILT_IN, CUSTOM }
+
+enum class TrackingType { REPS, DURATION }
+
 @Serializable
 data class ExerciseVideo(
     val thumbnail: String? = null,
@@ -23,6 +27,23 @@ data class Exercise(
     val equipment: List<String> = emptyList(),
     /** Non-null means this exercise has been retired; skip it. */
     val archived: String? = null,
+    // ── Custom exercise fields (ignored during built-in JSON deserialization) ──
+    /** Whether this is a built-in or user-created exercise. */
+    val source: ExerciseSource = ExerciseSource.BUILT_IN,
+    /** Default counting mode for this exercise. */
+    val defaultTrackingType: TrackingType = TrackingType.REPS,
+    /** Optional preferred resistance profile (e.g. "Old School", "Pump"). */
+    val defaultMode: String? = null,
+    /** Optional freeform notes visible in the exercise picker. */
+    val notes: String = "",
+    /** Primary muscle group label for filtering (e.g. "CHEST"). */
+    val primaryMuscleGroup: String = "",
+    /** Secondary muscle group label. */
+    val secondaryMuscleGroup: String = "",
+    /** Whether this exercise is performed unilaterally (one side at a time). */
+    val perSide: Boolean = false,
+    /** User-starred exercises float to the top of the library. */
+    val isFavorite: Boolean = false,
 ) {
     val thumbnailUrl: String? get() = videos.firstOrNull()?.thumbnail
     val videoUrl: String? get() = videos.firstOrNull()?.video

@@ -83,6 +83,8 @@ object SessionReducer {
             echoLevel     = set.echoLevel,
             eccentricLoadPct = set.eccentricLoadPct,
             isJustLift    = set.isJustLift,
+            stallDetectionEnabled = set.stallDetectionEnabled,
+            repCountTiming = set.repCountTiming,
         )
         val command: BleCommand = if (params.isEchoMode) BleCommand.EchoControl(params)
                                   else BleCommand.ProgramParams(params)
@@ -113,35 +115,52 @@ object SessionReducer {
     }
 
     private fun onRepDetected(state: EngineState, event: SessionEvent.MachineRepDetected): Result {
-        val updated = state.copy(counter = state.counter.update(event.totalDeviceReps))
-        return when (state.phase) {
-            SetPhase.WARMUP -> {
-                // Every warmup rep emits VolumeAdd(WARMUP) — never touches the WORKING bucket.
-                val volFx = SessionEffect.VolumeAdd(SetPhase.WARMUP, state.loadKg, 1)
-                if (updated.counter.isWarmupComplete()) {
-                    // Warmup boundary crossed: UiEmit + VolumeAdd for this rep, then
-                    // WarmupComplete effects (BleSend working-load params).
-                    val inner = onWarmupComplete(updated)
-                    Result(inner.newState, listOf(SessionEffect.UiEmit(updated), volFx) + inner.effects)
-                } else {
-                    Result(updated, listOf(SessionEffect.UiEmit(updated), volFx))
-                }
-            }
-            SetPhase.WORKING -> {
-                // Every working rep emits VolumeAdd(WORKING). Warmup reps never reach
-                // this branch, guaranteeing zero warmup→working volume bleed.
-                val volFx = SessionEffect.VolumeAdd(SetPhase.WORKING, state.loadKg, 1)
-                if (updated.counter.isWorkingComplete()) {
-                    // Working boundary crossed: UiEmit + VolumeAdd for this rep, then
-                    // WorkingComplete effects (PersistSnapshot, StartRestTimer).
-                    val inner = onWorkingComplete(updated)
-                    Result(inner.newState, listOf(SessionEffect.UiEmit(updated), volFx) + inner.effects)
-                } else {
-                    Result(updated, listOf(SessionEffect.UiEmit(updated), volFx))
-                }
-            }
-            else -> Result(state) // ignore in IDLE, REST, COMPLETE
+        // ── Monotonic guard: ignore if the incoming count decreased (stale / out-of-order).
+        if (event.totalDeviceReps < state.totalDeviceReps) return Result(state)
+
+        // No rep processing in IDLE, REST, or COMPLETE.
+        if (state.phase != SetPhase.WARMUP && state.phase != SetPhase.WORKING) {
+            return Result(state)
         }
+
+        val updated = state.copy(counter = state.counter.update(event.totalDeviceReps))
+
+        val warmupDelta = updated.warmupRepsCompleted - state.warmupRepsCompleted
+        val workingDelta = updated.workingRepsCompleted - state.workingRepsCompleted
+
+        val effects = mutableListOf<SessionEffect>(SessionEffect.UiEmit(updated))
+
+        if (warmupDelta > 0 && state.phase == SetPhase.WARMUP) {
+            effects += SessionEffect.VolumeAdd(SetPhase.WARMUP, state.loadKg, warmupDelta)
+        }
+        if (workingDelta > 0 && (state.phase == SetPhase.WORKING || state.phase == SetPhase.WARMUP)) {
+            // If we are in WARMUP but workingDelta > 0, it means we crossed the boundary in this single update.
+            // The volume for the working reps should be added to the WORKING phase.
+            effects += SessionEffect.VolumeAdd(SetPhase.WORKING, state.loadKg, workingDelta)
+        }
+
+        var currentState = updated
+
+        // Handle phase transitions sequentially
+        if (state.phase == SetPhase.WARMUP) {
+            val justCompletedWarmup = !state.counter.isWarmupComplete() && updated.counter.isWarmupComplete()
+            if (justCompletedWarmup) {
+                val inner = onWarmupComplete(currentState)
+                currentState = inner.newState
+                effects.addAll(inner.effects)
+            }
+        }
+
+        if (currentState.phase == SetPhase.WORKING) {
+            val justCompletedWorking = !state.counter.isWorkingComplete() && updated.counter.isWorkingComplete()
+            if (justCompletedWorking) {
+                val inner = onWorkingComplete(currentState)
+                currentState = inner.newState
+                effects.addAll(inner.effects)
+            }
+        }
+
+        return Result(currentState, effects)
     }
 
     private fun onWarmupComplete(state: EngineState): Result {

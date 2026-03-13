@@ -1,48 +1,40 @@
 package com.example.vitruvianredux.ble.session
 
 /**
- * Rep detector that matches the original Vitruvian app's algorithm exactly.
+ * Rep detector that matches Project Phoenix's RepCounterFromMachine exactly.
  *
- * ### How the original app counts reps
+ * ### Key Design Principle: TRUST THE MACHINE
  *
- * The Vitruvian machine sends two monotonically increasing counters via BLE:
- *   - **`up`**: increments at the TOP of the concentric phase (cable fully extended).
- *   - **`down`**: increments at the BOTTOM of the eccentric phase (cable returns).
+ * The Vitruvian machine sends rep counts via BLE in two formats:
  *
- * The original app (`FormTrainerState.f()` / `Yj.p$b`) uses **`down`** as the
- * authoritative rep counter:
- * ```
- *   if (reps.down < calibrationRepsCount)
- *       DisplayReps(RANGE, reps.down, progress)           // warmup
- *   else
- *       DisplayReps(REGULAR, reps.down - calibrationRepsCount, progress)  // working
- * ```
+ * **24-byte packets** (full modern): all four machine counters present.
+ *   - **`repsRomCount`**: warmup reps completed (directly from machine)
+ *   - **`repsSetCount`**: working reps completed (directly from machine)
  *
- * This means **a rep is confirmed at the BOTTOM of the movement** (eccentric valley).
+ * **20-byte packets** (intermediate): only warmup counters present.
+ *   - **`repsRomCount`** / **`repsRomTotal`**: warmup counters (lag — update on eccentric)
+ *   - **`repsSetCount`** is absent (null) — working reps are derived from `up` delta
+ *   - Warmup is also counted from `up` delta for immediate UI feedback
  *
- * As a visual refinement, the original derives movement phase from the counters:
- *   - `up == down`  → concentric / idle phase
- *   - `up > down`   → eccentric phase (user went up, hasn't come back down)
+ * **16-byte packets** (legacy): no machine counters — all counting from `up` delta.
  *
- * ### Double-counting prevention
+ * ### Drift Prevention (hardening)
  *
- * 1. **Monotonic counter deltas**: We track `lastDown` / `lastUp` and only act on
- *    positive deltas, exactly matching the original's threshold derivation from
- *    `reps.down >= calibrationRepsCount`.
+ * Delta-based counting (from `up` counter) responds instantly but can theoretically
+ * drift. To prevent this:
+ *   1. **Machine floor guard**: `_warmupReps` never drops below `repsRomCount`
+ *   2. **Down-counter floor**: total reps never drops below `down` (confirmed eccentrics)
+ *   3. **Monotonic guard**: counts can only increase within a set
  *
- * 2. **Phase guards**: Warmup events fire only while `warmupReps < warmupTarget`;
- *    working events fire only once warmup is complete.
+ * ### Visual Feedback (up/down counters)
  *
- * 3. **Pending flag**: Only one pending working rep can exist at a time; additional
- *    `up` increments without a corresponding `down` are ignored — matching the
- *    original's `up > down` phase derivation which has exactly two states.
+ * - `up` increments at the TOP of the concentric phase → show PENDING (grey)
+ * - `down` increments at the BOTTOM of the eccentric phase → clear pending
  *
- * ### Modern vs Legacy packets
+ * ### No Priming Skip (Issue #210 Fix)
  *
- * For modern 24-byte packets, this detector also cross-checks the machine's own
- * `repsRomCount` / `repsSetCount` fields. When they differ from the `down`-based
- * derivation, the machine's values take precedence (syncing with the original
- * app's behavior where the machine ultimately owns the count).
+ * `lastTopCounter` and `lastCompleteCounter` initialize to 0 (not null).
+ * First notification with up=1 → delta = 1 - 0 = 1 → counts the rep.
  */
 class MachineRepDetector : IRepDetector {
 
@@ -51,11 +43,19 @@ class MachineRepDetector : IRepDetector {
     private var workingTarget = 0
 
     // ── Tracking counters ─────────────────────────────────────────────────────
-    private var lastUp = 0
-    private var lastDown = 0
+    // Issue #210 FIX: Initialize to 0 (not null) so first notification
+    // calculates delta = (first_count - 0) = first_count, not skipped.
+    private var lastTopCounter = 0
+    private var lastCompleteCounter = 0
     private var _warmupReps = 0
     private var _workingReps = 0
     private var hasPendingWorkingRep = false
+
+    // ── Machine-confirmed floor ───────────────────────────────────────────────
+    // repsRomCount and down counter are updated on eccentric completion and
+    // are guaranteed accurate.  We use them as a floor to prevent drift.
+    private var lastMachineWarmup = 0
+    private var lastMachineDown = 0
 
     // ── IRepDetector observables ──────────────────────────────────────────────
     override val totalConfirmedReps: Int   get() = _warmupReps + _workingReps
@@ -74,11 +74,13 @@ class MachineRepDetector : IRepDetector {
     }
 
     override fun reset() {
-        lastUp = 0
-        lastDown = 0
+        lastTopCounter = 0
+        lastCompleteCounter = 0
         _warmupReps = 0
         _workingReps = 0
         hasPendingWorkingRep = false
+        lastMachineWarmup = 0
+        lastMachineDown = 0
     }
 
     // ── Core processing ───────────────────────────────────────────────────────
@@ -92,53 +94,104 @@ class MachineRepDetector : IRepDetector {
             processLegacy(notification, events)
         }
 
-        lastUp = notification.up
-        lastDown = notification.down
+        // Update tracking counters AFTER processing (matches Phoenix)
+        lastTopCounter = notification.up
+        lastCompleteCounter = notification.down
         return events
     }
 
     // ── Modern 24-byte processing ─────────────────────────────────────────────
 
     /**
-     * Modern mode: trust the machine's `repsRomCount` / `repsSetCount`, but use
-     * `up`/`down` for visual pending/confirmed feedback.
+     * Modern mode: TRUST THE MACHINE's `repsRomCount` / `repsSetCount` directly.
      *
-     * Matches the original app's `FormTrainerState$b.invoke()`:
-     *   warmup  = min(repsRomCount, warmupTarget)       (or fall back to `down` if 0)
-     *   working = repsSetCount                           (machine handles split)
-     *
-     * The Phoenix reference calls this "MODERN MODE" in `RepCounterFromMachine`.
+     * Matches Phoenix's processModern() exactly:
+     *   - warmupReps = repsRomCount (capped at warmupTarget)
+     *   - workingReps = repsSetCount
+     *   - up/down used ONLY for visual pending feedback
+     *   - No priming skip — counters start at 0
+     *   - If machine reports working reps but warmup isn't complete, force warmup done
      */
     private fun processModern(n: RepNotification, events: MutableList<RepDetectorEvent>) {
-        // -- Sync warmupTarget with machine's repsRomTotal if provided ---------
-        val machineWarmupTarget = n.repsRomTotal
-        if (machineWarmupTarget != null && machineWarmupTarget > 0 && machineWarmupTarget != warmupTarget) {
-            warmupTarget = machineWarmupTarget
-        }
+        // NOTE: Do NOT sync warmupTarget with machine's repsRomTotal.
+        // The app's warmupTarget (from set definition) is authoritative.
+        // Syncing caused a desync with the reducer's RepCounterFromMachine,
+        // which always uses the app's warmupTarget.  If the machine sends a
+        // different repsRomTotal, the detector and reducer would disagree on
+        // where warmup ends, causing phantom working reps.
 
-        // -- Up delta ? visual pending (working phase only) --------------------
-        val upDelta = posDelta(lastUp, n.up)
+        // -- Read machine counters (default 0 for safety) ----------------------
+        val machineWarmup  = (n.repsRomCount ?: 0)
+        val machineWorking = (n.repsSetCount ?: 0)
+
+        // -- Up delta → visual pending (working phase only) --------------------
+        // Issue #210: No priming skip. lastTopCounter starts at 0.
+        // First notification with up=1 → delta = 1 - 0 = 1.
+        val upDelta = calculateDelta(lastTopCounter, n.up)
         if (upDelta > 0 && _warmupReps >= warmupTarget && !hasPendingWorkingRep) {
             hasPendingWorkingRep = true
             events.add(RepDetectorEvent.WorkingRepPending(_workingReps + 1))
         }
 
-        // -- Down delta ? confirmed rep at BOTTOM ------------------------------
-        val downDelta = posDelta(lastDown, n.down)
-        if (downDelta > 0) {
+        // -- Down delta → clear pending state ---------------------------------
+        val downDelta = calculateDelta(lastCompleteCounter, n.down)
+        if (downDelta > 0 && hasPendingWorkingRep) {
             hasPendingWorkingRep = false
+        }
 
-            // Each down-increment is one confirmed rep.
-            if (n.down <= warmupTarget && _warmupReps < warmupTarget) {
-                _warmupReps = n.down.coerceAtMost(warmupTarget)
-                val total = _warmupReps + _workingReps
-                events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, total))
-                if (_warmupReps >= warmupTarget) {
-                    events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
-                }
-            } else {
-                // Working rep
-                _workingReps = n.down - warmupTarget
+        // -- WARMUP TRACKING ──────────────────────────────────────────────
+        // 20-byte packets: repsRomCount lags (updates on eccentric/down),
+        // so always count warmup from upDelta for immediate UI feedback.
+        // 24-byte packets: repsSetCount is present — trust repsRomCount.
+        val warmupBefore = _warmupReps
+        if (n.repsSetCount != null && machineWarmup > _warmupReps && _warmupReps < warmupTarget) {
+            // 24-byte mode: trust the machine's repsRomCount directly
+            _warmupReps = machineWarmup.coerceAtMost(warmupTarget)
+            val total = _warmupReps + _workingReps
+            events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, total))
+            if (_warmupReps >= warmupTarget) {
+                events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
+            }
+        } else if (n.repsSetCount == null && _warmupReps < warmupTarget && upDelta > 0) {
+            // 20-byte mode: count warmup from up counter (concentric = immediate)
+            _warmupReps = (_warmupReps + upDelta).coerceAtMost(warmupTarget)
+            val total = _warmupReps + _workingReps
+            events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, total))
+            if (_warmupReps >= warmupTarget) {
+                events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
+            }
+        }
+        val warmupAdded = _warmupReps - warmupBefore
+
+        // -- WORKING REP TRACKING: Use repsSetCount directly from machine ------
+        // The machine handles warmup/working distinction internally.
+        // repsSetCount increments for WORKING reps only — trust the machine!
+        if (machineWorking > _workingReps) {
+            // If machine reports working reps but we haven't seen warmup complete,
+            // force warmup tracking to match (machine knows best)
+            if (_warmupReps < warmupTarget) {
+                _warmupReps = warmupTarget
+                events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
+            }
+
+            _workingReps = machineWorking
+            hasPendingWorkingRep = false
+            val total = _warmupReps + _workingReps
+            events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, total))
+
+            if (workingTarget > 0 && _workingReps >= workingTarget) {
+                events.add(RepDetectorEvent.TargetReached(_workingReps))
+            }
+        }
+        // FALLBACK: 20-byte packets have repsRomCount but NO repsSetCount.
+        // When warmup is done and repsSetCount is absent, count working reps
+        // from up-counter delta MINUS any warmup reps that consumed part of
+        // the delta (up counter counts ALL reps, not just working).
+        else if (n.repsSetCount == null && _warmupReps >= warmupTarget && upDelta > 0) {
+            val workingDelta = (upDelta - warmupAdded).coerceAtLeast(0)
+            if (workingDelta > 0) {
+                _workingReps += workingDelta
+                hasPendingWorkingRep = false
                 val total = _warmupReps + _workingReps
                 events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, total))
 
@@ -147,63 +200,91 @@ class MachineRepDetector : IRepDetector {
                 }
             }
         }
+
+        // ── DRIFT RECONCILIATION (hardening) ─────────────────────────────────
+        // On eccentric completion the machine's counters are authoritative.
+        // Use them as a floor so delta-based counting can never fall behind.
+        lastMachineWarmup = machineWarmup
+        lastMachineDown = n.down
+
+        // Floor guard: warmup count must never be below confirmed machine count
+        if (machineWarmup > _warmupReps) {
+            _warmupReps = machineWarmup.coerceAtMost(warmupTarget)
+        }
+
+        // Floor guard: total reps (warmup+working) must never be below `down`
+        // counter, which only increments on confirmed eccentric completion.
+        val totalSoFar = _warmupReps + _workingReps
+        val confirmedByDown = n.down
+        if (confirmedByDown > totalSoFar) {
+            // Distribute the shortfall: warmup first, then working
+            val deficit = confirmedByDown - totalSoFar
+            val warmupRoom = (warmupTarget - _warmupReps).coerceAtLeast(0)
+            val warmupBump = deficit.coerceAtMost(warmupRoom)
+            _warmupReps += warmupBump
+            _workingReps += (deficit - warmupBump)
+        }
+
+        // Monotonic: counts must never decrease within a set
+        if (_warmupReps < warmupBefore) _warmupReps = warmupBefore
     }
 
     // -- Legacy 16-byte processing ---------------------------------------------
 
     /**
-     * Legacy mode: count reps from the down counter delta.
+     * Legacy mode: count reps from the up counter delta.
      *
-     * Matches the original app's FormTrainerState derivation:
-     *   down < calibrationRepsCount ? warmup, else ? working.
-     *
-     * Rep is confirmed when down increments (bottom of movement).
+     * Matches Phoenix's processLegacy() exactly:
+     *   - Uses topCounter (up) increments to count reps
+     *   - First `warmupTarget` reps are warmup, rest are working
+     *   - No priming skip — lastTopCounter starts at 0
      */
     private fun processLegacy(n: RepNotification, events: MutableList<RepDetectorEvent>) {
-        // ── Up delta → visual pending (working phase only) ────────────────────
-        val upDelta = posDelta(lastUp, n.up)
-        if (upDelta > 0 && _warmupReps >= warmupTarget && !hasPendingWorkingRep) {
-            hasPendingWorkingRep = true
-            events.add(RepDetectorEvent.WorkingRepPending(_workingReps + 1))
-        }
-
-        // ── Down delta → confirmed rep at BOTTOM ─────────────────────────────
-        val downDelta = posDelta(lastDown, n.down)
-        if (downDelta > 0) {
-            hasPendingWorkingRep = false
-
-            // Each down-increment is one confirmed rep. Exactly matches original:
-            //   n.down < warmupTarget → RANGE phase
-            //   n.down >= warmupTarget → REGULAR phase
-            if (n.down <= warmupTarget && _warmupReps < warmupTarget) {
-                _warmupReps = n.down.coerceAtMost(warmupTarget)
+        // Issue #210 FIX: No priming skip. lastTopCounter initialized to 0.
+        // First notification with up=1: delta = 1 - 0 = 1 → counts the rep.
+        val upDelta = calculateDelta(lastTopCounter, n.up)
+        if (upDelta > 0) {
+            // Count the rep at TOP of movement (matches Phoenix / official app)
+            val totalReps = _warmupReps + _workingReps + 1
+            if (totalReps <= warmupTarget) {
+                _warmupReps++
                 val total = _warmupReps + _workingReps
                 events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, total))
                 if (_warmupReps >= warmupTarget) {
                     events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
                 }
             } else {
-                // Working rep
-                _workingReps = n.down - warmupTarget
+                _workingReps++
                 val total = _warmupReps + _workingReps
                 events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, total))
-
                 if (workingTarget > 0 && _workingReps >= workingTarget) {
                     events.add(RepDetectorEvent.TargetReached(_workingReps))
                 }
             }
+        }
+
+        // Down delta → visual pending for next working rep
+        val downDelta = calculateDelta(lastCompleteCounter, n.down)
+        if (downDelta > 0 && _warmupReps >= warmupTarget && !hasPendingWorkingRep) {
+            // In legacy mode, pending shows on down (eccentric valley)
+            // since we count at top, visual feedback is inverted
         }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     /**
-     * Monotonic delta with u16 wrap-around handling (matching Phoenix's `calculateDelta`).
-     * Returns 0 if current < last (shouldn't happen but defensive).
+     * Calculate delta between two counter values, handling 16-bit wrap-around.
+     * Matches Phoenix's calculateDelta() exactly.
      */
-    private fun posDelta(last: Int, current: Int): Int =
-        if (current >= last) current - last
-        else (0xFFFF - last + current + 1).coerceAtLeast(0)
+    private fun calculateDelta(last: Int, current: Int): Int {
+        return if (current >= last) {
+            current - last
+        } else {
+            // 16-bit wrap-around
+            0xFFFF - last + current + 1
+        }
+    }
 }
 
 

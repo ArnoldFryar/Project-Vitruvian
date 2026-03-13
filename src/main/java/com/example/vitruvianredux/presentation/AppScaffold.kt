@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.vitruvianredux.ble.BleConnectionState
@@ -34,8 +33,10 @@ import com.example.vitruvianredux.presentation.components.BottomBar
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.navigation.AppNavHost
 import com.example.vitruvianredux.presentation.navigation.Route
-import com.example.vitruvianredux.presentation.ui.theme.BrandOrange
 import com.example.vitruvianredux.presentation.ui.theme.VitruvianTheme
+import com.example.vitruvianredux.presentation.components.SyncStatusPill
+import com.example.vitruvianredux.sync.P2PConnectionManager
+import com.example.vitruvianredux.sync.P2pState
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -43,7 +44,16 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import com.example.vitruvianredux.ble.SessionPhase
+import com.example.vitruvianredux.data.AnalyticsRecorder
+import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.HealthConnectManager
+import com.example.vitruvianredux.data.WorkoutHistoryStore
+import com.example.vitruvianredux.data.WorkoutSessionRecord
+import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.sync.SyncServiceLocator
 import com.example.vitruvianredux.presentation.screen.ExercisePlayerScreen
+import com.example.vitruvianredux.presentation.screen.SplashScreen
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun AppScaffold() {
@@ -53,26 +63,67 @@ fun AppScaffold() {
     }
 
     VitruvianTheme {
+        // ── Splash overlay ── shows once on cold start ──────────────────────
+        var showSplash by rememberSaveable { mutableStateOf(true) }
+        if (showSplash) {
+            SplashScreen(onFinished = { showSplash = false })
+            return@VitruvianTheme
+        }
+
         val activity = LocalContext.current as ComponentActivity
-        // Activity-scoped so it survives recompositions and tab switches
-        val bleVM = remember(activity) {
-            ViewModelProvider(activity)[BleViewModel::class.java]
+        val vitruvianApp = activity.application as com.example.vitruvianredux.VitruvianApp
+        // Application-scoped: same instances survive Activity recreation and tab switching.
+        val bleVM = vitruvianApp.bleViewModel
+        val workoutVM = vitruvianApp.workoutViewModel
+
+        // P2P connection manager for Wi-Fi Direct sync
+        val p2pManager = remember(activity) {
+            P2PConnectionManager(activity.applicationContext)
         }
-        val workoutVM = remember(activity) {
-            ViewModelProvider(
-                activity,
-                WorkoutSessionViewModel.Factory(activity.application, bleVM.client),
-            )[WorkoutSessionViewModel::class.java]
+        DisposableEffect(p2pManager) {
+            p2pManager.register()
+            onDispose { p2pManager.teardown() }
         }
+        val p2pState by p2pManager.state.collectAsState()
 
         val nav = rememberNavController()
         val backStack = nav.currentBackStackEntryAsState()
         val currentRoute = backStack.value?.destination?.route
-        val headerTitle = when (currentRoute) {
-            Route.Activity.path -> "Settings"
-            Route.Profile.path  -> "Profile"
-            else                -> "Daily Routines"
+
+        // Pending import JSON from intent (read in MainActivity)
+        var pendingImportJson by remember { mutableStateOf<String?>(null) }
+
+        // Check for intent-delivered JSON on first composition
+        LaunchedEffect(Unit) {
+            val act = activity
+            val intent = act.intent
+            val json = extractImportJson(intent)
+            if (json != null) {
+                com.example.vitruvianredux.presentation.navigation.PendingImportHolder.set(json)
+                pendingImportJson = json
+            }
         }
+
+        val headerTitle = when (currentRoute) {
+            Route.Activity.path        -> "Activity"
+            Route.Workout.path         -> "Workout"
+            Route.Coaching.path        -> "Programs"
+            Route.Device.path          -> "Device"
+            Route.Profile.path         -> "Profile"
+            Route.Debug.path           -> "Debug"
+            Route.Repair.path          -> "Check & Repair"
+            Route.Audit.path           -> "Audit"
+            Route.ActivityHistory.path -> "History"
+            Route.Sync.path            -> "Sync"
+            Route.ImportProgram.path   -> "Import"
+            else                       -> "Vitruvian"
+        }
+
+        // Bottom bar should only show on top-level tabs
+        val showBottomBar = currentRoute in setOf(
+            Route.Activity.path, Route.Workout.path, Route.Coaching.path,
+            Route.Device.path, Route.Profile.path,
+        )
 
         var showDevicePicker by remember { mutableStateOf(false) }
         val bleState by bleVM.state.collectAsState()
@@ -89,38 +140,119 @@ fun AppScaffold() {
             Box(modifier = Modifier.fillMaxSize()) {
                 Scaffold(
                     topBar    = {
-                        AppTopBar(
-                            title               = headerTitle,
-                            bleState            = bleState,
-                            onConnectClick      = {
-                                WiringRegistry.hit(A_GLOBAL_CONNECT)
-                                WiringRegistry.recordOutcome(A_GLOBAL_CONNECT, ActualOutcome.SheetOpened("device_picker"))
-                                showDevicePicker = true
-                            },
-                            onDisconnectClick   = {
-                                WiringRegistry.hit(A_GLOBAL_DISCONNECT)
-                                WiringRegistry.recordOutcome(A_GLOBAL_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect"))
-                                bleVM.disconnect()
-                            },
-                            onNavigateToAudit   = { nav.navigate(Route.Audit.path) },
-                        )
+                        if (showBottomBar) {
+                            AppTopBar(
+                                title               = headerTitle,
+                                bleState            = bleState,
+                                p2pState            = p2pState,
+                                onSyncPillClick     = { nav.navigate(Route.Sync.path) },
+                                onConnectClick      = {
+                                    WiringRegistry.hit(A_GLOBAL_CONNECT)
+                                    WiringRegistry.recordOutcome(A_GLOBAL_CONNECT, ActualOutcome.SheetOpened("device_picker"))
+                                    showDevicePicker = true
+                                },
+                                onDisconnectClick   = {
+                                    WiringRegistry.hit(A_GLOBAL_DISCONNECT)
+                                    WiringRegistry.recordOutcome(A_GLOBAL_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect"))
+                                    bleVM.clearAutoReconnect()
+                                    bleVM.disconnect()
+                                },
+                                onNavigateToAudit   = { nav.navigate(Route.Audit.path) },
+                            )
+                        }
                     },
-                    bottomBar = { BottomBar(nav) },
+                    bottomBar = { if (showBottomBar) BottomBar(nav) },
+                    contentWindowInsets = WindowInsets(0),
                     modifier  = Modifier.fillMaxSize()
                 ) { innerPadding ->
-                    AppNavHost(nav, innerPadding, bleVM, workoutVM)
+                    AppNavHost(
+                        nav               = nav,
+                        innerPadding      = innerPadding,
+                        bleVM             = bleVM,
+                        workoutVM         = workoutVM,
+                        p2pManager        = p2pManager,
+                        pendingImportJson = pendingImportJson,
+                        onImportConsumed  = { pendingImportJson = null },
+                    )
                 }
 
                 // Global Workout Overlay
                 val sessionState by workoutVM.state.collectAsState()
                 val phase = sessionState.sessionPhase
                 val playerExercise by workoutVM.playerExercise.collectAsState()
+
+                // ── Health Connect: export workout summary when a session completes ──
+                // ── Analytics: passively record completed session ──
+                LaunchedEffect(phase) {
+                    if (phase is SessionPhase.WorkoutComplete) {
+                        val stats = phase.workoutStats
+                        val endMs = System.currentTimeMillis()
+                        val startMs = endMs - (stats.durationSec * 1_000L)
+
+                        // ── Analytics capture (always) ──
+                        val exerciseNames = WorkoutHistoryStore.historyFlow.value
+                            .lastOrNull()?.exerciseNames ?: emptyList()
+
+                        // Capture per-set data before it's cleared
+                        val exerciseSets = workoutVM.completedExerciseStats.map { es ->
+                            AnalyticsStore.ExerciseSetLog(
+                                exerciseName = es.exerciseName,
+                                setIndex     = es.setIndex,
+                                reps         = es.repsCompleted,
+                                weightLb     = es.weightPerCableLb,
+                                volumeKg     = es.volumeKg,
+                            )
+                        }
+
+                        AnalyticsRecorder.onSessionCompleted(
+                            stats         = stats,
+                            exerciseNames = exerciseNames,
+                            exerciseSets  = exerciseSets,
+                        )
+
+                        // ── Sync-ready session record ──
+                        if (SyncServiceLocator.isInitialized) {
+                            val programName = workoutVM.activeProgramId?.let { pid ->
+                                com.example.vitruvianredux.data.ProgramStore.savedProgramsFlow.value
+                                    .firstOrNull { it.id == pid }?.name
+                            }
+                            SyncServiceLocator.sessionRepo.save(
+                                WorkoutSessionRecord(
+                                    programId     = workoutVM.activeProgramId,
+                                    name          = programName ?: exerciseNames.firstOrNull() ?: "Workout",
+                                    startedAt     = startMs,
+                                    endedAt       = endMs,
+                                    totalReps     = stats.totalReps,
+                                    totalSets     = stats.totalSets,
+                                    totalVolumeKg = stats.totalVolumeKg,
+                                    durationSec   = stats.durationSec,
+                                )
+                            )
+                        }
+
+                        // ── Health Connect export (when enabled) ──
+                        if (HealthConnectStore.isEnabled) {
+                            val title = workoutVM.activeProgramName
+                                ?: playerExercise?.name
+                                ?: "Vitruvian Workout"
+                            val summary = HealthConnectManager.WorkoutSummary(
+                                title        = title,
+                                startEpochMs = startMs,
+                                endEpochMs   = endMs,
+                                calories     = stats.calories,
+                            )
+                            HealthConnectManager.writeWorkoutSummary(summary)
+                        }
+                    }
+                }
                 
                 val isWorkoutActive = playerExercise != null || 
+                    phase is SessionPhase.SetReady ||
                     phase is SessionPhase.ExerciseActive || 
                     phase is SessionPhase.Resting || 
                     phase is SessionPhase.ExerciseComplete || 
                     phase is SessionPhase.WorkoutComplete ||
+                    phase is SessionPhase.Paused ||
                     phase is SessionPhase.Error
 
                 AnimatedVisibility(
@@ -150,6 +282,8 @@ fun AppScaffold() {
 private fun AppTopBar(
     title: String,
     bleState: BleConnectionState,
+    p2pState: P2pState,
+    onSyncPillClick: () -> Unit,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
     onNavigateToAudit: () -> Unit,
@@ -165,7 +299,7 @@ private fun AppTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -177,8 +311,8 @@ private fun AppTopBar(
                 )
                 Text(
                     text  = "Project Vitruvian",
-                    color = BrandOrange,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.combinedClickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication        = null,
@@ -193,6 +327,9 @@ private fun AppTopBar(
                     ),
                 )
             }
+
+            // Wi-Fi Direct sync status indicator — tap to open Sync screen
+            SyncStatusPill(p2pState = p2pState, onClick = onSyncPillClick)
 
             when (bleState) {
                 is BleConnectionState.Connected -> {
@@ -234,4 +371,37 @@ private fun AppTopBar(
             }
         }
     }
+}
+
+// ── Intent JSON extraction (used by AppScaffold on launch) ──────────────────
+
+/**
+ * Extract program-import JSON from an incoming [android.content.Intent].
+ *
+ * Supports:
+ * - `ACTION_SEND` with `text/plain` or `application/json` extra text
+ * - `ACTION_VIEW` with `vitruvian://import?json=…` URI
+ * - `ACTION_VIEW` with `content://` or `file://` URI pointing to a `.json` file
+ */
+private fun extractImportJson(intent: android.content.Intent?): String? {
+    if (intent == null) return null
+    when (intent.action) {
+        android.content.Intent.ACTION_SEND -> {
+            val text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
+            if (!text.isNullOrBlank() && (text.trimStart().startsWith("{") || text.trimStart().startsWith("["))) {
+                return text
+            }
+        }
+        android.content.Intent.ACTION_VIEW -> {
+            val uri = intent.data ?: return null
+            // vitruvian://import?json=…
+            if (uri.scheme == "vitruvian" && uri.host == "import") {
+                val json = uri.getQueryParameter("json")
+                if (!json.isNullOrBlank()) return json
+            }
+            // content:// or file:// — try to read the URI
+            // (handled below)
+        }
+    }
+    return null
 }

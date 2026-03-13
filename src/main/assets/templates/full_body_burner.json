@@ -1,0 +1,74 @@
+{
+  "id": "builtin_full_body_burner",
+  "name": "Full Body Burner",
+  "category": "Conditioning",
+  "description": "High-intensity full-body circuit designed to build strength and burn calories in a single session. Perfect for time-efficient training.",
+  "days": [
+    {
+      "name": "Full Body Circuit",
+      "focus": "Total Body Strength & Conditioning",
+      "exercises": [
+        {
+          "exerciseId": "ZZ92N8QsBdp6HCh3",
+          "exerciseName": "Bench Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "cJt26IdtckFcJsq1",
+          "exerciseName": "Bent Over Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "D7IHBdqkHR5z2wFn",
+          "exerciseName": "Arms Crossed Front Squat",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "3cd0a0cb-8e56-4b0e-83a0-d88ff369749f",
+          "exerciseName": "Arnold Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "k-PGXPztgc5uS42S",
+          "exerciseName": "Bicep Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "4kmhj9yyZcBI54Vi",
+          "exerciseName": "100s",
+          "mode": "TIME",
+          "sets": 2,
+          "durationSec": 45,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 30
+        }
+      ]
+    }
+  ]
+}

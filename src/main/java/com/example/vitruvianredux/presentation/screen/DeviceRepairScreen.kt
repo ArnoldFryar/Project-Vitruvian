@@ -471,7 +471,7 @@ private fun OverallHealthCard(
 ) {
     val containerColor = when {
         repairing   -> MaterialTheme.colorScheme.secondaryContainer
-        allOk       -> Color(0xFF1B5E20).copy(alpha = 0.15f)
+        allOk       -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
         else        -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
     }
     val icon = when {

@@ -2,6 +2,7 @@ package com.example.vitruvianredux.data
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.UUID
 
 // ── Domain model ──────────────────────────────────────────────────────────────
 
@@ -37,10 +38,18 @@ data class ProgramItemDraft(
 }
 
 data class SavedProgram(
-    val id: String, 
-    val name: String, 
+    val id: String,
+    val name: String,
     val exerciseCount: Int,
-    val items: List<ProgramItemDraft> = emptyList()
+    val items: List<ProgramItemDraft> = emptyList(),
+    /** Epoch millis of last modification (create / update). */
+    val updatedAt: Long = System.currentTimeMillis(),
+    /** Non-null ⇒ soft-deleted at this epoch millis; hidden from UI. */
+    val deletedAt: Long? = null,
+    /** Originating device identifier (hostname / Android ID). */
+    val deviceId: String = "",
+    /** Zero-based display position in the programs list (user-defined order). */
+    val sortOrder: Int = 0,
 )
 
 // ── Backing-store interface ────────────────────────────────────────────────────
@@ -77,7 +86,11 @@ interface ProgramBackingStore {
  * ### Immutability / testability
  * No Android APIs are referenced here — fully JVM-testable with [FakeProgramBackingStore].
  */
-class ProgramRepository(private val backing: ProgramBackingStore) {
+class ProgramRepository(
+    private val backing: ProgramBackingStore,
+    /** Device identifier stamped on every mutated program. */
+    val deviceId: String = "",
+) {
 
     companion object {
         /**
@@ -129,32 +142,70 @@ class ProgramRepository(private val backing: ProgramBackingStore) {
     }
 
     /**
-     * Append [program] to the persisted list (or replace if it exists) and return the updated list.
+     * Append [program] to the persisted list (or replace if it exists) and return
+     * **only active (non-deleted) programs** for immediate UI consumption.
+     *
+     * Stamps [SavedProgram.updatedAt] to current time and [SavedProgram.deviceId]
+     * to the configured device id.
      */
     fun add(program: SavedProgram): List<SavedProgram> {
         val existing = parsePrograms()
-        val programs = if (existing.any { it.id == program.id }) {
-            existing.map { if (it.id == program.id) program else it }
+        val isNew = existing.none { it.id == program.id }
+        val maxOrder = existing.filter { it.deletedAt == null }.maxOfOrNull { it.sortOrder } ?: -1
+        val stamped = program.copy(
+            updatedAt = System.currentTimeMillis(),
+            deviceId  = program.deviceId.ifBlank { deviceId },
+            deletedAt = null,  // un-delete if re-added
+            sortOrder = if (isNew) maxOrder + 1 else program.sortOrder,
+        )
+        val programs = if (!isNew) {
+            existing.map { if (it.id == stamped.id) stamped else it }
         } else {
-            existing + program
+            existing + stamped
         }
         writePrograms(programs)
-        return programs
+        return programs.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
     }
 
     /**
-     * Remove the program with [id] from the persisted list and record a tombstone
-     * so it is never re-introduced by a future seed pass.
-     * No-op if [id] is not found.
+     * Soft-delete the program with [id]: sets [SavedProgram.deletedAt] to now.
+     * The row stays in the persisted list for future sync.
+     * Also records a legacy tombstone in [Meta.deletedIds] so seeds never re-introduce it.
      *
-     * @return updated program list (never contains [id])
+     * @return active (non-deleted) program list for immediate UI consumption.
      */
     fun delete(id: String): List<SavedProgram> {
-        val programs = parsePrograms().filter { it.id != id }
+        val now = System.currentTimeMillis()
+        val programs = parsePrograms().map {
+            if (it.id == id) it.copy(deletedAt = now, updatedAt = now) else it
+        }
         writePrograms(programs)
         writeMeta(readMeta().copy(deletedIds = readMeta().deletedIds + id))
-        return programs
+        return programs.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
     }
+
+    /**
+     * Persist a new user-defined ordering of programs.
+     * [orderedIds] contains the ids of active programs in the desired display order.
+     * Programs not in [orderedIds] are left unchanged.
+     *
+     * @return the updated active program list sorted by [SavedProgram.sortOrder].
+     */
+    fun reorder(orderedIds: List<String>): List<SavedProgram> {
+        val orderMap = orderedIds.withIndex().associate { (idx, id) -> id to idx }
+        val all = parsePrograms()
+        val updated = all.map { p ->
+            val newOrder = orderMap[p.id]
+            if (newOrder != null) p.copy(sortOrder = newOrder) else p
+        }
+        writePrograms(updated)
+        return updated.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
+    }
+
+    /**
+     * Return only active (non-deleted) programs.  Convenience for UI layers.
+     */
+    fun loadActive(): List<SavedProgram> = load().filter { it.deletedAt == null }.sortedBy { it.sortOrder }
 
     // ── Serialization (internal — visible for testing) ────────────────────────
 
@@ -201,7 +252,12 @@ class ProgramRepository(private val backing: ProgramBackingStore) {
                         }
                     }
                     
-                    SavedProgram(id, name, cnt, items)
+                    val updatedAt  = obj.optLong("updatedAt", 0L)
+                    val deletedAt  = if (obj.has("deletedAt") && !obj.isNull("deletedAt")) obj.optLong("deletedAt") else null
+                    val devId      = obj.optString("deviceId", "")
+                    val sortOrder  = obj.optInt("sortOrder", 0)
+
+                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder)
                 }
         } catch (_: Exception) {
             backing.writePrograms("[]")
@@ -233,6 +289,10 @@ class ProgramRepository(private val backing: ProgramBackingStore) {
                     })
                 }
                 put("items", itemsArray)
+                put("updatedAt", p.updatedAt)
+                if (p.deletedAt != null) put("deletedAt", p.deletedAt) else put("deletedAt", JSONObject.NULL)
+                put("deviceId", p.deviceId)
+                put("sortOrder", p.sortOrder)
             })
         }
         backing.writePrograms(array.toString())

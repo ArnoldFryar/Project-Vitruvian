@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
  * @param collapseOnScroll When true the TopAppBar uses [enterAlwaysScrollBehavior]
  *                         and collapses as the user scrolls down.
  * @param actions         Optional icon buttons placed in the TopAppBar end-slot.
+ * @param fillWidth        When true the content column expands to fill all available width
+ *                          (suitable for dashboard screens on tablets). When false (default)
+ *                          the content is capped at [AppDimens.Layout.maxContentWidth] and
+ *                          centred, preventing over-stretched layouts on large screens.
  * @param content         Screen body, rendered inside a scrollable [Column] with
  *                        [AppDimens.Spacing.md] horizontal and [AppDimens.Spacing.sm] vertical padding.
  */
@@ -35,6 +40,7 @@ fun ScreenScaffold(
     title: String,
     innerPadding: PaddingValues,
     collapseOnScroll: Boolean = false,
+    fillWidth: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -74,16 +80,26 @@ fun ScreenScaffold(
         // Same reason: outer Scaffold already consumed all system-bar insets.
         contentWindowInsets = WindowInsets(0),
     ) { scaffoldPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(scaffoldPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    horizontal = AppDimens.Spacing.md,
-                    vertical   = AppDimens.Spacing.sm,
-                ),
-            content = content,
-        )
+                .padding(scaffoldPadding),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Column(
+                modifier = Modifier
+                    .then(
+                        if (fillWidth) Modifier.fillMaxWidth()
+                        else Modifier.widthIn(max = AppDimens.Layout.maxContentWidth)
+                    )
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(
+                        horizontal = AppDimens.Spacing.md,
+                        vertical   = AppDimens.Spacing.sm,
+                    ),
+                content = content,
+            )
+        }
     }
 }
