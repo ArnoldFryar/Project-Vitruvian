@@ -1,6 +1,6 @@
 package com.example.vitruvianredux.presentation.components
 
-import android.util.Log
+import timber.log.Timber
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -79,7 +79,7 @@ fun FrontCameraOverlay(
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview)
             } catch (e: Exception) {
-                Log.e("FrontCameraOverlay", "Failed to bind camera", e)
+                Timber.tag("UI").e(e, "Failed to bind camera")
             }
         }, executor)
 

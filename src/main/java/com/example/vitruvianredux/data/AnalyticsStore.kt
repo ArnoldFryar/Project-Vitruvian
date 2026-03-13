@@ -2,7 +2,7 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
+import timber.log.Timber
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,7 +72,7 @@ object AnalyticsStore {
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         _logs.value = load()
-        Log.i(TAG, "init: loaded ${_logs.value.size} session log(s)")
+        Timber.tag("analytics").i("init: loaded ${_logs.value.size} session log(s)")
     }
 
     // ── Write API ────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ object AnalyticsStore {
     fun record(log: SessionLog) {
         _logs.value = _logs.value + log
         persist()
-        Log.d(TAG, "recorded session ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")
+        Timber.tag("analytics").d("recorded session ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")
     }
 
     fun clear() {
@@ -286,7 +286,7 @@ object AnalyticsStore {
             }
             prefs.edit().putString(KEY_LOGS, arr.toString()).apply()
         } catch (e: Exception) {
-            Log.e(TAG, "persist failed: ${e.message}")
+            Timber.tag("analytics").e(e, "persist failed: ${e.message}")
         }
     }
 
@@ -328,7 +328,7 @@ object AnalyticsStore {
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "load failed: ${e.message}")
+            Timber.tag("analytics").e(e, "load failed: ${e.message}")
             emptyList()
         }
     }

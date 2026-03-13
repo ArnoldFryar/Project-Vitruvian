@@ -1,6 +1,6 @@
 package com.example.vitruvianredux.data
 
-import android.util.Log
+import timber.log.Timber
 import com.example.vitruvianredux.ble.session.WorkoutStats
 
 /**
@@ -47,9 +47,9 @@ object AnalyticsRecorder {
                 exerciseSets   = exerciseSets,
             )
             AnalyticsStore.record(log)
-            Log.i(TAG, "Session logged: ${log.id} (${stats.totalSets} sets, ${stats.totalReps} reps, ${stats.durationSec}s)")
+            Timber.tag("analytics").i("Session logged: ${log.id} (${stats.totalSets} sets, ${stats.totalReps} reps, ${stats.durationSec}s)")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to record session: ${e.message}")
+            Timber.tag("analytics").e(e, "Failed to record session: ${e.message}")
         }
     }
 }

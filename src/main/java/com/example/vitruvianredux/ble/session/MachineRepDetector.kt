@@ -214,9 +214,15 @@ class MachineRepDetector : IRepDetector {
 
         // Floor guard: total reps (warmup+working) must never be below `down`
         // counter, which only increments on confirmed eccentric completion.
+        //
+        // Only apply in 20-byte (delta-based) mode where repsSetCount is absent.
+        // In 24-byte mode, repsSetCount is the authoritative rep count and has
+        // already been applied above.  Using the raw n.down value in 24-byte mode
+        // is incorrect: n.down is an absolute 16-bit machine counter that can be
+        // anywhere in [0, 65535], not a session-relative rep count.
         val totalSoFar = _warmupReps + _workingReps
         val confirmedByDown = n.down
-        if (confirmedByDown > totalSoFar) {
+        if (n.repsSetCount == null && confirmedByDown > totalSoFar) {
             // Distribute the shortfall: warmup first, then working
             val deficit = confirmedByDown - totalSoFar
             val warmupRoom = (warmupTarget - _warmupReps).coerceAtLeast(0)

@@ -2,28 +2,41 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Camera is used for the front-camera live overlay during workouts
+         (FrontCameraOverlay). It is NOT used for QR code scanning — QR codes
+         are generated only (encoded via ZXing). Front camera is a non-core
+         visual feature; the app is fully functional without it. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Legacy BLE permissions for Android 11 and below -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
     <!-- Wi-Fi Direct permissions -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- ACCESS_FINE_LOCATION is required by the Wi-Fi Direct P2P broadcast
+         receiver on all API levels, including API 33+ (NEARBY_WIFI_DEVICES
+         alone is insufficient for WifiP2pManager peer discovery callbacks). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- NEARBY_WIFI_DEVICES replaces coarse location for discovery on API 33+ -->
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:minSdkVersion="33" />
 
-    <!-- Health Connect — write workout session summaries -->
-    <uses-permission android:name="android.permission.health.READ_EXERCISE" />
+    <!-- Health Connect — write workout session summaries (write-only; app never reads back) -->
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
     <uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
     <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />
+    <!-- Override the implicit camera requirement added by the CAMERA permission.
+         The front-camera workout overlay is a non-core visual feature; the app
+         is fully functional (BLE, programs, history) on devices without a camera. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
 
     <!-- Declare intent to talk to Health Connect so PackageManager resolves it -->
     <queries>

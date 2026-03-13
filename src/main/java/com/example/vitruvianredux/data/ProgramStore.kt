@@ -2,8 +2,7 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Build
-import android.provider.Settings
+import com.example.vitruvianredux.util.InstallationId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,8 +40,7 @@ object ProgramStore {
 
     fun init(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val devId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-            ?: Build.MODEL
+        val devId = InstallationId.get(context)
         repo      = ProgramRepository(SharedPrefsBackingStore(prefs), deviceId = devId)
         _programs.value = repo.loadActive()
     }

@@ -173,9 +173,8 @@ object ImportValidator {
                 )
             )
         }
-        if (programsRaw.length() == 0) {
-            return reportOf(ImportValidationError.EmptyCollection("root", "programs"))
-        }
+        // Empty programs array is a business-rule error handled by the parser
+        // (produces the correct user-facing message). Validator only checks structure.
 
         // ── per-program ───────────────────────────────────────────────────────
 
@@ -212,16 +211,10 @@ object ImportValidator {
             } else {
                 // ── v1 format: programs → exercises (flat) ────────────────
                 val exArr = prog.optJSONArray("exercises")
-                when {
-                    exArr == null ->
-                        errors += ImportValidationError.Custom(
-                            progPath,
-                            "No exercises found in program \"$progName\".",
-                        )
-                    exArr.length() == 0 ->
-                        errors += ImportValidationError.EmptyCollection(progPath, "exercises")
-                    else ->
-                        errors += validateExercises(exArr, progPath)
+                // Empty or null exercises array is a business-rule error handled by
+                // the parser ("Program X has no exercises."). Validator only checks types.
+                if (exArr != null && exArr.length() > 0) {
+                    errors += validateExercises(exArr, progPath)
                 }
             }
         }
@@ -248,10 +241,8 @@ object ImportValidator {
             // ── sets ────────────────────────────────────────────────────
             errors += validateRequiredInt(ex, "sets", path)
 
-            // ── mode ────────────────────────────────────────────────────
-            if (!ex.has("mode")) {
-                errors += ImportValidationError.MissingField(path, "mode")
-            } else {
+            // ── mode (optional; parser defaults to REPS when absent) ────────
+            if (ex.has("mode")) {
                 val modeRaw = ex.opt("mode")
                 if (modeRaw !is String) {
                     errors += ImportValidationError.InvalidType(
@@ -272,15 +263,13 @@ object ImportValidator {
                 errors += validateRequiredInt(ex, "reps", path)
             }
 
-            // ── restSeconds / restTimerSec (either key accepted) ─────────
+            // ── restSeconds / restTimerSec (optional; parser defaults to 60) ──
             val restKey = when {
                 ex.has("restSeconds")   -> "restSeconds"
                 ex.has("restTimerSec")  -> "restTimerSec"
                 else                    -> null
             }
-            if (restKey == null) {
-                errors += ImportValidationError.MissingField(path, "restSeconds")
-            } else {
+            if (restKey != null) {
                 val restRaw = ex.opt(restKey)
                 if (restRaw !is Int && restRaw !is Long) {
                     errors += ImportValidationError.InvalidType(

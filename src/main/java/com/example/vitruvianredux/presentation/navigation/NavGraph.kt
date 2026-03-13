@@ -18,6 +18,7 @@ import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.presentation.screen.*
 import com.example.vitruvianredux.sync.P2PConnectionManager
+import com.vitruvian.trainer.BuildConfig
 
 enum class Route(val path: String) {
     Activity("activity"),
@@ -112,10 +113,12 @@ fun AppNavHost(
             ProfileScreen(
                 innerPadding = innerPadding,
                 bleVM = bleVM,
-                onNavigateToDebug = { nav.navigate(Route.Debug.path) },
+                onNavigateToDebug = { if (BuildConfig.IS_DEBUG_BUILD) nav.navigate(Route.Debug.path) },
             )
         }
-        composable(Route.Debug.path)     { DebugScreen(innerPadding, bleVM, workoutVM) }
+        if (BuildConfig.IS_DEBUG_BUILD) {
+            composable(Route.Debug.path) { DebugScreen(innerPadding, bleVM, workoutVM) }
+        }
         composable(Route.Repair.path) {
             DeviceRepairScreen(
                 bleVM     = bleVM,

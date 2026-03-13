@@ -29,7 +29,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.components.LedColorPickerDialog
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.BuildConfig
+import com.vitruvian.trainer.BuildConfig
 
 @Composable
 fun TrainerScreen(

@@ -111,11 +111,11 @@ class ImportValidatorTest {
         expectError(json, "array")
     }
 
-    @Test fun `empty programs array returns error`() {
-        val json = """{"schemaVersion": 1, "programs": []}"""
+    @Test fun `empty programs array is structurally valid (parser rejects it)`() {
+        // Validator only checks types/structure; empty-collection business rules belong to the parser.
+        val json = """{ "schemaVersion": 1, "programs": []}"""
         val report = ImportValidator.validate(json)
-        assertFalse(report.isValid)
-        assertTrue(report.errors.first() is ImportValidator.ImportValidationError.EmptyCollection)
+        assertTrue(report.isValid)
     }
 
     // ── Program-level ────────────────────────────────────────────────────────
@@ -130,21 +130,22 @@ class ImportValidatorTest {
         expectError(json, "name")
     }
 
-    @Test fun `program with no exercises returns no exercises error`() {
+    @Test fun `program with no exercises is structurally valid (parser rejects it)`() {
+        // Empty exercises array is a business-rule error handled by the parser.
         val json = """
         {
           "schemaVersion": 1,
           "programs": [{"name": "Empty", "exercises": []}]
         }
         """.trimIndent()
-        expectError(json, "exercises")
+        valid(json)
     }
 
-    @Test fun `program with missing exercises key returns no exercises error`() {
+    @Test fun `program with missing exercises key is structurally valid (parser rejects it)`() {
+        // Missing exercises key is a business-rule error handled by the parser.
         val json = """{"schemaVersion": 1, "programs": [{"name": "Ghost"}]}"""
         val report = ImportValidator.validate(json)
-        assertFalse(report.isValid)
-        assertTrue(report.allErrors.contains("exercises", ignoreCase = true))
+        assertTrue(report.isValid)
     }
 
     // ── Days (v2 schema) ─────────────────────────────────────────────────────
@@ -239,11 +240,10 @@ class ImportValidatorTest {
         expectError(json, "integer")
     }
 
-    @Test fun `exercise missing restSeconds returns specific error`() {
-        val json = wrapExercise("""{"exerciseName":"Squat","sets":3,"reps":10,"mode":"REPS"}""")
-        val report = ImportValidator.validate(json)
-        assertFalse(report.isValid)
-        assertTrue(report.allErrors.contains("restSeconds", ignoreCase = true))
+    @Test fun `exercise missing restSeconds is accepted (defaults to 60 in parser)`() {
+        // rest is optional; parser provides a 60-second default when absent.
+        val json = wrapExercise("""{ "exerciseName":"Squat","sets":3,"reps":10,"mode":"REPS"}""") 
+        valid(json)
     }
 
     @Test fun `exercise with restTimerSec instead of restSeconds is accepted`() {
@@ -256,9 +256,10 @@ class ImportValidatorTest {
         expectError(json, "integer")
     }
 
-    @Test fun `exercise missing mode returns error`() {
-        val json = wrapExercise("""{"exerciseName":"Squat","sets":3,"reps":10,"restSeconds":60}""")
-        expectError(json, "mode")
+    @Test fun `exercise missing mode is accepted (defaults to REPS in parser)`() {
+        // mode is optional; parser defaults to REPS when absent.
+        val json = wrapExercise("""{ "exerciseName":"Squat","sets":3,"reps":10,"restSeconds":60}""") 
+        valid(json)
     }
 
     @Test fun `exercise mode as integer returns invalid type error`() {
@@ -329,7 +330,8 @@ class ImportValidatorTest {
         assertTrue(okReport.isValid)
         assertNull(okReport.firstError)
 
-        val badReport = ImportValidator.validate("""{"schemaVersion":1,"programs":[]}""")
+        // schemaVersion as a string is a type error the validator always catches
+        val badReport = ImportValidator.validate("""{ "schemaVersion":"1","programs":[]}""") 
         assertFalse(badReport.isValid)
         assertNotNull(badReport.firstError)
         assertTrue(badReport.firstError!!.isNotBlank())
@@ -354,10 +356,13 @@ class ImportValidatorTest {
     }
 
     @Test fun `example - no exercises found message is user-friendly`() {
-        val report = ImportValidator.validate("""{"schemaVersion":1,"programs":[{"name":"P"}]}""")
-        assertFalse(report.isValid)
-        println("[Example error] No exercises: ${report.firstError}")
-        assertFalse(report.firstError!!.contains("Exception"))
+        // The parser (not the validator) owns the "no exercises" error message.
+        val result = ProgramImportParser.parse("""{"schemaVersion":1,"programs":[{"name":"P"}]}""")
+        assertTrue(result is ImportParseResult.Error)
+        val msg = (result as ImportParseResult.Error).message
+        println("[Example error] No exercises: $msg")
+        assertFalse(msg.contains("Exception"))
+        assertTrue(msg.contains("exercises", ignoreCase = true))
     }
 
     @Test fun `example - invalid field type message is user-friendly`() {

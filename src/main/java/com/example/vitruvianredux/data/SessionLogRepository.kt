@@ -1,7 +1,7 @@
 package com.example.vitruvianredux.data
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import com.example.vitruvianredux.data.db.SessionLog
 import com.example.vitruvianredux.data.db.SessionLogDatabase
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +40,7 @@ object SessionLogRepository {
     fun init(context: Context) {
         if (::database.isInitialized) return
         database = SessionLogDatabase.getInstance(context)
-        Log.i(TAG, "init: Room database opened")
+        Timber.tag("storage").i("init: Room database opened")
     }
 
     // ── Write ─────────────────────────────────────────────────────────────────
@@ -53,8 +53,7 @@ object SessionLogRepository {
      */
     suspend fun saveSession(sessionLog: SessionLog) = withContext(Dispatchers.IO) {
         database.sessionLogDao().insertSession(sessionLog)
-        Log.d(
-            TAG,
+        Timber.tag("storage").d(
             "saveSession: id=${sessionLog.id} " +
                 "reps=${sessionLog.totalReps} " +
                 "duration=${sessionLog.durationSeconds}s " +

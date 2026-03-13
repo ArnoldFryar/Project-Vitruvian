@@ -16,6 +16,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 /**
  * Looping, muted video player for exercise demonstrations.
  *

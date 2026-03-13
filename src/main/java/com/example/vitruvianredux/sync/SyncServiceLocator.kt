@@ -2,13 +2,12 @@ package com.example.vitruvianredux.sync
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Build
-import android.provider.Settings
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.ProgramBackingStore
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SessionRepository
 import com.example.vitruvianredux.data.WorkoutHistoryStore
+import com.example.vitruvianredux.util.InstallationId
 import timber.log.Timber
 import java.time.Instant
 import java.time.ZoneId
@@ -46,8 +45,7 @@ object SyncServiceLocator {
     fun init(context: Context) {
         if (isInitialized) return
 
-        val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-            ?: Build.MODEL
+        val deviceId = InstallationId.get(context)
 
         // Session repository — its own SharedPreferences file
         val sessionPrefs = context.getSharedPreferences(SESSION_PREFS, Context.MODE_PRIVATE)

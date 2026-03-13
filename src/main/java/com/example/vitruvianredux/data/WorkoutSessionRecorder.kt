@@ -1,6 +1,6 @@
 package com.example.vitruvianredux.data
 
-import android.util.Log
+import timber.log.Timber
 import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.data.db.SessionLog
 import java.util.UUID
@@ -66,15 +66,14 @@ object WorkoutSessionRecorder {
 
             SessionLogRepository.saveSession(log)
 
-            Log.i(
-                TAG,
+            Timber.tag("storage").i(
                 "Recorded session ${log.id}: " +
                     "${stats.totalSets} sets, ${stats.totalReps} reps, " +
                     "${stats.durationSec}s, program=${programName ?: "ad-hoc"}"
             )
         } catch (e: Exception) {
             // Never crash the UI — recording is fire-and-forget diagnostics.
-            Log.e(TAG, "Failed to record session: ${e.message}", e)
+            Timber.tag("storage").e(e, "Failed to record session: ${e.message}")
         }
     }
 }

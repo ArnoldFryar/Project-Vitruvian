@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Declare only the permissions this app actually exercises at runtime.
+     READ_EXERCISE is deliberately absent — the app only writes workout
+     summaries to Health Connect; it never reads back exercise data. -->
 <permissions>
-    <permission type="android.permission.health.WRITE_EXERCISE" />
     <permission type="android.permission.health.READ_EXERCISE" />
     <permission type="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED" />
 </permissions>

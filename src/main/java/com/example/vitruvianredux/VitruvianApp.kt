@@ -5,6 +5,8 @@ import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.BleForegroundService
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.data.CustomExerciseStore
+import com.vitruvian.trainer.BuildConfig
+import timber.log.Timber
 
 /**
  * Custom Application class that hosts application-scoped [BleViewModel] and
@@ -38,6 +40,7 @@ class VitruvianApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
         // Register the BLE notification channel once at process start.
         BleForegroundService.createNotificationChannel(this)
         // Eagerly initialise both VMs so BLE auto-reconnect starts immediately.

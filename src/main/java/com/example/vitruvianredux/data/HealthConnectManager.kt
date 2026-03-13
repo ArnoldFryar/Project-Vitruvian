@@ -2,7 +2,7 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
+import timber.log.Timber
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
@@ -49,7 +49,11 @@ object HealthConnectManager {
     private var _availability = Availability.NOT_INSTALLED
     val availability: Availability get() = _availability
 
+    /** True if Health Connect is installed and ready on this device. */
+    val isAvailable: Boolean get() = _availability == Availability.AVAILABLE
+
     private var client: HealthConnectClient? = null
+    private var initialized = false
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -60,6 +64,7 @@ object HealthConnectManager {
      * On API 34+ the SDK is always available as a platform module.
      */
     fun init(context: Context) {
+        if (initialized) return
         try {
             val status = HealthConnectClient.getSdkStatus(context)
             _availability = when (status) {
@@ -67,14 +72,23 @@ object HealthConnectManager {
                 HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> Availability.NOT_SUPPORTED
                 else -> Availability.NOT_INSTALLED
             }
-            Log.i(TAG, "init: sdkStatus=$status → $_availability  (API ${Build.VERSION.SDK_INT})")
+            Timber.tag("sync").i("init: sdkStatus=$status → $_availability  (API ${Build.VERSION.SDK_INT})")
             if (_availability == Availability.AVAILABLE) {
-                client = HealthConnectClient.getOrCreate(context)
+                // Separate try/catch so a client-creation failure doesn't
+                // corrupt the availability state we just probed above.
+                try {
+                    client = HealthConnectClient.getOrCreate(context)
+                } catch (e: Exception) {
+                    Timber.tag("sync").e(e, "init: getOrCreate failed — ${e.javaClass.simpleName}: ${e.message}")
+                    client = null
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "init: failed — ${e.javaClass.simpleName}: ${e.message}")
+            Timber.tag("sync").e(e, "init: failed — ${e.javaClass.simpleName}: ${e.message}")
             _availability = Availability.NOT_INSTALLED
             client = null
+        } finally {
+            initialized = true
         }
     }
 
@@ -89,8 +103,11 @@ object HealthConnectManager {
         return try {
             val granted = hc.permissionController.getGrantedPermissions()
             REQUIRED_PERMISSIONS.all { it in granted }
+        } catch (e: SecurityException) {
+            Timber.tag("sync").w(e, "hasPermissions: permission denied")
+            false
         } catch (e: Exception) {
-            Log.w(TAG, "hasPermissions: ${e.message}")
+            Timber.tag("sync").w(e, "hasPermissions: ${e.message}")
             false
         }
     }
@@ -119,11 +136,15 @@ object HealthConnectManager {
     suspend fun writeWorkoutSummary(summary: WorkoutSummary): Boolean = withContext(Dispatchers.IO) {
         val hc = client
         if (hc == null) {
-            Log.w(TAG, "writeWorkoutSummary: client null (HC not available)")
+            Timber.tag("sync").w("writeWorkoutSummary: client null (HC not available)")
             return@withContext false
         }
         if (!HealthConnectStore.isEnabled) {
-            Log.d(TAG, "writeWorkoutSummary: feature disabled by user")
+            Timber.tag("sync").d("writeWorkoutSummary: feature disabled by user")
+            return@withContext false
+        }
+        if (summary.startEpochMs >= summary.endEpochMs) {
+            Timber.tag("sync").w("writeWorkoutSummary: invalid time range (start=${summary.startEpochMs} >= end=${summary.endEpochMs}) — skipping")
             return@withContext false
         }
         try {
@@ -154,11 +175,14 @@ object HealthConnectManager {
             }
 
             hc.insertRecords(records)
-            Log.i(TAG, "writeWorkoutSummary: SUCCESS — ${records.size} record(s) written" +
+            Timber.tag("sync").i("writeWorkoutSummary: SUCCESS — ${records.size} record(s) written" +
                 "  title=\"${summary.title}\"  cal=${summary.calories}")
             true
+        } catch (e: SecurityException) {
+            Timber.tag("sync").w(e, "writeWorkoutSummary: permission denied — grant Health Connect permissions in Settings")
+            false
         } catch (e: Exception) {
-            Log.e(TAG, "writeWorkoutSummary: FAILED — ${e.javaClass.simpleName}: ${e.message}")
+            Timber.tag("sync").e(e, "writeWorkoutSummary: FAILED — ${e.javaClass.simpleName}: ${e.message}")
             false
         }
     }

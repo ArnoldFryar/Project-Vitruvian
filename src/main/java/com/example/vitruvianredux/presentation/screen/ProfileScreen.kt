@@ -28,6 +28,7 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
+import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
@@ -1067,20 +1068,22 @@ fun ProfileScreen(
         }
 
         // â”€â”€ Debug tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
-        PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDebug) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Debug Tools", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(2.dp))
-                    Text("BLE diagnostics & testing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (BuildConfig.IS_DEBUG_BUILD) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDebug) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Debug Tools", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(2.dp))
+                        Text("BLE diagnostics & testing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -1111,316 +1114,5 @@ fun ProfileScreen(
             currentStreak = currentStreak,
             onDismiss = { showStreakDetail = false },
         )
-    }
-}
-
-// â”€â”€â”€ Section card wrapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-@Composable
-private fun ProfileSection(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(bottom = 8.dp),
-    )
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 1.dp,
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun ProfileStatCard(value: String, label: String, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
-    PressScaleCard(modifier = modifier, onClick = onClick) {
-        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = AppDimens.Spacing.sm),
-               horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
-                 color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(2.dp))
-            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun PressScaleCard(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(targetValue = if (isPressed) 0.98f else 1f, label = "cardScale")
-    ElevatedCard(
-        modifier = modifier
-            .graphicsLayer(scaleX = scale, scaleY = scale)
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() },
-        shape   = MaterialTheme.shapes.medium,
-        content = content,
-    )
-}
-
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  Volume Detail bottom-sheet
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun VolumeDetailSheet(
-    history: List<WorkoutHistoryStore.WorkoutRecord>,
-    unitSystem: UnitsStore.UnitSystem,
-    onDismiss: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val today = LocalDate.now()
-    val last7 = (6 downTo 0).map { today.minusDays(it.toLong()) }
-    val dayFmt = DateTimeFormatter.ofPattern("EEE")
-    val dateFmt = DateTimeFormatter.ofPattern("MMM d")
-
-    // Per-day volume
-    val dailyVolumes = last7.map { day ->
-        val vol = history.filter { it.date == day }.sumOf { it.totalVolumeKg }
-        Triple(day, dayFmt.format(day), vol)
-    }
-    val weekTotal = dailyVolumes.sumOf { it.third }
-    val maxDay = dailyVolumes.maxOfOrNull { it.third } ?: 1.0
-
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 32.dp)) {
-            Text("Volume â€” Last 7 Days", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Total: ${UnitConversions.formatVolumeFromKg(weekTotal, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(16.dp))
-
-            dailyVolumes.forEach { (day, label, vol) ->
-                val fraction = if (maxDay > 0) (vol / maxDay).toFloat() else 0f
-                val display = UnitConversions.formatVolumeFromKg(vol, unitSystem)
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(label, style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.width(40.dp),
-                        color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                    Box(Modifier.weight(1f).height(20.dp)) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(fraction.coerceAtLeast(0.02f)),
-                            shape = MaterialTheme.shapes.small,
-                            color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        ) {}
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text("$display", style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.width(60.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }
-}
-
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  Sessions Detail bottom-sheet
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SessionsDetailSheet(
-    history: List<WorkoutHistoryStore.WorkoutRecord>,
-    unitSystem: UnitsStore.UnitSystem,
-    onDismiss: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val today = LocalDate.now()
-    val cutoff = today.minusDays(6)
-    val recentWorkouts = history
-        .filter { it.date >= cutoff }
-        .sortedByDescending { it.date }
-    val dateFmt = DateTimeFormatter.ofPattern("EEE, MMM d")
-
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 32.dp)) {
-            Text("Sessions â€” Last 7 Days", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "${recentWorkouts.size} workout${if (recentWorkouts.size != 1) "s" else ""}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(16.dp))
-
-            if (recentWorkouts.isEmpty()) {
-                Text("No workouts recorded this week",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 24.dp))
-            } else {
-                recentWorkouts.forEach { workout ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 1.dp,
-                    ) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(dateFmt.format(workout.date),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.height(4.dp))
-                            if (workout.programName != null) {
-                                Text(
-                                    workout.programName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                )
-                                if (workout.exerciseNames.isNotEmpty()) {
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        workout.exerciseNames.joinToString(" Â· "),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 2,
-                                    )
-                                }
-                            } else {
-                                Text(
-                                    workout.exerciseNames.joinToString(" Â· "),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 2,
-                                )
-                            }
-                            Spacer(Modifier.height(4.dp))
-                            val volDisplay = UnitConversions.formatVolumeFromKg(workout.totalVolumeKg, unitSystem)
-                            val mins = workout.durationSec / 60
-                            Text(
-                                "${workout.totalSets} sets Â· ${workout.totalReps} reps Â· $volDisplay ${UnitConversions.unitLabel(unitSystem)} Â· ${mins}m",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  Streak Detail bottom-sheet
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StreakDetailSheet(
-    history: List<WorkoutHistoryStore.WorkoutRecord>,
-    currentStreak: Int,
-    onDismiss: () -> Unit,
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val bestStreak = remember(history) { WorkoutHistoryStore.bestStreak() }
-    val today = LocalDate.now()
-    val workoutDays = history.map { it.date }.toSet()
-
-    // Show a 4-week mini-calendar (Monâ€“Sun rows)
-    val startOfGrid = today.minusDays(27) // 28 days including today
-    val gridDays = (0L..27L).map { startOfGrid.plusDays(it) }
-    val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
-    val dateFmt = DateTimeFormatter.ofPattern("MMM d")
-
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 32.dp)) {
-            Text("Day Streak", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(16.dp))
-
-            // Streak hero numbers
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("$currentStreak", style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("Current", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("$bestStreak", style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("Best", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-            Text("Last 4 Weeks", style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
-
-            // Day labels header
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                dayLabels.forEach { d ->
-                    Text(d, style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(32.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                }
-            }
-            Spacer(Modifier.height(4.dp))
-
-            // 4 rows of 7 dots
-            gridDays.chunked(7).forEach { week ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly) {
-                    week.forEach { day ->
-                        val hasWorkout = day in workoutDays
-                        val isToday = day == today
-                        Box(
-                            modifier = Modifier.size(32.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(24.dp),
-                                shape = CircleShape,
-                                color = when {
-                                    hasWorkout -> MaterialTheme.colorScheme.primary
-                                    isToday    -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                    else       -> MaterialTheme.colorScheme.surfaceVariant
-                                },
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        day.dayOfMonth.toString(),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                        color = if (hasWorkout) Color.White
-                                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
