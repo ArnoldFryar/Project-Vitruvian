@@ -115,12 +115,12 @@ fun ProgramsScreen(
                     },
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.AddCircleOutline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
                             Text("Create Program", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
                             Text("Build a routine from your exercise library", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -134,12 +134,12 @@ fun ProgramsScreen(
                     modifier = Modifier.fillMaxWidth().clickable { onNavigateToImport() },
                     shape    = MaterialTheme.shapes.medium,
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.FileDownload, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
                             Text("Import Program", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
                             Text("Paste or share a JSON program export", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -164,7 +164,7 @@ fun ProgramsScreen(
                             "No programs yet. Tap \"Create Program\" to build one.",
                             style    = MaterialTheme.typography.bodySmall,
                             color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier.padding(AppDimens.Spacing.md),
                         )
                     }
                 }
@@ -177,8 +177,8 @@ fun ProgramsScreen(
                 val isLast  = orderedPrograms.lastOrNull()?.id == p.id
                 val rowShape = when {
                     orderedPrograms.size == 1 -> MaterialTheme.shapes.medium
-                    isFirst -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
-                    isLast  -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+                    isFirst -> RoundedCornerShape(topStart = AppDimens.Corner.md_sm, topEnd = AppDimens.Corner.md_sm, bottomStart = 0.dp, bottomEnd = 0.dp)
+                    isLast  -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = AppDimens.Corner.md_sm, bottomEnd = AppDimens.Corner.md_sm)
                     else    -> RoundedCornerShape(0.dp)
                 }
                 Surface(
@@ -233,7 +233,7 @@ fun ProgramsScreen(
                             )
                         },
                     shape           = rowShape,
-                    tonalElevation  = if (isDragging) 8.dp else 1.dp,
+                    tonalElevation  = if (isDragging) 8.dp else AppDimens.Elevation.selector,
                     shadowElevation = if (isDragging) 8.dp else 0.dp,
                 ) {
                     Column {
@@ -245,25 +245,25 @@ fun ProgramsScreen(
                                     WiringRegistry.recordOutcome(A_PROGRAMS_SAVED_OPEN, ActualOutcome.Navigated("program_detail"))
                                     onNavigateToProgramDetail(p.id)
                                 }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.FitnessCenter, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(28.dp))
-                            Spacer(Modifier.width(16.dp))
+                            Icon(Icons.Default.FitnessCenter, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(AppDimens.Icon.xl))
+                            Spacer(Modifier.width(AppDimens.Spacing.md))
                             Column(Modifier.weight(1f)) {
                                 Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.height(2.dp))
+                                Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                 Text("${p.exerciseCount} exercise · Custom program", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Icon(
                                 Icons.Default.DragHandle,
                                 contentDescription = "Long press to reorder",
                                 tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.35f),
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(AppDimens.Icon.lg),
                             )
                         }
                         if (!isLast) {
-                            Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDragging) 0f else 1f))
+                            Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDragging) 0f else 1f))
                         }
                     }
                 }
@@ -289,12 +289,12 @@ fun ProgramsScreen(
                     },
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.GridView, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(28.dp))
+                    Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.GridView, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(AppDimens.Icon.xl))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
                             Text("Browse Templates", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
                             Text("Browse workout template library", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

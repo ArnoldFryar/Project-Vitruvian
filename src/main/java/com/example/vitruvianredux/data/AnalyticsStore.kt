@@ -40,6 +40,7 @@ object AnalyticsStore {
         val reps: Int,
         val weightLb: Int,
         val volumeKg: Float,
+        val avgQualityScore: Int? = null,
     )
 
     data class SessionLog(
@@ -58,6 +59,7 @@ object AnalyticsStore {
         val calories: Int,
         val createdAt: Long,
         val exerciseSets: List<ExerciseSetLog> = emptyList(),
+        val avgQualityScore: Int? = null,
     )
 
     // ── State ────────────────────────────────────────────────────────────────
@@ -247,6 +249,8 @@ object AnalyticsStore {
             calories         = calories,
             createdAt        = endMs,
             exerciseSets     = exerciseSets,
+            avgQualityScore  = exerciseSets.mapNotNull { it.avgQualityScore }
+                                   .takeIf { it.isNotEmpty() }?.average()?.toInt(),
         )
     }
 
@@ -279,9 +283,11 @@ object AnalyticsStore {
                                 put("reps", s.reps)
                                 put("weightLb", s.weightLb)
                                 put("volumeKg", s.volumeKg.toDouble())
+                                if (s.avgQualityScore != null) put("avgQualityScore", s.avgQualityScore)
                             })
                         }
                     })
+                    if (log.avgQualityScore != null) put("avgQualityScore", log.avgQualityScore)
                 })
             }
             prefs.edit().putString(KEY_LOGS, arr.toString()).apply()
@@ -317,14 +323,16 @@ object AnalyticsStore {
                         (0 until setsArr.length()).map { si ->
                             val so = setsArr.getJSONObject(si)
                             ExerciseSetLog(
-                                exerciseName = so.getString("exerciseName"),
-                                setIndex     = so.getInt("setIndex"),
-                                reps         = so.getInt("reps"),
-                                weightLb     = so.getInt("weightLb"),
-                                volumeKg     = so.getDouble("volumeKg").toFloat(),
+                                exerciseName    = so.getString("exerciseName"),
+                                setIndex        = so.getInt("setIndex"),
+                                reps            = so.getInt("reps"),
+                                weightLb        = so.getInt("weightLb"),
+                                volumeKg        = so.getDouble("volumeKg").toFloat(),
+                                avgQualityScore = if (so.has("avgQualityScore")) so.getInt("avgQualityScore") else null,
                             )
                         }
                     } ?: emptyList(),
+                    avgQualityScore = if (o.has("avgQualityScore")) o.getInt("avgQualityScore") else null,
                 )
             }
         } catch (e: Exception) {

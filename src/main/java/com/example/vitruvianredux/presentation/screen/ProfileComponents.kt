@@ -35,15 +35,15 @@ internal fun ProfileSection(
         title,
         style = MaterialTheme.typography.titleSmall,
         fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(bottom = 8.dp),
+        modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
     )
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 1.dp,
+        tonalElevation = AppDimens.Elevation.selector,
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(AppDimens.Spacing.md)) {
             content()
         }
     }
@@ -52,11 +52,11 @@ internal fun ProfileSection(
 @Composable
 internal fun ProfileStatCard(value: String, label: String, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     PressScaleCard(modifier = modifier, onClick = onClick) {
-        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = AppDimens.Spacing.sm),
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.md, horizontal = AppDimens.Spacing.sm),
                horizontalAlignment = Alignment.CenterHorizontally) {
             Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold,
                  color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xxs))
             Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
@@ -105,22 +105,22 @@ internal fun VolumeDetailSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 32.dp)) {
+        Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text("Volume \u2014 Last 7 Days", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
                 "Total: ${UnitConversions.formatVolumeFromKg(weekTotal, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md))
 
             dailyVolumes.forEach { (day, label, vol) ->
                 val fraction = if (maxDay > 0) (vol / maxDay).toFloat() else 0f
                 val display = UnitConversions.formatVolumeFromKg(vol, unitSystem)
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(label, style = MaterialTheme.typography.labelMedium,
@@ -135,7 +135,7 @@ internal fun VolumeDetailSheet(
                             color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                         ) {}
                     }
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text("$display", style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.width(60.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -165,35 +165,35 @@ internal fun SessionsDetailSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 32.dp)) {
+        Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text("Sessions \u2014 Last 7 Days", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
                 "${recentWorkouts.size} workout${if (recentWorkouts.size != 1) "s" else ""}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md))
 
             if (recentWorkouts.isEmpty()) {
                 Text("No workouts recorded this week",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 24.dp))
+                    modifier = Modifier.padding(vertical = AppDimens.Spacing.lg))
             } else {
                 recentWorkouts.forEach { workout ->
                     Surface(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.xs),
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 1.dp,
+                        tonalElevation = AppDimens.Elevation.selector,
                     ) {
-                        Column(Modifier.padding(12.dp)) {
+                        Column(Modifier.padding(AppDimens.Spacing.md_sm)) {
                             Text(dateFmt.format(workout.date),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary)
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(AppDimens.Spacing.xs))
                             if (workout.programName != null) {
                                 Text(
                                     workout.programName,
@@ -202,7 +202,7 @@ internal fun SessionsDetailSheet(
                                     maxLines = 1,
                                 )
                                 if (workout.exerciseNames.isNotEmpty()) {
-                                    Spacer(Modifier.height(2.dp))
+                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                     Text(
                                         workout.exerciseNames.joinToString(" \u00b7 "),
                                         style = MaterialTheme.typography.bodySmall,
@@ -218,7 +218,7 @@ internal fun SessionsDetailSheet(
                                     maxLines = 2,
                                 )
                             }
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(AppDimens.Spacing.xs))
                             val volDisplay = UnitConversions.formatVolumeFromKg(workout.totalVolumeKg, unitSystem)
                             val mins = workout.durationSec / 60
                             Text(
@@ -256,10 +256,10 @@ internal fun StreakDetailSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 32.dp)) {
+        Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text("Day Streak", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md))
 
             // Streak hero numbers
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -277,10 +277,10 @@ internal fun StreakDetailSheet(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.lg))
             Text("Last 4 Weeks", style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // Day labels header
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -291,11 +291,11 @@ internal fun StreakDetailSheet(
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
 
             // 4 rows of 7 dots
             gridDays.chunked(7).forEach { week ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                Row(Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.xxs),
                     horizontalArrangement = Arrangement.SpaceEvenly) {
                     week.forEach { day ->
                         val hasWorkout = day in workoutDays

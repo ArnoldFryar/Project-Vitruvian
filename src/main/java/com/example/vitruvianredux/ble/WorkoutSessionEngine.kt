@@ -719,14 +719,18 @@ class WorkoutSessionEngine(
         
         // Set phase immediately so the UI overlay appears — start with SetReady
         // so the user can get into position before warmup begins.
+        playerSets = sets
+        currentPlayerIndex = 0
+
         val firstSet = sets.first()
+        val (exSetIndex, exTotalSets) = perExerciseSetInfo(0)
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.SetReady(
                 exerciseName      = firstSet.exerciseName,
                 thumbnailUrl      = firstSet.thumbnailUrl,
                 videoUrl          = firstSet.videoUrl,
-                setIndex          = 0,
-                totalSets         = sets.size,
+                setIndex          = exSetIndex,
+                totalSets         = exTotalSets,
                 targetReps        = firstSet.targetReps,
                 targetDurationSec = firstSet.targetDurationSec,
                 warmupReps        = firstSet.warmupReps,
@@ -735,9 +739,6 @@ class WorkoutSessionEngine(
                 isJustLift        = firstSet.isJustLift,
             )
         )
-        
-        playerSets = sets
-        currentPlayerIndex = 0
         completedStats.clear()
         engineState = EngineState()
         repDetector.reset()
@@ -797,10 +798,11 @@ class WorkoutSessionEngine(
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
         bleAdapter.execute(BleCommand.Stop, "PAUSE")
+        val (exSetIndex, exTotalSets) = perExerciseSetInfo(currentPlayerIndex)
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.Paused(
-                setIndex     = currentPlayerIndex,
-                totalSets    = playerSets.size,
+                setIndex     = exSetIndex,
+                totalSets    = exTotalSets,
                 exerciseName = phase.exerciseName,
                 thumbnailUrl = phase.thumbnailUrl,
                 videoUrl     = phase.videoUrl,
@@ -821,7 +823,7 @@ class WorkoutSessionEngine(
             Log.w(TAG, "resumePlayerWorkout: not Paused (phase=$phase) – ignoring")
             return
         }
-        Log.i(TAG, "resumePlayerWorkout: resuming from set ${phase.setIndex} \"${phase.exerciseName}\"")
+        Log.i(TAG, "resumePlayerWorkout: resuming from set $currentPlayerIndex \"${phase.exerciseName}\"")
         // Reset per-set tracking so the restarted set begins cleanly
         engineState = EngineState()
         repDetector.reset()
@@ -829,7 +831,7 @@ class WorkoutSessionEngine(
         stallDetector.reset()
         lastDispatchedRepCount = 0
         setVolumeAccumulator = VolumeAccumulator.ZERO
-        launchPlayerSet(phase.setIndex)
+        launchPlayerSet(currentPlayerIndex)
     }
 
     /** Skip the current rest countdown and transition immediately to the next step. */
@@ -945,7 +947,8 @@ class WorkoutSessionEngine(
         if (phase is SessionPhase.Resting) {
             val next: NextStep = if (currentPlayerIndex < playerSets.size) {
                 val nextSet = playerSets[currentPlayerIndex]
-                NextStep.NextSet(currentPlayerIndex, playerSets.size, nextSet.exerciseName, nextSet.thumbnailUrl)
+                val (upExIdx, upExTotal) = perExerciseSetInfo(currentPlayerIndex)
+                NextStep.NextSet(upExIdx, upExTotal, nextSet.exerciseName, nextSet.thumbnailUrl)
             } else {
                 NextStep.WorkoutDone
             }
@@ -1012,6 +1015,20 @@ class WorkoutSessionEngine(
 
     // ── Player internals ──────────────────────────────────────────────────────
 
+    /**
+     * Compute per-exercise set index and total sets for a given flat playlist index.
+     * Walks the contiguous block of same-exercise-name entries surrounding [flatIndex].
+     * Returns (perExerciseSetIndex, perExerciseTotalSets).
+     */
+    private fun perExerciseSetInfo(flatIndex: Int): Pair<Int, Int> {
+        val name = playerSets.getOrNull(flatIndex)?.exerciseName ?: return Pair(0, 1)
+        var start = flatIndex
+        while (start > 0 && playerSets[start - 1].exerciseName == name) start--
+        var end = flatIndex
+        while (end < playerSets.size - 1 && playerSets[end + 1].exerciseName == name) end++
+        return Pair(flatIndex - start, end - start + 1)
+    }
+
     private fun launchPlayerSet(index: Int) {
         val set = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
         val isDurationMode = set.targetDurationSec != null && set.targetReps == null
@@ -1019,13 +1036,14 @@ class WorkoutSessionEngine(
             "warmupReps=${set.warmupReps} isDurationMode=$isDurationMode repTarget=${set.targetReps}")
 
         // Show the "Get Ready" screen. The user presses Go to start the BLE set.
+        val (exSetIndex, exTotalSets) = perExerciseSetInfo(index)
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.SetReady(
                 exerciseName      = set.exerciseName,
                 thumbnailUrl      = set.thumbnailUrl,
                 videoUrl          = set.videoUrl,
-                setIndex          = index,
-                totalSets         = playerSets.size,
+                setIndex          = exSetIndex,
+                totalSets         = exTotalSets,
                 targetReps        = set.targetReps,
                 targetDurationSec = set.targetDurationSec,
                 warmupReps        = set.warmupReps,
@@ -1052,11 +1070,12 @@ class WorkoutSessionEngine(
         weightOverride: Int? = null,
         warmupOverride: Int? = null,
     ) {
-        val readyPhase = _state.value.sessionPhase as? SessionPhase.SetReady ?: run {
+        val phase = _state.value.sessionPhase
+        if (phase !is SessionPhase.SetReady) {
             Log.w(TAG, "confirmReady: not in SetReady phase")
             return
         }
-        val index = readyPhase.setIndex
+        val index = currentPlayerIndex
         val original = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
 
         // Apply any user overrides from the ready screen
@@ -1090,13 +1109,14 @@ class WorkoutSessionEngine(
         stallDetectionEnabled = set.stallDetectionEnabled
         lastDispatchedRepCount = 0
 
+        val (exSetIdx, exTotalSets) = perExerciseSetInfo(index)
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.ExerciseActive(
                 exerciseName      = set.exerciseName,
                 thumbnailUrl      = set.thumbnailUrl,
                 videoUrl          = set.videoUrl,
-                setIndex          = index,
-                totalSets         = playerSets.size,
+                setIndex          = exSetIdx,
+                totalSets         = exTotalSets,
                 targetReps        = set.targetReps,
                 targetDurationSec = set.targetDurationSec,
                 warmupReps        = set.warmupReps,
@@ -1201,7 +1221,8 @@ class WorkoutSessionEngine(
         val nextIndex = currentPlayerIndex + 1
         val next: NextStep = if (nextIndex < playerSets.size) {
             val nextSet = playerSets[nextIndex]
-            NextStep.NextSet(nextIndex, playerSets.size, nextSet.exerciseName, nextSet.thumbnailUrl)
+            val (nextExIdx, nextExTotal) = perExerciseSetInfo(nextIndex)
+            NextStep.NextSet(nextExIdx, nextExTotal, nextSet.exerciseName, nextSet.thumbnailUrl)
         } else {
             NextStep.WorkoutDone
         }
@@ -1211,11 +1232,12 @@ class WorkoutSessionEngine(
             delay(1_500L)
             if (set.isJustLift) {
                 if (set.restAfterSec > 0) {
+                    val (jlExIdx, jlExTotal) = perExerciseSetInfo(currentPlayerIndex)
                     startRest(
                         seconds = set.restAfterSec,
                         next = NextStep.NextSet(
-                            setIndex = currentPlayerIndex,
-                            totalSets = playerSets.size,
+                            setIndex = jlExIdx,
+                            totalSets = jlExTotal,
                             exerciseName = set.exerciseName,
                             thumbnailUrl = set.thumbnailUrl,
                         ),
@@ -1425,14 +1447,14 @@ class WorkoutSessionEngine(
     private fun advanceAfterRest(next: NextStep) {
         when (next) {
             is NextStep.NextSet -> {
-                if (justLiftArmed && playerSets.getOrNull(next.setIndex)?.isJustLift == true) {
+                if (justLiftArmed && playerSets.getOrNull(currentPlayerIndex)?.isJustLift == true) {
                     reArmJustLift()
                     return
                 }
-                launchPlayerSet(next.setIndex)
+                launchPlayerSet(currentPlayerIndex)
                 if (autoPlay) {
                     // Skip the SetReady screen and start the set immediately
-                    Log.i(TAG, "advanceAfterRest: autoPlay ON → auto-confirming set ${next.setIndex}")
+                    Log.i(TAG, "advanceAfterRest: autoPlay ON → auto-confirming set $currentPlayerIndex")
                     confirmReady()
                 }
             }

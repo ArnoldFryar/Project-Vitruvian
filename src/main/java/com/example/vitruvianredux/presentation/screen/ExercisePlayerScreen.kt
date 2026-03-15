@@ -64,6 +64,8 @@ fun ExercisePlayerScreen(
     var showDebugPanel by remember { mutableStateOf(false) }  // transient UI, fine to reset
     var showEditUpcomingSets by remember { mutableStateOf(false) }  // transient UI
     var isMuted        by rememberSaveable { mutableStateOf(!workoutVM.soundEnabled.value) }
+    // Keep the mute icon in sync with the ViewModel (e.g. after resetAfterWorkout resets soundEnabled).
+    LaunchedEffect(Unit) { workoutVM.soundEnabled.collect { enabled -> isMuted = !enabled } }
     var isFavourite    by rememberSaveable { mutableStateOf(false) }
     var echoLevel      by remember { mutableStateOf(com.example.vitruvianredux.ble.protocol.EchoLevel.HARD) }  // enum, keep as remember
     var eccentricPct   by rememberSaveable { mutableIntStateOf(75) }
@@ -241,6 +243,10 @@ fun ExercisePlayerScreen(
                                     onBack()
                                 }
                             } else null,
+                            avgQualityScore = workoutVM.completedExerciseStats
+                                .mapNotNull { it.avgQualityScore }
+                                .takeIf { it.isNotEmpty() }
+                                ?.average()?.toInt(),
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -388,6 +394,7 @@ fun ExercisePlayerScreen(
                         onSkipSet              = { workoutVM.skipSet() },
                         onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
+                        onRepQualityScored     = { quality -> workoutVM.recordRepQuality(quality) },
                     )
                 }
 

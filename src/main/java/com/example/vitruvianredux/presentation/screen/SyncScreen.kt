@@ -132,7 +132,7 @@ fun SyncScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm)) {
                 FilledTonalButton(
                     onClick = {
                         if (isHub) {
@@ -158,8 +158,8 @@ fun SyncScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                     ) else ButtonDefaults.filledTonalButtonColors(),
                 ) {
-                    Icon(Icons.Default.Hub, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.Hub, null, modifier = Modifier.size(AppDimens.Icon.md))
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text(if (isHub) "Stop Hub" else "Start Hub")
                 }
 
@@ -181,8 +181,8 @@ fun SyncScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                     ) else ButtonDefaults.filledTonalButtonColors(),
                 ) {
-                    Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Default.Search, null, modifier = Modifier.size(AppDimens.Icon.md))
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text(if (isClient) "Stop" else "Find Hub")
                 }
             }
@@ -214,9 +214,9 @@ fun SyncScreen(
                 }
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
                     Column(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        modifier = Modifier.padding(AppDimens.Spacing.md).fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
                         Text("Hub Active", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text("Listening on $registeredHubUrl", style = MaterialTheme.typography.bodySmall)
@@ -231,7 +231,7 @@ fun SyncScreen(
                                 Image(bitmap = qrBitmap!!.asImageBitmap(), contentDescription = "Pairing QR Code", modifier = Modifier.size(200.dp))
                             }
                             else -> {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.lg), strokeWidth = 2.dp)
                                 Text("Generating QR code…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
@@ -241,8 +241,8 @@ fun SyncScreen(
 
             if (lanState is LanSyncState.Discovering) {
                 Card {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Row(modifier = Modifier.padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm)) {
+                        CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = 2.dp)
                         Column {
                             Text("Searching for Hub\u2026", style = MaterialTheme.typography.bodyMedium)
                             Text(
@@ -257,7 +257,7 @@ fun SyncScreen(
 
             if (hubUrl != null) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Ready to Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text("Hub: $hubUrl", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
@@ -283,12 +283,12 @@ fun SyncScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 if (isSyncing) {
-                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                                    Spacer(Modifier.width(8.dp))
+                                    CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                    Spacer(Modifier.width(AppDimens.Spacing.sm))
                                     Text("Syncing\u2026")
                                 } else {
-                                    Icon(Icons.Default.Sync, null, modifier = Modifier.size(18.dp))
-                                    Spacer(Modifier.width(8.dp))
+                                    Icon(Icons.Default.Sync, null, modifier = Modifier.size(AppDimens.Icon.md))
+                                    Spacer(Modifier.width(AppDimens.Spacing.sm))
                                     Text("Sync Now")
                                 }
                             }
@@ -299,8 +299,8 @@ fun SyncScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             OutlinedButton(onClick = { showQrScanner = true }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Default.QrCodeScanner, null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Default.QrCodeScanner, null, modifier = Modifier.size(AppDimens.Icon.md))
+                                Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text("Scan Hub QR Code")
                             }
                         }
@@ -310,23 +310,23 @@ fun SyncScreen(
 
             if (isPairing) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-                    Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Row(modifier = Modifier.padding(AppDimens.Spacing.md), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm), verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = 2.dp)
                         Text("Pairing with hub\u2026", style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
             if (pairingError != null) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Pairing Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(pairingError!!, style = MaterialTheme.typography.bodySmall)
                         // Only allow re-scanning once the hub has been found — avoids scanning
                         // random QR codes from the environment when no pairing QR is on screen.
                         if (hubUrl != null) {
                             OutlinedButton(onClick = { showQrScanner = true; pairingError = null }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Default.QrCodeScanner, null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Default.QrCodeScanner, null, modifier = Modifier.size(AppDimens.Icon.sm))
+                                Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text("Scan Again")
                             }
                         } else {
@@ -343,7 +343,7 @@ fun SyncScreen(
             if (lastSyncResult != null) LanSyncResultCard(lastSyncResult!!)
             if (syncError != null) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
                         Text("Sync Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(syncError!!, style = MaterialTheme.typography.bodySmall)
                     }
@@ -352,7 +352,7 @@ fun SyncScreen(
 
             if (lanState is LanSyncState.Error) {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Network Error", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text((lanState as LanSyncState.Error).message, style = MaterialTheme.typography.bodySmall)
                         OutlinedButton(onClick = { lanSyncManager.reset() }, modifier = Modifier.fillMaxWidth()) {
@@ -369,7 +369,7 @@ fun SyncScreen(
 private fun LanSyncResultCard(result: SyncResult) {
     val ext = LocalExtendedColors.current
     Card(colors = CardDefaults.cardColors(containerColor = ext.statusReady.copy(alpha = 0.12f))) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
             Text("Sync Complete", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = ext.statusReady)
             Text("Pulled: ${result.pullPrograms} programs, ${result.pullSessions} sessions", style = MaterialTheme.typography.bodySmall)
             Text("Pushed: ${result.pushPrograms} programs, ${result.pushSessions} sessions", style = MaterialTheme.typography.bodySmall)

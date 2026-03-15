@@ -203,11 +203,12 @@ fun AppScaffold() {
                         val completedStats = workoutVM.completedExerciseStats
                         val exerciseSets = completedStats.map { es ->
                             AnalyticsStore.ExerciseSetLog(
-                                exerciseName = es.exerciseName,
-                                setIndex     = es.setIndex,
-                                reps         = es.repsCompleted,
-                                weightLb     = es.weightPerCableLb,
-                                volumeKg     = es.volumeKg,
+                                exerciseName    = es.exerciseName,
+                                setIndex        = es.setIndex,
+                                reps            = es.repsCompleted,
+                                weightLb        = es.weightPerCableLb,
+                                volumeKg        = es.volumeKg,
+                                avgQualityScore = es.avgQualityScore,
                             )
                         }
 

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.ble.BleConnectionState
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
@@ -46,16 +47,16 @@ fun ConnectionStatusPill(
         modifier       = modifier,
         shape          = RoundedCornerShape(50),
         color          = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-        tonalElevation = 2.dp,
+        tonalElevation = AppDimens.Elevation.card,
     ) {
         Row(
-            modifier              = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier              = Modifier.padding(horizontal = 10.dp, vertical = AppDimens.Spacing.xs),
             verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(AppDimens.Spacing.sm)
                     .clip(CircleShape)
                     .background(dotColor),
             )

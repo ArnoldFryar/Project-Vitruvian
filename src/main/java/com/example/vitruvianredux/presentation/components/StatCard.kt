@@ -33,7 +33,7 @@ fun StatCard(
             modifier = modifier,
             shape = shape,
             color = color,
-            tonalElevation = 1.dp,
+            tonalElevation = AppDimens.Elevation.selector,
         ) {
             StatCardContent(icon = icon, value = value, label = label)
         }
@@ -42,7 +42,7 @@ fun StatCard(
             modifier = modifier,
             shape = shape,
             color = color,
-            tonalElevation = 1.dp,
+            tonalElevation = AppDimens.Elevation.selector,
         ) {
             StatCardContent(icon = icon, value = value, label = label)
         }
@@ -62,7 +62,7 @@ private fun StatCardContent(icon: ImageVector, value: String, label: String) {
             imageVector       = icon,
             contentDescription = null,
             tint              = MaterialTheme.colorScheme.primary,
-            modifier          = Modifier.size(20.dp),
+            modifier          = Modifier.size(AppDimens.Icon.md),
         )
         Text(
             text       = value,

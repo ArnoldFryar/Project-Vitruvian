@@ -103,6 +103,13 @@ class WorkoutSessionViewModel(
     private val _completedExerciseStats = mutableListOf<ExerciseStats>()
     val completedExerciseStats: List<ExerciseStats> get() = _completedExerciseStats.toList()
 
+    /**
+     * Per-rep quality scores accumulated during the current set.
+     * The UI calls [recordRepQuality] after scoring each rep; scores are
+     * averaged and attached to [ExerciseStats] when the set completes.
+     */
+    private val _currentSetRepQualities = mutableListOf<com.example.vitruvianredux.presentation.repquality.RepQuality>()
+
     private var tts: TextToSpeech? = null
     private var isTtsInitialized = false
     private var lastSpokenWorkingRep = 0
@@ -158,8 +165,21 @@ class WorkoutSessionViewModel(
 
                 // ── Capture per-set stats for "Save Changes" feature ─────
                 val sessionPhase = currentState.sessionPhase
-                if (sessionPhase is SessionPhase.ExerciseComplete) {
-                    _completedExerciseStats.add(sessionPhase.stats)
+                if (sessionPhase is SessionPhase.ExerciseComplete &&
+                    _completedExerciseStats.lastOrNull() !== sessionPhase.stats) {
+                    // Attach accumulated rep quality averages to the engine's stats
+                    val enriched = if (_currentSetRepQualities.isNotEmpty()) {
+                        val rqs = _currentSetRepQualities.toList()
+                        sessionPhase.stats.copy(
+                            avgQualityScore = rqs.map { it.score }.average().toInt(),
+                            avgRom          = rqs.map { it.rom }.average().toInt(),
+                            avgTempo        = rqs.map { it.tempo }.average().toInt(),
+                            avgSymmetry     = rqs.map { it.symmetry }.average().toInt(),
+                            avgSmoothness   = rqs.map { it.smoothness }.average().toInt(),
+                        )
+                    } else sessionPhase.stats
+                    _completedExerciseStats.add(enriched)
+                    _currentSetRepQualities.clear()
                 }
 
                 // ── Rest countdown — speak final 10 seconds ──────────────
@@ -253,6 +273,8 @@ class WorkoutSessionViewModel(
 
     fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
         sessionStartMs = System.currentTimeMillis()
+        _completedExerciseStats.clear()
+        _currentSetRepQualities.clear()
         return engine.startPlayerWorkout(sets)
     }
 
@@ -414,7 +436,19 @@ class WorkoutSessionViewModel(
         activeDayName     = null
         sessionStartMs    = 0L
         _completedExerciseStats.clear()
+        _currentSetRepQualities.clear()
+        soundEnabled.value = true   // Restore default so every new workout starts with audio on
         engine.resetAfterWorkout()
+    }
+
+    /**
+     * Record a single rep's quality score for the current set.
+     * Called from the presentation layer after [RepQualityCalculator.score].
+     * Accumulated scores are averaged and attached to [ExerciseStats] when
+     * the set completes.
+     */
+    fun recordRepQuality(quality: com.example.vitruvianredux.presentation.repquality.RepQuality) {
+        _currentSetRepQualities.add(quality)
     }
 
     /**

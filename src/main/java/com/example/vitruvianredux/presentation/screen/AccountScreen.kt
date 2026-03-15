@@ -25,6 +25,7 @@ import com.example.vitruvianredux.cloud.AuthRepository
 import com.example.vitruvianredux.cloud.CloudSyncRepository
 import com.example.vitruvianredux.cloud.CloudSyncState
 import com.example.vitruvianredux.cloud.SupabaseProvider
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import io.github.jan.supabase.gotrue.SessionStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -90,13 +91,13 @@ private fun AccountShell(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = AppDimens.Spacing.md)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
             content()
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.lg))
         }
     }
 }
@@ -123,7 +124,7 @@ private fun SignedInContent(
         ),
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(AppDimens.Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -132,7 +133,7 @@ private fun SignedInContent(
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.md_sm))
             Column {
                 Text(
                     "Signed in",
@@ -151,9 +152,9 @@ private fun SignedInContent(
 
     // Sync card
     Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
             Text("Cloud Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // Status
             when (syncState) {
@@ -167,8 +168,8 @@ private fun SignedInContent(
                 }
                 is CloudSyncState.Syncing -> {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.sm), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text("Syncing...", style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -188,22 +189,22 @@ private fun SignedInContent(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
             Button(
                 onClick = onSyncNow,
                 enabled = syncState !is CloudSyncState.Syncing,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+                Spacer(Modifier.width(AppDimens.Spacing.sm))
                 Text("Sync Now")
             }
         }
     }
 
     // Sign-out
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(AppDimens.Spacing.sm))
     OutlinedButton(
         onClick = onSignOut,
         modifier = Modifier.fillMaxWidth(),
@@ -211,8 +212,8 @@ private fun SignedInContent(
             contentColor = MaterialTheme.colorScheme.error,
         ),
     ) {
-        Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+        Spacer(Modifier.width(AppDimens.Spacing.sm))
         Text("Sign Out")
     }
 }
@@ -235,8 +236,8 @@ private fun SignInContent() {
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
             Text(
                 if (isSignUp) "Create Account" else "Sign In",

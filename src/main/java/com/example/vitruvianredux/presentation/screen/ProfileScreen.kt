@@ -183,12 +183,12 @@ fun ProfileScreen(
                     modifier = Modifier.clickable(onClick = { showEditNameDialog = true }),
                 ) {
                     Text(displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = "Edit name",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(AppDimens.Icon.sm),
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -196,9 +196,9 @@ fun ProfileScreen(
                         Icons.Default.Star,
                         contentDescription = null,
                         tint = LocalExtendedColors.current.gold,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(AppDimens.Icon.sm),
                     )
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text(
                         "${weekSessions * 120} pts",
                         style = MaterialTheme.typography.bodySmall,
@@ -219,7 +219,7 @@ fun ProfileScreen(
                 }) {
                     Icon(Icons.Default.BluetoothConnected, null, tint = MaterialTheme.colorScheme.primary)
                 }
-                isScanning || isConnecting -> CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                isScanning || isConnecting -> CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.lg), strokeWidth = 2.dp)
                 else -> IconButton(onClick = {
                     WiringRegistry.hit(A_PROFILE_CONNECT)
                     WiringRegistry.recordOutcome(A_PROFILE_CONNECT, ActualOutcome.SheetOpened("device_picker"))
@@ -773,13 +773,13 @@ fun ProfileScreen(
                             startAngle += sweep
                         }
                     }
-                    Spacer(Modifier.width(20.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.md))
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         sliceEntries.forEach { (name, count, color) ->
                             val pct = ((count / total) * 100).toInt()
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Surface(shape = CircleShape, color = color, modifier = Modifier.size(10.dp)) {}
-                                Spacer(Modifier.width(8.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.sm))
                                 Text(name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
                                 Text("$pct%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -798,7 +798,7 @@ fun ProfileScreen(
             "Exercise History",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(bottom = 8.dp),
+            modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
         )
 
         if (allLogs.isEmpty() && history.isEmpty()) {
@@ -806,11 +806,11 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                tonalElevation = 1.dp,
+                tonalElevation = AppDimens.Elevation.selector,
             ) {
                 Text(
                     "No workouts yet. Complete a session to see your history.",
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(AppDimens.Spacing.md),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -844,19 +844,22 @@ fun ProfileScreen(
                         !session.programName.isNullOrBlank() && !session.dayName.isNullOrBlank() ->
                             "${session.programName} â€” ${session.dayName}"
                         !session.programName.isNullOrBlank() -> session.programName
-                        session.exerciseNames.isNotEmpty() -> session.exerciseNames.take(2).joinToString(", ") +
-                            if (session.exerciseNames.size > 2) " +${session.exerciseNames.size - 2}" else ""
-                        else -> "Workout"
+                        session.exerciseNames.size == 1 -> "Quick Lift"
+                        session.exerciseNames.isNotEmpty() -> "Individual Exercises"
+                        else -> "Quick Lift"
                     }
+                    val exerciseCount = if (session.exerciseSets.isNotEmpty())
+                        session.exerciseSets.distinctBy { it.exerciseName }.size
+                    else session.exerciseNames.size
 
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp)
+                            .padding(bottom = AppDimens.Spacing.sm)
                             .clickable { expanded = !expanded },
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 1.dp,
+                        tonalElevation = AppDimens.Elevation.selector,
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(
@@ -867,24 +870,22 @@ fun ProfileScreen(
                                     Icons.Default.FitnessCenter,
                                     contentDescription = null,
                                     tint = cs.primary,
-                                    modifier = Modifier.size(24.dp),
+                                    modifier = Modifier.size(AppDimens.Icon.lg),
                                 )
-                                Spacer(Modifier.width(12.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(workoutTitle, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                     Text(
-                                        "$dateLabel \u2022 ${session.totalSets} sets \u2022 ${session.totalReps} reps",
+                                        "$dateLabel \u2022 $durationLabel \u2022 ${session.totalSets} sets \u2022 $exerciseCount exercises",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
-                                Text(durationLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Spacer(Modifier.width(8.dp))
                                 Icon(
                                     if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
                                     contentDescription = if (expanded) "Collapse" else "Expand",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(AppDimens.Icon.md),
                                 )
                             }
 
@@ -895,27 +896,29 @@ fun ProfileScreen(
                                 Spacer(Modifier.height(8.dp))
 
                                 if (session.exerciseSets.isNotEmpty()) {
-                                    // Group sets by exercise name
-                                    val exerciseGroups = session.exerciseSets.groupBy { it.exerciseName }
+                                    // Deduplicate by (exerciseName, setIndex) to handle
+                                    // sessions that were recorded multiple times.
+                                    val uniqueSets = session.exerciseSets
+                                        .distinctBy { "${it.exerciseName}_${it.setIndex}" }
+                                    val exerciseGroups = uniqueSets.groupBy { it.exerciseName }
                                     exerciseGroups.forEach { (name, sets) ->
+                                        // Exercise name header
                                         Text(
                                             name,
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = cs.primary,
-                                            modifier = Modifier.padding(bottom = 4.dp),
+                                            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
                                         )
-                                        sets.forEach { setLog ->
-                                            val volDisplay = UnitConversions.formatVolumeFromKg(
-                                                setLog.volumeKg.toDouble(), unitSystem
-                                            )
-                                            val wLabel = UnitConversions.unitLabel(unitSystem)
+                                        // One row per set with reps + weight
+                                        sets.sortedBy { it.setIndex }.forEachIndexed { i, setLog ->
                                             Row(
-                                                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, bottom = 2.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = 10.dp, bottom = 2.dp),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                             ) {
                                                 Text(
-                                                    "Set ${setLog.setIndex + 1}",
+                                                    "Set ${i + 1}",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 )
@@ -931,23 +934,14 @@ fun ProfileScreen(
                                                 )
                                             }
                                         }
-                                        Spacer(Modifier.height(6.dp))
                                     }
                                 } else if (session.exerciseNames.isNotEmpty()) {
-                                    // Fallback: show exercise names without per-set data
-                                    Text(
-                                        "Exercises:",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(bottom = 4.dp),
-                                    )
                                     session.exerciseNames.forEach { name ->
                                         Text(
-                                            "\u2022 $name",
+                                            name,
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(start = 8.dp, bottom = 2.dp),
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(start = 8.dp, top = 3.dp, bottom = 2.dp),
                                         )
                                     }
                                 } else {
@@ -978,10 +972,10 @@ fun ProfileScreen(
                         if (record.exerciseNames.size > 2) " +${record.exerciseNames.size - 2}" else ""
 
                     Surface(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.sm),
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 1.dp,
+                        tonalElevation = AppDimens.Elevation.selector,
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -991,9 +985,9 @@ fun ProfileScreen(
                                 Icons.Default.FitnessCenter,
                                 contentDescription = null,
                                 tint = cs.primary,
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(AppDimens.Icon.lg),
                             )
-                            Spacer(Modifier.width(12.dp))
+                            Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(exerciseLabel, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                 Text(
@@ -1009,7 +1003,7 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
 
         // ── Cloud Account ────────────────────────────────────────────
@@ -1021,23 +1015,23 @@ fun ProfileScreen(
 
             PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToAccount) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         Icons.Default.Cloud,
                         contentDescription = null,
                         tint = if (isSignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(AppDimens.Icon.lg),
                     )
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             if (isSignedIn) "Cloud Sync" else "Cloud Account",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(AppDimens.Spacing.xxs))
                         Text(
                             if (isSignedIn) userEmail ?: "Signed in" else "Sign in to sync across devices",
                             style = MaterialTheme.typography.bodySmall,
@@ -1060,15 +1054,15 @@ fun ProfileScreen(
         )
         PressScaleCard(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier          = Modifier.fillMaxWidth().padding(16.dp),
+                modifier          = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Units", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
                     Text("Weight display unit", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     FilterChip(
                         selected = unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB,
                         onClick  = {
@@ -1097,15 +1091,15 @@ fun ProfileScreen(
         val themeMode by com.example.vitruvianredux.data.ThemeStore.modeFlow.collectAsState()
         PressScaleCard(modifier = Modifier.fillMaxWidth()) {
             Row(
-                modifier          = Modifier.fillMaxWidth().padding(16.dp),
+                modifier          = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Theme", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
                     Text("App appearance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     com.example.vitruvianredux.data.ThemeStore.ThemeMode.entries.forEach { mode ->
                         FilterChip(
                             selected = themeMode == mode,
@@ -1155,12 +1149,12 @@ fun ProfileScreen(
 
             PressScaleCard(modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    modifier          = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier          = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Samsung Health Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(AppDimens.Spacing.xxs))
                         Text(
                             "Export workouts via Health Connect",
                             style = MaterialTheme.typography.bodySmall,
@@ -1194,14 +1188,14 @@ fun ProfileScreen(
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDebug) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(12.dp))
+                    Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.lg))
+                    Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Debug Tools", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(Modifier.height(AppDimens.Spacing.xxs))
                         Text("BLE diagnostics & testing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

@@ -13,6 +13,8 @@ import androidx.compose.ui.unit.dp
 object AppDimens {
 
     object Spacing {
+        /** 2 dp  – hairline gaps, calendar cells */
+        val xxs: Dp = 2.dp
         /** 4 dp  – tight gaps between closely related elements */
         val xs: Dp = 4.dp
         /** 8 dp  – standard small gap (icon→label, chip padding) */
@@ -40,13 +42,26 @@ object AppDimens {
         val lg: Dp = 24.dp
     }
 
-    object Layout {
-        /** Maximum content width for tablets / foldables */
-        val maxContentWidth: Dp = 600.dp
+    object Icon {
+        /** 16 dp – inline metadata icons */
+        val sm: Dp = 16.dp
+        /** 20 dp – stat card icons, button icons */
+        val md: Dp = 20.dp
+        /** 24 dp – default icon size */
+        val lg: Dp = 24.dp
+        /** 28 dp – placeholder / empty-state icons */
+        val xl: Dp = 28.dp
     }
 
     object Elevation {
         /** Subtle tonal elevation for selector cards */
         val selector: Dp = 1.dp
+        /** Standard card elevation */
+        val card: Dp = 2.dp
+    }
+
+    object Layout {
+        /** Maximum content width for tablets / foldables */
+        val maxContentWidth: Dp = 600.dp
     }
 }

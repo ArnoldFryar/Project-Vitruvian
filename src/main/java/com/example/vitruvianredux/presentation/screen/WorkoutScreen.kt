@@ -141,7 +141,7 @@ fun WorkoutScreen(
                 ConnectionStatusPill(
                     bleState = sessionState.connectionState,
                     isReady  = isReady,
-                    modifier = Modifier.padding(bottom = 8.dp),
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
                 )
             }
 
@@ -151,7 +151,7 @@ fun WorkoutScreen(
                     text     = "Workout Library",
                     style    = MaterialTheme.typography.headlineSmall,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp),
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.md),
                 )
             }
 
@@ -166,7 +166,7 @@ fun WorkoutScreen(
 
             // ── Search · Chips · Sort — grouped control block ─────────
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
                     // Search field
                     OutlinedTextField(
                         value         = searchQuery,
@@ -317,7 +317,7 @@ private fun ExerciseCard(
             onClick     = onClick,
             onLongClick = onLongPress,
         ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
     ) {
         Row(
             modifier              = Modifier
@@ -394,7 +394,7 @@ private fun ExerciseCard(
                         equipmentLabels.forEach { equip ->
                             SuggestionChip(
                                 onClick = {},
-                                icon    = { Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(12.dp)) },
+                                icon    = { Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm)) },
                                 label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
                             )
                         }
@@ -406,7 +406,7 @@ private fun ExerciseCard(
             Button(
                 onClick        = onStart,
                 shape          = RoundedCornerShape(AppDimens.Corner.sm),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md_sm, vertical = 6.dp),
                 colors         = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                 ),
@@ -510,7 +510,7 @@ private fun ExerciseSkeletonCard() {
         modifier  = Modifier
             .fillMaxWidth()
             .height(96.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.selector),
         colors    = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         ),
@@ -607,9 +607,9 @@ private fun ActiveSessionBanner(
                             Icon(
                                 imageVector        = Icons.Default.Stop,
                                 contentDescription = "Stop set",
-                                modifier           = Modifier.size(16.dp),
+                                modifier           = Modifier.size(AppDimens.Icon.sm),
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(AppDimens.Spacing.xs))
                             Text("Stop", style = MaterialTheme.typography.labelMedium)
                         }
                     }

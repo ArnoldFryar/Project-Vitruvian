@@ -42,6 +42,10 @@ data class ExerciseHistoryEntity(
     @ColumnInfo(name = "heaviest_weight_lb")
     val heaviestWeightLb: Int,
 
+    /** Average rep quality score across all scored sets (0–100), or null. */
+    @ColumnInfo(name = "avg_quality_score")
+    val avgQualityScore: Int? = null,
+
     /** Epoch millis when the workout completed. */
     @ColumnInfo(name = "completed_at")
     val completedAt: Long,

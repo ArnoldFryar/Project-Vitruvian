@@ -49,6 +49,26 @@ data class SetHistoryEntity(
     @ColumnInfo(name = "duration_sec")
     val durationSec: Int = 0,
 
+    /** Average rep quality score for this set (0–100), or null if unavailable. */
+    @ColumnInfo(name = "avg_quality_score")
+    val avgQualityScore: Int? = null,
+
+    /** Average ROM sub-score (0–100). */
+    @ColumnInfo(name = "avg_rom")
+    val avgRom: Int? = null,
+
+    /** Average tempo sub-score (0–100). */
+    @ColumnInfo(name = "avg_tempo")
+    val avgTempo: Int? = null,
+
+    /** Average symmetry sub-score (0–100). */
+    @ColumnInfo(name = "avg_symmetry")
+    val avgSymmetry: Int? = null,
+
+    /** Average smoothness sub-score (0–100). */
+    @ColumnInfo(name = "avg_smoothness")
+    val avgSmoothness: Int? = null,
+
     /** Epoch millis when the workout completed. */
     @ColumnInfo(name = "completed_at")
     val completedAt: Long,

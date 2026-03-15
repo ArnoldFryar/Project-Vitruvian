@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities  = [SessionLog::class, ExerciseHistoryEntity::class, SetHistoryEntity::class],
-    version   = 2,
+    version   = 3,
     exportSchema = false,
 )
 abstract class SessionLogDatabase : RoomDatabase() {
@@ -70,6 +70,19 @@ abstract class SessionLogDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add quality columns to set_history
+                db.execSQL("ALTER TABLE set_history ADD COLUMN avg_quality_score INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN avg_rom INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN avg_tempo INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN avg_symmetry INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN avg_smoothness INTEGER DEFAULT NULL")
+                // Add quality column to exercise_history
+                db.execSQL("ALTER TABLE exercise_history ADD COLUMN avg_quality_score INTEGER DEFAULT NULL")
+            }
+        }
+
         /** Return the process-wide singleton, creating it on first call. */
         fun getInstance(context: Context): SessionLogDatabase =
             INSTANCE ?: synchronized(this) {
@@ -78,7 +91,7 @@ abstract class SessionLogDatabase : RoomDatabase() {
                     SessionLogDatabase::class.java,
                     DB_NAME,
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build().also { INSTANCE = it }
             }
     }

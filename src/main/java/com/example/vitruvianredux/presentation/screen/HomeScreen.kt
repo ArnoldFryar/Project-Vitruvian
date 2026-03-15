@@ -166,7 +166,7 @@ fun HomeScreen(
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         ElevatedCard(
             modifier  = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.selector),
         ) {
             Column(Modifier.padding(AppDimens.Spacing.md)) {
                 if (nextProgram != null) {
@@ -215,8 +215,8 @@ fun HomeScreen(
                             onClick  = { onNavigateToProgramDetail(nextProgram!!.id) },
                             modifier = Modifier.weight(1f).height(48.dp),
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
+                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                            Spacer(Modifier.width(AppDimens.Spacing.xs))
                             Text("Edit")
                         }
                     }
@@ -267,9 +267,9 @@ private fun WorkoutCalendar(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = cs.surfaceVariant,
-        tonalElevation = 1.dp,
+        tonalElevation = AppDimens.Elevation.selector,
     ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.sm)) {
             // ── Month navigation header ────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -278,9 +278,9 @@ private fun WorkoutCalendar(
             ) {
                 IconButton(
                     onClick = { displayMonth = displayMonth.minusMonths(1) },
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(AppDimens.Spacing.xl),
                 ) {
-                    Icon(Icons.Default.ChevronLeft, "Previous month", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.ChevronLeft, "Previous month", modifier = Modifier.size(AppDimens.Icon.md))
                 }
                 Text(
                     text = "${displayMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${displayMonth.year}",
@@ -289,13 +289,13 @@ private fun WorkoutCalendar(
                 )
                 IconButton(
                     onClick = { displayMonth = displayMonth.plusMonths(1) },
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(AppDimens.Spacing.xl),
                 ) {
-                    Icon(Icons.Default.ChevronRight, "Next month", modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.ChevronRight, "Next month", modifier = Modifier.size(AppDimens.Icon.md))
                 }
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
 
             // ── Day-of-week header ─────────────────────────────────────
             val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
@@ -311,7 +311,7 @@ private fun WorkoutCalendar(
                 }
             }
 
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xxs))
 
             // ── Calendar grid ──────────────────────────────────────────
             val firstOfMonth = displayMonth.atDay(1)
@@ -367,7 +367,7 @@ private fun WorkoutCalendar(
                 }
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
 
             // ── Legend ──────────────────────────────────────────────────
             Row(
@@ -377,20 +377,20 @@ private fun WorkoutCalendar(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(AppDimens.Spacing.sm)
                         .clip(CircleShape)
                         .background(cs.primary),
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Workout", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
+                        .size(AppDimens.Spacing.sm)
                         .clip(CircleShape)
                         .background(cs.primary.copy(alpha = 0.12f)),
                 )
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Today", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
             }
         }

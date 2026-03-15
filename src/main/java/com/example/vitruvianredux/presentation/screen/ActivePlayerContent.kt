@@ -108,6 +108,7 @@ internal fun ActivePlayerContent(
     onSkipSet: () -> Unit,
     onSkipExercise: () -> Unit,
     onDebugRepIncrement: () -> Unit,
+    onRepQualityScored: (com.example.vitruvianredux.presentation.repquality.RepQuality) -> Unit = {},
 ) {
     val isActive   = phase is SessionPhase.ExerciseActive
     val isComplete = phase is SessionPhase.ExerciseComplete
@@ -202,6 +203,7 @@ internal fun ActivePlayerContent(
             if (quality != null) {
                 FatigueTrendAnalyzer.recordRep(quality)
                 CoachingCueEngine.evaluate(quality, profile)
+                onRepQualityScored(quality)
             }
             lastScoredRep = reps
             repFrames.clear()

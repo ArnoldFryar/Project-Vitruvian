@@ -168,6 +168,19 @@ fun SessionDetailScreen(
                             value = "${session.calories} kcal",
                         )
                     }
+                    session.avgQualityScore?.let { q ->
+                        DetailRow(
+                            label = "Lift Quality",
+                            value = "$q / 100 — ${
+                                when {
+                                    q >= 90 -> "Perfect"
+                                    q >= 75 -> "Great"
+                                    q >= 60 -> "Good"
+                                    else    -> "Fair"
+                                }
+                            }",
+                        )
+                    }
                 }
             }
 

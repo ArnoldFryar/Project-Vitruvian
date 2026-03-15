@@ -25,6 +25,7 @@ import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.presentation.audit.A_DEVICE_PICKER_SELECT
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
@@ -83,9 +84,9 @@ fun DevicePickerSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 32.dp),
+                        .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.xl),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                 ) {
                     Icon(
                         imageVector = Icons.Default.BluetoothDisabled,
@@ -112,7 +113,7 @@ fun DevicePickerSheet(
                     ) {
                         Text("Grant Permission")
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
                 }
             }
 
@@ -145,7 +146,7 @@ fun DevicePickerSheet(
                     ) {
                         Text("Retry Scan")
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
                 }
             }
 
@@ -157,23 +158,23 @@ fun DevicePickerSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 32.dp),
+                        .padding(horizontal = AppDimens.Spacing.md)
+                        .padding(bottom = AppDimens.Spacing.xl),
                 ) {
                     // Header
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = AppDimens.Spacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             imageVector = Icons.Default.BluetoothSearching,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(AppDimens.Icon.xl),
                         )
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                         Text(
                             text = "Select a Device",
                             style = MaterialTheme.typography.headlineSmall,
@@ -182,7 +183,7 @@ fun DevicePickerSheet(
                         )
                         if (isScanning || isConnecting) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(AppDimens.Icon.lg),
                                 strokeWidth = 2.dp,
                             )
                         }
@@ -202,7 +203,7 @@ fun DevicePickerSheet(
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp),
+                        modifier = Modifier.padding(bottom = AppDimens.Spacing.md),
                     )
 
                     // Empty-scanning placeholder
@@ -220,7 +221,7 @@ fun DevicePickerSheet(
                     // Device cards
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
                         items(devices, key = { it.address }) { device ->
                             DeviceListItem(
@@ -238,7 +239,7 @@ fun DevicePickerSheet(
                         // "Scan again" button after scan finished with results
                         if (!isScanning && !isConnecting) {
                             item {
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(AppDimens.Spacing.sm))
                                 OutlinedButton(
                                     onClick = { bleVM.startScan() },
                                     modifier = Modifier.fillMaxWidth(),

@@ -26,6 +26,7 @@ fun WorkoutCompleteContent(
     stats: WorkoutStats,
     onDismiss: () -> Unit,
     onSaveAndExit: (() -> Unit)? = null,
+    avgQualityScore: Int? = null,
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -116,10 +117,16 @@ fun WorkoutCompleteContent(
                     modifier = Modifier.weight(1f),
                 )
                 StatTile(
-                    icon  = Icons.Default.LocalFireDepartment,
-                    label = "Energy",
-                    value = "${stats.calories}",
-                    unit  = "kcal (est.)",
+                    icon  = Icons.Default.Stars,
+                    label = "Lift Quality",
+                    value = avgQualityScore?.toString() ?: "—",
+                    unit  = when {
+                        avgQualityScore == null -> ""
+                        avgQualityScore >= 90  -> "Perfect"
+                        avgQualityScore >= 75  -> "Great"
+                        avgQualityScore >= 60  -> "Good"
+                        else                   -> "Fair"
+                    },
                     modifier = Modifier.weight(1f),
                 )
             }
