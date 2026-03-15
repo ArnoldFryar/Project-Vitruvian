@@ -435,6 +435,7 @@ private fun ExerciseDetailSheet(
             modifier            = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = AppDimens.Spacing.md)
+                .navigationBarsPadding()
                 .padding(bottom = AppDimens.Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {

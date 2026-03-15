@@ -79,7 +79,7 @@ fun ExercisePickerSheet(
         sheetState       = sheetState,
         windowInsets     = WindowInsets(0),
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
             // ── Header ────────────────────────────────────────────────
             Row(
                 modifier          = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),

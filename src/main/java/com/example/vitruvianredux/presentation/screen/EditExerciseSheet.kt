@@ -63,7 +63,8 @@ fun EditExerciseSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = AppDimens.Spacing.xl),
+                .padding(bottom = AppDimens.Spacing.xl)
+                .navigationBarsPadding(),
         ) {
             // ── Header with close ────────────────────────────────────────────
             Row(

@@ -47,7 +47,10 @@ import com.example.vitruvianredux.presentation.util.loadExercises
 
 @Composable
 internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onDismiss: () -> Unit) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange    = { it != SheetValue.Hidden },
+    )
     var programName by remember { mutableStateOf("") }
     var draftItems  by remember { mutableStateOf<List<ProgramItemDraft>>(emptyList()) }
     var showPicker  by remember { mutableStateOf(false) }
@@ -280,7 +283,10 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                    .padding(horizontal = AppDimens.Spacing.md)
+                    .padding(top = AppDimens.Spacing.md_sm)
+                    .navigationBarsPadding()
+                    .padding(bottom = AppDimens.Spacing.md_sm),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 // Add Exercise button

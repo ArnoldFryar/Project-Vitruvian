@@ -56,6 +56,7 @@ fun CreateCustomExerciseSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = AppDimens.Spacing.md)
+                .navigationBarsPadding()
                 .padding(bottom = AppDimens.Spacing.xl)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
