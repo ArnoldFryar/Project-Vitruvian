@@ -43,7 +43,7 @@ fun ProgramItemCard(
             .fillMaxWidth()
             .animateContentSize(),
         shape    = RoundedCornerShape(AppDimens.Corner.md),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
     ) {
         Row(
             modifier          = Modifier
@@ -129,7 +129,7 @@ private fun MetadataBadge(
     Surface(
         color        = containerColor,
         contentColor = contentColor,
-        shape        = RoundedCornerShape(6.dp),
+        shape        = RoundedCornerShape(AppDimens.Corner.xs),
     ) {
         Text(
             text     = text,

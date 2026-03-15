@@ -125,7 +125,7 @@ fun ExercisePickerSheet(
                                 selected     = true,
                                 onClick      = { selectedMuscles = emptySet() },
                                 label        = { Text("Clear") },
-                                trailingIcon = { Icon(Icons.Default.Close, null, modifier = Modifier.size(14.dp)) },
+                                trailingIcon = { Icon(Icons.Default.Close, null, modifier = Modifier.size(AppDimens.Icon.sm)) },
                             )
                         }
                     }
@@ -212,7 +212,7 @@ fun ExercisePickerSheet(
                                 },
                                 onLongClick = { videoPreviewExercise = ex },
                             ),
-                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
                             colors    = if (isSelected) CardDefaults.elevatedCardColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                             ) else CardDefaults.elevatedCardColors(),
@@ -222,10 +222,10 @@ fun ExercisePickerSheet(
                                 verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                             ) {
-                                // ── Thumbnail (80dp — matches Workout Library) ──
+                                // ── Thumbnail (120dp — matches official app) ──
                                 Box(
                                     modifier         = Modifier
-                                        .size(80.dp)
+                                        .size(120.dp)
                                         .clip(RoundedCornerShape(AppDimens.Corner.sm))
                                         .background(MaterialTheme.colorScheme.surfaceVariant),
                                     contentAlignment = Alignment.Center,
@@ -242,7 +242,7 @@ fun ExercisePickerSheet(
                                             imageVector        = Icons.Default.FitnessCenter,
                                             contentDescription = null,
                                             tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                                            modifier           = Modifier.size(28.dp),
+                                            modifier           = Modifier.size(36.dp),
                                         )
                                     }
                                 }

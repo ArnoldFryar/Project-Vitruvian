@@ -194,7 +194,7 @@ fun WorkoutScreen(
                                         label        = { Text("Clear") },
                                         trailingIcon = {
                                             Icon(Icons.Default.Close, contentDescription = null,
-                                                modifier = Modifier.size(14.dp))
+                                                modifier = Modifier.size(AppDimens.Icon.sm))
                                         },
                                     )
                                 }
@@ -329,7 +329,7 @@ private fun ExerciseCard(
             // ── Thumbnail ─────────────────────────────────────────────
             Box(
                 modifier         = Modifier
-                    .size(80.dp)
+                    .size(120.dp)
                     .clip(RoundedCornerShape(AppDimens.Corner.sm))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
@@ -346,7 +346,7 @@ private fun ExerciseCard(
                         imageVector        = Icons.Default.FitnessCenter,
                         contentDescription = null,
                         tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                        modifier           = Modifier.size(28.dp),
+                        modifier           = Modifier.size(36.dp),
                     )
                 }
             }

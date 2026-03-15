@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.delay
 
 /**
@@ -57,7 +58,7 @@ fun CoachingCueBanner(
         val c = shownCue ?: return@AnimatedVisibility
 
         Surface(
-            shape = RoundedCornerShape(50),
+            shape = RoundedCornerShape(AppDimens.Corner.pill),
             color = Color(0xFF37474F).copy(alpha = 0.88f),
         ) {
             Text(

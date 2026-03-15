@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 private val TrendGreen  = Color(0xFF66BB6A)
 private val TrendAmber  = Color(0xFFFFCA28)
@@ -52,7 +53,7 @@ fun FatigueTrendGraph(
 
     Surface(
         modifier = modifier.fillMaxWidth(0.7f),
-        shape    = RoundedCornerShape(12.dp),
+        shape    = RoundedCornerShape(AppDimens.Corner.md_sm),
         color    = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
     ) {
         Column(

@@ -116,7 +116,7 @@ fun TrainerScreen(
                     label = "Connection",
                     trailing = {
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(AppDimens.Corner.xs),
                             color = when {
                                 isConnected -> cs.primary.copy(alpha = 0.12f)
                                 isScanning || isConnecting -> cs.tertiary.copy(alpha = 0.12f)
@@ -176,7 +176,7 @@ fun TrainerScreen(
                                 modifier = Modifier
                                     .width(80.dp)
                                     .height(24.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(AppDimens.Corner.md_sm))
                                     .background(
                                         Brush.horizontalGradient(
                                             colors = listOf(
@@ -324,7 +324,7 @@ fun TrainerScreen(
                 contentColor = cs.primary,
             ),
         ) {
-            Icon(Icons.Default.Build, null, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Build, null, modifier = Modifier.size(AppDimens.Icon.md))
             Spacer(Modifier.width(8.dp))
             Text("Check & Repair", fontWeight = FontWeight.SemiBold)
         }

@@ -226,7 +226,7 @@ private fun DetailCard(content: @Composable ColumnScope.() -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 1.dp,
+        tonalElevation = AppDimens.Elevation.selector,
     ) {
         Column(Modifier.padding(16.dp), content = content)
     }

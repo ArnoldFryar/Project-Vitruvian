@@ -83,7 +83,7 @@ fun GradientButton(
                         imageVector       = icon,
                         contentDescription = null,
                         tint              = contentColor,
-                        modifier          = Modifier.size(20.dp),
+                        modifier          = Modifier.size(AppDimens.Icon.md),
                     )
                 }
                 Text(

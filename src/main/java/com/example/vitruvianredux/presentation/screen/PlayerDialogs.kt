@@ -78,7 +78,7 @@ internal fun PausedContent(
                 .height(56.dp),
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(22.dp))
+            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.lg))
             Spacer(Modifier.width(8.dp))
             Text("Resume Workout", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
@@ -90,7 +90,7 @@ internal fun PausedContent(
                 .height(52.dp),
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         ) {
-            Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(22.dp))
+            Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.lg))
             Spacer(Modifier.width(8.dp))
             Text("End Workout", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }

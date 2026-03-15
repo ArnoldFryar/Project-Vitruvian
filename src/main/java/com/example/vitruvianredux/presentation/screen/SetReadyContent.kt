@@ -104,7 +104,7 @@ internal fun SetReadyContent(
                 .widthIn(max = 720.dp)
                 .fillMaxWidth()
                 .aspectRatio(ratio = 16f / 9f, matchHeightConstraintsFirst = false)
-                .clip(RoundedCornerShape(16.dp)),
+                .clip(RoundedCornerShape(AppDimens.Corner.md)),
             contentAlignment = Alignment.Center,
         ) {
             when {

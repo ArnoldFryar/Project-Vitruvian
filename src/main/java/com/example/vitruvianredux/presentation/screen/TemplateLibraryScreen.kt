@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Template Library — categorized list of built-in + user templates
@@ -152,7 +153,7 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
             Icon(
                 icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(AppDimens.Icon.md),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }

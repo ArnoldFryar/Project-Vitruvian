@@ -92,7 +92,7 @@ fun CreateCustomExerciseSheet(
                             onClick     = { trackingType = type },
                             label       = { Text(if (type == TrackingType.REPS) "Reps" else "Duration") },
                             leadingIcon = if (selected) {
-                                { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                                { Icon(Icons.Default.Check, null, modifier = Modifier.size(AppDimens.Icon.sm)) }
                             } else null,
                         )
                     }

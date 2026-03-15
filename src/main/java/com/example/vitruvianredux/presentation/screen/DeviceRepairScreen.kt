@@ -31,6 +31,7 @@ import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.SessionEventLog
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -537,7 +538,7 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
         ) {
             // Step number circle
             Surface(
-                shape = RoundedCornerShape(50),
+                shape = RoundedCornerShape(AppDimens.Corner.pill),
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 modifier = Modifier.size(32.dp),
             ) {
@@ -563,7 +564,7 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
 
             // Status chip
             Surface(
-                shape = RoundedCornerShape(50),
+                shape = RoundedCornerShape(AppDimens.Corner.pill),
                 color = dotColor.copy(alpha = 0.15f),
             ) {
                 Row(
@@ -579,7 +580,7 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
                         )
                     } else {
                         Icon(statusIcon, contentDescription = null,
-                            tint     = dotColor, modifier = Modifier.size(14.dp))
+                            tint     = dotColor, modifier = Modifier.size(AppDimens.Icon.sm))
                     }
                     Text(statusLabel, style = MaterialTheme.typography.labelSmall,
                          color = dotColor, fontSize = 11.sp)
@@ -602,7 +603,7 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
                 ) {
                     Icon(Icons.Default.Build, contentDescription = null,
-                        modifier = Modifier.size(14.dp))
+                        modifier = Modifier.size(AppDimens.Icon.sm))
                     Spacer(Modifier.width(4.dp))
                     Text(step.fixLabel, style = MaterialTheme.typography.labelMedium)
                 }
@@ -630,7 +631,7 @@ private fun AutoRepairCard(
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Default.Build, contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
                 Text("Auto Repair", fontWeight = FontWeight.SemiBold,
                      style = MaterialTheme.typography.titleSmall)
             }
@@ -661,7 +662,7 @@ private fun AutoRepairCard(
                         Spacer(Modifier.width(6.dp))
                         Text("Repairing...")
                     } else {
-                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(6.dp))
                         Text("Repair Now", fontWeight = FontWeight.Bold)
                     }

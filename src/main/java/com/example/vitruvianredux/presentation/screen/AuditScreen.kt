@@ -1,4 +1,4 @@
-﻿@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.example.vitruvianredux.presentation.screen
 
@@ -21,6 +21,7 @@ import com.example.vitruvianredux.ble.ActionStat
 import com.example.vitruvianredux.ble.ExpectedOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -188,7 +189,7 @@ private fun SummaryCard(
                 ) {
                     Icon(Icons.Default.Visibility, null,
                         tint     = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp))
+                        modifier = Modifier.size(AppDimens.Icon.sm))
                     Text(
                         "Highlight Mode ON â€” action IDs overlaid on instrumented controls",
                         style = MaterialTheme.typography.labelSmall,
@@ -275,7 +276,7 @@ private fun ActionStatRow(stat: ActionStat) {
                         wasHit -> Color(0xFFFF9800)
                         else   -> MaterialTheme.colorScheme.error
                     },
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(AppDimens.Icon.md),
                 )
 
                 // Label + actionId

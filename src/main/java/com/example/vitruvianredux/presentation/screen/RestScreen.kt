@@ -142,7 +142,7 @@ fun RestScreenContent(
                     shape = RoundedCornerShape(AppDimens.Corner.sm),
                 ) {
                     Icon(Icons.Default.SkipNext, contentDescription = null,
-                        modifier = Modifier.size(18.dp))
+                        modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(6.dp))
                     Text("Skip Rest", fontWeight = FontWeight.SemiBold)
                 }
@@ -155,7 +155,7 @@ fun RestScreenContent(
                     shape = RoundedCornerShape(AppDimens.Corner.sm),
                 ) {
                     Icon(Icons.Default.SkipNext, contentDescription = null,
-                        modifier = Modifier.size(18.dp))
+                        modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(6.dp))
                     Text("Skip Exercise", fontWeight = FontWeight.SemiBold)
                 }

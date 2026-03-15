@@ -34,6 +34,7 @@ import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.navigation.AppNavHost
 import com.example.vitruvianredux.presentation.navigation.Route
 import com.example.vitruvianredux.presentation.ui.theme.VitruvianTheme
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.components.SyncStatusPill
 import com.example.vitruvianredux.sync.LanSyncManager
 import com.example.vitruvianredux.sync.LanSyncState
@@ -357,7 +358,7 @@ private fun AppTopBar(
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.BluetoothConnected, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.BluetoothConnected, null, modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(4.dp))
                         Text(bleState.device.name, style = MaterialTheme.typography.labelMedium)
                     }
@@ -368,7 +369,7 @@ private fun AppTopBar(
                         enabled = false,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.BluetoothSearching, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.BluetoothSearching, null, modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(4.dp))
                         val label = if (bleState is BleConnectionState.Scanning) "Scanning…" else "Connecting…"
                         Text(label, style = MaterialTheme.typography.labelMedium)
@@ -379,7 +380,7 @@ private fun AppTopBar(
                         onClick        = onConnectClick,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.Bluetooth, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Bluetooth, null, modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(4.dp))
                         Text("Connect", style = MaterialTheme.typography.labelLarge)
                     }

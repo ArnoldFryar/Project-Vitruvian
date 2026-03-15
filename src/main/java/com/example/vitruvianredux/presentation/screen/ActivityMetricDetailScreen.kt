@@ -93,7 +93,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                     Surface(
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 1.dp,
+                        tonalElevation = AppDimens.Elevation.selector,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.padding(16.dp)) {
@@ -145,7 +145,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                     Surface(
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 1.dp,
+                        tonalElevation = AppDimens.Elevation.selector,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.padding(16.dp)) {
@@ -198,7 +198,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                         shape = MaterialTheme.shapes.medium,
                         color = if (isCurrentWeek) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 1.dp,
+                        tonalElevation = AppDimens.Elevation.selector,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -237,7 +237,7 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 2.dp,
+        tonalElevation = AppDimens.Elevation.card,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -325,7 +325,7 @@ private fun StreakContent(onBack: () -> Unit) {
                 Surface(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 2.dp,
+                    tonalElevation = AppDimens.Elevation.card,
                     modifier = Modifier.padding(32.dp),
                 ) {
                     Column(
@@ -397,7 +397,7 @@ private fun StreakContent(onBack: () -> Unit) {
                 Surface(
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 1.dp,
+                    tonalElevation = AppDimens.Elevation.selector,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(16.dp)) {
@@ -482,7 +482,7 @@ private fun StreakContent(onBack: () -> Unit) {
                 Surface(
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 1.dp,
+                    tonalElevation = AppDimens.Elevation.selector,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(16.dp)) {

@@ -45,7 +45,7 @@ fun ConnectionStatusPill(
 
     Surface(
         modifier       = modifier,
-        shape          = RoundedCornerShape(50),
+        shape          = RoundedCornerShape(AppDimens.Corner.pill),
         color          = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
         tonalElevation = AppDimens.Elevation.card,
     ) {

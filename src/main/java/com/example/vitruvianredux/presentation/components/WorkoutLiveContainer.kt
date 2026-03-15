@@ -129,7 +129,7 @@ fun WorkoutLiveContainer(
                 // bottom = lg (24 dp): sheet topStart corner radius is 24 dp;
                 //   matching the clearance keeps the pill above the visual rounding.
                 .padding(start = 44.dp, bottom = AppDimens.Spacing.lg)
-                .clip(RoundedCornerShape(50))
+                .clip(RoundedCornerShape(AppDimens.Corner.pill))
                 .background(Color.Black.copy(alpha = 0.45f)),
             verticalAlignment = Alignment.CenterVertically,
         ) {

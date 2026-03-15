@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Template Preview — shows days, exercises, focus; "Use Template" button
@@ -85,7 +86,7 @@ fun TemplatePreviewScreen(
             )
         },
         bottomBar = {
-            Surface(tonalElevation = 3.dp) {
+            Surface(tonalElevation = AppDimens.Elevation.raised) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -96,7 +97,7 @@ fun TemplatePreviewScreen(
                         onClick = { showConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(8.dp))
                         Text("Use Template", fontWeight = FontWeight.SemiBold)
                     }

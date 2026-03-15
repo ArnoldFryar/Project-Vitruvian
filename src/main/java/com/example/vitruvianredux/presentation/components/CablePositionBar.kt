@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.ble.protocol.CableSample
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.delay
 
 // ─── Movement phase ─────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ fun CablePositionBar(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(AppDimens.Corner.md))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         ) {
             val barWidth = size.width

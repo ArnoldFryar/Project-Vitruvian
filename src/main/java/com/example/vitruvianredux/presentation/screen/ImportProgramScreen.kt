@@ -347,7 +347,7 @@ private fun PasteInputContent(
                 modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.medium,
             ) {
-                Icon(Icons.Default.ContentPaste, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.ContentPaste, null, modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(6.dp))
                 Text("Paste")
             }
@@ -358,7 +358,7 @@ private fun PasteInputContent(
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
-                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(6.dp))
                 Text("Preview")
             }
@@ -607,14 +607,14 @@ private fun ExercisePreviewRow(
         }
         Spacer(Modifier.width(8.dp))
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
             color = matchColor.copy(alpha = 0.12f),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(matchIcon, null, tint = matchColor, modifier = Modifier.size(14.dp))
+                Icon(matchIcon, null, tint = matchColor, modifier = Modifier.size(AppDimens.Icon.sm))
                 Spacer(Modifier.width(4.dp))
                 Text(
                     matchLabel,
@@ -647,7 +647,7 @@ private fun ErrorContent(
                 .background(MaterialTheme.colorScheme.error.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(36.dp))
+            Icon(Icons.Default.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(AppDimens.Icon.xl))
         }
         Spacer(Modifier.height(16.dp))
         Text("Import Failed", fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -663,7 +663,7 @@ private fun ErrorContent(
             onClick = onRetry,
             shape = MaterialTheme.shapes.medium,
         ) {
-            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(AppDimens.Icon.md))
             Spacer(Modifier.width(6.dp))
             Text("Try Again")
         }

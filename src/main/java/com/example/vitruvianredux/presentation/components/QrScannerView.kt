@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.BrandPink
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
@@ -97,7 +98,7 @@ fun QrScannerView(
                         .padding(32.dp)
                         .background(
                             MaterialTheme.colorScheme.surface,
-                            RoundedCornerShape(16.dp),
+                            RoundedCornerShape(AppDimens.Corner.md),
                         )
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

@@ -47,7 +47,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(
     innerPadding: PaddingValues = PaddingValues(),
@@ -686,7 +686,7 @@ fun ProfileScreen(
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 2.dp,
+                    tonalElevation = AppDimens.Elevation.card,
                     modifier = Modifier.clickable { expanded = true },
                 ) {
                     Row(
@@ -694,7 +694,7 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(periodOptions[selectedPeriodIdx].first, style = MaterialTheme.typography.labelMedium, color = cs.primary)
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cs.primary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cs.primary, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -791,9 +791,9 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Exercise History â€” expandable cards with per-set data
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════════
+        //  Exercise History – date-grouped sessions with PR badges
+        // ═══════════════════════════════════════════════════════════
         Text(
             "Exercise History",
             style = MaterialTheme.typography.titleSmall,
@@ -802,68 +802,306 @@ fun ProfileScreen(
         )
 
         if (allLogs.isEmpty() && history.isEmpty()) {
+            // ── Empty state ──
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 tonalElevation = AppDimens.Elevation.selector,
             ) {
-                Text(
-                    "No workouts yet. Complete a session to see your history.",
-                    modifier = Modifier.padding(AppDimens.Spacing.md),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Icon(
+                        Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier.size(40.dp),
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
+                    Text(
+                        "No workouts yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                    Text(
+                        "Complete a session to see your history and personal records.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
             }
         } else {
             val today = LocalDate.now()
             val dateFmt = DateTimeFormatter.ofPattern("MMM d")
+            val yearDateFmt = DateTimeFormatter.ofPattern("MMM d, yyyy")
             val zone = java.time.ZoneId.systemDefault()
 
-            // Prefer AnalyticsStore logs (richer + per-set data), fall back to WorkoutHistoryStore
+            // Prefer AnalyticsStore logs (richer + per-set data)
             val recentLogs = remember(allLogs) {
-                allLogs.sortedByDescending { it.endTimeMs }.take(10)
+                allLogs.sortedByDescending { it.endTimeMs }.take(50)
             }
 
             if (recentLogs.isNotEmpty()) {
-                recentLogs.forEachIndexed { idx, session ->
-                    var expanded by remember { mutableStateOf(false) }
-                    val sessionDate = java.time.Instant.ofEpochMilli(session.endTimeMs)
-                        .atZone(zone).toLocalDate()
-                    val dateLabel = when (val daysAgo = ChronoUnit.DAYS.between(sessionDate, today).toInt()) {
+                // ── PR scan via dedicated tracker ──
+                val prResult = remember(allLogs) {
+                    com.example.vitruvianredux.data.PrTracker.scan(allLogs)
+                }
+
+                // ── Group sessions by date bucket ──
+                val groupedByDate = remember(recentLogs) {
+                    recentLogs.groupBy { session ->
+                        java.time.Instant.ofEpochMilli(session.endTimeMs)
+                            .atZone(zone).toLocalDate()
+                    }.toSortedMap(compareByDescending { it })
+                }
+
+                // Bucket dates into: Today, Yesterday, This Week, then calendar dates
+                data class DateBucket(val label: String, val dates: List<LocalDate>)
+                val buckets = remember(groupedByDate) {
+                    val mondayThisWeek = today.with(java.time.DayOfWeek.MONDAY)
+                    val result = mutableListOf<DateBucket>()
+                    val todayDates = groupedByDate.keys.filter { it == today }
+                    val yesterdayDates = groupedByDate.keys.filter { it == today.minusDays(1) }
+                    val thisWeekDates = groupedByDate.keys.filter {
+                        it >= mondayThisWeek && it < today.minusDays(1)
+                    }.sortedDescending()
+                    val olderDates = groupedByDate.keys.filter { it < mondayThisWeek }
+                        .sortedDescending()
+                    if (todayDates.isNotEmpty()) result += DateBucket("Today", todayDates)
+                    if (yesterdayDates.isNotEmpty()) result += DateBucket("Yesterday", yesterdayDates)
+                    if (thisWeekDates.isNotEmpty()) result += DateBucket("This Week", thisWeekDates)
+                    // Group older by individual dates
+                    for (d in olderDates) {
+                        val label = if (d.year == today.year) d.format(dateFmt) else d.format(yearDateFmt)
+                        result += DateBucket(label, listOf(d))
+                    }
+                    result
+                }
+
+                buckets.forEach { bucket ->
+                    // ── Date section header ──
+                    Text(
+                        text = bucket.label,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = cs.primary,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
+                    )
+
+                    bucket.dates.forEach { date ->
+                        val sessions = groupedByDate[date] ?: return@forEach
+
+                        sessions.forEach { session ->
+                            var expanded by remember { mutableStateOf(false) }
+                            val durationLabel = when {
+                                session.durationSec >= 3600 -> "${session.durationSec / 3600}h ${(session.durationSec % 3600) / 60}m"
+                                session.durationSec >= 60   -> "${session.durationSec / 60} min"
+                                else -> "${session.durationSec}s"
+                            }
+                            val workoutTitle = when {
+                                !session.dayName.isNullOrBlank() && !session.programName.isNullOrBlank() ->
+                                    "${session.dayName} \u2013 ${session.programName}"
+                                !session.dayName.isNullOrBlank() -> session.dayName
+                                !session.programName.isNullOrBlank() -> session.programName
+                                else -> "Quick Lift"
+                            }
+                            val exerciseCount = if (session.exerciseSets.isNotEmpty())
+                                session.exerciseSets.distinctBy { it.exerciseName }.size
+                            else session.exerciseNames.size
+
+                            val summaryParts = mutableListOf<String>()
+                            summaryParts += durationLabel
+                            if (session.totalSets > 0) summaryParts += "${session.totalSets} sets"
+                            if (exerciseCount > 0) summaryParts += "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""}"
+
+                            val sessionHasPrs = com.example.vitruvianredux.data.PrTracker.sessionHasPrs(prResult, session.id)
+
+                            // ── Session card ──
+                            ElevatedCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = AppDimens.Spacing.sm)
+                                    .clickable { expanded = !expanded },
+                                elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Icon(
+                                            Icons.Default.FitnessCenter,
+                                            contentDescription = null,
+                                            tint = cs.primary,
+                                            modifier = Modifier.size(AppDimens.Icon.lg),
+                                        )
+                                        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    workoutTitle,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                )
+                                                // Session-level PR indicator
+                                                if (sessionHasPrs) {
+                                                    Spacer(Modifier.width(6.dp))
+                                                    Icon(
+                                                        Icons.Default.EmojiEvents,
+                                                        contentDescription = "PR",
+                                                        tint = LocalExtendedColors.current.gold,
+                                                        modifier = Modifier.size(AppDimens.Icon.sm),
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                summaryParts.joinToString(" \u2022 "),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        Icon(
+                                            if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = if (expanded) "Collapse" else "Expand",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(AppDimens.Icon.md),
+                                        )
+                                    }
+
+                                    // ── Expandable per-exercise detail ──
+                                    if (expanded) {
+                                        Spacer(Modifier.height(10.dp))
+                                        Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                                        Spacer(Modifier.height(8.dp))
+
+                                        val sessionPrs = prResult.sessionPrs[session.id] ?: emptyMap()
+
+                                        if (session.exerciseSets.isNotEmpty()) {
+                                            val uniqueSets = session.exerciseSets
+                                                .distinctBy { "${it.exerciseName}_${it.setIndex}" }
+                                            val exerciseGroups = uniqueSets.groupBy { it.exerciseName }
+                                            exerciseGroups.forEach { (name, sets) ->
+                                                val sortedSets = sets.sortedBy { it.setIndex }
+                                                val totalSets = sortedSets.size
+                                                val totalReps = sortedSets.sumOf { it.reps }
+                                                val heaviest = sortedSets.maxOfOrNull { it.weightLb } ?: 0
+                                                val exercisePrs = sessionPrs[name] ?: emptyList()
+
+                                                // Exercise row
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 4.dp),
+                                                    verticalAlignment = Alignment.Top,
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            name,
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                        )
+                                                        Text(
+                                                            buildString {
+                                                                append("$totalSets sets \u2022 $totalReps reps")
+                                                                if (heaviest > 0) append(" \u2022 $heaviest lb")
+                                                            },
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        )
+                                                        // PR badges inline
+                                                        if (exercisePrs.isNotEmpty()) {
+                                                            Spacer(Modifier.height(3.dp))
+                                                            androidx.compose.foundation.layout.FlowRow(
+                                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                                                            ) {
+                                                                exercisePrs.forEach { pr ->
+                                                                    Row(
+                                                                        verticalAlignment = Alignment.CenterVertically,
+                                                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                                                    ) {
+                                                                        Icon(
+                                                                            Icons.Default.EmojiEvents,
+                                                                            contentDescription = "PR",
+                                                                            tint = LocalExtendedColors.current.gold,
+                                                                            modifier = Modifier.size(12.dp),
+                                                                        )
+                                                                        Text(
+                                                                            pr.label,
+                                                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                                            fontWeight = FontWeight.SemiBold,
+                                                                            color = LocalExtendedColors.current.gold,
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else if (session.exerciseNames.isNotEmpty()) {
+                                            session.exerciseNames.forEach { name ->
+                                                Text(
+                                                    name,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    modifier = Modifier.padding(start = 4.dp, top = 3.dp, bottom = 2.dp),
+                                                )
+                                            }
+                                        } else {
+                                            Text(
+                                                "No exercise details available",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // ── Fallback to WorkoutHistoryStore — also grouped by date ──
+                val groupedFallback = remember(history) {
+                    history.sortedByDescending { it.date }.take(20).groupBy { it.date }
+                        .toSortedMap(compareByDescending { it })
+                }
+                groupedFallback.forEach { (date, records) ->
+                    val dateLabel = when (val daysAgo = ChronoUnit.DAYS.between(date, today).toInt()) {
                         0 -> "Today"
                         1 -> "Yesterday"
-                        else -> if (daysAgo < 7) "$daysAgo days ago" else sessionDate.format(dateFmt)
+                        else -> if (daysAgo < 7) "This Week" else
+                            if (date.year == today.year) date.format(dateFmt) else date.format(yearDateFmt)
                     }
-                    val durationLabel = when {
-                        session.durationSec >= 3600 -> "${session.durationSec / 3600}h ${(session.durationSec % 3600) / 60}m"
-                        session.durationSec >= 60   -> "${session.durationSec / 60} min"
-                        else -> "${session.durationSec}s"
-                    }
-                    val workoutTitle = when {
-                        !session.programName.isNullOrBlank() && !session.dayName.isNullOrBlank() ->
-                            "${session.programName} â€” ${session.dayName}"
-                        !session.programName.isNullOrBlank() -> session.programName
-                        session.exerciseNames.size == 1 -> "Quick Lift"
-                        session.exerciseNames.isNotEmpty() -> "Individual Exercises"
-                        else -> "Quick Lift"
-                    }
-                    val exerciseCount = if (session.exerciseSets.isNotEmpty())
-                        session.exerciseSets.distinctBy { it.exerciseName }.size
-                    else session.exerciseNames.size
-
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = AppDimens.Spacing.sm)
-                            .clickable { expanded = !expanded },
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = AppDimens.Elevation.selector,
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        dateLabel,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = cs.primary,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
+                    )
+                    records.forEach { record ->
+                        val durationLabel = when {
+                            record.durationSec >= 3600 -> "${record.durationSec / 3600}h ${(record.durationSec % 3600) / 60}m"
+                            record.durationSec >= 60   -> "${record.durationSec / 60} min"
+                            else -> "${record.durationSec}s"
+                        }
+                        val workoutTitle = record.programName ?: if (record.exerciseNames.size <= 1) "Quick Lift" else
+                            record.exerciseNames.take(2).joinToString(", ") +
+                                if (record.exerciseNames.size > 2) " +${record.exerciseNames.size - 2}" else ""
+                        ElevatedCard(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.sm),
+                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
@@ -876,133 +1114,17 @@ fun ProfileScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(workoutTitle, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                                     Text(
-                                        "$dateLabel \u2022 $durationLabel \u2022 ${session.totalSets} sets \u2022 $exerciseCount exercises",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                Icon(
-                                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = if (expanded) "Collapse" else "Expand",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(AppDimens.Icon.md),
-                                )
-                            }
-
-                            // â”€â”€ Expandable per-exercise breakdown â”€â”€
-                            if (expanded) {
-                                Spacer(Modifier.height(10.dp))
-                                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-                                Spacer(Modifier.height(8.dp))
-
-                                if (session.exerciseSets.isNotEmpty()) {
-                                    // Deduplicate by (exerciseName, setIndex) to handle
-                                    // sessions that were recorded multiple times.
-                                    val uniqueSets = session.exerciseSets
-                                        .distinctBy { "${it.exerciseName}_${it.setIndex}" }
-                                    val exerciseGroups = uniqueSets.groupBy { it.exerciseName }
-                                    exerciseGroups.forEach { (name, sets) ->
-                                        // Exercise name header
-                                        Text(
-                                            name,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
-                                        )
-                                        // One row per set with reps + weight
-                                        sets.sortedBy { it.setIndex }.forEachIndexed { i, setLog ->
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(start = 10.dp, bottom = 2.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                            ) {
-                                                Text(
-                                                    "Set ${i + 1}",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                                Text(
-                                                    "${setLog.reps} reps",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                                Text(
-                                                    "${setLog.weightLb} lb",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                            }
-                                        }
-                                    }
-                                } else if (session.exerciseNames.isNotEmpty()) {
-                                    session.exerciseNames.forEach { name ->
-                                        Text(
-                                            name,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Medium,
-                                            modifier = Modifier.padding(start = 8.dp, top = 3.dp, bottom = 2.dp),
-                                        )
-                                    }
-                                } else {
-                                    Text(
-                                        "No exercise details available",
+                                        "$durationLabel \u2022 ${record.totalSets} sets \u2022 ${record.totalReps} reps",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
-                        }
-                    }
-                }
-            } else {
-                // Fallback to WorkoutHistoryStore if AnalyticsStore is empty
-                history.sortedByDescending { it.date }.take(10).forEach { record ->
-                    val dateLabel = when (val daysAgo = ChronoUnit.DAYS.between(record.date, today).toInt()) {
-                        0 -> "Today"
-                        1 -> "Yesterday"
-                        else -> if (daysAgo < 7) "$daysAgo days ago" else record.date.format(dateFmt)
-                    }
-                    val durationLabel = when {
-                        record.durationSec >= 3600 -> "${record.durationSec / 3600}h ${(record.durationSec % 3600) / 60}m"
-                        record.durationSec >= 60   -> "${record.durationSec / 60} min"
-                        else -> "${record.durationSec}s"
-                    }
-                    val exerciseLabel = record.exerciseNames.take(2).joinToString(", ") +
-                        if (record.exerciseNames.size > 2) " +${record.exerciseNames.size - 2}" else ""
-
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.sm),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = AppDimens.Elevation.selector,
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Default.FitnessCenter,
-                                contentDescription = null,
-                                tint = cs.primary,
-                                modifier = Modifier.size(AppDimens.Icon.lg),
-                            )
-                            Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(exerciseLabel, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    "$dateLabel \u2022 ${record.totalSets} sets \u2022 ${record.totalReps} reps",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Text(durationLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
             }
         }
-
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
 

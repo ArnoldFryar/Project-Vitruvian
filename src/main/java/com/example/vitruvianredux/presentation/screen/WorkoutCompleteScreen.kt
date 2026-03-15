@@ -173,7 +173,7 @@ fun WorkoutCompleteContent(
                     contentColor = cs.onPrimary,
                 ),
             ) {
-                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(AppDimens.Spacing.sm))
                 Text(
                     text       = "Save Changes & Exit",
@@ -242,7 +242,7 @@ private fun StatTile(
             Icon(
                 imageVector        = icon,
                 contentDescription = null,
-                modifier           = Modifier.size(18.dp),
+                modifier           = Modifier.size(AppDimens.Icon.md),
                 tint               = MaterialTheme.colorScheme.primary,
             )
             Text(

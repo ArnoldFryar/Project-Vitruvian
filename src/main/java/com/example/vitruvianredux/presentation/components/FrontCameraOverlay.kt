@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import androidx.core.content.ContextCompat
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -93,7 +94,7 @@ fun FrontCameraOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(AppDimens.Corner.md))
             .background(Color.Black)
             .drawWithContent {
                 drawContent()

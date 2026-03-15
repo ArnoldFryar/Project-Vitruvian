@@ -39,7 +39,7 @@ fun SyncStatusPill(
 
     Surface(
         modifier       = if (onClick != null) modifier.clickable(onClick = onClick) else modifier,
-        shape          = RoundedCornerShape(50),
+        shape          = RoundedCornerShape(AppDimens.Corner.pill),
         color          = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
         tonalElevation = AppDimens.Elevation.card,
     ) {

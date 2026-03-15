@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -241,7 +240,7 @@ internal fun ActivePlayerContent(
             sheetPeekHeight     = sheetPeek,
             sheetShape          = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             sheetContainerColor = MaterialTheme.colorScheme.surface,
-            sheetTonalElevation = 2.dp,
+            sheetTonalElevation = AppDimens.Elevation.card,
             sheetContent        = {
                 Column(
                     modifier = Modifier
@@ -281,7 +280,7 @@ internal fun ActivePlayerContent(
                             )
 
                             Surface(
-                                shape = RoundedCornerShape(50),
+                                shape = RoundedCornerShape(AppDimens.Corner.pill),
                                 color = hudColor.copy(alpha = 0.12f),
                             ) {
                                 Text(
@@ -526,7 +525,7 @@ internal fun ActivePlayerContent(
                                     Icon(
                                         Icons.Default.Tune,
                                         contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
+                                        modifier = Modifier.size(AppDimens.Icon.md),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                     Text(
@@ -547,7 +546,7 @@ internal fun ActivePlayerContent(
                                 Icon(
                                     Icons.Default.ExpandMore,
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(AppDimens.Icon.md),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -687,7 +686,7 @@ internal fun ActivePlayerContent(
                                 ),
                             ) {
                                 Icon(Icons.Default.Pause, contentDescription = null,
-                                    modifier = Modifier.size(22.dp))
+                                    modifier = Modifier.size(AppDimens.Icon.lg))
                                 Spacer(Modifier.width(8.dp))
                                 Text("Pause Set", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
@@ -707,7 +706,7 @@ internal fun ActivePlayerContent(
                             Icon(
                                 imageVector = if (isActive) Icons.Default.Stop else Icons.Default.PlayArrow,
                                 contentDescription = null,
-                                modifier = Modifier.size(22.dp),
+                                modifier = Modifier.size(AppDimens.Icon.lg),
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(

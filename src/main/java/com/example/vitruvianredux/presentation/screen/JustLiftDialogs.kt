@@ -13,12 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.ble.protocol.EchoLevel
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.util.UnitConversions
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.components.DialogContainer
 
 // ─────────────────────────────────────────────
 // Reusable settings row
@@ -45,7 +44,7 @@ internal fun SettingsRow(
                 .background(cs.surfaceVariant, RoundedCornerShape(AppDimens.Corner.sm)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
         }
         Spacer(Modifier.width(AppDimens.Spacing.md_sm))
         Text(label, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
@@ -63,21 +62,14 @@ internal fun ModePickerDialog(
     onDismiss: () -> Unit
 ) {
     val cs = MaterialTheme.colorScheme
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(modifier = Modifier.fillMaxSize().clickable(enabled = false) {}, contentAlignment = Alignment.Center) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(0.88f)
-                    .background(cs.surface, RoundedCornerShape(16.dp))
-                    .padding(vertical = 8.dp)
-            ) {
+    DialogContainer(onDismiss = onDismiss) {
                 Text("Modes", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
                 JustLiftMode.entries.forEach { mode ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelect(mode) }
-                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                            .padding(horizontal = 20.dp, vertical = AppDimens.Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -86,18 +78,16 @@ internal fun ModePickerDialog(
                             if (mode == JustLiftMode.Echo) {
                                 Spacer(Modifier.width(8.dp))
                                 Box(modifier = Modifier
-                                    .background(cs.tertiaryContainer, RoundedCornerShape(6.dp))
+                                    .background(cs.tertiaryContainer, RoundedCornerShape(AppDimens.Corner.xs))
                                     .padding(horizontal = 8.dp, vertical = 2.dp)) {
                                     Text("Beta", color = cs.onTertiaryContainer, style = MaterialTheme.typography.labelSmall)
                                 }
                             }
                         }
-                        if (mode == current) Icon(Icons.Default.Check, contentDescription = "Selected", tint = cs.onSurface, modifier = Modifier.size(20.dp))
+                        if (mode == current) Icon(Icons.Default.Check, contentDescription = "Selected", tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (mode != JustLiftMode.entries.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
                 }
-            }
-        }
     }
 }
 
@@ -108,13 +98,7 @@ internal fun ModePickerDialog(
 internal fun EccentricPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val options = listOf(0, 50, 75, 100, 110, 120, 130)
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .background(cs.surface, RoundedCornerShape(16.dp))
-                .padding(vertical = 8.dp)
-            ) {
+    DialogContainer(onDismiss = onDismiss) {
                 Text("Eccentric Load", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
                 options.forEach { pct ->
                     Row(
@@ -126,12 +110,10 @@ internal fun EccentricPickerDialog(current: Int, onSelect: (Int) -> Unit, onDism
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("$pct%", color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (pct == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(20.dp))
+                        if (pct == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (pct != options.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
                 }
-            }
-        }
     }
 }
 
@@ -141,13 +123,7 @@ internal fun EccentricPickerDialog(current: Int, onSelect: (Int) -> Unit, onDism
 @Composable
 internal fun LevelPickerDialog(current: EchoLevel, onSelect: (EchoLevel) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .background(cs.surface, RoundedCornerShape(16.dp))
-                .padding(vertical = 8.dp)
-            ) {
+    DialogContainer(onDismiss = onDismiss) {
                 Text("Levels", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
                 EchoLevel.entries.forEach { level ->
                     Row(
@@ -159,12 +135,10 @@ internal fun LevelPickerDialog(current: EchoLevel, onSelect: (EchoLevel) -> Unit
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(level.displayName, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (level == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(20.dp))
+                        if (level == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (level != EchoLevel.entries.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
                 }
-            }
-        }
     }
 }
 
@@ -178,13 +152,7 @@ internal fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, 
     val unitLabel = if (isLb) "lb" else "kg"
     // Options stored in kg — displayed in user's preferred unit
     val options = listOf(-10f, -5f, -2.5f, -1f, -0.5f, 0f, 0.5f, 1f, 2.5f, 5f, 10f)
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .background(cs.surface, RoundedCornerShape(16.dp))
-                .padding(vertical = 8.dp)
-            ) {
+    DialogContainer(onDismiss = onDismiss) {
                 Text("Progression / Regression", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
                 options.forEach { v ->
                     Row(
@@ -198,12 +166,10 @@ internal fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, 
                         val displayVal = if (isLb) UnitConversions.kgToLb(v.toDouble()).toFloat() else v
                         val text = formatSignedUnitValue(displayVal, unitLabel)
                         Text(text, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (v == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(20.dp))
+                        if (v == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (v != options.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
                 }
-            }
-        }
     }
 }
 
@@ -214,13 +180,7 @@ internal fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, 
 internal fun RestPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val options = listOf(0, 30, 60, 90, 120, 180, 240, 300)
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .background(cs.surface, RoundedCornerShape(16.dp))
-                .padding(vertical = 8.dp)
-            ) {
+    DialogContainer(onDismiss = onDismiss) {
                 Text("Rest Timer", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
                 options.forEach { s ->
                     Row(
@@ -232,12 +192,10 @@ internal fun RestPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: 
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(if (s == 0) "Off" else "%d:%02d".format(s / 60, s % 60), color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (s == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(20.dp))
+                        if (s == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (s != options.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
                 }
-            }
-        }
     }
 }
 
@@ -249,13 +207,7 @@ internal fun RepTimingPickerDialog(current: String, onSelect: (String) -> Unit, 
     val cs = MaterialTheme.colorScheme
     val options = listOf("TOP", "BOTTOM")
     val labels  = listOf("Top (concentric peak)", "Bottom (after eccentric)")
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(modifier = Modifier
-                .fillMaxWidth(0.88f)
-                .background(cs.surface, RoundedCornerShape(16.dp))
-                .padding(vertical = 8.dp)
-            ) {
+    DialogContainer(onDismiss = onDismiss) {
                 Text("Rep Count Timing", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
                 options.forEachIndexed { idx, opt ->
                     Row(
@@ -267,11 +219,9 @@ internal fun RepTimingPickerDialog(current: String, onSelect: (String) -> Unit, 
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(labels[idx], color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (opt == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(20.dp))
+                        if (opt == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (idx < options.lastIndex) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
                 }
-            }
-        }
     }
 }

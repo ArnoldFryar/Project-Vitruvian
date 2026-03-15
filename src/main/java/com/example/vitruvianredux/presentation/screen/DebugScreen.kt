@@ -63,7 +63,7 @@ fun DebugScreen(
             ),
     ) {
         // ── Header ────────────────────────────────────────────────────
-        Surface(tonalElevation = 2.dp) {
+        Surface(tonalElevation = AppDimens.Elevation.card) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -210,7 +210,7 @@ private fun BleLogRow(entry: BleDebugLog.Entry) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(bgColor, RoundedCornerShape(6.dp))
+            .background(bgColor, RoundedCornerShape(AppDimens.Corner.xs))
             .padding(horizontal = 8.dp, vertical = 5.dp),
         verticalAlignment     = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -219,7 +219,7 @@ private fun BleLogRow(entry: BleDebugLog.Entry) {
             imageVector        = dirIcon,
             contentDescription = if (isTx) "TX" else "RX",
             tint               = dirColor,
-            modifier           = Modifier.size(14.dp).padding(top = 2.dp),
+            modifier           = Modifier.size(AppDimens.Icon.sm).padding(top = 2.dp),
         )
 
         Column(modifier = Modifier.weight(1f)) {

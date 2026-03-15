@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.delay
 
 /**
@@ -69,7 +70,7 @@ fun RepQualityBadge(
         val (bgColor, fgColor) = badgeColors(q.score)
 
         Surface(
-            shape = RoundedCornerShape(50),
+            shape = RoundedCornerShape(AppDimens.Corner.pill),
             color = bgColor,
         ) {
             Row(

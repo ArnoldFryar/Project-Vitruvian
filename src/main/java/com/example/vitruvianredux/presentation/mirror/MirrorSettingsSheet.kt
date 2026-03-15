@@ -70,7 +70,7 @@ fun MirrorSettingsSheet(onDismiss: () -> Unit) {
                     contentDescription = null,
                     modifier           = Modifier
                         .padding(end = AppDimens.Spacing.sm)
-                        .size(20.dp),
+                        .size(AppDimens.Icon.md),
                     tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Column(modifier = Modifier.weight(1f)) {

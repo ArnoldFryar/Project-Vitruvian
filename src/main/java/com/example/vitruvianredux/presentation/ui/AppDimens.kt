@@ -32,6 +32,8 @@ object AppDimens {
     }
 
     object Corner {
+        /** 6 dp – badges, tags, compact chips */
+        val xs: Dp = 6.dp
         /** 8 dp – chips, small buttons, compact cards */
         val sm: Dp = 8.dp
         /** 12 dp – medium-small cards, player buttons */
@@ -40,6 +42,8 @@ object AppDimens {
         val md: Dp = 16.dp
         /** 24 dp – hero cards, sheet handles */
         val lg: Dp = 24.dp
+        /** 50 % – pills, status indicators, fully rounded */
+        val pill: Int = 50
     }
 
     object Icon {
@@ -58,6 +62,8 @@ object AppDimens {
         val selector: Dp = 1.dp
         /** Standard card elevation */
         val card: Dp = 2.dp
+        /** Raised surface — toolbar / header bars */
+        val raised: Dp = 3.dp
     }
 
     object Layout {

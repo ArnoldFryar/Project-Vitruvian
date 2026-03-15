@@ -293,7 +293,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     modifier = Modifier.fillMaxWidth(),
                     shape    = RoundedCornerShape(AppDimens.Corner.md),
                 ) {
-                    Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Add, null, modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text(
                         if (draftItems.isEmpty()) "Add Exercises" else "Add / Edit Exercises (${draftItems.size})",

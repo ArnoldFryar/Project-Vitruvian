@@ -75,7 +75,7 @@ fun ActivityHistoryScreen(
                 Surface(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 2.dp,
+                    tonalElevation = AppDimens.Elevation.card,
                     modifier = Modifier.padding(AppDimens.Spacing.xl),
                 ) {
                     Column(
@@ -171,7 +171,7 @@ private fun WorkoutHistoryCard(
             .clickable { expanded = !expanded },
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 2.dp,
+        tonalElevation = AppDimens.Elevation.card,
     ) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
             // Title row
@@ -210,7 +210,7 @@ private fun WorkoutHistoryCard(
             ) {
                 // Duration
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Timer, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Default.Timer, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.sm))
                     Spacer(Modifier.width(4.dp))
                     Text(durationLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -228,7 +228,7 @@ private fun WorkoutHistoryCard(
                 )
                 // Points
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = LocalExtendedColors.current.gold, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Default.Star, contentDescription = null, tint = LocalExtendedColors.current.gold, modifier = Modifier.size(AppDimens.Icon.sm))
                     Spacer(Modifier.width(2.dp))
                     Text(
                         "$points pts",
