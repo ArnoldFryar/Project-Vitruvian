@@ -217,6 +217,8 @@ fun AppScaffold() {
                             stats         = stats,
                             exerciseNames = exerciseNames,
                             exerciseSets  = exerciseSets,
+                            programName   = workoutVM.activeProgramName,
+                            dayName       = workoutVM.activeDayName,
                         )
 
                         // ── Durable exercise/set history (Room, pending sync) ──
