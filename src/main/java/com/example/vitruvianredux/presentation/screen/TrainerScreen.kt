@@ -1,5 +1,8 @@
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -92,6 +95,52 @@ fun TrainerScreen(
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+        // ═══════════════════════════════════════════════════════
+        //  DISCONNECTED HERO
+        // ═══════════════════════════════════════════════════════
+        AnimatedVisibility(
+            visible = !isConnected && !isScanning && !isConnecting,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = AppDimens.Elevation.card,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(AppDimens.Spacing.xl),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BluetoothSearching,
+                        contentDescription = null,
+                        modifier = Modifier.size(56.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                    )
+                    Text(
+                        text = "No trainer connected",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "Turn on your Vitruvian trainer and tap Connect below.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+            }
+        }
+        if (!isConnected && !isScanning && !isConnecting) {
+            Spacer(Modifier.height(AppDimens.Spacing.lg))
+        }
 
         // ═══════════════════════════════════════════════════════
         //  GENERAL section

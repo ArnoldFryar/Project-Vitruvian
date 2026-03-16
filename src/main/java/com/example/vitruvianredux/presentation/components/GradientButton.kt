@@ -1,8 +1,10 @@
 package com.example.vitruvianredux.presentation.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
@@ -12,17 +14,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 
 /**
  * Full-width gradient pill button.
@@ -56,12 +61,19 @@ fun GradientButton(
     }
     val contentColor = if (enabled) cs.onPrimary else cs.onSurface.copy(alpha = 0.38f)
     val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed && enabled) MotionTokens.PRESS_SCALE else 1f,
+        animationSpec = MotionTokens.SnapSpring,
+        label = "btnScale",
+    )
     val shape = RoundedCornerShape(AppDimens.Corner.lg)
 
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         Box(
             modifier = modifier
                 .fillMaxWidth()
+                .graphicsLayer(scaleX = pressScale, scaleY = pressScale)
                 .clip(shape)
                 .background(gradient)
                 .clickable(

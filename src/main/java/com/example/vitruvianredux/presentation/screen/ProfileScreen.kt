@@ -1,6 +1,8 @@
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,8 +39,11 @@ import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import kotlinx.coroutines.launch
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
+import com.example.vitruvianredux.presentation.components.TrainingHeatmap
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.ScreenScaffold
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
@@ -792,6 +797,15 @@ fun ProfileScreen(
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // ═══════════════════════════════════════════════════════════
+        //  Consistency heatmap — GitHub-style training calendar
+        // ═══════════════════════════════════════════════════════════
+        ProfileSection(title = "Consistency") {
+            TrainingHeatmap(allLogs = allLogs)
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+        // ═══════════════════════════════════════════════════════════
         //  Exercise History – date-grouped sessions with PR badges
         // ═══════════════════════════════════════════════════════════
         Text(
@@ -803,38 +817,12 @@ fun ProfileScreen(
 
         if (allLogs.isEmpty() && history.isEmpty()) {
             // ── Empty state ──
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                tonalElevation = AppDimens.Elevation.selector,
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Icon(
-                        Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(40.dp),
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-                    Text(
-                        "No workouts yet",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                    Text(
-                        "Complete a session to see your history and personal records.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    )
-                }
-            }
+            AppEmptyState(
+                icon = Icons.Default.FitnessCenter,
+                headline = "No workouts yet",
+                description = "Complete a session to start seeing your history and personal records.",
+                modifier = Modifier.padding(vertical = AppDimens.Spacing.xl),
+            )
         } else {
             val today = LocalDate.now()
             val dateFmt = DateTimeFormatter.ofPattern("MMM d")
@@ -929,7 +917,10 @@ fun ProfileScreen(
                                     .clickable { expanded = !expanded },
                                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
                             ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
+                                Column(modifier = Modifier
+                                    .animateContentSize(tween(MotionTokens.STANDARD_MS))
+                                    .padding(14.dp)
+                                ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,

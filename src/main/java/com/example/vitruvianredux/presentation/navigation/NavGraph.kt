@@ -40,6 +40,7 @@ enum class Route(val path: String) {
     ImportProgram("import_program"),
     SessionDetail("session_detail"),
     TemplatePreview("template_preview"),
+    ExerciseDataDetail("exercise_data"),
 }
 
 private const val ANIM_DURATION = 280
@@ -180,6 +181,11 @@ fun AppNavHost(
                 onNavigateToSessionDetail = { id ->
                     nav.navigate("${Route.SessionDetail.path}/$id")
                 },
+                onNavigateToExerciseDetail = { sessionId, exerciseName ->
+                    nav.navigate(
+                        "${Route.ExerciseDataDetail.path}/$sessionId/${Uri.encode(exerciseName)}"
+                    )
+                },
             )
         }
         composable(route = "${Route.ActivityMetricDetail.path}/{type}") { backStackEntry ->
@@ -197,6 +203,16 @@ fun AppNavHost(
             SessionDetailScreen(
                 sessionId = sessionId,
                 onBack = { nav.popBackStack() },
+            )
+        }
+        composable(route = "${Route.ExerciseDataDetail.path}/{sessionId}/{exerciseName}") { backStackEntry ->
+            val sessionId    = backStackEntry.arguments?.getString("sessionId") ?: ""
+            val exerciseName = backStackEntry.arguments?.getString("exerciseName")
+                ?.let { Uri.decode(it) } ?: ""
+            ExerciseDataScreen(
+                sessionId    = sessionId,
+                exerciseName = exerciseName,
+                onBack       = { nav.popBackStack() },
             )
         }
         // Import program (paste JSON / share-sheet)

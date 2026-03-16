@@ -2,7 +2,9 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -20,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -43,7 +46,10 @@ internal fun ProfileSection(
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = AppDimens.Elevation.selector,
     ) {
-        Column(Modifier.padding(AppDimens.Spacing.md)) {
+        Column(Modifier
+            .animateContentSize(tween(MotionTokens.STANDARD_MS))
+            .padding(AppDimens.Spacing.md)
+        ) {
             content()
         }
     }
@@ -70,10 +76,19 @@ internal fun PressScaleCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(targetValue = if (isPressed) 0.98f else 1f, label = "cardScale")
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) MotionTokens.PRESS_SCALE else 1f,
+        animationSpec = MotionTokens.SnapSpring,
+        label = "cardScale",
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (isPressed) MotionTokens.PRESS_ALPHA else 1f,
+        animationSpec = MotionTokens.SnapSpring,
+        label = "cardAlpha",
+    )
     ElevatedCard(
         modifier = modifier
-            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         shape   = MaterialTheme.shapes.medium,
         content = content,

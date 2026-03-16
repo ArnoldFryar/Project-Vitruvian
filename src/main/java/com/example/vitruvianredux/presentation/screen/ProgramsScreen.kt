@@ -2,9 +2,12 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,8 +34,10 @@ import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 import kotlinx.coroutines.flow.StateFlow
 
 data class ProgramDraft(val name: String, val items: List<ProgramItemDraft>)
@@ -107,12 +112,20 @@ fun ProgramsScreen(
             }
 
             item(key = "create") {
+                val createInteraction = remember { MutableInteractionSource() }
+                val createPressed by createInteraction.collectIsPressedAsState()
+                val createScale by animateFloatAsState(
+                    targetValue = if (createPressed) MotionTokens.PRESS_SCALE else 1f,
+                    animationSpec = MotionTokens.SnapSpring, label = "createScale",
+                )
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        WiringRegistry.hit(A_PROGRAMS_CREATE_OPEN)
-                        WiringRegistry.recordOutcome(A_PROGRAMS_CREATE_OPEN, ActualOutcome.SheetOpened("program_builder"))
-                        showBuilder = true
-                    },
+                    modifier = Modifier.fillMaxWidth()
+                        .graphicsLayer(scaleX = createScale, scaleY = createScale)
+                        .clickable(interactionSource = createInteraction, indication = null) {
+                            WiringRegistry.hit(A_PROGRAMS_CREATE_OPEN)
+                            WiringRegistry.recordOutcome(A_PROGRAMS_CREATE_OPEN, ActualOutcome.SheetOpened("program_builder"))
+                            showBuilder = true
+                        },
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
@@ -130,8 +143,16 @@ fun ProgramsScreen(
             }
 
             item(key = "import") {
+                val importInteraction = remember { MutableInteractionSource() }
+                val importPressed by importInteraction.collectIsPressedAsState()
+                val importScale by animateFloatAsState(
+                    targetValue = if (importPressed) MotionTokens.PRESS_SCALE else 1f,
+                    animationSpec = MotionTokens.SnapSpring, label = "importScale",
+                )
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth().clickable { onNavigateToImport() },
+                    modifier = Modifier.fillMaxWidth()
+                        .graphicsLayer(scaleX = importScale, scaleY = importScale)
+                        .clickable(interactionSource = importInteraction, indication = null) { onNavigateToImport() },
                     shape    = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
@@ -159,14 +180,12 @@ fun ProgramsScreen(
 
             if (orderedPrograms.isEmpty()) {
                 item(key = "empty") {
-                    ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
-                        Text(
-                            "No programs yet. Tap \"Create Program\" to build one.",
-                            style    = MaterialTheme.typography.bodySmall,
-                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(AppDimens.Spacing.md),
-                        )
-                    }
+                    AppEmptyState(
+                        icon = Icons.Default.Assignment,
+                        headline = "No programs yet",
+                        description = "Create your first program to structure your training journey.",
+                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xl),
+                    )
                 }
             }
 

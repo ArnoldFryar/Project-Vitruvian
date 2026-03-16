@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +16,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
+import com.example.vitruvianredux.presentation.components.AppEmptyState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
@@ -38,6 +42,7 @@ import java.time.temporal.ChronoUnit
 fun ActivityHistoryScreen(
     onBack: () -> Unit,
     onNavigateToSessionDetail: (sessionId: String) -> Unit = {},
+    onNavigateToExerciseDetail: (sessionId: String, exerciseName: String) -> Unit = { _, _ -> },
 ) {
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
@@ -68,40 +73,12 @@ fun ActivityHistoryScreen(
     ) { innerPadding ->
         if (allLogs.isEmpty()) {
             // ── Empty state ──────────────────────────────────────────
-            Box(
-                Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = AppDimens.Elevation.card,
-                    modifier = Modifier.padding(AppDimens.Spacing.xl),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(AppDimens.Spacing.xl),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
-                    ) {
-                        Icon(
-                            Icons.Default.FitnessCenter,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                        )
-                        Text(
-                            "Start your training log",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            "Complete a workout to see your history here.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
+            AppEmptyState(
+                icon = Icons.Default.FitnessCenter,
+                headline = "No workouts yet",
+                description = "Complete your first session to start building your training history.",
+                modifier = Modifier.padding(innerPadding),
+            )
             return@Scaffold
         }
 
@@ -128,10 +105,13 @@ fun ActivityHistoryScreen(
                 // ── Session cards for this date ──────────────────────
                 items(sessions, key = { it.id }) { session ->
                     WorkoutHistoryCard(
-                        session = session,
+                        session    = session,
                         unitSystem = unitSystem,
-                        zone = zone,
-                        onClick = { onNavigateToSessionDetail(session.id) },
+                        zone       = zone,
+                        onClick    = { onNavigateToSessionDetail(session.id) },
+                        onExerciseTap = { exerciseName ->
+                            onNavigateToExerciseDetail(session.id, exerciseName)
+                        },
                     )
                     Spacer(Modifier.height(8.dp))
                 }
@@ -145,7 +125,8 @@ private fun WorkoutHistoryCard(
     session: AnalyticsStore.SessionLog,
     unitSystem: UnitsStore.UnitSystem,
     zone: ZoneId,
-    onClick: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onClick: () -> Unit,
+    onExerciseTap: (exerciseName: String) -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
     val timeFmt = DateTimeFormatter.ofPattern("h:mm a")
@@ -173,7 +154,10 @@ private fun WorkoutHistoryCard(
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = AppDimens.Elevation.card,
     ) {
-        Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
+        Column(modifier = Modifier
+            .animateContentSize(tween(MotionTokens.STANDARD_MS))
+            .padding(AppDimens.Spacing.md)
+        ) {
             // Title row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -254,54 +238,78 @@ private fun WorkoutHistoryCard(
                 Spacer(Modifier.height(8.dp))
 
                 if (session.exerciseSets.isNotEmpty()) {
-                    val exerciseGroups = session.exerciseSets.groupBy { it.exerciseName }
+                    // Group sets by exercise; show one summary row per exercise (tappable)
+                    val exerciseGroups = session.exerciseSets
+                        .groupBy { it.exerciseName }
+                        .entries
+                        .sortedBy { (_, sets) -> sets.minOf { it.setIndex } }
+
                     exerciseGroups.forEach { (name, sets) ->
-                        Text(
-                            name,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
-                        sets.forEach { setLog ->
+                        val totalReps = sets.sumOf { it.reps }
+                        val topWeight = sets.maxOf { it.weightLb }
+                        val weightDisplay = if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) {
+                            "$topWeight lb"
+                        } else {
+                            "%.1f kg".format(topWeight * 0.45359237)
+                        }
+
+                        Surface(
+                            onClick = { onExerciseTap(name) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 0.dp,
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, bottom = 2.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
-                                    "Set ${setLog.setIndex + 1}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.weight(1f),
                                 )
                                 Text(
-                                    "${setLog.reps} reps",
-                                    style = MaterialTheme.typography.labelSmall,
+                                    "$totalReps Reps",
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp),
                                 )
                                 Text(
-                                    "${setLog.weightLb} lb",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    weightDisplay,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
-                        Spacer(Modifier.height(6.dp))
                     }
                 } else if (session.exerciseNames.isNotEmpty()) {
-                    Text(
-                        "Exercises:",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
+                    // Fallback: no per-set data, show exercise names only (tap to attempt detail)
                     session.exerciseNames.forEach { name ->
-                        Text(
-                            "\u2022 $name",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 8.dp, bottom = 2.dp),
-                        )
+                        Surface(
+                            onClick = { onExerciseTap(name) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp),
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 0.dp,
+                        ) {
+                            Text(
+                                "\u2022 $name",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                            )
+                        }
                     }
                 } else {
                     Text(
