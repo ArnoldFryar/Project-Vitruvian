@@ -43,7 +43,10 @@ fun EditExerciseSheet(
     onSave: (ProgramItemDraft) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange    = { it != SheetValue.Hidden },
+    )
 
     var mode          by remember { mutableStateOf(item.mode) }
     var sets          by remember { mutableIntStateOf(item.sets) }

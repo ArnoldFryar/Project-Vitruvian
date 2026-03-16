@@ -7,6 +7,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.units.Energy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,6 +45,7 @@ object HealthConnectManager {
     val REQUIRED_PERMISSIONS = setOf(
         HealthPermission.getWritePermission(ExerciseSessionRecord::class),
         HealthPermission.getWritePermission(ActiveCaloriesBurnedRecord::class),
+        HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class),
     )
 
     private var _availability = Availability.NOT_INSTALLED
@@ -124,6 +126,9 @@ object HealthConnectManager {
         val startEpochMs: Long,
         val endEpochMs: Long,
         val calories: Int,
+        val totalSets: Int = 0,
+        val totalReps: Int = 0,
+        val totalVolumeKg: Float = 0f,
     )
 
     /**
@@ -152,6 +157,19 @@ object HealthConnectManager {
             val endInstant   = Instant.ofEpochMilli(summary.endEpochMs)
             val zone         = ZoneId.systemDefault()
 
+            // Build a human-readable notes string from the aggregate stats.
+            val notes: String? = buildString {
+                if (summary.totalSets > 0)   append("${summary.totalSets} sets")
+                if (summary.totalReps > 0) {
+                    if (isNotEmpty()) append(" · ")
+                    append("${summary.totalReps} reps")
+                }
+                if (summary.totalVolumeKg > 0f) {
+                    if (isNotEmpty()) append(" · ")
+                    append("${"%.1f".format(summary.totalVolumeKg)} kg")
+                }
+            }.ifEmpty { null }
+
             val exerciseSession = ExerciseSessionRecord(
                 startTime       = startInstant,
                 startZoneOffset = zone.rules.getOffset(startInstant),
@@ -159,24 +177,33 @@ object HealthConnectManager {
                 endZoneOffset   = zone.rules.getOffset(endInstant),
                 exerciseType    = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
                 title           = summary.title,
+                notes           = notes,
             )
 
             val records = mutableListOf<androidx.health.connect.client.records.Record>(exerciseSession)
 
-            // Include calories only if > 0 and plausible (< 5000 kcal).
+            // Include calorie records only if > 0 and plausible (< 5000 kcal).
             if (summary.calories in 1..4999) {
+                val energyKcal = Energy.kilocalories(summary.calories.toDouble())
                 records += ActiveCaloriesBurnedRecord(
                     startTime       = startInstant,
                     startZoneOffset = zone.rules.getOffset(startInstant),
                     endTime         = endInstant,
                     endZoneOffset   = zone.rules.getOffset(endInstant),
-                    energy          = Energy.kilocalories(summary.calories.toDouble()),
+                    energy          = energyKcal,
+                )
+                records += TotalCaloriesBurnedRecord(
+                    startTime       = startInstant,
+                    startZoneOffset = zone.rules.getOffset(startInstant),
+                    endTime         = endInstant,
+                    endZoneOffset   = zone.rules.getOffset(endInstant),
+                    energy          = energyKcal,
                 )
             }
 
             hc.insertRecords(records)
             Timber.tag("sync").i("writeWorkoutSummary: SUCCESS — ${records.size} record(s) written" +
-                "  title=\"${summary.title}\"  cal=${summary.calories}")
+                "  title=\"${summary.title}\"  cal=${summary.calories}  notes=$notes")
             true
         } catch (e: SecurityException) {
             Timber.tag("sync").w(e, "writeWorkoutSummary: permission denied — grant Health Connect permissions in Settings")

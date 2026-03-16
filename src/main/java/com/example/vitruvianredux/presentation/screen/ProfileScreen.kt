@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
-import com.example.vitruvianredux.presentation.components.TrainingHeatmap
+import com.example.vitruvianredux.presentation.components.TrainingMomentumCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.ScreenScaffold
@@ -799,8 +799,8 @@ fun ProfileScreen(
         // ═══════════════════════════════════════════════════════════
         //  Consistency heatmap — GitHub-style training calendar
         // ═══════════════════════════════════════════════════════════
-        ProfileSection(title = "Consistency") {
-            TrainingHeatmap(allLogs = allLogs)
+        ProfileSection(title = "Training Momentum") {
+            TrainingMomentumCard(allLogs = allLogs)
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))

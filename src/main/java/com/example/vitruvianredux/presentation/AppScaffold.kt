@@ -253,10 +253,13 @@ fun AppScaffold() {
                                 ?: playerExercise?.name
                                 ?: "Vitruvian Workout"
                             val summary = HealthConnectManager.WorkoutSummary(
-                                title        = title,
-                                startEpochMs = startMs,
-                                endEpochMs   = endMs,
-                                calories     = stats.calories,
+                                title          = title,
+                                startEpochMs   = startMs,
+                                endEpochMs     = endMs,
+                                calories       = stats.calories,
+                                totalSets      = stats.totalSets,
+                                totalReps      = stats.totalReps,
+                                totalVolumeKg  = stats.totalVolumeKg,
                             )
                             HealthConnectManager.writeWorkoutSummary(summary)
                         }

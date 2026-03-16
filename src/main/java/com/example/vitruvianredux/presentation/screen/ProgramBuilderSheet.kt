@@ -110,7 +110,9 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Keep editing") }
+                TextButton(onClick = { showDiscardDialog = false }) {
+                    Text(if (hasUnsavedChanges) "Keep editing" else "Cancel")
+                }
             },
         )
     }
@@ -129,7 +131,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
     })
 
     ModalBottomSheet(
-        onDismissRequest = { if (hasUnsavedChanges) showDiscardDialog = true else onDismiss() },
+        onDismissRequest = { showDiscardDialog = true },
         sheetState       = sheetState,
         windowInsets     = WindowInsets(0),
     ) {

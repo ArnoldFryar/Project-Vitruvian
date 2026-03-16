@@ -1,154 +1,339 @@
-package com.example.vitruvianredux.presentation.components
+﻿package com.example.vitruvianredux.presentation.components
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import kotlinx.coroutines.flow.first
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 
-private val CELL_DP    = 10.dp
-private val CELL_GAP   = 2.dp
-private val CORNER_DP  = 2.dp
-private const val NUM_WEEKS = 26   // ~6 months
+/* â”€â”€ Visual constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+private const val ROWS           = 7           // Mon=0 â€¦ Sun=6
+private val CELL_SIZE            = 11.dp
+private val CELL_GAP             = 2.dp        // tighter gap for density
+private val CELL_CORNER          = 2.dp
+private val DOW_LABEL_WIDTH      = 10.dp       // single char "M / W / F"
+private val MONTH_ROW_HEIGHT     = 14.dp
+private const val MIN_WEEKS      = 16
+private const val MAX_WEEKS      = 52
+
+// â”€â”€ DOW single-char labels on rows 0, 2, 4 (Mon, Wed, Fri) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+private val DOW_LABELS = listOf(0 to "M", 2 to "W", 4 to "F")
 
 /**
- * GitHub-style training consistency heatmap.
+ * GitHub-style training consistency heatmap drawn entirely via [Canvas].
  *
- * Renders the last [NUM_WEEKS] calendar weeks as a column-per-week grid where
- * Monday is at the top and Sunday at the bottom.  Each cell is coloured by how
- * many sessions were recorded on that day:
+ * Adapts the number of weeks shown based on available card width:
+ *  - Phone  (~328 dp): ~26 weeks (â‰ˆ 6 months)
+ *  - Tablet (~560 dp): ~46 weeks (â‰ˆ 10â€“11 months)
  *
- *   0 sessions → dim surface  
- *   1 session  → light primary tint  
- *   2 sessions → medium primary tint  
- *   3 sessions → strong primary tint  
- *   4+ sessions → full primary
+ * This lets tablet layouts fill their wider cards with extra history rather
+ * than leaving dead space.  On both form factors cells stay close to the
+ * ideal [CELL_SIZE] size because colStep is back-calculated to fill width
+ * exactly once the week count is chosen.
  *
- * Tapping a cell opens an [AlertDialog] listing that day's sessions.
- *
- * @param allLogs  Complete session list from [AnalyticsStore.logsFlow].
+ * Month labels appear only at month boundaries.  Tapping a cell shows an
+ * [AlertDialog] with that day's session details.
  */
 @Composable
 fun TrainingHeatmap(
     allLogs: List<AnalyticsStore.SessionLog>,
     modifier: Modifier = Modifier,
 ) {
-    val zone  = ZoneId.systemDefault()
-    val today = LocalDate.now()
-    val cs    = MaterialTheme.colorScheme
+    val zone    = ZoneId.systemDefault()
+    val today   = LocalDate.now()
+    val cs      = MaterialTheme.colorScheme
+    val density = LocalDensity.current
 
-    // ── Sessions grouped by day ──────────────────────────────────────────────
-    val sessionsByDay: Map<LocalDate, List<AnalyticsStore.SessionLog>> = remember(allLogs) {
+    // â”€â”€ Sessions grouped by local day â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    val sessionsByDay = remember(allLogs) {
         allLogs.groupBy { log ->
             Instant.ofEpochMilli(log.endTimeMs).atZone(zone).toLocalDate()
         }
     }
 
-    // ── Colour scale ─────────────────────────────────────────────────────────
-    val colorEmpty = cs.surfaceVariant.copy(alpha = 0.4f)
-    val color1     = cs.primary.copy(alpha = 0.22f)
-    val color2     = cs.primary.copy(alpha = 0.48f)
-    val color3     = cs.primary.copy(alpha = 0.74f)
+    // â”€â”€ Colour scale â€” well-stepped alphas for clear intensity levels â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    val colorEmpty = cs.surfaceVariant.copy(alpha = 0.30f)
+    val color1     = cs.primary.copy(alpha = 0.28f)
+    val color2     = cs.primary.copy(alpha = 0.52f)
+    val color3     = cs.primary.copy(alpha = 0.76f)
     val color4     = cs.primary
 
-    // ── Week grid (Monday-anchored) ──────────────────────────────────────────
-    val startMonday = today.with(DayOfWeek.MONDAY)
-        .minusWeeks((NUM_WEEKS - 1).toLong())
-    val weeks: List<LocalDate> = (0 until NUM_WEEKS).map { w ->
-        startMonday.plusWeeks(w.toLong())
-    }
+    // â”€â”€ Fixed pixel metrics (row geometry) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    val gapPx          = with(density) { CELL_GAP.toPx() }
+    val dowW           = with(density) { DOW_LABEL_WIDTH.toPx() }
+    val monthH         = with(density) { MONTH_ROW_HEIGHT.toPx() }
+    val cornerR        = with(density) { CELL_CORNER.toPx() }
+    val idealColStepPx = with(density) { (CELL_SIZE + CELL_GAP).toPx() }
+    val todayStrokePx  = with(density) { 1.5.dp.toPx() }
 
-    // ── Formatters ───────────────────────────────────────────────────────────
-    val monthFmt = DateTimeFormatter.ofPattern("MMM")
-    val dateFmt  = DateTimeFormatter.ofPattern("EEE, d MMM yyyy")
+    val gridOriginX = dowW + gapPx          // left edge of first cell column
+    val gridOriginY = monthH + gapPx        // top edge of first cell row
+    val rowStep     = with(density) { (CELL_SIZE + CELL_GAP).toPx() }
+    val totalH      = gridOriginY + ROWS * rowStep - gapPx
 
-    // ── Tap / dialog state ───────────────────────────────────────────────────
+    // â”€â”€ Text measurer for Canvas text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle   = MaterialTheme.typography.labelSmall.copy(
+        fontSize = 9.sp,
+        color    = cs.onSurfaceVariant.copy(alpha = 0.6f),
+    )
+
+    // â”€â”€ Tap state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
-    val tappedSessions: List<AnalyticsStore.SessionLog> = remember(selectedDay, allLogs) {
-        val d = selectedDay ?: return@remember emptyList()
-        allLogs
-            .filter { log -> Instant.ofEpochMilli(log.endTimeMs).atZone(zone).toLocalDate() == d }
-            .sortedByDescending { it.endTimeMs }
+    val dateFmt     = remember { DateTimeFormatter.ofPattern("EEE, d MMM yyyy") }
+
+    // â”€â”€ All layout-dependent state lives inside BoxWithConstraints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val availWidthPx = with(density) { maxWidth.toPx() }
+
+        // Choose how many weeks fit at the ideal stride, then back-fill colStep
+        // so the grid always reaches the right edge of the card.
+        val numWeeks = ((availWidthPx - gridOriginX + gapPx) / idealColStepPx)
+            .toInt().coerceIn(MIN_WEEKS, MAX_WEEKS)
+        val colStep  = (availWidthPx - gridOriginX + gapPx) / numWeeks
+        val cellPx   = (colStep - gapPx).coerceAtLeast(4f)
+
+        val totalHeightDp = with(density) { totalH.toDp() }
+
+        // Week list derived from numWeeks so both phone and tablet are correct
+        val startMonday = remember(today, numWeeks) {
+            today.with(DayOfWeek.MONDAY).minusWeeks((numWeeks - 1).toLong())
+        }
+        val weeks = remember(startMonday, numWeeks) {
+            (0 until numWeeks).map { w -> startMonday.plusWeeks(w.toLong()) }
+        }
+        val monthLabels = remember(weeks) {
+            buildList {
+                weeks.forEachIndexed { i, monday ->
+                    if (i == 0 || weeks[i - 1].month != monday.month)
+                        add(i to monday.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()))
+                }
+            }
+        }
+
+        // Stats scoped to visible period
+        val totalInPeriod = remember(sessionsByDay, startMonday, today) {
+            sessionsByDay.entries
+                .filter { (d, _) -> !d.isBefore(startMonday) && !d.isAfter(today) }
+                .sumOf { it.value.size }
+        }
+        val activeDays = remember(sessionsByDay, startMonday, today) {
+            sessionsByDay.keys.count { d -> !d.isBefore(startMonday) && !d.isAfter(today) }
+        }
+        val monthsLabel = when {
+            numWeeks <= 28 -> "6 months"
+            numWeeks <= 39 -> "9 months"
+            else           -> "12 months"
+        }
+
+        Column {
+            // â”€â”€ Subtitle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            Text(
+                "Training frequency over the last $monthsLabel",
+                style    = MaterialTheme.typography.bodySmall,
+                color    = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+
+            // â”€â”€ Canvas grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(totalHeightDp)
+                    .pointerInput(weeks, sessionsByDay, colStep) {
+                        detectTapGestures { offset ->
+                            val col = ((offset.x - gridOriginX) / colStep).toInt()
+                            val row = ((offset.y - gridOriginY) / rowStep).toInt()
+                            if (col in 0 until numWeeks && row in 0 until ROWS) {
+                                val date = weeks[col].plusDays(row.toLong())
+                                if (!date.isAfter(today)) selectedDay = date
+                            }
+                        }
+                    },
+            ) {
+                val cr = CornerRadius(cornerR, cornerR)
+
+                // Month labels
+                monthLabels.forEach { (colIdx, label) ->
+                    val x      = gridOriginX + colIdx * colStep
+                    val result = textMeasurer.measure(AnnotatedString(label), style = labelStyle)
+                    drawText(result, topLeft = Offset(x, (monthH - result.size.height) / 2f))
+                }
+
+                // DOW single-char labels
+                DOW_LABELS.forEach { (rowIdx, label) ->
+                    val y      = gridOriginY + rowIdx * rowStep
+                    val result = textMeasurer.measure(AnnotatedString(label), style = labelStyle)
+                    drawText(result, topLeft = Offset(
+                        (dowW - result.size.width) / 2f,
+                        y + (cellPx - result.size.height) / 2f,
+                    ))
+                }
+
+                // Day cells
+                for (col in 0 until numWeeks) {
+                    val weekMonday = weeks[col]
+                    for (row in 0 until ROWS) {
+                        val date = weekMonday.plusDays(row.toLong())
+                        if (date.isAfter(today)) continue
+
+                        val x     = gridOriginX + col * colStep
+                        val y     = gridOriginY + row * rowStep
+                        val count = sessionsByDay[date]?.size ?: 0
+                        val fill  = when {
+                            count == 0 -> colorEmpty
+                            count == 1 -> color1
+                            count == 2 -> color2
+                            count == 3 -> color3
+                            else       -> color4
+                        }
+
+                        drawRoundRect(
+                            color        = fill,
+                            topLeft      = Offset(x, y),
+                            size         = Size(cellPx, cellPx),
+                            cornerRadius = cr,
+                        )
+
+                        // Today highlight â€” primary-coloured border ring
+                        if (date == today) {
+                            drawRoundRect(
+                                color        = color4,
+                                topLeft      = Offset(x, y),
+                                size         = Size(cellPx, cellPx),
+                                cornerRadius = cr,
+                                style        = Stroke(width = todayStrokePx),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // â”€â”€ Legend â€” right-aligned, visually tied to grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.End),
+            ) {
+                Text(
+                    "Less",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+                listOf(colorEmpty, color1, color2, color3, color4).forEach { c ->
+                    Box(
+                        Modifier
+                            .size(CELL_SIZE)
+                            .clip(RoundedCornerShape(CELL_CORNER))
+                            .background(c),
+                    )
+                }
+                Text(
+                    "More",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                )
+            }
+
+            // â”€â”€ Summary line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            if (totalInPeriod > 0) {
+                Spacer(Modifier.height(AppDimens.Spacing.xs))
+                Text(
+                    buildString {
+                        append("$totalInPeriod workout${if (totalInPeriod != 1) "s" else ""}")
+                        append(" Â· ")
+                        append("$activeDays active day${if (activeDays != 1) "s" else ""}")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant.copy(alpha = 0.55f),
+                )
+            }
+        }
     }
 
+    // â”€â”€ Tap-to-detail dialog (overlay, outside BoxWithConstraints) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (selectedDay != null) {
+        val d = selectedDay!!
+        val tappedSessions = remember(d, allLogs) {
+            allLogs
+                .filter { Instant.ofEpochMilli(it.endTimeMs).atZone(zone).toLocalDate() == d }
+                .sortedByDescending { it.endTimeMs }
+        }
         AlertDialog(
             onDismissRequest = { selectedDay = null },
             title = {
                 Text(
-                    dateFmt.format(selectedDay),
-                    style = MaterialTheme.typography.titleMedium,
+                    dateFmt.format(d),
+                    style      = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
             },
             text = {
+                val cs2 = MaterialTheme.colorScheme
                 if (tappedSessions.isEmpty()) {
-                    Text(
-                        "No sessions recorded on this day.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = cs.onSurfaceVariant,
-                    )
+                    Text("No sessions on this day.", color = cs2.onSurfaceVariant)
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         tappedSessions.forEach { session ->
-                            val name = session.programName
-                                ?: session.dayName
-                                ?: "Workout"
+                            val name = session.programName ?: session.dayName ?: "Workout"
                             val mins = session.durationSec / 60
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = cs.surfaceVariant,
-                                tonalElevation = 0.dp,
-                            ) {
+                            Surface(shape = MaterialTheme.shapes.small, color = cs2.surfaceVariant) {
                                 Row(
-                                    modifier = Modifier
+                                    Modifier
                                         .fillMaxWidth()
                                         .padding(
                                             horizontal = AppDimens.Spacing.md,
-                                            vertical = AppDimens.Spacing.sm,
+                                            vertical   = AppDimens.Spacing.sm,
                                         ),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column(Modifier.weight(1f)) {
                                         Text(
                                             name,
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            style      = MaterialTheme.typography.bodyMedium,
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                         Text(
                                             buildString {
                                                 if (session.totalSets > 0) append("${session.totalSets} sets")
-                                                if (session.totalSets > 0 && session.totalReps > 0) append(" · ")
+                                                if (session.totalSets > 0 && session.totalReps > 0) append(" Â· ")
                                                 if (session.totalReps > 0) append("${session.totalReps} reps")
                                             }.ifEmpty { "Session recorded" },
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = cs.onSurfaceVariant,
+                                            color = cs2.onSurfaceVariant,
                                         )
                                     }
                                     if (mins > 0) {
                                         Text(
                                             "${mins}m",
-                                            style = MaterialTheme.typography.labelMedium,
+                                            style      = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold,
-                                            color = cs.primary,
+                                            color      = cs2.primary,
                                         )
                                     }
                                 }
@@ -161,158 +346,5 @@ fun TrainingHeatmap(
                 TextButton(onClick = { selectedDay = null }) { Text("Done") }
             },
         )
-    }
-
-    // ── DOW labels: show M / W / F / S (every other row) ────────────────────
-    val dowLabels = listOf("M", null, "W", null, "F", null, "S")
-
-    // ── Horizontal scroll: initial position at far right (most recent) ───────
-    val scrollState = rememberScrollState()
-    LaunchedEffect(Unit) {
-        // Wait until layout has measured the scroll extent, then jump to end.
-        snapshotFlow { scrollState.maxValue }
-            .first { it > 0 }
-        scrollState.scrollTo(scrollState.maxValue)
-    }
-
-    Column(modifier = modifier) {
-        Row {
-            // ── Left: day-of-week labels ──────────────────────────────────────
-            Column(
-                modifier = Modifier.padding(top = 14.dp),  // aligns with cell rows
-                verticalArrangement = Arrangement.spacedBy(CELL_GAP),
-            ) {
-                dowLabels.forEach { label ->
-                    Box(
-                        modifier = Modifier.size(CELL_DP),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (label != null) {
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = cs.onSurfaceVariant.copy(alpha = 0.55f),
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.width(AppDimens.Spacing.xs))
-
-            // ── Right: scrollable grid ────────────────────────────────────────
-            Box(modifier = Modifier.horizontalScroll(scrollState)) {
-                Column {
-                    // Month labels row
-                    Row(horizontalArrangement = Arrangement.spacedBy(CELL_GAP)) {
-                        weeks.forEachIndexed { idx, weekMonday ->
-                            val showLabel = idx == 0 || weeks[idx - 1].month != weekMonday.month
-                            Box(modifier = Modifier.width(CELL_DP)) {
-                                if (showLabel) {
-                                    Text(
-                                        monthFmt.format(weekMonday),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = cs.onSurfaceVariant.copy(alpha = 0.65f),
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(CELL_GAP))
-
-                    // Day cells: one Column per week
-                    Row(horizontalArrangement = Arrangement.spacedBy(CELL_GAP)) {
-                        weeks.forEach { weekMonday ->
-                            Column(verticalArrangement = Arrangement.spacedBy(CELL_GAP)) {
-                                (0..6).forEach { dayOffset ->
-                                    val date = weekMonday.plusDays(dayOffset.toLong())
-                                    if (date.isAfter(today)) {
-                                        // Future days: transparent spacer
-                                        Spacer(Modifier.size(CELL_DP))
-                                    } else {
-                                        val count = sessionsByDay[date]?.size ?: 0
-                                        val color = when {
-                                            count == 0 -> colorEmpty
-                                            count == 1 -> color1
-                                            count == 2 -> color2
-                                            count == 3 -> color3
-                                            else       -> color4
-                                        }
-                                        val isToday = date == today
-                                        Box(
-                                            modifier = Modifier
-                                                .size(CELL_DP)
-                                                .clip(RoundedCornerShape(CORNER_DP))
-                                                .background(color)
-                                                .then(
-                                                    if (isToday) Modifier.border(
-                                                        width = 1.dp,
-                                                        color = cs.primary,
-                                                        shape = RoundedCornerShape(CORNER_DP),
-                                                    ) else Modifier
-                                                )
-                                                .clickable(
-                                                    indication = null,
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                ) { selectedDay = date },
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── Legend ─────────────────────────────────────────────────────────────
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.End,
-        ) {
-            Text(
-                "Less",
-                style = MaterialTheme.typography.labelSmall,
-                color = cs.onSurfaceVariant.copy(alpha = 0.5f),
-            )
-            Spacer(Modifier.width(AppDimens.Spacing.xs))
-            listOf(colorEmpty, color1, color2, color3, color4).forEach { c ->
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 1.dp)
-                        .size(CELL_DP)
-                        .clip(RoundedCornerShape(CORNER_DP))
-                        .background(c),
-                )
-            }
-            Spacer(Modifier.width(AppDimens.Spacing.xs))
-            Text(
-                "More",
-                style = MaterialTheme.typography.labelSmall,
-                color = cs.onSurfaceVariant.copy(alpha = 0.5f),
-            )
-        }
-
-        // ── Summary line ───────────────────────────────────────────────────────
-        val totalInPeriod = remember(sessionsByDay, startMonday, today) {
-            sessionsByDay.entries
-                .filter { (d, _) -> !d.isBefore(startMonday) && !d.isAfter(today) }
-                .sumOf { it.value.size }
-        }
-        val activeDays = remember(sessionsByDay, startMonday, today) {
-            sessionsByDay.keys.count { d -> !d.isBefore(startMonday) && !d.isAfter(today) }
-        }
-        if (totalInPeriod > 0) {
-            Spacer(Modifier.height(AppDimens.Spacing.xs))
-            Text(
-                "$totalInPeriod session${if (totalInPeriod != 1) "s" else ""} on " +
-                    "$activeDays day${if (activeDays != 1) "s" else ""} in the last 6 months",
-                style = MaterialTheme.typography.bodySmall,
-                color = cs.onSurfaceVariant.copy(alpha = 0.65f),
-            )
-        }
     }
 }
