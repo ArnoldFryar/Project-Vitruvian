@@ -48,6 +48,7 @@ import com.example.vitruvianredux.presentation.ui.ScreenScaffold
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
+import java.time.DayOfWeek
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
@@ -65,6 +66,7 @@ fun ProfileScreen(
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val history by WorkoutHistoryStore.historyFlow.collectAsState()
     val displayName by ProfileStore.displayNameFlow.collectAsState()
+    val scheduledDays by ProfileStore.scheduledDaysFlow.collectAsState()
     var showEditNameDialog by remember { mutableStateOf(false) }
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
@@ -800,7 +802,63 @@ fun ProfileScreen(
         //  Consistency heatmap — GitHub-style training calendar
         // ═══════════════════════════════════════════════════════════
         ProfileSection(title = "Training Momentum") {
-            TrainingMomentumCard(allLogs = allLogs)
+            TrainingMomentumCard(allLogs = allLogs, scheduledDays = scheduledDays)
+
+            Spacer(Modifier.height(AppDimens.Spacing.md))
+            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+            // ── Training schedule day picker ───────────────────────────
+            Text(
+                "Training days",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
+            )
+            val allDays = remember {
+                listOf(
+                    DayOfWeek.MONDAY    to "M",
+                    DayOfWeek.TUESDAY   to "T",
+                    DayOfWeek.WEDNESDAY to "W",
+                    DayOfWeek.THURSDAY  to "T",
+                    DayOfWeek.FRIDAY    to "F",
+                    DayOfWeek.SATURDAY  to "S",
+                    DayOfWeek.SUNDAY    to "S",
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                allDays.forEach { (day, label) ->
+                    val selected = scheduledDays.contains(day)
+                    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    Surface(
+                        shape = CircleShape,
+                        color = if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                            ) {
+                                val updated = if (selected) scheduledDays - day else scheduledDays + day
+                                ProfileStore.setScheduledDays(updated)
+                            },
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text       = label,
+                                style      = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color      = if (selected) MaterialTheme.colorScheme.onPrimary
+                                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))

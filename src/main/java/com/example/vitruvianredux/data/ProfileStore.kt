@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import timber.log.Timber
+import java.time.DayOfWeek
 
 /**
  * Local store for the user's editable profile display name.
@@ -21,6 +22,7 @@ object ProfileStore {
     private const val PREFS = "vitruvian_profile"
     private const val KEY_DISPLAY_NAME = "display_name"
     private const val KEY_UPDATED_AT = "updated_at"
+    private const val KEY_SCHEDULE_DAYS = "schedule_days"
 
     /** Default shown when no custom name has been set. */
     const val DEFAULT_NAME = "Athlete"
@@ -29,6 +31,10 @@ object ProfileStore {
 
     private val _displayName = MutableStateFlow(DEFAULT_NAME)
     val displayNameFlow: StateFlow<String> = _displayName.asStateFlow()
+
+    private val _scheduledDays = MutableStateFlow<Set<DayOfWeek>>(emptySet())
+    /** The user's recurring weekly training schedule. Empty = no schedule set. */
+    val scheduledDaysFlow: StateFlow<Set<DayOfWeek>> = _scheduledDays.asStateFlow()
 
     /** Last modification time (epoch ms) — used as LWW clock for sync. */
     val updatedAt: Long get() = if (::prefs.isInitialized) prefs.getLong(KEY_UPDATED_AT, 0L) else 0L
@@ -39,7 +45,15 @@ object ProfileStore {
         if (!saved.isNullOrBlank()) {
             _displayName.value = saved
         }
-        Timber.tag(TAG).d("init: displayName=${_displayName.value}")
+        val savedSchedule = prefs.getString(KEY_SCHEDULE_DAYS, null)
+        if (!savedSchedule.isNullOrBlank()) {
+            _scheduledDays.value = savedSchedule
+                .split(",")
+                .mapNotNull { it.trim().toIntOrNull() }
+                .mapNotNull { runCatching { DayOfWeek.of(it) }.getOrNull() }
+                .toSet()
+        }
+        Timber.tag(TAG).d("init: displayName=${_displayName.value}, scheduledDays=${_scheduledDays.value}")
     }
 
     /**
@@ -71,5 +85,16 @@ object ProfileStore {
                 .apply()
             Timber.tag(TAG).d("applyFromRemote: $trimmed (remoteUpdatedAt=$remoteUpdatedAt)")
         }
+    }
+
+    /**
+     * Persist the user's recurring weekly training schedule.
+     * Pass an empty set to clear the schedule.
+     */
+    fun setScheduledDays(days: Set<DayOfWeek>) {
+        _scheduledDays.value = days
+        val serialized = days.joinToString(",") { it.value.toString() }
+        prefs.edit().putString(KEY_SCHEDULE_DAYS, serialized).apply()
+        Timber.tag(TAG).d("setScheduledDays: $days")
     }
 }

@@ -31,17 +31,26 @@ private const val DEFAULT_WEEKLY_GOAL = 4
  *  • Am I on track?           → trend message
  *  • When did I last train?   → last workout label
  *
+ * [scheduledDays] drives the weekly goal and enriches the day strip:
+ *  - Scheduled + worked out  → solid primary dot
+ *  - Scheduled + missed      → hollow primary ring (past only)
+ *  - Scheduled + future      → faint outline
+ *  - Unscheduled + worked out → smaller solid dot (bonus session)
+ *
  * Adapts layout: phone = compact vertical, tablet (>480 dp) = side-by-side stats.
  */
 @Composable
 fun TrainingMomentumCard(
     allLogs: List<AnalyticsStore.SessionLog>,
+    scheduledDays: Set<DayOfWeek> = emptySet(),
     modifier: Modifier = Modifier,
-    weeklyGoal: Int = DEFAULT_WEEKLY_GOAL,
 ) {
     val zone  = ZoneId.systemDefault()
     val today = LocalDate.now()
     val cs    = MaterialTheme.colorScheme
+
+    // ── Weekly goal: size of schedule if set, otherwise default ─────
+    val weeklyGoal = if (scheduledDays.isEmpty()) DEFAULT_WEEKLY_GOAL else scheduledDays.size
 
     // ── Sessions grouped by local day ──────────────────────────────
     val sessionsByDay = remember(allLogs) {
@@ -93,14 +102,26 @@ fun TrainingMomentumCard(
     }
 
     // ── Trend message ─────────────────────────────────────────────
-    val trendMessage = remember(workoutsThisWeek, weeklyGoal, today) {
+    val trendMessage = remember(workoutsThisWeek, weeklyGoal, today, scheduledDays) {
         val remaining = weeklyGoal - workoutsThisWeek
+        val todayScheduled = scheduledDays.contains(today.dayOfWeek)
+        // Count past scheduled days this week that had no workout (missed)
+        val missedScheduledDays = if (scheduledDays.isEmpty()) 0 else {
+            weekDays.count { d ->
+                !d.isAfter(today.minusDays(1)) &&
+                scheduledDays.contains(d.dayOfWeek) &&
+                !sessionsByDay.containsKey(d)
+            }
+        }
         when {
-            workoutsThisWeek >= weeklyGoal -> "Great consistency this week!"
-            remaining == 1                 -> "1 workout away from your goal"
-            workoutsThisWeek > 0           -> "On pace to hit your weekly goal"
-            today.dayOfWeek.value <= 3     -> "Start fresh this week"
-            else                           -> "Still time to get a workout in"
+            workoutsThisWeek >= weeklyGoal  -> "Weekly goal hit — great work!"
+            remaining == 1 && todayScheduled -> "Today is a training day — 1 left to hit your goal"
+            remaining == 1                   -> "1 workout away from your goal"
+            missedScheduledDays > 0 && workoutsThisWeek == 0 -> "Get back on track — you have $remaining sessions to go"
+            workoutsThisWeek > 0             -> "On pace to hit your weekly goal"
+            todayScheduled                   -> "Today is a training day — let's go!"
+            today.dayOfWeek.value <= 3       -> "Start fresh this week"
+            else                             -> "Still time to get a workout in"
         }
     }
 
@@ -125,7 +146,7 @@ fun TrainingMomentumCard(
             }
 
             // ── 7-Day Activity Strip ─────────────────────────────
-            DayStrip(weekDays, sessionsByDay, today, cs)
+            DayStrip(weekDays, sessionsByDay, today, scheduledDays, cs)
 
             // ── Footer: last workout + trend ─────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs)) {
@@ -235,24 +256,38 @@ private fun SegmentedProgressBar(
     }
 }
 
-/** Mon–Sun dot row with day initials; highlights today, dims future days. */
+/**
+ * Mon–Sun dot row with day initials.
+ *
+ * Visual states per day:
+ *  - Scheduled + worked out  → solid primary circle
+ *  - Scheduled + missed (past, not today) → hollow primary ring
+ *  - Scheduled + future      → faint primary outline
+ *  - Today                   → always gets a primary border ring
+ *  - Unscheduled + worked out → smaller solid muted circle (bonus)
+ *  - Unscheduled + no workout → very dim dot
+ */
 @Composable
 private fun DayStrip(
     days: List<LocalDate>,
     sessionsByDay: Map<LocalDate, List<AnalyticsStore.SessionLog>>,
     today: LocalDate,
+    scheduledDays: Set<DayOfWeek>,
     cs: ColorScheme,
 ) {
     val dayInitials = listOf("M", "T", "W", "T", "F", "S", "S")
+    val hasSchedule = scheduledDays.isNotEmpty()
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         days.forEachIndexed { index, date ->
-            val hasWorkout = sessionsByDay.containsKey(date)
-            val isFuture   = date.isAfter(today)
-            val isToday    = date == today
+            val hasWorkout  = sessionsByDay.containsKey(date)
+            val isFuture    = date.isAfter(today)
+            val isToday     = date == today
+            val isScheduled = hasSchedule && scheduledDays.contains(date.dayOfWeek)
+            val isMissed    = isScheduled && !hasWorkout && !isFuture && !isToday
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -261,31 +296,50 @@ private fun DayStrip(
                 Text(
                     text       = dayInitials[index],
                     style      = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (isToday || isScheduled) FontWeight.Bold else FontWeight.Normal,
                     color      = when {
-                        isToday  -> cs.primary
-                        isFuture -> cs.onSurfaceVariant.copy(alpha = 0.25f)
-                        else     -> cs.onSurfaceVariant.copy(alpha = 0.6f)
+                        isToday               -> cs.primary
+                        isScheduled && isFuture -> cs.primary.copy(alpha = 0.35f)
+                        isScheduled           -> cs.primary.copy(alpha = 0.75f)
+                        isFuture              -> cs.onSurfaceVariant.copy(alpha = 0.2f)
+                        else                  -> cs.onSurfaceVariant.copy(alpha = 0.55f)
                     },
                 )
 
+                val dotSize = if (hasWorkout && !isScheduled && hasSchedule) 9.dp else 12.dp
+
                 Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(CircleShape)
-                        .then(
-                            when {
-                                isFuture   -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.2f))
-                                hasWorkout -> Modifier.background(cs.primary)
-                                else       -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.4f))
-                            },
-                        )
-                        .then(
-                            if (isToday && !isFuture) {
-                                Modifier.border(1.5.dp, cs.primary, CircleShape)
-                            } else Modifier,
-                        ),
-                )
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(12.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(dotSize)
+                            .clip(CircleShape)
+                            .then(when {
+                                // solid primary — scheduled and done
+                                hasWorkout && isScheduled  -> Modifier.background(cs.primary)
+                                // solid smaller muted — bonus unscheduled workout
+                                hasWorkout && !isScheduled -> Modifier.background(cs.primary.copy(alpha = 0.45f))
+                                // empty scheduled future — faint outline only (no fill)
+                                isScheduled && isFuture    -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.15f))
+                                // missed scheduled past — no fill (border added below)
+                                isMissed                   -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.10f))
+                                // nothing
+                                isFuture                   -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.15f))
+                                else                       -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.35f))
+                            })
+                            .then(when {
+                                // today always gets a ring
+                                isToday && !isFuture       -> Modifier.border(1.5.dp, cs.primary, CircleShape)
+                                // missed scheduled = hollow primary ring
+                                isMissed                   -> Modifier.border(1.5.dp, cs.primary.copy(alpha = 0.55f), CircleShape)
+                                // scheduled future = faint ring
+                                isScheduled && isFuture    -> Modifier.border(1.dp, cs.primary.copy(alpha = 0.3f), CircleShape)
+                                else                       -> Modifier
+                            }),
+                    )
+                }
             }
         }
     }
