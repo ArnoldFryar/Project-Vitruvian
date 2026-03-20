@@ -15,6 +15,16 @@ data class ExerciseStats(
     /** Working volume for this set in **kg** (canonical). Converted to lb only at the display layer. */
     val volumeKg: Float = 0f,
     val weightPerCableLb: Int = 0,
+    /** Average rep quality score for this set (0–100), or null if unavailable. */
+    val avgQualityScore: Int? = null,
+    /** Average ROM sub-score for this set (0–100). */
+    val avgRom: Int? = null,
+    /** Average tempo sub-score for this set (0–100). */
+    val avgTempo: Int? = null,
+    /** Average symmetry sub-score for this set (0–100). */
+    val avgSymmetry: Int? = null,
+    /** Average smoothness sub-score for this set (0–100). */
+    val avgSmoothness: Int? = null,
 )
 
 /** Aggregate stats for a completed workout. */
@@ -26,6 +36,8 @@ data class WorkoutStats(
     val totalSets: Int = 0,
     val heaviestLiftLb: Int = 0,
     val calories: Int = 0,          // Placeholder
+    /** Average rep quality score across all scored sets (0–100), or null if no quality data. */
+    val avgQualityScore: Int? = null,
 )
 
 /** What to do after the rest period ends. */
@@ -56,4 +68,11 @@ data class PlayerSetParams(
     val eccentricLoadPct: Int = 75,
     /** Free-lift / AMRAP — sends 0xFF for reps in the BLE packet (unlimited). */
     val isJustLift: Boolean = false,
+    /** Whether stall detection is active (Phoenix: stallDetectionEnabled). */
+    val stallDetectionEnabled: Boolean = true,
+    /** Rep-counting timing strategy (Phoenix: repCountTiming). */
+    val repCountTiming: com.example.vitruvianredux.ble.protocol.RepCountTiming =
+        com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
+    /** Muscle groups for this exercise, e.g. ["CHEST", "ARMS"]. Used for workout history tracking. */
+    val muscleGroups: List<String> = emptyList(),
 )

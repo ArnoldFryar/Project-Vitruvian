@@ -32,7 +32,7 @@ fun TemplatesScreen(onBack: () -> Unit) {
             contentAlignment  = Alignment.Center,
         ) {
             Text(
-                "Templates coming soon",
+                "Browse program templates from the Programs tab.",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

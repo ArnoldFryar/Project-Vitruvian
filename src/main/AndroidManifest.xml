@@ -2,23 +2,65 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Camera is used for the front-camera live overlay during workouts
+         (FrontCameraOverlay). It is NOT used for QR code scanning — QR codes
+         are generated only (encoded via ZXing). Front camera is a non-core
+         visual feature; the app is fully functional without it. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Legacy BLE permissions for Android 11 and below -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+
+    <!-- Wi-Fi Direct permissions -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- ACCESS_FINE_LOCATION is required by the Wi-Fi Direct P2P broadcast
+         receiver on all API levels, including API 33+ (NEARBY_WIFI_DEVICES
+         alone is insufficient for WifiP2pManager peer discovery callbacks). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- NEARBY_WIFI_DEVICES replaces coarse location for discovery on API 33+ -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:minSdkVersion="33" />
+
+    <!-- Health Connect — write workout session summaries (write-only; app never reads back) -->
+    <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
+    <uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.WRITE_TOTAL_CALORIES_BURNED" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+    <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />
+    <!-- Override the implicit camera requirement added by the CAMERA permission.
+         The front-camera workout overlay is a non-core visual feature; the app
+         is fully functional (BLE, programs, history) on devices without a camera. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+
+    <!-- Declare intent to talk to Health Connect so PackageManager resolves it -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
 
     <application
+        android:name="com.example.vitruvianredux.VitruvianApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+
+        <!-- Health Connect: declare which health permissions this app uses -->
+        <meta-data
+            android:name="health_permissions"
+            android:resource="@xml/health_permissions" />
+
         <activity
             android:name="com.example.vitruvianredux.MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -30,7 +72,54 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="vitruvian" />
             </intent-filter>
+            <!-- Share-sheet: receive shared text (program JSON) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
+            </intent-filter>
+            <!-- View JSON files from file managers -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/json" />
+            </intent-filter>
         </activity>
+
+        <!-- BLE foreground service — keeps process alive while trainer is connected -->
+        <service
+            android:name=".ble.BleForegroundService"
+            android:foregroundServiceType="connectedDevice"
+            android:exported="false" />
+
+        <!-- Health Connect privacy policy — pre-Android 14 (APK-based HC) -->
+        <activity-alias
+            android:name="PermissionsRationaleActivity"
+            android:targetActivity="com.example.vitruvianredux.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Health Connect privacy policy — Android 14+ (platform HC) -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:targetActivity="com.example.vitruvianredux.MainActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
     </application>
 
 </manifest>

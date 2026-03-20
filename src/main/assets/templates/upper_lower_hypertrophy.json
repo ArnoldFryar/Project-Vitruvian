@@ -1,0 +1,190 @@
+{
+  "id": "builtin_upper_lower_hypertrophy",
+  "name": "Upper/Lower Hypertrophy",
+  "category": "Hypertrophy",
+  "description": "High-volume 2-day upper/lower split targeting maximal muscle growth. Moderate loads with 10–15 rep ranges and shorter rest periods maximise metabolic stress.",
+  "days": [
+    {
+      "name": "Upper Body",
+      "focus": "Chest, Back, Shoulders, Arms — Volume",
+      "exercises": [
+        {
+          "exerciseId": "ZZ92N8QsBdp6HCh3",
+          "exerciseName": "Bench Press",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "aR4mXWcgsqNaxw4C",
+          "exerciseName": "Incline Bench Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "b3ba4645-6b3f-4058-b1f4-0d8fc3e49dff",
+          "exerciseName": "Cable Fly",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "cJt26IdtckFcJsq1",
+          "exerciseName": "Bent Over Row",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "ku9GWXoCLuBShLm0",
+          "exerciseName": "Bent Over Crossover Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "3cd0a0cb-8e56-4b0e-83a0-d88ff369749f",
+          "exerciseName": "Arnold Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "Y030qNm3LisddglM",
+          "exerciseName": "Lateral Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "lKxWrGuEzVcxLYqG",
+          "exerciseName": "Face Pull",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "k-PGXPztgc5uS42S",
+          "exerciseName": "Bicep Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "cc0b27a7-679a-406e-a56e-44778bafaec5",
+          "exerciseName": "Bent Over Tricep Extension",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        }
+      ]
+    },
+    {
+      "name": "Lower Body",
+      "focus": "Quads, Hamstrings, Glutes — Volume",
+      "exercises": [
+        {
+          "exerciseId": "D7IHBdqkHR5z2wFn",
+          "exerciseName": "Arms Crossed Front Squat",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "rCG6HJi50F2REZCw",
+          "exerciseName": "Alternating Lunges",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "49c4594c-f997-4d70-8008-b293e247e2e4",
+          "exerciseName": "Romanian Deadlift",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "39689096-7fb9-46aa-a411-59c5c6886c5d",
+          "exerciseName": "Hip Thrust",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 15,
+          "targetWeightLb": 35,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "opo1QzcHfFKMx1hI",
+          "exerciseName": "Alternating Curtsy Lunge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "e280829c-aa17-4812-b8fa-bcd0d89ad815",
+          "exerciseName": "Glute Kickbacks",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "287a9e39-fd0f-426f-bac1-2b121befb397",
+          "exerciseName": "Calf Raise",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 15,
+          "targetWeightLb": 20,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        }
+      ]
+    }
+  ]
+}

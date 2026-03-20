@@ -7,15 +7,18 @@ import org.junit.Test
 /**
  * Unit tests for [MachineRepDetector].
  *
- * Verifies the detector counts reps at the BOTTOM of the movement (eccentric valley)
- * using the `down` counter, exactly matching the original Vitruvian app's
- * `FormTrainerState$b.invoke()` derivation.
+ * Matches Phoenix's RepCounterFromMachine behaviour exactly:
  *
- * ### Test structure
- * 1. Legacy 16-byte packet streams — `up`/`down` based counting only.
- * 2. Modern 24-byte packet streams — `repsRomCount`/`repsSetCount` from machine.
- * 3. Phase detection — pending at top, confirmed at bottom.
- * 4. Edge cases — reset, configure, unlimited sets, zero warmup.
+ * MODERN MODE:
+ *   - warmupReps = repsRomCount (directly from machine)
+ *   - workingReps = repsSetCount (directly from machine)
+ *   - up/down for visual pending feedback only
+ *   - No priming skip (counters init to 0)
+ *
+ * LEGACY MODE:
+ *   - Reps counted from the UP counter (top of movement)
+ *   - First warmupTarget reps are warmup, rest are working
+ *   - No priming skip (lastTopCounter starts at 0)
  */
 class MachineRepDetectorTest {
 
@@ -43,42 +46,54 @@ class MachineRepDetectorTest {
         repsSetCount = setCount, repsSetTotal = setTotal,
     )
 
+    // ── Helper: build a 20-byte RepNotification (no repsSetCount/Total) ───────
+
+    private fun modern20(
+        up: Int, down: Int,
+        romCount: Int = 0, romTotal: Int = 3,
+    ): RepNotification = RepNotification(
+        up = up, down = down,
+        repsRomCount = romCount, repsRomTotal = romTotal,
+        repsSetCount = null, repsSetTotal = null,
+    )
+
     // ═══════════════════════════════════════════════════════════════════════════
-    //  LEGACY MODE: 3 warmup + 3 working
+    //  LEGACY MODE: count reps at TOP via up counter (matches Phoenix)
     // ═══════════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `legacy - warmup reps counted at bottom via down counter`() {
+    fun `legacy - warmup reps counted at top via up counter`() {
         detector.configure(warmupTarget = 3, workingTarget = 3)
 
-        // Warmup rep 1: up fires at top, down fires at bottom
-        detector.process(legacy(up = 1, down = 0))  // at top — no confirmed rep yet
-        assertEquals("up without down should not count", 0, detector.totalConfirmedReps)
-
-        val evts = detector.process(legacy(up = 1, down = 1))  // at bottom — rep confirmed
-        assertEquals(1, detector.warmupRepsCompleted)
+        // Warmup rep 1: up increments → rep counted at TOP
+        val evts = detector.process(legacy(up = 1, down = 0))
+        assertEquals("up=1 should count warmup rep", 1, detector.warmupRepsCompleted)
         assertEquals(0, detector.workingRepsCompleted)
         assertEquals(1, detector.totalConfirmedReps)
         assertTrue(evts.any { it is RepDetectorEvent.WarmupRepCompleted })
+
+        // down catches up → no new rep (down is visual only in legacy)
+        val evts2 = detector.process(legacy(up = 1, down = 1))
+        assertEquals(1, detector.warmupRepsCompleted)
+        assertTrue("down catching up should not count another rep", evts2.isEmpty())
     }
 
     @Test
     fun `legacy - full warmup sequence 3 reps`() {
         detector.configure(warmupTarget = 3, workingTarget = 3)
 
-        // Rep 1
+        // Rep 1 at top
         detector.process(legacy(up = 1, down = 0))
-        detector.process(legacy(up = 1, down = 1))
         assertEquals(1, detector.warmupRepsCompleted)
 
-        // Rep 2
-        detector.process(legacy(up = 2, down = 1))
-        detector.process(legacy(up = 2, down = 2))
+        // Rep 2 at top
+        detector.process(legacy(up = 1, down = 1))  // down catches up, no new rep
+        detector.process(legacy(up = 2, down = 1))  // up increments → rep 2
         assertEquals(2, detector.warmupRepsCompleted)
 
-        // Rep 3 (warmup complete)
-        detector.process(legacy(up = 3, down = 2))
-        val evts = detector.process(legacy(up = 3, down = 3))
+        // Rep 3 at top (warmup complete)
+        detector.process(legacy(up = 2, down = 2))
+        val evts = detector.process(legacy(up = 3, down = 2))
         assertEquals(3, detector.warmupRepsCompleted)
         assertTrue(detector.isWarmupComplete)
         assertTrue(evts.any { it is RepDetectorEvent.WarmupComplete })
@@ -88,17 +103,15 @@ class MachineRepDetectorTest {
     fun `legacy - working reps after warmup completion`() {
         detector.configure(warmupTarget = 3, workingTarget = 3)
 
-        // Complete warmup
-        for (i in 1..3) {
-            detector.process(legacy(up = i, down = i - 1))
-            detector.process(legacy(up = i, down = i))
-        }
+        // Complete warmup (3 reps via up counter)
+        detector.process(legacy(up = 1, down = 0))
+        detector.process(legacy(up = 2, down = 1))
+        detector.process(legacy(up = 3, down = 2))
         assertTrue(detector.isWarmupComplete)
         assertEquals(0, detector.workingRepsCompleted)
 
-        // Working rep 1
-        detector.process(legacy(up = 4, down = 3))  // at top → pending
-        val evts = detector.process(legacy(up = 4, down = 4))  // at bottom → confirmed
+        // Working rep 1: up=4 → counted
+        val evts = detector.process(legacy(up = 4, down = 3))
         assertEquals(1, detector.workingRepsCompleted)
         assertTrue(evts.any { it is RepDetectorEvent.WorkingRepCompleted })
     }
@@ -110,57 +123,46 @@ class MachineRepDetectorTest {
         // Complete warmup + 2 working reps
         for (i in 1..5) {
             detector.process(legacy(up = i, down = i - 1))
-            detector.process(legacy(up = i, down = i))
         }
         assertEquals(2, detector.workingRepsCompleted)
         assertFalse(detector.isWorkingComplete)
 
         // Working rep 3 (target reached)
-        detector.process(legacy(up = 6, down = 5))
-        val evts = detector.process(legacy(up = 6, down = 6))
+        val evts = detector.process(legacy(up = 6, down = 5))
         assertEquals(3, detector.workingRepsCompleted)
         assertTrue(detector.isWorkingComplete)
         assertTrue(evts.any { it is RepDetectorEvent.TargetReached })
     }
 
     @Test
-    fun `legacy - pending working rep emitted at top`() {
-        detector.configure(warmupTarget = 3, workingTarget = 5)
+    fun `legacy - no events emitted for duplicate notifications (same up and down)`() {
+        detector.configure(warmupTarget = 3, workingTarget = 3)
 
-        // Complete warmup
-        for (i in 1..3) {
-            detector.process(legacy(up = i, down = i - 1))
-            detector.process(legacy(up = i, down = i))
-        }
+        detector.process(legacy(up = 1, down = 1))
+        assertEquals(1, detector.warmupRepsCompleted)
 
-        // Working: up fires (top) → pending event
-        val evts = detector.process(legacy(up = 4, down = 3))
-        assertTrue(
-            "Should emit WorkingRepPending when up > down in working phase",
-            evts.any { it is RepDetectorEvent.WorkingRepPending }
-        )
+        // Same values re-notified → no new events
+        val evts = detector.process(legacy(up = 1, down = 1))
+        assertTrue("Duplicate notification should produce no events", evts.isEmpty())
+        assertEquals(1, detector.warmupRepsCompleted)
     }
 
     @Test
-    fun `legacy - no double pending events without intervening bottom`() {
+    fun `legacy - no pending events in legacy mode`() {
         detector.configure(warmupTarget = 3, workingTarget = 5)
 
         // Complete warmup
         for (i in 1..3) {
             detector.process(legacy(up = i, down = i - 1))
-            detector.process(legacy(up = i, down = i))
         }
 
-        // First up → pending
-        val evts1 = detector.process(legacy(up = 4, down = 3))
-        assertTrue(evts1.any { it is RepDetectorEvent.WorkingRepPending })
-
-        // Same state notified again (BLE can fire duplicate) → no second pending
-        val evts2 = detector.process(legacy(up = 4, down = 3))
+        // Working rep at top → should be WorkingRepCompleted, not Pending
+        val evts = detector.process(legacy(up = 4, down = 3))
         assertFalse(
-            "Duplicate notification should not emit another pending",
-            evts2.any { it is RepDetectorEvent.WorkingRepPending }
+            "Legacy mode should not emit WorkingRepPending (Phoenix doesn't)",
+            evts.any { it is RepDetectorEvent.WorkingRepPending }
         )
+        assertTrue(evts.any { it is RepDetectorEvent.WorkingRepCompleted })
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -171,6 +173,7 @@ class MachineRepDetectorTest {
     fun `modern - warmup counted from repsRomCount`() {
         detector.configure(warmupTarget = 3, workingTarget = 5)
 
+        // No priming skip needed. First notification counts.
         val evts = detector.process(modern(up = 1, down = 1, romCount = 1, romTotal = 3))
         assertEquals(1, detector.warmupRepsCompleted)
         assertTrue(evts.any { it is RepDetectorEvent.WarmupRepCompleted })
@@ -213,17 +216,18 @@ class MachineRepDetectorTest {
     }
 
     @Test
-    fun `modern - warm target synced from machine repsRomTotal`() {
-        // Detector configured with warmup=3 but machine says romTotal=5
+    fun `modern - warmup target NOT synced from machine repsRomTotal (app is authoritative)`() {
+        // Detector configured with warmup=3 — machine says romTotal=5 but app's target wins
         detector.configure(warmupTarget = 3, workingTarget = 10)
 
         detector.process(modern(up = 1, down = 1, romCount = 1, romTotal = 5))
-        // After sync, warmup target should be 5
-        assertFalse("warmup should not be complete yet (1/5)", detector.isWarmupComplete)
+        assertEquals(1, detector.warmupRepsCompleted)
 
-        detector.process(modern(up = 5, down = 5, romCount = 5, romTotal = 5))
-        assertTrue("warmup should be complete (5/5)", detector.isWarmupComplete)
-        assertEquals(5, detector.warmupRepsCompleted)
+        // warmup=3 is the app's target — should complete at 3, not 5
+        detector.process(modern(up = 2, down = 2, romCount = 2, romTotal = 5))
+        detector.process(modern(up = 3, down = 3, romCount = 3, romTotal = 5))
+        assertTrue("warmup should be complete at app target (3)", detector.isWarmupComplete)
+        assertEquals(3, detector.warmupRepsCompleted)
     }
 
     @Test
@@ -261,6 +265,26 @@ class MachineRepDetectorTest {
         assertTrue(evts.any { it is RepDetectorEvent.WorkingRepCompleted })
     }
 
+    @Test
+    fun `modern - first notification counts (no priming skip)`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Very first notification has romCount=1 → should count immediately
+        val evts = detector.process(modern(up = 1, down = 0, romCount = 1, romTotal = 3))
+        assertEquals("First notification must count the rep", 1, detector.warmupRepsCompleted)
+        assertTrue(evts.any { it is RepDetectorEvent.WarmupRepCompleted })
+    }
+
+    @Test
+    fun `modern 20-byte - fallback warmup from up counter when repsRomCount lags`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // 20-byte packet: repsRomCount=0 (not yet updated), but up=1 — count from upDelta
+        val evts = detector.process(modern20(up = 1, down = 0, romCount = 0, romTotal = 3))
+        assertEquals(1, detector.warmupRepsCompleted)
+        assertTrue(evts.any { it is RepDetectorEvent.WarmupRepCompleted })
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  EDGE CASES
     // ═══════════════════════════════════════════════════════════════════════════
@@ -268,7 +292,8 @@ class MachineRepDetectorTest {
     @Test
     fun `configure resets all counters`() {
         detector.configure(warmupTarget = 3, workingTarget = 3)
-        detector.process(legacy(up = 2, down = 2))
+        detector.process(legacy(up = 1, down = 0))
+        detector.process(legacy(up = 2, down = 1))
         assertEquals(2, detector.warmupRepsCompleted)
 
         detector.configure(warmupTarget = 5, workingTarget = 5)
@@ -280,7 +305,8 @@ class MachineRepDetectorTest {
     @Test
     fun `reset clears counters without changing targets`() {
         detector.configure(warmupTarget = 3, workingTarget = 5)
-        detector.process(legacy(up = 2, down = 2))
+        detector.process(legacy(up = 1, down = 0))
+        detector.process(legacy(up = 2, down = 1))
         assertEquals(2, detector.warmupRepsCompleted)
 
         detector.reset()
@@ -293,10 +319,8 @@ class MachineRepDetectorTest {
         detector.configure(warmupTarget = 0, workingTarget = 5)
         assertTrue("warmup=0 → immediately complete", detector.isWarmupComplete)
 
-        // First rep is a working rep
-        detector.process(legacy(up = 1, down = 0))  // pending
-        val evts = detector.process(legacy(up = 1, down = 1))
-        // With warmup=0, in legacy mode: n.down (1) > warmupTarget (0), so it's a working rep
+        // First rep is a working rep (up=1, totalReps=0+0+1=1, warmupTarget=0, 1>0 → working)
+        val evts = detector.process(legacy(up = 1, down = 0))
         assertEquals(1, detector.workingRepsCompleted)
         assertTrue(evts.any { it is RepDetectorEvent.WorkingRepCompleted })
     }
@@ -313,45 +337,32 @@ class MachineRepDetectorTest {
     }
 
     @Test
-    fun `no events emitted for duplicate notifications (same up and down)`() {
-        detector.configure(warmupTarget = 3, workingTarget = 3)
-
-        detector.process(legacy(up = 1, down = 1))
-        assertEquals(1, detector.warmupRepsCompleted)
-
-        // Same values re-notified
-        val evts = detector.process(legacy(up = 1, down = 1))
-        assertTrue("Duplicate notification should produce no events", evts.isEmpty())
-        assertEquals(1, detector.warmupRepsCompleted)
-    }
-
-    @Test
     fun `observables reflect correct state throughout a full set`() {
         detector.configure(warmupTarget = 3, workingTarget = 2)
 
-        // During warmup
-        detector.process(legacy(up = 1, down = 1))
+        // During warmup: up=1 → rep counted
+        detector.process(legacy(up = 1, down = 0))
         assertEquals(1, detector.warmupRepsCompleted)
         assertEquals(0, detector.workingRepsCompleted)
         assertEquals(1, detector.totalConfirmedReps)
         assertFalse(detector.isWarmupComplete)
         assertFalse(detector.isWorkingComplete)
 
-        // Warmup complete
-        detector.process(legacy(up = 2, down = 2))
-        detector.process(legacy(up = 3, down = 3))
+        // Warmup complete at up=3
+        detector.process(legacy(up = 2, down = 1))
+        detector.process(legacy(up = 3, down = 2))
         assertEquals(3, detector.warmupRepsCompleted)
         assertTrue(detector.isWarmupComplete)
         assertEquals(3, detector.totalConfirmedReps)
 
-        // Working rep 1
-        detector.process(legacy(up = 4, down = 4))
+        // Working rep 1 at up=4
+        detector.process(legacy(up = 4, down = 3))
         assertEquals(1, detector.workingRepsCompleted)
         assertEquals(4, detector.totalConfirmedReps)
         assertFalse(detector.isWorkingComplete)
 
-        // Working rep 2 — target reached
-        detector.process(legacy(up = 5, down = 5))
+        // Working rep 2 — target reached at up=5
+        detector.process(legacy(up = 5, down = 4))
         assertEquals(2, detector.workingRepsCompleted)
         assertEquals(5, detector.totalConfirmedReps)
         assertTrue(detector.isWorkingComplete)
@@ -362,49 +373,48 @@ class MachineRepDetectorTest {
     // ═══════════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `recorded stream - full set with pending and confirmed phases`() {
+    fun `recorded stream - full set with up-counted reps`() {
         detector.configure(warmupTarget = 3, workingTarget = 5)
 
-        // --- Warmup phase (each rep: up at top, then down at bottom) ---
+        // --- Warmup phase: rep counted at up increment ---
 
         // Warmup rep 1
         var evts = detector.process(legacy(up = 1, down = 0))
-        assertEquals("after up=1,down=0: no confirmed", 0, detector.totalConfirmedReps)
-        evts = detector.process(legacy(up = 1, down = 1))
         assertEquals(1, detector.warmupRepsCompleted)
         assertFalse(detector.isWarmupComplete)
+        assertTrue(evts.any { it is RepDetectorEvent.WarmupRepCompleted })
+
+        // down catches up (no new rep)
+        evts = detector.process(legacy(up = 1, down = 1))
+        assertEquals(1, detector.warmupRepsCompleted)
 
         // Warmup rep 2
-        detector.process(legacy(up = 2, down = 1))
-        detector.process(legacy(up = 2, down = 2))
+        evts = detector.process(legacy(up = 2, down = 1))
         assertEquals(2, detector.warmupRepsCompleted)
 
         // Warmup rep 3 (completes warmup)
-        detector.process(legacy(up = 3, down = 2))
-        evts = detector.process(legacy(up = 3, down = 3))
+        detector.process(legacy(up = 2, down = 2))
+        evts = detector.process(legacy(up = 3, down = 2))
         assertEquals(3, detector.warmupRepsCompleted)
         assertTrue(detector.isWarmupComplete)
         assertTrue(evts.any { it is RepDetectorEvent.WarmupComplete })
 
-        // --- Working phase ---
+        // --- Working phase: rep counted at up increment ---
 
-        // Working rep 1: pending at top, confirmed at bottom
+        // Working rep 1
+        detector.process(legacy(up = 3, down = 3))  // down catches up, no event
         evts = detector.process(legacy(up = 4, down = 3))
-        assertTrue("Pending at top of working rep 1", evts.any { it is RepDetectorEvent.WorkingRepPending })
-        evts = detector.process(legacy(up = 4, down = 4))
-        assertTrue("Confirmed at bottom of working rep 1", evts.any { it is RepDetectorEvent.WorkingRepCompleted })
+        assertTrue("Confirmed working rep 1", evts.any { it is RepDetectorEvent.WorkingRepCompleted })
 
         // Working reps 2-4
         for (i in 5..7) {
             detector.process(legacy(up = i, down = i - 1))
-            detector.process(legacy(up = i, down = i))
         }
         assertEquals(4, detector.workingRepsCompleted)
         assertFalse(detector.isWorkingComplete)
 
         // Working rep 5 — target reached
-        detector.process(legacy(up = 8, down = 7))
-        evts = detector.process(legacy(up = 8, down = 8))
+        evts = detector.process(legacy(up = 8, down = 7))
         assertEquals(5, detector.workingRepsCompleted)
         assertTrue(detector.isWorkingComplete)
         assertTrue(evts.any { it is RepDetectorEvent.TargetReached })
@@ -418,6 +428,8 @@ class MachineRepDetectorTest {
     @Test
     fun `recorded stream - modern mode with incremental rom and set counts`() {
         detector.configure(warmupTarget = 3, workingTarget = 3)
+
+        // No priming needed — first notification counts
 
         // Warmup: machine increments repsRomCount 1-by-1
         detector.process(modern(up = 1, down = 1, romCount = 1, romTotal = 3))
@@ -437,5 +449,220 @@ class MachineRepDetectorTest {
         assertEquals(3, detector.workingRepsCompleted)
         assertTrue(detector.isWorkingComplete)
         assertTrue(evts.any { it is RepDetectorEvent.TargetReached })
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  NO PRIMING SKIP REGRESSION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `legacy - first notification with up=1 counts rep (no priming skip)`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Very first notification ever — should NOT be skipped
+        val evts = detector.process(legacy(up = 1, down = 0))
+        assertEquals("First notification must count the rep", 1, detector.warmupRepsCompleted)
+        assertTrue(evts.any { it is RepDetectorEvent.WarmupRepCompleted })
+    }
+
+    @Test
+    fun `modern - no priming needed for zero up down starting packet`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Even if first packet has up=0,down=0 with romCount=0, no events (just deltas are 0)
+        val evts = detector.process(modern(up = 0, down = 0, romCount = 0, romTotal = 3))
+        assertEquals(0, detector.warmupRepsCompleted)
+        assertTrue("Zero counters should produce no events", evts.isEmpty())
+
+        // Now actual first rep comes through
+        val evts2 = detector.process(modern(up = 1, down = 0, romCount = 1, romTotal = 3))
+        assertEquals(1, detector.warmupRepsCompleted)
+        assertTrue(evts2.any { it is RepDetectorEvent.WarmupRepCompleted })
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  20-BYTE PACKETS: warmup from upDelta, working from upDelta fallback
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `20-byte - warmup counts immediately on concentric (up), not on eccentric (romCount)`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Initial zero packet
+        detector.process(modern20(up = 0, down = 0, romCount = 0))
+        assertEquals(0, detector.warmupRepsCompleted)
+
+        // Rep 1: up=1 (concentric top), romCount still 0 (lag)
+        detector.process(modern20(up = 1, down = 0, romCount = 0))
+        assertEquals("Warmup should count immediately on up=1", 1, detector.warmupRepsCompleted)
+
+        // Eccentric catches up: romCount=1 now, but no new rep
+        detector.process(modern20(up = 1, down = 1, romCount = 1))
+        assertEquals("No double-count on eccentric", 1, detector.warmupRepsCompleted)
+
+        // Rep 2: up=2, romCount still 1 (lag)
+        detector.process(modern20(up = 2, down = 1, romCount = 1))
+        assertEquals(2, detector.warmupRepsCompleted)
+
+        // Eccentric catches up
+        detector.process(modern20(up = 2, down = 2, romCount = 2))
+        assertEquals(2, detector.warmupRepsCompleted)
+
+        // Rep 3: up=3, romCount still 2 (lag) — warmup completes
+        val evts = detector.process(modern20(up = 3, down = 2, romCount = 2))
+        assertEquals(3, detector.warmupRepsCompleted)
+        assertTrue(detector.isWarmupComplete)
+        assertTrue(evts.any { it is RepDetectorEvent.WarmupComplete })
+    }
+
+    @Test
+    fun `20-byte - working reps from upDelta after warmup complete`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Complete warmup
+        detector.process(modern20(up = 1, down = 0, romCount = 0))
+        detector.process(modern20(up = 2, down = 1, romCount = 1))
+        detector.process(modern20(up = 3, down = 2, romCount = 2))
+        assertTrue(detector.isWarmupComplete)
+
+        // Eccentric catches up for warmup
+        detector.process(modern20(up = 3, down = 3, romCount = 3))
+
+        // Working rep 1: up=4
+        detector.process(modern20(up = 4, down = 3, romCount = 3))
+        assertEquals(1, detector.workingRepsCompleted)
+
+        // Working rep 2: up=5
+        detector.process(modern20(up = 5, down = 4, romCount = 3))
+        assertEquals(2, detector.workingRepsCompleted)
+    }
+
+    @Test
+    fun `20-byte - boundary rep (warmup to working) does not double-count`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Warmup reps 1-2
+        detector.process(modern20(up = 1, down = 0, romCount = 0))
+        detector.process(modern20(up = 2, down = 1, romCount = 1))
+
+        // Rep 3 completes warmup + rep 4 is first working — in one notification
+        // This simulates a batched delta where up jumps from 2→4
+        detector.process(modern20(up = 4, down = 2, romCount = 2))
+        assertEquals("Warmup capped at target", 3, detector.warmupRepsCompleted)
+        assertEquals("1 working rep from overflow", 1, detector.workingRepsCompleted)
+        assertTrue(detector.isWarmupComplete)
+    }
+
+    @Test
+    fun `20-byte - full set matches real device trace`() {
+        // Simulates the exact trace from logcat 11:45:37 → 11:46:07
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Initial zero
+        detector.process(modern20(up = 0, down = 0, romCount = 0))
+        assertEquals(0, detector.warmupRepsCompleted)
+
+        // Warmup rep 1 (concentric)
+        detector.process(modern20(up = 1, down = 0, romCount = 0))
+        assertEquals(1, detector.warmupRepsCompleted)
+        // Eccentric
+        detector.process(modern20(up = 1, down = 1, romCount = 1))
+        assertEquals(1, detector.warmupRepsCompleted)
+
+        // Warmup rep 2
+        detector.process(modern20(up = 2, down = 1, romCount = 1))
+        assertEquals(2, detector.warmupRepsCompleted)
+        detector.process(modern20(up = 2, down = 2, romCount = 2))
+        assertEquals(2, detector.warmupRepsCompleted)
+
+        // Warmup rep 3 → completes warmup
+        detector.process(modern20(up = 3, down = 2, romCount = 2))
+        assertEquals(3, detector.warmupRepsCompleted)
+        assertTrue(detector.isWarmupComplete)
+        detector.process(modern20(up = 3, down = 3, romCount = 3))
+
+        // Working rep 1
+        detector.process(modern20(up = 4, down = 3, romCount = 3))
+        assertEquals(1, detector.workingRepsCompleted)
+        detector.process(modern20(up = 4, down = 4, romCount = 3))
+
+        // Working rep 2
+        detector.process(modern20(up = 5, down = 4, romCount = 3))
+        assertEquals(2, detector.workingRepsCompleted)
+        detector.process(modern20(up = 5, down = 5, romCount = 3))
+
+        // Working rep 3
+        detector.process(modern20(up = 6, down = 5, romCount = 3))
+        assertEquals(3, detector.workingRepsCompleted)
+        detector.process(modern20(up = 6, down = 6, romCount = 3))
+
+        // Working rep 4
+        detector.process(modern20(up = 7, down = 6, romCount = 3))
+        assertEquals(4, detector.workingRepsCompleted)
+        detector.process(modern20(up = 7, down = 7, romCount = 3))
+
+        // Working rep 5 — target reached
+        val evts = detector.process(modern20(up = 8, down = 7, romCount = 3))
+        assertEquals(5, detector.workingRepsCompleted)
+        assertTrue(detector.isWorkingComplete)
+        assertTrue(evts.any { it is RepDetectorEvent.TargetReached })
+
+        // Final tallies
+        assertEquals(3, detector.warmupRepsCompleted)
+        assertEquals(5, detector.workingRepsCompleted)
+        assertEquals(8, detector.totalConfirmedReps)
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  HARDENING: drift prevention and reconciliation
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `hardening - warmup floor from repsRomCount prevents under-count`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Simulate a scenario where upDelta missed a rep (e.g., two notifications
+        // collapsed into one), but repsRomCount is accurate.
+        // Start: up=0
+        detector.process(modern20(up = 0, down = 0, romCount = 0))
+
+        // Machine suddenly reports romCount=2 but up only went from 0→1 (1 delta)
+        // upDelta-based warmup = 1, but floor guard should bump to 2
+        detector.process(modern20(up = 1, down = 1, romCount = 2))
+        assertEquals("Floor guard should enforce repsRomCount=2", 2, detector.warmupRepsCompleted)
+    }
+
+    @Test
+    fun `hardening - down counter floor prevents total rep under-count`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Complete warmup
+        detector.process(modern20(up = 1, down = 0, romCount = 0))
+        detector.process(modern20(up = 2, down = 1, romCount = 1))
+        detector.process(modern20(up = 3, down = 2, romCount = 2))
+        detector.process(modern20(up = 3, down = 3, romCount = 3))
+
+        // Working: up=4 counted
+        detector.process(modern20(up = 4, down = 3, romCount = 3))
+        assertEquals(1, detector.workingRepsCompleted)
+
+        // down jumps to 5 (confirmed 5 eccentrics total = 3 warmup + 2 working)
+        // but detector only has 1 working → floor guard bumps to 2
+        detector.process(modern20(up = 4, down = 5, romCount = 3))
+        assertEquals("Down floor should enforce 2 working", 2, detector.workingRepsCompleted)
+    }
+
+    @Test
+    fun `hardening - monotonic guard prevents count decrease`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+
+        // Normal warmup
+        detector.process(modern20(up = 1, down = 0, romCount = 0))
+        detector.process(modern20(up = 2, down = 1, romCount = 1))
+        assertEquals(2, detector.warmupRepsCompleted)
+
+        // Even if no upDelta and romCount stays at 1, warmup must stay at 2
+        detector.process(modern20(up = 2, down = 2, romCount = 1))
+        assertEquals("Monotonic: warmup cannot decrease", 2, detector.warmupRepsCompleted)
     }
 }

@@ -11,20 +11,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.BleConnectionState
+import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * A compact pill that reflects the current BLE connection + readiness state.
  *
- * States and their colours:
- *  - **Error**        → red  (#F44336)
- *  - **Disconnected** → grey (#B0BEC5)
- *  - **Connecting…**  → amber (#FF9800)
- *  - **Connected**    → blue (#2196F3) — device reachable but setup not complete
- *  - **Ready**        → green (#4CAF50) — connected + writeChar cached + all notifications on
+ * States and their colours are drawn from [LocalExtendedColors] so they remain
+ * consistent with the rest of the premium theme.
  */
 @Composable
 fun ConnectionStatusPill(
@@ -32,41 +27,41 @@ fun ConnectionStatusPill(
     isReady: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val ext = LocalExtendedColors.current
     val (label, dotColor) = when {
         bleState is BleConnectionState.Error ->
-            "Error" to Color(0xFFF44336)
+            "Error" to ext.statusError
         bleState is BleConnectionState.Disconnected ->
-            "Disconnected" to Color(0xFFB0BEC5)
+            "Disconnected" to ext.statusDisconnected
         bleState is BleConnectionState.Scanning || bleState is BleConnectionState.Connecting ->
-            "Connecting…" to Color(0xFFFF9800)
+            "Connecting…" to ext.statusConnecting
         bleState is BleConnectionState.Connected && isReady ->
-            "Ready" to Color(0xFF4CAF50)
+            "Ready" to ext.statusReady
         bleState is BleConnectionState.Connected ->
-            "Connected" to Color(0xFF2196F3)
+            "Connected" to ext.statusConnected
         else -> "Unknown" to MaterialTheme.colorScheme.error
     }
 
     Surface(
         modifier       = modifier,
-        shape          = RoundedCornerShape(50),
+        shape          = RoundedCornerShape(AppDimens.Corner.pill),
         color          = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-        tonalElevation = 2.dp,
+        tonalElevation = AppDimens.Elevation.card,
     ) {
         Row(
-            modifier              = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier              = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.xs),
             verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(AppDimens.Spacing.sm)
                     .clip(CircleShape)
                     .background(dotColor),
             )
             Text(
                 text     = label,
                 style    = MaterialTheme.typography.labelSmall,
-                fontSize = 11.sp,
             )
         }
     }

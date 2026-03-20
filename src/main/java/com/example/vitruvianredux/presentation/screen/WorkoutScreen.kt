@@ -3,6 +3,8 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.ble.SessionPhase
@@ -28,11 +31,14 @@ import com.example.vitruvianredux.ble.SessionState
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.model.ExerciseSortOrder
 import com.example.vitruvianredux.model.ExerciseVideo
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
+import com.example.vitruvianredux.presentation.components.ExerciseVideoPreviewDialog
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -64,7 +70,7 @@ fun WorkoutScreen(
                 val raw = context.assets.open("exercises.json").bufferedReader().readText()
                 jsonParser.decodeFromString<List<Exercise>>(raw)
                     .filter { it.archived == null }   // hide retired exercises
-            }
+            } + CustomExerciseStore.getAll()
         } catch (e: Exception) {
             loadError = e.message ?: "Failed to load exercises"
         }
@@ -77,6 +83,7 @@ fun WorkoutScreen(
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
     var showJustLift     by remember { mutableStateOf(false) }
+    var videoPreviewExercise by remember { mutableStateOf<Exercise?>(null) }
 
     // Use capitalised group labels ("Arms", "Back", …) for chips
     val allGroups = remember(allExercises) {
@@ -111,6 +118,15 @@ fun WorkoutScreen(
         )
     }
 
+    // ── Video preview dialog (long-press) ─────────────────────────
+    videoPreviewExercise?.let { ex ->
+        ExerciseVideoPreviewDialog(
+            exerciseName = ex.name,
+            videoUrl     = ex.videoUrl,
+            onDismiss    = { videoPreviewExercise = null },
+        )
+    }
+
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -126,7 +142,7 @@ fun WorkoutScreen(
                 ConnectionStatusPill(
                     bleState = sessionState.connectionState,
                     isReady  = isReady,
-                    modifier = Modifier.padding(bottom = 8.dp),
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
                 )
             }
 
@@ -136,7 +152,7 @@ fun WorkoutScreen(
                     text     = "Workout Library",
                     style    = MaterialTheme.typography.headlineSmall,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp),
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.md),
                 )
             }
 
@@ -151,7 +167,7 @@ fun WorkoutScreen(
 
             // ── Search · Chips · Sort — grouped control block ─────────
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
                     // Search field
                     OutlinedTextField(
                         value         = searchQuery,
@@ -179,7 +195,7 @@ fun WorkoutScreen(
                                         label        = { Text("Clear") },
                                         trailingIcon = {
                                             Icon(Icons.Default.Close, contentDescription = null,
-                                                modifier = Modifier.size(14.dp))
+                                                modifier = Modifier.size(AppDimens.Icon.sm))
                                         },
                                     )
                                 }
@@ -256,9 +272,10 @@ fun WorkoutScreen(
                 }
                 else -> items(filtered, key = { it.stableKey }) { ex ->
                     ExerciseCard(
-                        exercise = ex,
-                        onStart  = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
-                        onClick  = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
+                        exercise    = ex,
+                        onStart     = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
+                        onClick     = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
+                        onLongPress = { videoPreviewExercise = ex },
                     )
                     Spacer(Modifier.height(AppDimens.Spacing.sm))
                 }
@@ -281,11 +298,13 @@ fun WorkoutScreen(
 
 // ─── Exercise card ────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ExerciseCard(
     exercise: Exercise,
     onStart: () -> Unit,
     onClick: () -> Unit,
+    onLongPress: () -> Unit = {},
 ) {
     // Use group labels ("Arms", "Legs") as concise tags on the card
     val tags        = exercise.groupLabels
@@ -295,9 +314,11 @@ private fun ExerciseCard(
     val equipmentLabels = exercise.equipment.take(2).map { it.replace('_', ' ').lowercase(java.util.Locale.ROOT).replaceFirstChar { c -> c.uppercaseChar() } }
 
     ElevatedCard(
-        onClick   = onClick,
-        modifier  = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        modifier  = Modifier.fillMaxWidth().combinedClickable(
+            onClick     = onClick,
+            onLongClick = onLongPress,
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
     ) {
         Row(
             modifier              = Modifier
@@ -309,7 +330,7 @@ private fun ExerciseCard(
             // ── Thumbnail ─────────────────────────────────────────────
             Box(
                 modifier         = Modifier
-                    .size(80.dp)
+                    .size(120.dp)
                     .clip(RoundedCornerShape(AppDimens.Corner.sm))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
@@ -326,7 +347,7 @@ private fun ExerciseCard(
                         imageVector        = Icons.Default.FitnessCenter,
                         contentDescription = null,
                         tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                        modifier           = Modifier.size(28.dp),
+                        modifier           = Modifier.size(36.dp),
                     )
                 }
             }
@@ -341,6 +362,17 @@ private fun ExerciseCard(
                     style      = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
+                // "Custom" badge for user-created exercises
+                if (exercise.source == ExerciseSource.CUSTOM) {
+                    SuggestionChip(
+                        onClick = {},
+                        label   = { Text("Custom", style = MaterialTheme.typography.labelSmall) },
+                        colors  = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            labelColor     = MaterialTheme.colorScheme.onTertiaryContainer,
+                        ),
+                    )
+                }
                 if (tags.isNotEmpty()) {
                     Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                         visibleTags.forEach { t ->
@@ -363,7 +395,7 @@ private fun ExerciseCard(
                         equipmentLabels.forEach { equip ->
                             SuggestionChip(
                                 onClick = {},
-                                icon    = { Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(12.dp)) },
+                                icon    = { Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm)) },
                                 label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
                             )
                         }
@@ -375,7 +407,7 @@ private fun ExerciseCard(
             Button(
                 onClick        = onStart,
                 shape          = RoundedCornerShape(AppDimens.Corner.sm),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md_sm, vertical = 6.dp),
                 colors         = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                 ),
@@ -404,6 +436,7 @@ private fun ExerciseDetailSheet(
             modifier            = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = AppDimens.Spacing.md)
+                .navigationBarsPadding()
                 .padding(bottom = AppDimens.Spacing.xl),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
@@ -479,7 +512,7 @@ private fun ExerciseSkeletonCard() {
         modifier  = Modifier
             .fillMaxWidth()
             .height(96.dp),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.selector),
         colors    = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         ),
@@ -498,16 +531,18 @@ private fun ExerciseEmptyState(message: String, onRetry: (() -> Unit)? = null) {
         Icon(
             imageVector        = Icons.Default.SentimentDissatisfied,
             contentDescription = null,
-            modifier           = Modifier.size(48.dp),
-            tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier           = Modifier.size(AppDimens.Icon.xxl),
+            tint               = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
         )
         Text(
-            text  = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text      = message,
+            style     = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            color     = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (onRetry != null) {
-            Button(onClick = onRetry) { Text("Retry") }
+            FilledTonalButton(onClick = onRetry) { Text("Retry", fontWeight = FontWeight.SemiBold) }
         }
     }
 }
@@ -540,7 +575,7 @@ private fun ActiveSessionBanner(
                 colors    = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                 ),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.raised),
             ) {
                 Column(
                     modifier            = Modifier
@@ -576,9 +611,9 @@ private fun ActiveSessionBanner(
                             Icon(
                                 imageVector        = Icons.Default.Stop,
                                 contentDescription = "Stop set",
-                                modifier           = Modifier.size(16.dp),
+                                modifier           = Modifier.size(AppDimens.Icon.sm),
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(AppDimens.Spacing.xs))
                             Text("Stop", style = MaterialTheme.typography.labelMedium)
                         }
                     }
