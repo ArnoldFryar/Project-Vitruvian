@@ -243,7 +243,7 @@ fun TrainingHeatmap(
                 Text(
                     "Less",
                     style = MaterialTheme.typography.labelSmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                    color = cs.onSurfaceVariant.copy(alpha = 0.7f),
                 )
                 listOf(colorEmpty, color1, color2, color3, color4).forEach { c ->
                     Box(
@@ -256,7 +256,7 @@ fun TrainingHeatmap(
                 Text(
                     "More",
                     style = MaterialTheme.typography.labelSmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                    color = cs.onSurfaceVariant.copy(alpha = 0.7f),
                 )
             }
 
@@ -270,7 +270,7 @@ fun TrainingHeatmap(
                         append("$activeDays active day${if (activeDays != 1) "s" else ""}")
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.55f),
+                    color = cs.onSurfaceVariant.copy(alpha = 0.7f),
                 )
             }
         }

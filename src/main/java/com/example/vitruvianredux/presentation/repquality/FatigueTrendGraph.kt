@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -22,11 +21,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
-
-private val TrendGreen  = Color(0xFF66BB6A)
-private val TrendAmber  = Color(0xFFFFCA28)
-private val TrendRed    = Color(0xFFEF5350)
-private val DotColor    = Color.White
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * Compact sparkline showing per-rep quality scores for the most recent set,
@@ -43,11 +38,17 @@ fun FatigueTrendGraph(
 ) {
     if (scores.size < 2) return
 
+    val ext = LocalExtendedColors.current
+    val trendGreen = ext.accentCyan
+    val trendAmber = ext.accentAmber
+    val trendRed   = ext.accentRed
+    val dotColor   = MaterialTheme.colorScheme.onSurface
+
     val slope = FatigueTrendAnalyzer.trendSlope() ?: 0f
     val lineColor = when {
-        slope <= -3f -> TrendRed
-        slope <= -1f -> TrendAmber
-        else         -> TrendGreen
+        slope <= -3f -> trendRed
+        slope <= -1f -> trendAmber
+        else         -> trendGreen
     }
     val label = FatigueTrendAnalyzer.trendLabel()
 
@@ -102,7 +103,7 @@ fun FatigueTrendGraph(
                 val dotRadius = 3.dp.toPx()
                 pts.forEachIndexed { i, v ->
                     drawCircle(
-                        color  = DotColor,
+                        color  = dotColor,
                         radius = dotRadius,
                         center = Offset(xOf(i), yOf(v)),
                     )

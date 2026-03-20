@@ -38,7 +38,7 @@ fun AppEmptyState(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(64.dp),
+                modifier = Modifier.size(AppDimens.Icon.hero),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
             )
             Text(

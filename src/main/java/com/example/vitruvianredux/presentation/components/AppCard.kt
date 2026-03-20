@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -12,7 +13,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 
@@ -22,7 +26,7 @@ import com.example.vitruvianredux.presentation.ui.MotionTokens
  * Guarantees identical visual treatment:
  * - **Shape**: [AppDimens.Corner.md] (16 dp)
  * - **Elevation**: [AppDimens.Elevation.card] (2 dp)
- * - **Color**: `surfaceContainerLow` (Material3 default for ElevatedCard)
+ * - **Glass edge**: subtle top-lit gradient border for depth
  */
 @Composable
 fun AppCard(
@@ -30,6 +34,18 @@ fun AppCard(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
+    val shape = RoundedCornerShape(AppDimens.Corner.md)
+    val glassBorder = Modifier.border(
+        width = 0.5.dp,
+        brush = Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.07f),
+                Color.Transparent,
+            )
+        ),
+        shape = shape,
+    )
+
     if (onClick != null) {
         val interactionSource = remember { MutableInteractionSource() }
         val isPressed by interactionSource.collectIsPressedAsState()
@@ -40,17 +56,18 @@ fun AppCard(
         )
         ElevatedCard(
             modifier = modifier
+                .then(glassBorder)
                 .graphicsLayer(scaleX = scale, scaleY = scale)
                 .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
-            shape     = RoundedCornerShape(AppDimens.Corner.md),
+            shape     = shape,
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
         ) {
             content()
         }
     } else {
         ElevatedCard(
-            modifier  = modifier,
-            shape     = RoundedCornerShape(AppDimens.Corner.md),
+            modifier  = modifier.then(glassBorder),
+            shape     = shape,
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
         ) {
             content()

@@ -5,6 +5,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -40,7 +43,16 @@ fun BottomBar(nav: NavController) {
     )
     val backStack = nav.currentBackStackEntryAsState()
     val startDestination = Route.Activity.path
+    val accentLine = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
     NavigationBar(
+        modifier = Modifier.drawBehind {
+            drawLine(
+                color       = accentLine,
+                start       = Offset(0f, 0f),
+                end         = Offset(size.width, 0f),
+                strokeWidth = 1f,
+            )
+        },
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
     ) {

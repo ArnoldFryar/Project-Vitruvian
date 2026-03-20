@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -12,6 +13,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +37,13 @@ fun StatCard(
 ) {
     val shape = RoundedCornerShape(AppDimens.Corner.sm)
     val color = MaterialTheme.colorScheme.surfaceVariant
+    val glassBorder = Modifier.border(
+        width = 0.5.dp,
+        brush = Brush.verticalGradient(
+            listOf(Color.White.copy(alpha = 0.07f), Color.Transparent)
+        ),
+        shape = shape,
+    )
 
     if (onClick != null) {
         val interactionSource = remember { MutableInteractionSource() }
@@ -50,6 +60,7 @@ fun StatCard(
         )
         Surface(
             modifier = modifier
+                .then(glassBorder)
                 .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
                 .clickable(interactionSource = interactionSource, indication = null) { onClick() },
             shape = shape,
@@ -60,7 +71,7 @@ fun StatCard(
         }
     } else {
         Surface(
-            modifier = modifier,
+            modifier = modifier.then(glassBorder),
             shape = shape,
             color = color,
             tonalElevation = AppDimens.Elevation.selector,

@@ -45,6 +45,9 @@ import com.example.vitruvianredux.presentation.components.TrainingMomentumCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.ScreenScaffold
+import com.example.vitruvianredux.presentation.ui.theme.AccentCyan
+import com.example.vitruvianredux.presentation.ui.theme.BrandCyan
+import com.example.vitruvianredux.presentation.ui.theme.Gold
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
@@ -93,7 +96,8 @@ fun ProfileScreen(
         else WorkoutHistoryStore.recentVolumeKg(7)
     }
     val weekSessions = remember(allLogs, history) {
-        val fromAnalytics = AnalyticsStore.sessionCount(7)
+        // Calendar-week count matches weeklyVolumesKg semantics (Mon–Sun)
+        val fromAnalytics = AnalyticsStore.sessionsPerWeek(1).lastOrNull()?.second ?: 0
         if (fromAnalytics > 0 || allLogs.isNotEmpty()) fromAnalytics
         else WorkoutHistoryStore.recentSessions(7)
     }
@@ -251,7 +255,7 @@ fun ProfileScreen(
             ProfileStatCard(modifier = Modifier.weight(1f), value = "$currentStreak d",          label = "Streak",   onClick = { showStreakDetail = true })
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  Volume chart — with week navigation
@@ -329,8 +333,13 @@ fun ProfileScreen(
                     val volumeData = remember(history, monday) {
                         WorkoutHistoryStore.dailyVolume(monday, sunday)
                     }
+                    val sessionData = remember(history, monday) {
+                        WorkoutHistoryStore.dailySessions(monday, sunday)
+                    }
                     val volumeMap = volumeData.toMap()
+                    val sessionMap = sessionData.toMap()
                     val dayVolumes = weekDays.map { volumeMap[it] ?: 0.0 }
+                    val daySessions = weekDays.map { sessionMap[it] ?: 0 }
                     val weekTotal = dayVolumes.sum()
                     val maxVal = dayVolumes.maxOrNull()?.takeIf { it > 0 } ?: 1.0
 
@@ -345,7 +354,8 @@ fun ProfileScreen(
                     )
                     Spacer(Modifier.height(8.dp))
 
-                    if (dayVolumes.all { it == 0.0 }) {
+                    val hasAnyActivity = dayVolumes.any { it > 0.0 } || daySessions.any { it > 0 }
+                    if (!hasAnyActivity) {
                         Text(
                             "No workouts this week",
                             style = MaterialTheme.typography.bodySmall,
@@ -356,6 +366,8 @@ fun ProfileScreen(
                         val barColor = cs.primary
                         val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
+                        // Minimum stub height for sessions with no tracked volume (4dp in px)
+                        val minStubPx = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }
 
                         Canvas(modifier = Modifier.fillMaxWidth().height(100.dp)) {
                             val totalBars = 7
@@ -375,6 +387,15 @@ fun ProfileScreen(
                                         color = if (i == todayIndex) barColor else barColor.copy(alpha = 0.7f),
                                         topLeft = Offset(x, size.height - barH),
                                         size = Size(barWidth, barH),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
+                                    )
+                                } else if (daySessions[i] > 0) {
+                                    // Session happened but no tracked volume (e.g. Just Lift, warmup-only).
+                                    // Draw a minimal stub so the day doesn't appear empty.
+                                    drawRoundRect(
+                                        color = barColor.copy(alpha = 0.35f),
+                                        topLeft = Offset(x, size.height - minStubPx),
+                                        size = Size(barWidth, minStubPx),
                                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
                                     )
                                 }
@@ -566,7 +587,7 @@ fun ProfileScreen(
             var periodOffset by remember { mutableIntStateOf(0) }
             LaunchedEffect(selectedTab) { periodOffset = 0 }
 
-            val sessColor = Color(0xFF7B61FF)
+            val sessColor = MaterialTheme.colorScheme.secondary
             val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
 
             when (selectedTab) {
@@ -748,8 +769,12 @@ fun ProfileScreen(
             } else {
                 // Pick up to top 5 groups, rest lumped into "Other"
                 val palette = listOf(
-                    Color(0xFFF72585), Color(0xFF7B61FF), Color(0xFF00CED1),
-                    Color(0xFFFFD700), Color(0xFF4CAF50), Color(0xFFFF6B6B),
+                    BrandCyan,
+                    MaterialTheme.colorScheme.secondary,
+                    AccentCyan,
+                    Gold,
+                    MaterialTheme.colorScheme.tertiary,
+                    LocalExtendedColors.current.accentRed,
                 )
                 val sorted = distribution.entries.sortedByDescending { it.value }
                 val top5 = sorted.take(5)

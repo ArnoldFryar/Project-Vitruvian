@@ -4,7 +4,6 @@ package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
@@ -74,7 +74,7 @@ fun TemplateLibraryScreen(
 
         Crossfade(
             targetState = contentState,
-            animationSpec = tween(MotionTokens.STANDARD_MS),
+            animationSpec = MotionTokens.ContentCrossfade,
             label = "templateContent",
         ) { state ->
             when (state) {
@@ -84,6 +84,8 @@ fun TemplateLibraryScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
+                            modifier = Modifier.size(AppDimens.Icon.xl),
+                            strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -93,25 +95,31 @@ fun TemplateLibraryScreen(
                         modifier = Modifier.fillMaxSize().padding(innerPadding),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            modifier = Modifier
+                                .padding(AppDimens.Spacing.xl)
+                                .widthIn(max = 320.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                        ) {
                             Icon(
                                 Icons.Default.GridView,
                                 contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.size(AppDimens.Icon.hero),
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                             )
-                            Spacer(Modifier.height(12.dp))
                             Text(
                                 "No templates available",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
-                            Spacer(Modifier.height(4.dp))
                             Text(
                                 "Import a program and save it as a template to see it here.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                textAlign = TextAlign.Center,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -121,8 +129,8 @@ fun TemplateLibraryScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
                         categories.forEach { category ->
                             val categoryTemplates = allTemplates.filter { it.category == category }
@@ -146,9 +154,8 @@ fun TemplateLibraryScreen(
                                 )
                             }
 
-                            // Spacer between categories
                             item(key = "spacer_$category") {
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(AppDimens.Spacing.sm))
                             }
                         }
                     }
@@ -165,7 +172,7 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = AppDimens.Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -182,7 +189,7 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
         Text(
             text = category,
             style = MaterialTheme.typography.titleSmall,

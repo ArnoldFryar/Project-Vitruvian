@@ -236,13 +236,11 @@ fun ExercisePlayerScreen(
                                 workoutVM.resetAfterWorkout()
                                 onBack()
                             },
-                            onSaveAndExit = if (hasProgramChanges) {
-                                {
-                                    workoutVM.saveWorkoutChangesToProgram()
-                                    workoutVM.resetAfterWorkout()
-                                    onBack()
-                                }
-                            } else null,
+                            onSaveAndExit = {
+                                if (hasProgramChanges) workoutVM.saveWorkoutChangesToProgram()
+                                workoutVM.resetAfterWorkout()
+                                onBack()
+                            },
                             avgQualityScore = workoutVM.completedExerciseStats
                                 .mapNotNull { it.avgQualityScore }
                                 .takeIf { it.isNotEmpty() }

@@ -1,5 +1,6 @@
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -36,6 +37,7 @@ import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.SectionHeader
 import com.example.vitruvianredux.presentation.components.StatCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.ScreenScaffold
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.util.loadExercises
@@ -80,10 +82,10 @@ fun HomeScreen(
         } catch (_: Exception) { emptyMap() }
     }
 
-    // Real 7-day stats from AnalyticsStore — same data source as ProfileScreen.
+    // Real stats from AnalyticsStore — calendar-week semantics match ProfileScreen.
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val weekVolumeKg = remember(allLogs) { AnalyticsStore.weeklyVolumesKg(1).lastOrNull()?.second ?: 0.0 }
-    val weekSessions = remember(allLogs) { AnalyticsStore.sessionCount(7) }
+    val weekSessions = remember(allLogs) { AnalyticsStore.sessionsPerWeek(1).lastOrNull()?.second ?: 0 }
     val currentStreak = remember(allLogs) { AnalyticsStore.currentStreak() }
     val volumeValue = UnitConversions.formatVolumeFromKg(weekVolumeKg, unitSystem)
     val volumeLabel = "Volume (${UnitConversions.unitLabel(unitSystem)})"
@@ -169,69 +171,79 @@ fun HomeScreen(
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.selector),
         ) {
             Column(Modifier.padding(AppDimens.Spacing.md)) {
-                if (nextProgram != null) {
-                    Text(
-                        nextProgram.name,
-                        fontWeight = FontWeight.SemiBold,
-                        style      = MaterialTheme.typography.bodyLarge,
-                    )
-                    Text(
-                        "${nextProgram.exerciseCount} exercise",
-                        color = cs.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.md))
-                    Row(
-                        modifier              = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                    ) {
-                        GradientButton(
-                            text     = "Start",
-                            icon     = Icons.Default.PlayArrow,
-                            modifier = Modifier.weight(1f),
-                            onClick  = {
-                                val sets = nextProgram!!.items.flatMap { item ->
-                                    val ex = exerciseCatalog[item.exerciseId]
-                                    List(item.sets) {
-                                        PlayerSetParams(
-                                            exerciseName            = item.exerciseName,
-                                            thumbnailUrl            = ex?.thumbnailUrl,
-                                            videoUrl                = ex?.videoUrl,
-                                            targetReps              = if (item.mode == ExerciseMode.REPS) item.reps else null,
-                                            targetDurationSec       = if (item.mode == ExerciseMode.TIME) item.durationSec else null,
-                                            weightPerCableLb        = item.targetWeightLb,
-                                            restAfterSec            = item.restTimerSec,
-                                            warmupReps              = 3,
-                                            programMode             = item.programMode,
-                                            progressionRegressionLb = item.progressionRegressionLb,
-                                            muscleGroups            = ex?.muscleGroups ?: emptyList(),
-                                        )
-                                    }
+                Crossfade(
+                    targetState = nextProgram,
+                    animationSpec = MotionTokens.ContentCrossfade,
+                    label = "upNextContent",
+                ) { program ->
+                    if (program != null) {
+                        Column {
+                            Text(
+                                program.name,
+                                fontWeight = FontWeight.SemiBold,
+                                style      = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                "${program.exerciseCount} exercise",
+                                color = cs.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Spacer(Modifier.height(AppDimens.Spacing.md))
+                            Row(
+                                modifier              = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                            ) {
+                                GradientButton(
+                                    text     = "Start",
+                                    icon     = Icons.Default.PlayArrow,
+                                    modifier = Modifier.weight(1f),
+                                    onClick  = {
+                                        val sets = program.items.flatMap { item ->
+                                            val ex = exerciseCatalog[item.exerciseId]
+                                            List(item.sets) {
+                                                PlayerSetParams(
+                                                    exerciseName            = item.exerciseName,
+                                                    thumbnailUrl            = ex?.thumbnailUrl,
+                                                    videoUrl                = ex?.videoUrl,
+                                                    targetReps              = if (item.mode == ExerciseMode.REPS) item.reps else null,
+                                                    targetDurationSec       = if (item.mode == ExerciseMode.TIME) item.durationSec else null,
+                                                    weightPerCableLb        = item.targetWeightLb,
+                                                    restAfterSec            = item.restTimerSec,
+                                                    warmupReps              = 3,
+                                                    programMode             = item.programMode,
+                                                    progressionRegressionLb = item.progressionRegressionLb,
+                                                    muscleGroups            = ex?.muscleGroups ?: emptyList(),
+                                                )
+                                            }
+                                        }
+                                        workoutVM?.startPlayerWorkout(sets)
+                                    },
+                                )
+                                OutlinedButton(
+                                    onClick  = { onNavigateToProgramDetail(program.id) },
+                                    modifier = Modifier.weight(1f).height(48.dp),
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                    Text("Edit")
                                 }
-                                workoutVM?.startPlayerWorkout(sets)
-                            },
-                        )
-                        OutlinedButton(
-                            onClick  = { onNavigateToProgramDetail(nextProgram!!.id) },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
-                            Spacer(Modifier.width(AppDimens.Spacing.xs))
-                            Text("Edit")
+                            }
+                        }
+                    } else {
+                        Column {
+                            Text(
+                                "No program scheduled",
+                                color = cs.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(Modifier.height(AppDimens.Spacing.sm))
+                            Text(
+                                "Go to Programs to create or choose a routine.",
+                                color = cs.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                     }
-                } else {
-                    Text(
-                        "No program scheduled",
-                        color = cs.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-                    Text(
-                        "Go to Programs to create or choose a routine.",
-                        color = cs.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
                 }
             }
         }

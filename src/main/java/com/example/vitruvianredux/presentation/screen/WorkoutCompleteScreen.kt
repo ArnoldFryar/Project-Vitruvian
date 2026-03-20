@@ -1,5 +1,6 @@
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,29 +9,35 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.session.WorkoutStats
+import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
-import kotlin.math.roundToInt
+import com.example.vitruvianredux.util.UnitConversions
 
 /** Workout summary screen — shown inside ExercisePlayerScreen via AnimatedContent. */
 @Composable
 fun WorkoutCompleteContent(
     stats: WorkoutStats,
     onDismiss: () -> Unit,
-    onSaveAndExit: (() -> Unit)? = null,
+    onSaveAndExit: () -> Unit,
     avgQualityScore: Int? = null,
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
     val ext = LocalExtendedColors.current
+    val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -45,7 +52,7 @@ fun WorkoutCompleteContent(
         Icon(
             imageVector        = Icons.Default.EmojiEvents,
             contentDescription = null,
-            modifier           = Modifier.size(64.dp),
+            modifier           = Modifier.size(AppDimens.Icon.hero),
             tint               = ext.accentCyan,
         )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -54,7 +61,7 @@ fun WorkoutCompleteContent(
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
                 text  = "You crushed it. Here's your summary.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -81,8 +88,8 @@ fun WorkoutCompleteContent(
                 StatTile(
                     icon  = Icons.Default.FitnessCenter,
                     label = "Total Volume",
-                    value = "${(stats.totalVolumeKg / 0.45359237f).roundToInt()}",
-                    unit  = "lb",
+                    value = UnitConversions.formatVolumeFromKg(stats.totalVolumeKg.toDouble(), unitSystem),
+                    unit  = UnitConversions.unitLabel(unitSystem),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -143,16 +150,16 @@ fun WorkoutCompleteContent(
             Box(contentAlignment = Alignment.Center) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                 ) {
                     Icon(
                         Icons.Default.ShowChart,
                         contentDescription = null,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(AppDimens.Icon.xl),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
                     )
                     Text(
-                        text  = "Force curve visualization",
+                        text  = "Performance insights — coming soon",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     )
@@ -161,63 +168,48 @@ fun WorkoutCompleteContent(
         }
 
         // ── Action buttons ──────────────────────────────────────────────────
-        if (onSaveAndExit != null) {
-            Button(
-                onClick   = onSaveAndExit,
-                modifier  = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
-                colors    = ButtonDefaults.buttonColors(
-                    containerColor = cs.primary,
-                    contentColor = cs.onPrimary,
-                ),
-            ) {
-                Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
-                Spacer(Modifier.width(AppDimens.Spacing.sm))
-                Text(
-                    text       = "Save Changes & Exit",
-                    style      = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+        Button(
+            onClick   = onSaveAndExit,
+            modifier  = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
+            colors    = ButtonDefaults.buttonColors(
+                containerColor = cs.primary,
+                contentColor   = cs.onPrimary,
+            ),
+        ) {
+            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+            Spacer(Modifier.width(AppDimens.Spacing.sm))
+            Text(
+                text       = "Done",
+                style      = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
 
-            OutlinedButton(
-                onClick   = onDismiss,
-                modifier  = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
-            ) {
-                Text(
-                    text       = "Exit Without Saving",
-                    style      = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        } else {
-            Button(
-                onClick   = onDismiss,
-                modifier  = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
-                colors    = ButtonDefaults.buttonColors(
-                    containerColor = cs.primary,
-                    contentColor = cs.onPrimary,
-                ),
-            ) {
-                Text(
-                    text       = "Done",
-                    style      = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+        OutlinedButton(
+            onClick   = onDismiss,
+            modifier  = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
+        ) {
+            Text(
+                text       = "Exit Without Saving",
+                style      = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
     }
 }
+
+private val GlassBorder = BorderStroke(
+    0.5.dp,
+    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.07f), Color.Transparent)),
+)
 
 @Composable
 private fun StatTile(
@@ -229,9 +221,10 @@ private fun StatTile(
 ) {
     Surface(
         modifier  = modifier,
-        shape = RoundedCornerShape(AppDimens.Corner.sm),
+        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.selector,
+        tonalElevation = AppDimens.Elevation.card,
+        border = GlassBorder,
     ) {
         Column(
             modifier            = Modifier

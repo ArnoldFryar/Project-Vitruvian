@@ -40,7 +40,7 @@ private val pages = listOf(
         icon = Icons.Default.Bluetooth,
         title = "Connect Your Trainer",
         subtitle = "Pair your V-Form via Bluetooth for real-time rep tracking and force feedback.",
-        accentColor = BrandPink,
+        accentColor = BrandCyan,
     ),
     OnboardingPage(
         icon = Icons.Default.Sync,

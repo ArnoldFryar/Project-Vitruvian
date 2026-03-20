@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.ble.SessionPhase
@@ -530,16 +531,18 @@ private fun ExerciseEmptyState(message: String, onRetry: (() -> Unit)? = null) {
         Icon(
             imageVector        = Icons.Default.SentimentDissatisfied,
             contentDescription = null,
-            modifier           = Modifier.size(48.dp),
-            tint               = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier           = Modifier.size(AppDimens.Icon.xxl),
+            tint               = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
         )
         Text(
-            text  = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text      = message,
+            style     = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            color     = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (onRetry != null) {
-            Button(onClick = onRetry) { Text("Retry") }
+            FilledTonalButton(onClick = onRetry) { Text("Retry", fontWeight = FontWeight.SemiBold) }
         }
     }
 }
@@ -572,7 +575,7 @@ private fun ActiveSessionBanner(
                 colors    = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                 ),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.raised),
             ) {
                 Column(
                     modifier            = Modifier

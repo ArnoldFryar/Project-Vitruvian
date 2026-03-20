@@ -211,7 +211,7 @@ private fun WeeklyProgressBlock(
             Text(
                 text     = " / $goal",
                 style    = MaterialTheme.typography.titleMedium,
-                color    = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                color    = cs.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.padding(bottom = 4.dp),
             )
         }
@@ -301,8 +301,8 @@ private fun DayStrip(
                         isToday               -> cs.primary
                         isScheduled && isFuture -> cs.primary.copy(alpha = 0.35f)
                         isScheduled           -> cs.primary.copy(alpha = 0.75f)
-                        isFuture              -> cs.onSurfaceVariant.copy(alpha = 0.2f)
-                        else                  -> cs.onSurfaceVariant.copy(alpha = 0.55f)
+                        isFuture              -> cs.onSurfaceVariant.copy(alpha = 0.4f)
+                        else                  -> cs.onSurfaceVariant.copy(alpha = 0.65f)
                     },
                 )
 

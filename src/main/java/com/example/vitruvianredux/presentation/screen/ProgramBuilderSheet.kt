@@ -260,17 +260,20 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
+                            ) {
                                 Icon(
                                     Icons.Default.FitnessCenter, null,
-                                    tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(36.dp),
+                                    tint     = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                                    modifier = Modifier.size(AppDimens.Icon.xxl),
                                 )
-                                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
                                 Text(
                                     "Add exercises to build your program",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }

@@ -25,12 +25,24 @@ object ActivityStatsStore {
         val streak: Int,
     )
 
-    // ── Placeholder data (mirrors the hardcoded values previously in HomeScreen) ──
-    private val _stats = MutableStateFlow(
-        Stats(volumeKg = 3200.0, sessions = 2, streak = 1),
-    )
+    private val _stats = MutableStateFlow(Stats(volumeKg = 0.0, sessions = 0, streak = 0))
 
     val statsFlow: StateFlow<Stats> = _stats.asStateFlow()
+
+    /**
+     * Seed weekly stats from persisted [AnalyticsStore] data.
+     * Call once after [AnalyticsStore.init] on app startup.
+     */
+    fun seedFromAnalytics() {
+        val weeklyVolumeKg = AnalyticsStore.weeklyVolumesKg(1).sumOf { it.second }
+        val weeklySessions = AnalyticsStore.sessionsPerWeek(1).sumOf { it.second }
+        val streak = AnalyticsStore.currentStreak()
+        _stats.value = Stats(
+            volumeKg = weeklyVolumeKg,
+            sessions = weeklySessions,
+            streak   = streak,
+        )
+    }
 
     /** Update stats from a completed workout session. */
     fun recordSession(additionalVolumeKg: Double) {

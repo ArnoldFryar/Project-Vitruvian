@@ -80,6 +80,17 @@ object AnalyticsStore {
     // ── Write API ────────────────────────────────────────────────────────────
 
     fun record(log: SessionLog) {
+        // Dedup guard: reject if a session with very similar timing and rep count
+        // already exists (within 5 s of endTimeMs and same reps+duration).
+        val isDuplicate = _logs.value.any {
+            kotlin.math.abs(it.endTimeMs - log.endTimeMs) < 5_000L &&
+                it.totalReps == log.totalReps &&
+                it.durationSec == log.durationSec
+        }
+        if (isDuplicate) {
+            Timber.tag("analytics").w("Duplicate session blocked: ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")
+            return
+        }
         _logs.value = _logs.value + log
         persist()
         Timber.tag("analytics").d("recorded session ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")

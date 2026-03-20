@@ -187,8 +187,12 @@ fun AppScaffold() {
 
                 // ── Health Connect: export workout summary when a session completes ──
                 // ── Analytics: passively record completed session ──
+                // Guard: only record once per WorkoutComplete event even if
+                // Compose recomposes and re-fires the LaunchedEffect.
+                var analyticsRecorded by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(phase) {
-                    if (phase is SessionPhase.WorkoutComplete) {
+                    if (phase is SessionPhase.WorkoutComplete && !analyticsRecorded) {
+                        analyticsRecorded = true
                         val stats = phase.workoutStats
                         val endMs = System.currentTimeMillis()
                         val startMs = endMs - (stats.durationSec * 1_000L)
@@ -200,8 +204,11 @@ fun AppScaffold() {
                         val exerciseNames = WorkoutHistoryStore.historyFlow.value
                             .lastOrNull()?.exerciseNames ?: emptyList()
 
-                        // Capture per-set data before it's cleared
+                        // Capture per-set data before it's cleared; deduplicate by setIndex
+                        // as a defensive guard in case the ViewModel accumulates duplicates
+                        // from multiple state emissions during ExerciseComplete.
                         val completedStats = workoutVM.completedExerciseStats
+                            .distinctBy { it.setIndex }
                         val exerciseSets = completedStats.map { es ->
                             AnalyticsStore.ExerciseSetLog(
                                 exerciseName    = es.exerciseName,
@@ -220,6 +227,10 @@ fun AppScaffold() {
                             programName   = workoutVM.activeProgramName,
                             dayName       = workoutVM.activeDayName,
                         )
+                        // Reseed activity stats from the now-persisted AnalyticsStore so that
+                        // weekly volume, session count, and streak reflect real data rather
+                        // than the in-memory increments from the engine.
+                        com.example.vitruvianredux.data.ActivityStatsStore.seedFromAnalytics()
 
                         // ── Durable exercise/set history (Room, pending sync) ──
                         ExerciseHistoryRecorder.record(
@@ -265,6 +276,10 @@ fun AppScaffold() {
                             )
                             HealthConnectManager.writeWorkoutSummary(summary)
                         }
+                    }
+                    // Reset the recording guard when transitioning to a new session
+                    if (phase !is SessionPhase.WorkoutComplete) {
+                        analyticsRecorded = false
                     }
                 }
                 

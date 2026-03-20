@@ -18,14 +18,15 @@ object UnitsStore {
 
     enum class UnitSystem { IMPERIAL_LB, METRIC_KG }
 
-    private const val PREFS_NAME     = "vitruvian_units"
-    private const val KEY_UNIT       = "unit_system"
+    private const val PREFS_NAME        = "vitruvian_units"
+    private const val KEY_UNIT           = "unit_system"
+    private const val KEY_UPDATED_AT     = "units_updated_at"
     /**
      * Migration guard: bumped if the canonical storage unit ever changes.
      * Current version = 1 (canonical = kg, stored since this feature was introduced).
      */
-    private const val KEY_MIGRATION  = "unit_migration_v"
-    private const val MIGRATION_VERSION = 1
+    private const val KEY_MIGRATION      = "unit_migration_v"
+    private const val MIGRATION_VERSION  = 1
 
     private lateinit var prefs: SharedPreferences
 
@@ -33,6 +34,9 @@ object UnitsStore {
     val unitSystemFlow: StateFlow<UnitSystem> = _unitSystem.asStateFlow()
 
     val current: UnitSystem get() = _unitSystem.value
+
+    /** Epoch-ms of the last local write; 0 if never explicitly set by the user. */
+    val updatedAt: Long get() = if (::prefs.isInitialized) prefs.getLong(KEY_UPDATED_AT, 0L) else 0L
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -46,7 +50,10 @@ object UnitsStore {
 
     fun setUnitSystem(system: UnitSystem) {
         _unitSystem.value = system
-        prefs.edit().putString(KEY_UNIT, system.name).apply()
+        prefs.edit()
+            .putString(KEY_UNIT, system.name)
+            .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
+            .apply()
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────

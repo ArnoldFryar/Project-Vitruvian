@@ -166,7 +166,7 @@ class WorkoutSessionViewModel(
                 // ── Capture per-set stats for "Save Changes" feature ─────
                 val sessionPhase = currentState.sessionPhase
                 if (sessionPhase is SessionPhase.ExerciseComplete &&
-                    _completedExerciseStats.lastOrNull() !== sessionPhase.stats) {
+                    _completedExerciseStats.none { it.setIndex == sessionPhase.stats.setIndex }) {
                     // Attach accumulated rep quality averages to the engine's stats
                     val enriched = if (_currentSetRepQualities.isNotEmpty()) {
                         val rqs = _currentSetRepQualities.toList()

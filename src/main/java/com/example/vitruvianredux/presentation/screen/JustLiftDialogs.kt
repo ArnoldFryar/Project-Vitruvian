@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.ble.protocol.EchoLevel
@@ -30,18 +33,26 @@ internal fun SettingsRow(
     onClick: (() -> Unit)?
 ) {
     val cs = MaterialTheme.colorScheme
+    val iconShape = RoundedCornerShape(AppDimens.Corner.sm)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(AppDimens.Corner.sm))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
-            .padding(horizontal = AppDimens.Spacing.md, vertical = 14.dp),
+            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .background(cs.surfaceVariant, RoundedCornerShape(AppDimens.Corner.sm)),
+                .background(cs.surfaceVariant, iconShape)
+                .border(
+                    width = 0.5.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.07f), Color.Transparent)
+                    ),
+                    shape = iconShape,
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
@@ -63,13 +74,13 @@ internal fun ModePickerDialog(
 ) {
     val cs = MaterialTheme.colorScheme
     DialogContainer(onDismiss = onDismiss) {
-                Text("Modes", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
+                Text("Modes", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm))
                 JustLiftMode.entries.forEach { mode ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelect(mode) }
-                            .padding(horizontal = 20.dp, vertical = AppDimens.Spacing.md),
+                            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -86,7 +97,7 @@ internal fun ModePickerDialog(
                         }
                         if (mode == current) Icon(Icons.Default.Check, contentDescription = "Selected", tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
-                    if (mode != JustLiftMode.entries.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
+                    if (mode != JustLiftMode.entries.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
@@ -99,20 +110,20 @@ internal fun EccentricPickerDialog(current: Int, onSelect: (Int) -> Unit, onDism
     val cs = MaterialTheme.colorScheme
     val options = listOf(0, 50, 75, 100, 110, 120, 130)
     DialogContainer(onDismiss = onDismiss) {
-                Text("Eccentric Load", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
+                Text("Eccentric Load", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm))
                 options.forEach { pct ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelect(pct) }
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("$pct%", color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
                         if (pct == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
-                    if (pct != options.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
+                    if (pct != options.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
@@ -124,20 +135,20 @@ internal fun EccentricPickerDialog(current: Int, onSelect: (Int) -> Unit, onDism
 internal fun LevelPickerDialog(current: EchoLevel, onSelect: (EchoLevel) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     DialogContainer(onDismiss = onDismiss) {
-                Text("Levels", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
+                Text("Levels", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm))
                 EchoLevel.entries.forEach { level ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelect(level) }
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(level.displayName, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
                         if (level == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
-                    if (level != EchoLevel.entries.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
+                    if (level != EchoLevel.entries.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
@@ -153,13 +164,13 @@ internal fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, 
     // Options stored in kg — displayed in user's preferred unit
     val options = listOf(-10f, -5f, -2.5f, -1f, -0.5f, 0f, 0.5f, 1f, 2.5f, 5f, 10f)
     DialogContainer(onDismiss = onDismiss) {
-                Text("Progression / Regression", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
+                Text("Progression / Regression", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm))
                 options.forEach { v ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelect(v) }
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -168,7 +179,7 @@ internal fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, 
                         Text(text, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
                         if (v == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
-                    if (v != options.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
+                    if (v != options.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
@@ -181,20 +192,20 @@ internal fun RestPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: 
     val cs = MaterialTheme.colorScheme
     val options = listOf(0, 30, 60, 90, 120, 180, 240, 300)
     DialogContainer(onDismiss = onDismiss) {
-                Text("Rest Timer", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
+                Text("Rest Timer", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm))
                 options.forEach { s ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelect(s) }
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(if (s == 0) "Off" else "%d:%02d".format(s / 60, s % 60), color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
                         if (s == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
-                    if (s != options.last()) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
+                    if (s != options.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
@@ -208,20 +219,20 @@ internal fun RepTimingPickerDialog(current: String, onSelect: (String) -> Unit, 
     val options = listOf("TOP", "BOTTOM")
     val labels  = listOf("Top (concentric peak)", "Bottom (after eccentric)")
     DialogContainer(onDismiss = onDismiss) {
-                Text("Rep Count Timing", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp))
+                Text("Rep Count Timing", color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm))
                 options.forEachIndexed { idx, opt ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onSelect(opt) }
-                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(labels[idx], color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
                         if (opt == current) Icon(Icons.Default.Check, contentDescription = null, tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
-                    if (idx < options.lastIndex) Divider(modifier = Modifier.padding(horizontal = 20.dp), color = cs.outlineVariant)
+                    if (idx < options.lastIndex) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }

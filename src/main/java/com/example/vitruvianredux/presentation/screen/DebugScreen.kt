@@ -28,7 +28,12 @@ import com.example.vitruvianredux.ble.BleDebugLog
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.protocol.WorkoutParameters
+import com.example.vitruvianredux.data.AnalyticsProvenance
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
+import com.example.vitruvianredux.presentation.ui.theme.StatusError
+import com.example.vitruvianredux.presentation.ui.theme.Success
+import com.example.vitruvianredux.presentation.ui.theme.Warning
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -159,6 +164,11 @@ fun DebugScreen(
                 )
             }
         }
+
+        Divider()
+
+        // ── Analytics Provenance ─────────────────────────────────
+        AnalyticsProvenanceSection()
 
         Divider()
 
@@ -298,5 +308,111 @@ private fun StatusChip(label: String, containerColor: Color) {
             style    = MaterialTheme.typography.labelSmall,
             color    = MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+// ── Analytics Provenance diagnostic section ──────────────────────────────────
+
+@Composable
+private fun AnalyticsProvenanceSection() {
+    var expanded by remember { mutableStateOf(false) }
+    val provenance = com.example.vitruvianredux.data.AnalyticsProvenance
+    val metrics = provenance.registry
+    val sessionCount = remember { provenance.sessionCount() }
+    val dupes = remember { provenance.detectDuplicates() }
+
+    Surface(tonalElevation = AppDimens.Elevation.card) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppDimens.Spacing.md),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Analytics Provenance",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatusChip(
+                        label = "$sessionCount sessions",
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    )
+                    if (dupes.isNotEmpty()) {
+                        StatusChip(
+                            label = "${dupes.size} dupes!",
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                        )
+                    }
+                    TextButton(onClick = { expanded = !expanded }) {
+                        Text(if (expanded) "Hide" else "Show")
+                    }
+                }
+            }
+            if (expanded) {
+                Spacer(Modifier.height(8.dp))
+                for (m in metrics) {
+                    val confidenceColor = when (m.confidence) {
+                        AnalyticsProvenance.Confidence.HIGH   -> Success
+                        AnalyticsProvenance.Confidence.MEDIUM -> AccentAmber
+                        AnalyticsProvenance.Confidence.LOW    -> Warning
+                        AnalyticsProvenance.Confidence.NONE   -> StatusError
+                    }
+                    val sourceLabel = when (m.source) {
+                        AnalyticsProvenance.Source.DEVICE      -> "DEVICE"
+                        AnalyticsProvenance.Source.APP_DERIVED  -> "APP"
+                        AnalyticsProvenance.Source.USER_INPUT   -> "USER"
+                        AnalyticsProvenance.Source.PLACEHOLDER  -> "PLACEHOLDER"
+                        AnalyticsProvenance.Source.UNKNOWN      -> "UNKNOWN"
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "●",
+                            color = confidenceColor,
+                            fontSize = 10.sp,
+                        )
+                        Text(
+                            text = m.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = sourceLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (dupes.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Duplicate sessions detected:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    for ((a, b) in dupes) {
+                        Text(
+                            text = "  ${a.id.take(8)}… ↔ ${b.id.take(8)}… (${a.totalReps} reps, ${a.durationSec}s)",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
+        }
     }
 }

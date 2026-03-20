@@ -281,15 +281,15 @@ internal fun ActivePlayerContent(
 
                             Surface(
                                 shape = RoundedCornerShape(AppDimens.Corner.pill),
-                                color = hudColor.copy(alpha = 0.12f),
+                                color = hudColor.copy(alpha = 0.15f),
                             ) {
                                 Text(
                                     text = phaseLabel,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 3.dp),
-                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = hudColor,
-                                    letterSpacing = 1.2.sp,
+                                    letterSpacing = 1.4.sp,
                                 )
                             }
 
@@ -688,7 +688,7 @@ internal fun ActivePlayerContent(
                                 Icon(Icons.Default.Pause, contentDescription = null,
                                     modifier = Modifier.size(AppDimens.Icon.lg))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Pause Set", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("Pause Set", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                             }
                         }
 
@@ -712,7 +712,7 @@ internal fun ActivePlayerContent(
                             Text(
                                 text       = if (isActive) "Stop Set" else "Start Set",
                                 fontWeight = FontWeight.Bold,
-                                fontSize   = 16.sp,
+                                style      = MaterialTheme.typography.titleSmall,
                             )
                         }
                     }

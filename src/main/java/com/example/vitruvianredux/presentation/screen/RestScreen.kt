@@ -60,7 +60,7 @@ fun RestScreenContent(
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 6.sp,
-                color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
             )
 
             // ── Circular countdown ────────────────────────────────────────────
@@ -69,7 +69,7 @@ fun RestScreenContent(
                 contentAlignment = Alignment.Center,
             ) {
                 Canvas(modifier = Modifier.size(220.dp)) {
-                    val strokeWidth = 10.dp.toPx()
+                    val strokeWidth = 12.dp.toPx()
                     val radius      = size.minDimension / 2f - strokeWidth / 2f
                     val center      = Offset(size.width / 2f, size.height / 2f)
                     val arcSize     = Size(radius * 2f, radius * 2f)
@@ -143,7 +143,7 @@ fun RestScreenContent(
                 ) {
                     Icon(Icons.Default.SkipNext, contentDescription = null,
                         modifier = Modifier.size(AppDimens.Icon.md))
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text("Skip Rest", fontWeight = FontWeight.SemiBold)
                 }
 
@@ -156,7 +156,7 @@ fun RestScreenContent(
                 ) {
                     Icon(Icons.Default.SkipNext, contentDescription = null,
                         modifier = Modifier.size(AppDimens.Icon.md))
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text("Skip Exercise", fontWeight = FontWeight.SemiBold)
                 }
             }

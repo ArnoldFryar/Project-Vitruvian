@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.ui.theme.BrandPink
+import com.example.vitruvianredux.presentation.ui.theme.BrandCyan
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
@@ -208,7 +208,7 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
 
 @Composable
 private fun ScannerOverlay() {
-    val accent = BrandPink
+    val accent = BrandCyan
 
     Canvas(modifier = Modifier.fillMaxSize()) {
         val w = size.width

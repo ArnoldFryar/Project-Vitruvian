@@ -136,7 +136,7 @@ internal fun SetReadyContent(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md))
 
         // ── Adjustable settings ──────────────────────────────────────────
         if (!isOpenEnded) {
@@ -157,7 +157,7 @@ internal fun SetReadyContent(
                     modifier  = Modifier.weight(1f),
                 )
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
         }
 
         Row(
@@ -174,7 +174,7 @@ internal fun SetReadyContent(
                         0 -> Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 14.dp),
+                .padding(vertical = AppDimens.Spacing.md_sm),
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
@@ -220,7 +220,7 @@ internal fun SetReadyContent(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
 
         // Warmup reps picker
         SelectorCard(
@@ -346,8 +346,8 @@ internal fun SetReadyContent(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 ),
             ) {
-                Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Skip Set", fontWeight = FontWeight.Normal, fontSize = 13.sp)
             }
 
@@ -358,8 +358,8 @@ internal fun SetReadyContent(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 ),
             ) {
-                Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
+                Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Skip Exercise", fontWeight = FontWeight.Normal, fontSize = 13.sp)
             }
         }

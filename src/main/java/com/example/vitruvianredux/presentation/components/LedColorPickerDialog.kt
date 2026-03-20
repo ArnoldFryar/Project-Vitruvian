@@ -72,7 +72,7 @@ fun LedColorPickerDialog(
                 .wrapContentHeight(),
             shape          = RoundedCornerShape(AppDimens.Corner.lg),
             color          = cs.surface,
-            tonalElevation = 6.dp,
+            tonalElevation = AppDimens.Elevation.raised,
         ) {
             Column(
                 modifier              = Modifier.padding(AppDimens.Spacing.lg),

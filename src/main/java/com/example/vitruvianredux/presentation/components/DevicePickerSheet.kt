@@ -108,7 +108,7 @@ fun DevicePickerSheet(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = AppDimens.Elevation.raised),
         ) {
             Column(
                 modifier = Modifier

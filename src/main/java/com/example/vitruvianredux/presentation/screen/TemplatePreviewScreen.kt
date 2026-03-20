@@ -91,14 +91,14 @@ fun TemplatePreviewScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                 ) {
                     Button(
                         onClick = { showConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text("Use Template", fontWeight = FontWeight.SemiBold)
                     }
                 }
@@ -110,8 +110,8 @@ fun TemplatePreviewScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
             // ── Template overview card ──────────────────────────────────────
             item(key = "overview") {
@@ -161,7 +161,7 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
             // Category badge
             Surface(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
@@ -169,14 +169,14 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
             ) {
                 Text(
                     template.category,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
             Text(
                 template.name,
@@ -184,7 +184,7 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
                 fontWeight = FontWeight.Bold,
             )
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
 
             Text(
                 template.description,
@@ -192,7 +192,7 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
                 color = cs.onSurfaceVariant,
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.md))
 
             // Stats row
             Row(
@@ -223,8 +223,8 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
 private fun OverviewStat(icon: ImageVector, value: String, label: String) {
     val cs = MaterialTheme.colorScheme
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, null, modifier = Modifier.size(20.dp), tint = cs.primary)
-        Spacer(Modifier.height(4.dp))
+        Icon(icon, null, modifier = Modifier.size(AppDimens.Icon.md), tint = cs.primary)
+        Spacer(Modifier.height(AppDimens.Spacing.xs))
         Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Text(label, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
     }
@@ -239,7 +239,7 @@ private fun DayHeader(dayNumber: Int, dayName: String, focus: String, exerciseCo
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp),
+            .padding(top = AppDimens.Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Day number badge
@@ -258,7 +258,7 @@ private fun DayHeader(dayNumber: Int, dayName: String, focus: String, exerciseCo
             )
         }
 
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -281,7 +281,7 @@ private fun DayHeader(dayNumber: Int, dayName: String, focus: String, exerciseCo
         ) {
             Text(
                 "$exerciseCount exercises",
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                 style = MaterialTheme.typography.labelSmall,
                 color = cs.onSurfaceVariant,
             )
@@ -302,7 +302,7 @@ private fun ExerciseRow(index: Int, name: String, detail: String, restSec: Int) 
         tonalElevation = 0.dp,
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(AppDimens.Spacing.md_sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(

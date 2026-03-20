@@ -40,9 +40,37 @@ internal fun PausedContent(
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showEndConfirm by remember { mutableStateOf(false) }
+
+    if (showEndConfirm) {
+        AlertDialog(
+            onDismissRequest = { showEndConfirm = false },
+            icon = {
+                Icon(Icons.Default.Warning, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error)
+            },
+            title = { Text("End Workout?") },
+            text  = {
+                Text("Your progress for completed exercises will be saved, but the current set will not count.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showEndConfirm = false; onStop() },
+                    colors  = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor   = MaterialTheme.colorScheme.onError,
+                    ),
+                ) { Text("End Workout") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndConfirm = false }) { Text("Keep Going") }
+            },
+        )
+    }
+
     Column(
         modifier = modifier
-            .padding(horizontal = 32.dp, vertical = 48.dp),
+            .padding(horizontal = AppDimens.Spacing.xl, vertical = AppDimens.Spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -70,7 +98,7 @@ internal fun PausedContent(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.xl))
         Button(
             onClick = onResume,
             modifier = Modifier
@@ -79,19 +107,19 @@ internal fun PausedContent(
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         ) {
             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.lg))
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.sm))
             Text("Resume Workout", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
         OutlinedButton(
-            onClick = onStop,
+            onClick = { showEndConfirm = true },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         ) {
             Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.lg))
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.sm))
             Text("End Workout", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
@@ -181,13 +209,13 @@ internal fun UpcomingSetsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(AppDimens.Spacing.md)
         ) {
             Text(
                 text = "Edit Upcoming Sets",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
+                modifier = Modifier.padding(bottom = AppDimens.Spacing.md)
             )
 
             if (draftSets.isEmpty()) {
@@ -195,25 +223,25 @@ internal fun UpcomingSetsSheet(
                     text = "No upcoming sets.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.md)
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)
                 ) {
                     itemsIndexed(draftSets) { index, set ->
                         ElevatedCard(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.medium
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                            Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
                                 Text(
                                     text = set.exerciseName,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(AppDimens.Spacing.sm))
                                 SelectorCard(
                                     title    = "Target Reps",
                                     modifier = Modifier.fillMaxWidth(),
@@ -230,7 +258,7 @@ internal fun UpcomingSetsSheet(
                                         compact       = true,
                                     )
                                 }
-                                Spacer(Modifier.height(8.dp))
+                                Spacer(Modifier.height(AppDimens.Spacing.sm))
                                 SelectorCard(
                                     title    = "Weight",
                                     modifier = Modifier.fillMaxWidth(),
@@ -258,8 +286,8 @@ internal fun UpcomingSetsSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 16.dp, bottom = 32.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(top = AppDimens.Spacing.md, bottom = AppDimens.Spacing.xl),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)
             ) {
                 OutlinedButton(
                     onClick = onDismiss,

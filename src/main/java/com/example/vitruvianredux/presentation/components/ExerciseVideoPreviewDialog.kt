@@ -39,7 +39,7 @@ fun ExerciseVideoPreviewDialog(
                 .wrapContentHeight(),
             shape    = RoundedCornerShape(AppDimens.Corner.lg),
             color    = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+            tonalElevation = AppDimens.Elevation.raised,
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
 
@@ -87,14 +87,14 @@ fun ExerciseVideoPreviewDialog(
                             Icon(
                                 Icons.Default.VideocamOff,
                                 contentDescription = null,
-                                tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                                 modifier = Modifier.size(48.dp),
                             )
                             Spacer(Modifier.height(AppDimens.Spacing.sm))
                             Text(
                                 "No video available",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             )
                         }
                     }

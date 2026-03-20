@@ -11,6 +11,7 @@ import com.example.vitruvianredux.cloud.AuthRepository
 import com.example.vitruvianredux.cloud.CloudSyncRepository
 import com.example.vitruvianredux.cloud.CloudSyncWorker
 import com.example.vitruvianredux.cloud.SupabaseProvider
+import com.example.vitruvianredux.data.ActivityStatsStore
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.example.vitruvianredux.data.HealthConnectStore
@@ -70,8 +71,18 @@ class MainActivity : ComponentActivity() {
         //   • WorkoutHistoryStore + AnalyticsStore must finish before
         //     reconcileAfterSync (it appends to both stores)
         lifecycleScope.launch(Dispatchers.IO) {
+            // Android Auto Backup can restore shared prefs (including
+            // sync_enabled=true) across reinstalls. Health Connect permissions
+            // are revoked on uninstall, so correct any stale enabled state.
+            if (HealthConnectManager.isAvailable && HealthConnectStore.isEnabled) {
+                if (!HealthConnectManager.hasPermissions()) {
+                    HealthConnectStore.setEnabled(false)
+                }
+            }
+
             WorkoutHistoryStore.init(applicationContext)
             AnalyticsStore.init(applicationContext)
+            ActivityStatsStore.seedFromAnalytics()
             SessionLogRepository.init(applicationContext)
             TemplateRepository.init(applicationContext)
             ProgramStore.init(applicationContext)

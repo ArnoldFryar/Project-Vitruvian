@@ -5,6 +5,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 // ── Brand ──────────────────────────────────────────────────────────────
+val BrandCyan     = Color(0xFF22D3EE)   // electric cyan — primary accent
 val BrandPink     = Color(0xFFF72585)
 val BrandOrange   = Color(0xFFFF7A00)
 val BrandMagenta  = Color(0xFFD8005A)
@@ -29,12 +30,12 @@ val Gray900  = Color(0xFF1C1C1E)
 val Black    = Color(0xFF000000)
 val White    = Color(0xFFFFFFFF)
 
-// ── Dark surface layering (controlled contrast, not pure black) ───────
-val Surface0  = Color(0xFF101012)   // deepest background
-val Surface1  = Color(0xFF1A1A1D)   // primary surface
-val Surface2  = Color(0xFF232326)   // elevated cards
-val Surface3  = Color(0xFF2C2C30)   // modal / sheet backgrounds
-val Surface4  = Color(0xFF363639)   // high-elevation overlays
+// ── Dark surface layering (navy-tinted for premium depth) ─────────────
+val Surface0  = Color(0xFF080C14)   // deepest — near-black with navy
+val Surface1  = Color(0xFF0F1318)   // primary surface
+val Surface2  = Color(0xFF171C24)   // elevated cards
+val Surface3  = Color(0xFF1F2734)   // modal / sheet backgrounds
+val Surface4  = Color(0xFF283244)   // high-elevation overlays
 
 // ── Semantic ───────────────────────────────────────────────────────────
 val Success         = Color(0xFF34C759)
@@ -53,7 +54,7 @@ val StatusError        = Color(0xFFF44336)
 val StatusDisconnected = Color(0xFFB0BEC5)
 val StatusConnecting   = Color(0xFFFF9800)
 val StatusReady        = Color(0xFF4CAF50)
-val StatusConnected    = Color(0xFF2196F3)
+val StatusConnected    = Color(0xFF22D3EE)   // matches primary accent
 
 // ── Extended color tokens (available via LocalExtendedColors) ──────────
 @Immutable
@@ -69,7 +70,7 @@ data class ExtendedColors(
     val warmupColor: Color = AccentAmber,
     val workingColor: Color = BrandPink,
     val restColor: Color = AccentCyan,
-    val repCounterGlow: Color = BrandPink.copy(alpha = 0.15f),
+    val repCounterGlow: Color = BrandCyan.copy(alpha = 0.18f),
     val gold: Color = Gold,
     val statusError: Color = StatusError,
     val statusDisconnected: Color = StatusDisconnected,

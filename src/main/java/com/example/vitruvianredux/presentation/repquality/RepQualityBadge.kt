@@ -25,10 +25,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import kotlinx.coroutines.delay
 
 /**
@@ -67,7 +67,8 @@ fun RepQualityBadge(
     ) {
         val q = shownQuality ?: return@AnimatedVisibility
 
-        val (bgColor, fgColor) = badgeColors(q.score)
+        val ext = LocalExtendedColors.current
+        val (bgColor, fgColor) = badgeColors(q.score, ext)
 
         Surface(
             shape = RoundedCornerShape(AppDimens.Corner.pill),
@@ -95,10 +96,13 @@ fun RepQualityBadge(
     }
 }
 
-/** Maps score to (background, foreground) pair. */
-private fun badgeColors(score: Int): Pair<Color, Color> = when {
-    score >= 90 -> Color(0xFF1B5E20).copy(alpha = 0.85f) to Color(0xFFA5D6A7)
-    score >= 75 -> Color(0xFF0D47A1).copy(alpha = 0.80f) to Color(0xFF90CAF9)
-    score >= 55 -> Color(0xFFF57F17).copy(alpha = 0.80f) to Color(0xFFFFF9C4)
-    else        -> Color(0xFF424242).copy(alpha = 0.75f) to Color(0xFFE0E0E0)
+/** Maps score to (background, foreground) pair using theme tokens. */
+private fun badgeColors(
+    score: Int,
+    ext: com.example.vitruvianredux.presentation.ui.theme.ExtendedColors,
+): Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color> = when {
+    score >= 90 -> ext.accentCyan.copy(alpha = 0.22f) to ext.accentCyan
+    score >= 75 -> com.example.vitruvianredux.presentation.ui.theme.BrandCyan.copy(alpha = 0.20f) to com.example.vitruvianredux.presentation.ui.theme.BrandCyan
+    score >= 55 -> ext.accentAmber.copy(alpha = 0.20f) to ext.accentAmber
+    else        -> ext.accentRed.copy(alpha = 0.18f) to ext.accentRed
 }

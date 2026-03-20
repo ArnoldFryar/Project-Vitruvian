@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.presentation.ui.theme.Success
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -78,9 +80,9 @@ private fun VolumeContent(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
+                .padding(horizontal = AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+            contentPadding = PaddingValues(vertical = AppDimens.Spacing.md),
         ) {
             if (!hasVolume) {
                 // ── Volume not yet available ─────────────────────────
@@ -96,7 +98,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                         tonalElevation = AppDimens.Elevation.selector,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(16.dp)) {
+                        Column(Modifier.padding(AppDimens.Spacing.md)) {
                             Text(
                                 "This Week",
                                 style = MaterialTheme.typography.labelMedium,
@@ -119,7 +121,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                                 Spacer(Modifier.weight(1f))
                                 if (pctChange != null) {
                                     val sign = if (pctChange >= 0) "+" else ""
-                                    val color = if (pctChange >= 0) Color(0xFF4CAF50) else Color(0xFFFF6B6B)
+                                    val color = if (pctChange >= 0) Success else LocalExtendedColors.current.accentRed
                                     Text(
                                         "$sign$pctChange% vs last week",
                                         style = MaterialTheme.typography.labelMedium,
@@ -148,7 +150,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                         tonalElevation = AppDimens.Elevation.selector,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(16.dp)) {
+                        Column(Modifier.padding(AppDimens.Spacing.md)) {
                             val barColor = MaterialTheme.colorScheme.primary
                             val bgBar = MaterialTheme.colorScheme.surface
                             Canvas(Modifier.fillMaxWidth().height(120.dp)) {
@@ -241,15 +243,15 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.padding(AppDimens.Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
             Icon(
                 Icons.Default.ShowChart,
                 contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                modifier = Modifier.size(AppDimens.Icon.xxl),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
             )
             Text(
                 "Volume insights will appear once enough data is recorded",
@@ -326,18 +328,18 @@ private fun StreakContent(onBack: () -> Unit) {
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     tonalElevation = AppDimens.Elevation.card,
-                    modifier = Modifier.padding(32.dp),
+                    modifier = Modifier.padding(AppDimens.Spacing.xl),
                 ) {
                     Column(
-                        modifier = Modifier.padding(32.dp),
+                        modifier = Modifier.padding(AppDimens.Spacing.xl),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                     ) {
                         Icon(
                             Icons.Default.LocalFireDepartment,
                             contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                            modifier = Modifier.size(AppDimens.Icon.xxl),
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                         )
                         Text(
                             "No sessions recorded yet",
@@ -360,9 +362,9 @@ private fun StreakContent(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
+                .padding(horizontal = AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+            contentPadding = PaddingValues(vertical = AppDimens.Spacing.md),
         ) {
             // ── Streak hero cards ────────────────────────────────────
             item {
@@ -400,7 +402,7 @@ private fun StreakContent(onBack: () -> Unit) {
                     tonalElevation = AppDimens.Elevation.selector,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(AppDimens.Spacing.md)) {
                         // Day labels
                         Row(
                             Modifier.fillMaxWidth(),
@@ -485,7 +487,7 @@ private fun StreakContent(onBack: () -> Unit) {
                     tonalElevation = AppDimens.Elevation.selector,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Column(Modifier.padding(16.dp)) {
+                    Column(Modifier.padding(AppDimens.Spacing.md)) {
                         val weekFmt = DateTimeFormatter.ofPattern("MMM d")
                         sessionsPerWeek.forEach { (weekStart, count) ->
                             val weekEnd = weekStart.plusDays(6)
@@ -547,7 +549,7 @@ private fun StreakCard(
         tonalElevation = if (highlight) 3.dp else 1.dp,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(AppDimens.Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(

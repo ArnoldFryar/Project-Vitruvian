@@ -253,6 +253,12 @@ object CloudSyncRepository {
         val justLift = JustLiftStore.state.value
         val ledColors = LedColorStore.current()
 
+        // Use the actual modification time of the most-recently-changed setting so
+        // the remote timestamp reflects when the user truly made a change, not just
+        // when a sync happened to run.  This prevents a future pull from treating a
+        // sync-time stamp as newer than a real user edit on another device.
+        val settingsUpdatedAt = maxOf(ThemeStore.updatedAt, UnitsStore.updatedAt, lastSyncAt)
+
         val settings = RemoteUserSettings(
             userId = userId,
             unitSystem = units.name,
@@ -260,7 +266,7 @@ object CloudSyncRepository {
             justLiftDefaults = json.parseToJsonElement(justLiftToJson(justLift)),
             ledColors = json.parseToJsonElement(ledColorsToJson(ledColors)),
             deviceId = deviceId,
-            updatedAt = System.currentTimeMillis(),
+            updatedAt = settingsUpdatedAt,
         )
         RemoteDataSource.upsertSettings(settings)
     }
@@ -397,12 +403,12 @@ object CloudSyncRepository {
     }
 
     private fun reconcilePulledAnalytics(newRemoteLogs: List<RemoteAnalyticsLog>) {
-        val existingDates = WorkoutHistoryStore.historyFlow.value.map { it.date }.toSet()
+        // newRemoteLogs contains only IDs not already in AnalyticsStore (filtered by caller),
+        // so each session here is guaranteed to be new on this device.
         val zone = ZoneId.systemDefault()
 
         for (rl in newRemoteLogs) {
             val date = Instant.ofEpochMilli(rl.endTimeMs).atZone(zone).toLocalDate()
-            // Add to history store if not already present for that date
             val exerciseNames: List<String> = try {
                 json.decodeFromString(rl.exerciseNames.toString())
             } catch (_: Exception) { emptyList() }
@@ -465,31 +471,34 @@ object CloudSyncRepository {
     private suspend fun pullSettings(userId: String) {
         val remote = RemoteDataSource.getSettings(userId) ?: return
 
-        // Only apply if remote is newer than our last sync
-        if (remote.updatedAt <= lastSyncAt) return
-
-        // Units
+        // Units — only apply if remote was modified after the last local write
+        // (LWW per-setting: prevents a stale remote default from stomping a
+        //  local preference the user changed before their first sync)
         try {
             val unit = UnitsStore.UnitSystem.valueOf(remote.unitSystem)
-            UnitsStore.setUnitSystem(unit)
+            if (remote.updatedAt > UnitsStore.updatedAt) {
+                UnitsStore.setUnitSystem(unit)
+            }
         } catch (_: Exception) {}
 
-        // Theme
+        // Theme — same per-setting LWW guard
         try {
             val theme = ThemeStore.ThemeMode.valueOf(remote.themeMode)
-            ThemeStore.setMode(theme)
+            if (remote.updatedAt > ThemeStore.updatedAt) {
+                ThemeStore.setMode(theme)
+            }
         } catch (_: Exception) {}
 
-        // JustLift defaults
+        // JustLift defaults — no individual updatedAt; fall back to global lastSyncAt
         try {
             val jl = justLiftFromJson(remote.justLiftDefaults.toString())
-            if (jl != null) JustLiftStore.save(jl)
+            if (jl != null && remote.updatedAt > lastSyncAt) JustLiftStore.save(jl)
         } catch (_: Exception) {}
 
-        // LED colors
+        // LED colors — same fallback
         try {
             val colors = ledColorsFromJson(remote.ledColors.toString())
-            if (colors != null) LedColorStore.save(colors)
+            if (colors != null && remote.updatedAt > lastSyncAt) LedColorStore.save(colors)
         } catch (_: Exception) {}
     }
 

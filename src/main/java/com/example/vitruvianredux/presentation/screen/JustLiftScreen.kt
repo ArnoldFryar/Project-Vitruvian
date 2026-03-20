@@ -1,7 +1,10 @@
-package com.example.vitruvianredux.presentation.screen
+﻿package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -34,6 +38,7 @@ import kotlinx.coroutines.flow.debounce
 import com.example.vitruvianredux.presentation.ui.theme.WarningContainer
 import com.example.vitruvianredux.presentation.ui.theme.WarningOnContainer
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 import kotlin.math.abs
 
 enum class JustLiftMode(val label: String) {
@@ -53,17 +58,25 @@ internal fun formatSignedUnitValue(value: Float, unitLabel: String): String {
 }
 
 // ---------------------------------------------
-// FAB � gradient pill button
+// FAB ï¿½ gradient pill button
 // ---------------------------------------------
 @Composable
 fun JustLiftFab(onClick: () -> Unit) {
     val cs = MaterialTheme.colorScheme
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) MotionTokens.PRESS_SCALE else 1f,
+        animationSpec = MotionTokens.SnapSpring,
+        label = "fabScale",
+    )
     Box(
         modifier = Modifier
+            .graphicsLayer(scaleX = pressScale, scaleY = pressScale)
             .clip(RoundedCornerShape(AppDimens.Corner.pill))
             .background(Brush.horizontalGradient(listOf(cs.primary, cs.secondary)))
-            .clickable { onClick() }
-            .padding(horizontal = AppDimens.Spacing.lg, vertical = 14.dp),
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -227,9 +240,9 @@ fun JustLiftDialog(
                         text = {
                             Text(
                                 "Quick-start a workout without a program.\n\n" +
-                                "� Old School � constant load\n" +
-                                "� Pump � lighter, higher rep\n" +
-                                "� Echo � isokinetic: adapts to your force. " +
+                                "ï¿½ Old School ï¿½ constant load\n" +
+                                "ï¿½ Pump ï¿½ lighter, higher rep\n" +
+                                "ï¿½ Echo ï¿½ isokinetic: adapts to your force. " +
                                 "Set Level and Eccentric Load instead of weight."
                             )
                         },
@@ -276,7 +289,7 @@ fun JustLiftDialog(
                     Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     if (isEcho) {
-                        // Echo mode: isokinetic � no user-set weight
+                        // Echo mode: isokinetic ï¿½ no user-set weight
                         Text(
                             "Adaptive",
                             color = cs.secondary,
@@ -362,14 +375,14 @@ fun JustLiftDialog(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(selectedMode.label, color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                                 if (isEcho) {
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                                     Box(modifier = Modifier
                                         .background(cs.tertiaryContainer, RoundedCornerShape(AppDimens.Corner.xs))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)) {
+                                        .padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xxs)) {
                                         Text("Beta", color = cs.onTertiaryContainer, style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                             }
                         },
@@ -381,7 +394,7 @@ fun JustLiftDialog(
                         onDismiss = { showModeMenu = false }
                     )
 
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = cs.outlineVariant)
+                    Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
 
                     if (isEcho) {
                         // -- Echo-specific: Eccentric Load --
@@ -390,7 +403,7 @@ fun JustLiftDialog(
                             valueContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("$eccentricPct%", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                                     Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                                 }
                             },
@@ -402,7 +415,7 @@ fun JustLiftDialog(
                             onDismiss = { showEccentricMenu = false }
                         )
 
-                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = cs.outlineVariant)
+                        Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
 
                         // -- Echo-specific: Level --
                         SettingsRow(
@@ -410,7 +423,7 @@ fun JustLiftDialog(
                             valueContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(echoLevel.displayName, color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                                     Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                                 }
                             },
@@ -430,7 +443,7 @@ fun JustLiftDialog(
                                     val progDisplay = kgToDisplay(progressionKg)
                                     val progText = formatSignedUnitValue(progDisplay, unitLabel)
                                     Text(progText, color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                                     Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                                 }
                             },
@@ -443,7 +456,7 @@ fun JustLiftDialog(
                         )
 
                         if (selectedMode == JustLiftMode.TUT) {
-                            Divider(modifier = Modifier.padding(horizontal = 16.dp), color = cs.outlineVariant)
+                            Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
                             SettingsRow(
                                 icon = Icons.Default.Speed, label = "Beast Mode (Faster Loading)",
                                 valueContent = {
@@ -483,7 +496,7 @@ fun JustLiftDialog(
                         valueContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("%d:%02d".format(restSeconds / 60, restSeconds % 60), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                             }
                         },
@@ -494,7 +507,7 @@ fun JustLiftDialog(
                         onSelect = { v -> restSeconds = v; showRestMenu = false },
                         onDismiss = { showRestMenu = false }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = cs.outlineVariant)
+                    Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
                     SettingsRow(
                         icon = Icons.Default.VolumeDown, label = "Sound",
                         valueContent = {
@@ -508,7 +521,7 @@ fun JustLiftDialog(
                         },
                         onClick = null
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = cs.outlineVariant)
+                    Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
                     SettingsRow(
                         icon = Icons.Default.Speed, label = "Stall Detection",
                         valueContent = {
@@ -522,7 +535,7 @@ fun JustLiftDialog(
                         },
                         onClick = null
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = cs.outlineVariant)
+                    Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
                     SettingsRow(
                         icon = Icons.Default.Timer, label = "Rep Timing",
                         valueContent = {
@@ -532,7 +545,7 @@ fun JustLiftDialog(
                                     color = cs.onSurfaceVariant,
                                     style = MaterialTheme.typography.bodyLarge
                                 )
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                             }
                         },
@@ -558,7 +571,7 @@ fun JustLiftDialog(
                             saveSnapshot()
                             if (router.connect()) onDismiss()
                         }
-                        .padding(vertical = 18.dp),
+                        .padding(vertical = AppDimens.Spacing.md),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(

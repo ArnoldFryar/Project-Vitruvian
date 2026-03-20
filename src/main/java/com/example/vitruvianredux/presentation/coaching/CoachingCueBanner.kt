@@ -18,10 +18,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import kotlinx.coroutines.delay
 
 /**
@@ -59,14 +59,14 @@ fun CoachingCueBanner(
 
         Surface(
             shape = RoundedCornerShape(AppDimens.Corner.pill),
-            color = Color(0xFF37474F).copy(alpha = 0.88f),
+            color = LocalExtendedColors.current.surface3.copy(alpha = 0.92f),
         ) {
             Text(
                 text       = c.message,
                 modifier   = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 style      = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
-                color      = Color(0xFFE0F7FA),
+                color      = MaterialTheme.colorScheme.onSurface,
             )
         }
     }

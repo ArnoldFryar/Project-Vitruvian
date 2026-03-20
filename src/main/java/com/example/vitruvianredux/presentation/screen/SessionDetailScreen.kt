@@ -2,30 +2,43 @@
 
 package com.example.vitruvianredux.presentation.screen
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.presentation.ui.theme.Success
+import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -94,117 +107,206 @@ fun SessionDetailScreen(
         val endInstant = Instant.ofEpochMilli(session.endTimeMs).atZone(zone)
         val dateFmt = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")
         val timeFmt = DateTimeFormatter.ofPattern("h:mm a")
+        val cs = MaterialTheme.colorScheme
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
+                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
-            // ── Date & Time card ─────────────────────────────────────────
-            DetailCard {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DetailRow(
-                        label = "Date",
-                        value = dateFmt.format(startInstant),
+            // ── Header card: date + program context ──────────────────
+            SdCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        tint = cs.primary,
+                        modifier = Modifier.size(AppDimens.Icon.md),
                     )
-                    DetailRow(
-                        label = "Start",
-                        value = timeFmt.format(startInstant),
-                    )
-                    DetailRow(
-                        label = "End",
-                        value = timeFmt.format(endInstant),
-                    )
-                    DetailRow(
-                        label = "Duration",
-                        value = formatSessionDuration(session.durationSec),
-                    )
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            dateFmt.format(startInstant),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            "${timeFmt.format(startInstant)} – ${timeFmt.format(endInstant)}  ·  ${formatSessionDuration(session.durationSec)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = cs.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                if (session.programName != null || session.dayName != null) {
+                    Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+                    Surface(
+                        shape = RoundedCornerShape(AppDimens.Corner.pill),
+                        color = cs.primaryContainer,
+                    ) {
+                        Text(
+                            buildString {
+                                session.programName?.let { append(it) }
+                                if (session.programName != null && session.dayName != null) append(" · ")
+                                session.dayName?.let { append(it) }
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = cs.onPrimaryContainer,
+                            modifier = Modifier.padding(
+                                horizontal = AppDimens.Spacing.md_sm,
+                                vertical = AppDimens.Spacing.xs,
+                            ),
+                        )
+                    }
                 }
             }
 
-            // ── Program context ──────────────────────────────────────────
-            if (session.programName != null || session.dayName != null) {
-                DetailCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        session.programName?.let {
-                            DetailRow(label = "Program", value = it)
-                        }
-                        session.dayName?.let {
-                            DetailRow(label = "Day", value = it)
-                        }
-                    }
-                }
+            // ── Performance stats grid ───────────────────────────────
+            SdSectionHeader("Performance")
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                SdStatTile(
+                    icon = Icons.Default.Layers,
+                    label = "SETS",
+                    value = session.totalSets.toString(),
+                    modifier = Modifier.weight(1f),
+                )
+                SdStatTile(
+                    icon = Icons.Default.Repeat,
+                    label = "REPS",
+                    value = session.totalReps.toString(),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                SdStatTile(
+                    icon = Icons.Default.FitnessCenter,
+                    label = "VOLUME",
+                    value = if (session.volumeAvailable)
+                        "${UnitConversions.formatVolumeFromKg(session.totalVolumeKg, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}"
+                    else "—",
+                    modifier = Modifier.weight(1f),
+                )
+                SdStatTile(
+                    icon = Icons.Default.Timer,
+                    label = "DURATION",
+                    value = formatSessionDuration(session.durationSec),
+                    modifier = Modifier.weight(1f),
+                )
             }
 
-            // ── Performance metrics ──────────────────────────────────────
-            DetailCard {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DetailRow(label = "Total Sets", value = session.totalSets.toString())
-                    DetailRow(label = "Total Reps", value = session.totalReps.toString())
-                    if (session.volumeAvailable) {
-                        DetailRow(
-                            label = "Total Volume",
-                            value = "${UnitConversions.formatVolumeFromKg(session.totalVolumeKg, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}",
-                        )
-                    } else {
-                        DetailRow(
-                            label = "Total Volume",
-                            value = "Not available yet",
-                            valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            if (session.heaviestLiftLb > 0 || session.avgQualityScore != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                ) {
                     if (session.heaviestLiftLb > 0) {
-                        DetailRow(
-                            label = "Heaviest Lift",
+                        SdStatTile(
+                            icon = Icons.Default.BarChart,
+                            label = "HEAVIEST",
                             value = "${session.heaviestLiftLb} lb",
-                        )
-                    }
-                    if (session.calories > 0) {
-                        DetailRow(
-                            label = "Est. Calories",
-                            value = "${session.calories} kcal",
+                            modifier = Modifier.weight(1f),
                         )
                     }
                     session.avgQualityScore?.let { q ->
-                        DetailRow(
-                            label = "Lift Quality",
-                            value = "$q / 100 — ${
-                                when {
-                                    q >= 90 -> "Perfect"
-                                    q >= 75 -> "Great"
-                                    q >= 60 -> "Good"
-                                    else    -> "Fair"
-                                }
-                            }",
+                        val qualColor = when {
+                            q >= 80 -> Success
+                            q >= 60 -> Warning
+                            else    -> cs.onSurfaceVariant
+                        }
+                        SdStatTile(
+                            icon = Icons.Default.Stars,
+                            label = "QUALITY",
+                            value = "$q",
+                            valueSuffix = "/ 100",
+                            accentColor = qualColor,
+                            modifier = Modifier.weight(1f),
                         )
+                    }
+                    // Fill empty space if only one tile in this row
+                    if (session.heaviestLiftLb <= 0 || session.avgQualityScore == null) {
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
 
-            // ── Exercises ────────────────────────────────────────────────
+            // ── Exercises breakdown ──────────────────────────────────
             if (session.exerciseNames.isNotEmpty()) {
-                DetailCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            "Exercises",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        session.exerciseNames.forEach { name ->
+                SdSectionHeader("Exercises")
+
+                val exerciseGroups = if (session.exerciseSets.isNotEmpty()) {
+                    session.exerciseSets
+                        .groupBy { it.exerciseName }
+                        .entries
+                        .sortedBy { (_, sets) -> sets.minOf { it.setIndex } }
+                } else null
+
+                if (exerciseGroups != null) {
+                    exerciseGroups.forEach { (name, sets) ->
+                        val totalReps = sets.sumOf { it.reps }
+                        val setCount = sets.size
+                        val topWeight = sets.maxOf { it.weightLb }
+                        val weightDisplay = if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) {
+                            "$topWeight lb"
+                        } else {
+                            "%.1f kg".format(topWeight * 0.45359237)
+                        }
+
+                        SdCard {
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(vertical = 2.dp),
+                            ) {
+                                Box(
+                                    Modifier
+                                        .width(3.dp)
+                                        .height(28.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(cs.primary.copy(alpha = 0.5f))
+                                )
+                                Spacer(Modifier.width(AppDimens.Spacing.sm))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(
+                                        "$setCount sets · $totalReps reps · $weightDisplay",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = cs.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    session.exerciseNames.forEach { name ->
+                        SdCard {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
                                     Icons.Default.FitnessCenter,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = cs.primary,
                                 )
-                                Spacer(Modifier.width(8.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.sm))
                                 Text(
                                     name,
                                     style = MaterialTheme.typography.bodyMedium,
@@ -214,45 +316,134 @@ fun SessionDetailScreen(
                     }
                 }
             }
+
+            if (session.calories > 0) {
+                SdCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = cs.primary,
+                                modifier = Modifier.size(AppDimens.Icon.md),
+                            )
+                            Spacer(Modifier.width(AppDimens.Spacing.sm))
+                            Text("Est. Calories", style = MaterialTheme.typography.bodyMedium,
+                                color = cs.onSurfaceVariant)
+                        }
+                        Text(
+                            "${session.calories} kcal",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(AppDimens.Spacing.lg))
         }
     }
 }
 
 // ─── Private helpers ────────────────────────────────────────────────────────
 
+private val GlassBorder = BorderStroke(
+    0.5.dp,
+    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.07f), Color.Transparent)),
+)
+
 @Composable
-private fun DetailCard(content: @Composable ColumnScope.() -> Unit) {
+private fun SdCard(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.selector,
+        tonalElevation = AppDimens.Elevation.card,
+        border = GlassBorder,
     ) {
-        Column(Modifier.padding(16.dp), content = content)
+        Column(Modifier.padding(AppDimens.Spacing.md), content = content)
     }
 }
 
 @Composable
-private fun DetailRow(
+private fun SdSectionHeader(title: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = AppDimens.Spacing.xs),
+    ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(16.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Spacer(Modifier.width(AppDimens.Spacing.sm))
+        Text(
+            title.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+        )
+    }
+}
+
+@Composable
+private fun SdStatTile(
+    icon: ImageVector,
     label: String,
     value: String,
-    valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    modifier: Modifier = Modifier,
+    valueSuffix: String? = null,
+    accentColor: Color? = null,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = AppDimens.Elevation.card,
+        border = GlassBorder,
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = valueColor,
-        )
+        Column(
+            modifier = Modifier.padding(AppDimens.Spacing.md_sm),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = accentColor ?: MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+            ) {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor ?: MaterialTheme.colorScheme.onSurface,
+                )
+                if (valueSuffix != null) {
+                    Text(
+                        valueSuffix,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 2.dp),
+                    )
+                }
+            }
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 0.8.sp,
+            )
+        }
     }
 }
 

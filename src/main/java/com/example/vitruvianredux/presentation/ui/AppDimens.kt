@@ -32,6 +32,8 @@ object AppDimens {
     }
 
     object Corner {
+        /** 2 dp – micro accent bars, progress segments */
+        val micro: Dp = 2.dp
         /** 6 dp – badges, tags, compact chips */
         val xs: Dp = 6.dp
         /** 8 dp – chips, small buttons, compact cards */
@@ -55,6 +57,10 @@ object AppDimens {
         val lg: Dp = 24.dp
         /** 28 dp – placeholder / empty-state icons */
         val xl: Dp = 28.dp
+        /** 48 dp – card empty-state hero icons */
+        val xxl: Dp = 48.dp
+        /** 64 dp – full-page hero / celebration icons */
+        val hero: Dp = 64.dp
     }
 
     object Elevation {

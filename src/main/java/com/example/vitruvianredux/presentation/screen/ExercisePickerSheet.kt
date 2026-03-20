@@ -2,6 +2,7 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,6 +31,7 @@ import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.presentation.components.CreateCustomExerciseSheet
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPreviewDialog
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.util.loadExercises
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,7 +84,7 @@ fun ExercisePickerSheet(
         Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
             // ── Header ────────────────────────────────────────────────
             Row(
-                modifier          = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                modifier          = Modifier.fillMaxWidth().padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Select Exercises", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -102,7 +104,7 @@ fun ExercisePickerSheet(
             OutlinedTextField(
                 value         = searchQuery,
                 onValueChange = { searchQuery = it },
-                modifier      = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                modifier      = Modifier.fillMaxWidth().padding(horizontal = AppDimens.Spacing.md),
                 placeholder   = { Text("Search exercises") },
                 leadingIcon   = { Icon(Icons.Default.Search, null) },
                 trailingIcon  = if (searchQuery.isNotEmpty()) {
@@ -117,7 +119,7 @@ fun ExercisePickerSheet(
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-                    contentPadding        = PaddingValues(horizontal = 16.dp),
+                    contentPadding        = PaddingValues(horizontal = AppDimens.Spacing.md),
                 ) {
                     if (selectedMuscles.isNotEmpty()) {
                         item {
@@ -143,14 +145,23 @@ fun ExercisePickerSheet(
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // ── Exercise list ─────────────────────────────────────────
-            if (allExercises.isEmpty()) {
-                Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else {
+            Crossfade(
+                targetState = allExercises.isEmpty(),
+                animationSpec = MotionTokens.ContentCrossfade,
+                label = "exercisePickerContent",
+            ) { isLoading ->
+                if (isLoading) {
+                    Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(AppDimens.Icon.xl),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                } else {
                 LazyColumn(
                     modifier       = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
                     // ── Create custom exercise action ─────────────────
@@ -182,7 +193,7 @@ fun ExercisePickerSheet(
                     if (filtered.isEmpty()) {
                         item {
                             Box(
-                                modifier         = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                                modifier         = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.xl),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
@@ -309,6 +320,7 @@ fun ExercisePickerSheet(
                     }
                     }
                 }
+            }
             }
         }
     }

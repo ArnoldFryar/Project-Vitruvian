@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,12 +28,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.Error
+import com.example.vitruvianredux.presentation.ui.theme.Success
+import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.util.loadExercises
 import com.example.vitruvianredux.util.UnitConversions
@@ -412,8 +419,8 @@ fun ExerciseDataScreen(
                             Text("LIFT QUALITY", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                             val qualColor = when {
                                 avgQuality >= 80 -> cs.primary
-                                avgQuality >= 60 -> Color(0xFFFF9500)
-                                else             -> Color(0xFFE00020)
+                                avgQuality >= 60 -> Warning
+                                else             -> Error
                             }
                             Text("$avgQuality / 100", style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold, color = qualColor)
@@ -610,11 +617,11 @@ private fun CompareRow(label: String, current: String, previous: String, directi
         Text(previous, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
             modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         val (icon, tint) = when (direction) {
-            TrendDir.UP   -> Icons.Default.ArrowDropUp   to Color(0xFF34C759)
-            TrendDir.DOWN -> Icons.Default.ArrowDropDown to Color(0xFFE00020)
+            TrendDir.UP   -> Icons.Default.ArrowDropUp   to Success
+            TrendDir.DOWN -> Icons.Default.ArrowDropDown to Error
             TrendDir.FLAT -> Icons.Default.Remove        to cs.onSurfaceVariant.copy(alpha = 0.5f)
         }
-        Icon(icon, contentDescription = direction.name, tint = tint, modifier = Modifier.size(24.dp))
+        Icon(icon, contentDescription = direction.name, tint = tint, modifier = Modifier.size(AppDimens.Icon.lg))
     }
 }
 
@@ -789,9 +796,18 @@ private fun SetTable(
 private fun EdsCard(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier       = Modifier.fillMaxWidth(),
-        shape          = MaterialTheme.shapes.medium,
+        shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
         color          = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = AppDimens.Elevation.card,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 0.5.dp,
+            brush = Brush.verticalGradient(
+                listOf(
+                    Color.White.copy(alpha = 0.07f),
+                    Color.Transparent,
+                )
+            ),
+        ),
     ) {
         Column(Modifier.padding(AppDimens.Spacing.md), content = content)
     }
@@ -799,22 +815,45 @@ private fun EdsCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun EdsSection(title: String) {
-    Text(
-        title,
-        style      = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-        color      = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier   = Modifier.padding(top = AppDimens.Spacing.xs),
-    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = AppDimens.Spacing.sm),
+    ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(16.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Spacer(Modifier.width(AppDimens.Spacing.sm))
+        Text(
+            title.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
 private fun EdsStatTile(label: String, value: String, modifier: Modifier = Modifier) {
+    val cs = MaterialTheme.colorScheme
     Surface(
         modifier       = modifier,
-        shape          = MaterialTheme.shapes.medium,
-        color          = MaterialTheme.colorScheme.surfaceVariant,
+        shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
+        color          = cs.surfaceVariant,
         tonalElevation = AppDimens.Elevation.card,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 0.5.dp,
+            brush = Brush.verticalGradient(
+                listOf(
+                    Color.White.copy(alpha = 0.07f),
+                    Color.Transparent,
+                )
+            ),
+        ),
     ) {
         Column(
             modifier = Modifier.padding(
@@ -824,9 +863,10 @@ private fun EdsStatTile(label: String, value: String, modifier: Modifier = Modif
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
         ) {
-            Text(label, style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-            Text(value, style = MaterialTheme.typography.titleMedium,
+            Text(label.uppercase(), style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium, letterSpacing = 0.8.sp,
+                color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
+            Text(value, style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         }
     }

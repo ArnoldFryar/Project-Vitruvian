@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -26,6 +27,7 @@ import com.example.vitruvianredux.cloud.CloudSyncRepository
 import com.example.vitruvianredux.cloud.CloudSyncState
 import com.example.vitruvianredux.cloud.SupabaseProvider
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.MotionTokens
 import io.github.jan.supabase.gotrue.SessionStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -57,14 +59,20 @@ fun AccountScreen(
     val isSignedIn = sessionStatus is SessionStatus.Authenticated
 
     AccountShell(onBack) {
-        if (isSignedIn) {
-            SignedInContent(
-                syncState = syncState,
-                onSyncNow = { scope.launch(Dispatchers.IO) { CloudSyncRepository.syncAll() } },
-                onSignOut = { scope.launch(Dispatchers.IO) { AuthRepository.signOut() } },
-            )
-        } else {
-            SignInContent()
+        Crossfade(
+            targetState = isSignedIn,
+            animationSpec = MotionTokens.ContentCrossfade,
+            label = "accountContent",
+        ) { signedIn ->
+            if (signedIn) {
+                SignedInContent(
+                    syncState = syncState,
+                    onSyncNow = { scope.launch(Dispatchers.IO) { CloudSyncRepository.syncAll() } },
+                    onSignOut = { scope.launch(Dispatchers.IO) { AuthRepository.signOut() } },
+                )
+            } else {
+                SignInContent()
+            }
         }
     }
 }
@@ -76,6 +84,7 @@ private fun AccountShell(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Cloud Account") },
@@ -84,6 +93,9 @@ private fun AccountShell(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
     ) { padding ->
@@ -115,6 +127,11 @@ private fun SignedInContent(
     val user = AuthRepository.currentUser
     val email = user?.email ?: "Unknown"
     val lastSync = CloudSyncRepository.lastSyncAt
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+    ) {
 
     // Account card
     Card(
@@ -204,7 +221,6 @@ private fun SignedInContent(
     }
 
     // Sign-out
-    Spacer(Modifier.height(AppDimens.Spacing.sm))
     OutlinedButton(
         onClick = onSignOut,
         modifier = Modifier.fillMaxWidth(),
@@ -216,6 +232,8 @@ private fun SignedInContent(
         Spacer(Modifier.width(AppDimens.Spacing.sm))
         Text("Sign Out")
     }
+
+    } // end Column
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -328,7 +346,7 @@ private fun SignInContent() {
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(AppDimens.Icon.md),
                         strokeWidth = 2.dp,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )

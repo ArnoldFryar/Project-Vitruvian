@@ -26,6 +26,9 @@ object WorkoutSessionRecorder {
 
     private const val TAG = "WorkoutSessionRecorder"
 
+    /** Epoch ms of the last recorded session, used to prevent duplicate writes. */
+    private var lastRecordedEndMs: Long = 0L
+
     /**
      * Build a [SessionLog] from [stats] and hand it to [SessionLogRepository.saveSession].
      *
@@ -48,6 +51,12 @@ object WorkoutSessionRecorder {
     ) {
         try {
             val endTimeMs     = System.currentTimeMillis()
+            // Guard against duplicate calls (e.g. recomposition re-firing)
+            if (kotlin.math.abs(endTimeMs - lastRecordedEndMs) < 5_000L) {
+                Timber.tag("storage").w("Duplicate session recording blocked (within 5 s of last)")
+                return
+            }
+            lastRecordedEndMs = endTimeMs
             val resolvedStart = if (startTimeMs > 0L) startTimeMs
                                 else endTimeMs - stats.durationSec * 1_000L
             val volumeKg      = stats.totalVolumeKg.toDouble().takeIf { it > 0.0 }

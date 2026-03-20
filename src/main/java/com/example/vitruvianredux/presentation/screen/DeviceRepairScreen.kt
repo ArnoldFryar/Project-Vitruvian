@@ -32,6 +32,10 @@ import com.example.vitruvianredux.ble.SessionEventLog
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.StatusConnected
+import com.example.vitruvianredux.presentation.ui.theme.StatusConnecting
+import com.example.vitruvianredux.presentation.ui.theme.StatusError
+import com.example.vitruvianredux.presentation.ui.theme.StatusReady
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -523,10 +527,10 @@ private fun OverallHealthCard(
 @Composable
 private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
     val (dotColor, statusLabel, statusIcon) = when (step.status) {
-        StepStatus.OK      -> Triple(Color(0xFF4CAF50), "OK",      Icons.Default.CheckCircle)
-        StepStatus.WAITING -> Triple(Color(0xFFFF9800), "Waiting", Icons.Default.HourglassEmpty)
-        StepStatus.FAILED  -> Triple(Color(0xFFF44336), "Failed",  Icons.Default.Cancel)
-        StepStatus.FIXING  -> Triple(Color(0xFF2196F3), "Fixing",  Icons.Default.Sync)
+        StepStatus.OK      -> Triple(StatusReady,        "OK",      Icons.Default.CheckCircle)
+        StepStatus.WAITING -> Triple(StatusConnecting,   "Waiting", Icons.Default.HourglassEmpty)
+        StepStatus.FAILED  -> Triple(StatusError,        "Failed",  Icons.Default.Cancel)
+        StepStatus.FIXING  -> Triple(StatusConnected,    "Fixing",  Icons.Default.Sync)
     }
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -681,7 +685,7 @@ private fun EventLogRow(ev: SessionEventLog.Event) {
     val color = when (ev.type) {
         SessionEventLog.EventType.ERROR -> MaterialTheme.colorScheme.error
         SessionEventLog.EventType.TX    -> MaterialTheme.colorScheme.primary
-        SessionEventLog.EventType.RX    -> Color(0xFF4CAF50)
+        SessionEventLog.EventType.RX    -> StatusReady
         SessionEventLog.EventType.STATE -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val prefix = when (ev.type) {
