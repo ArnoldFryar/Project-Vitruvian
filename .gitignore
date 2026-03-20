@@ -61,3 +61,15 @@ src/main/java/com/mux/
 src/main/java/com/onesignal/
 src/main/java/com/segment/
 src/main/java/com/vitruvian/
+
+# Logcat capture / build output text files
+phone_full.txt
+tablet_full.txt
+phone_crash_monitor.txt
+workout_log.txt
+workout_log_full.txt
+build_out.txt
+build_output.txt
+build_result.txt
+install_out.txt
+*.hprof
