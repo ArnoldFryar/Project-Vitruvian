@@ -44,6 +44,32 @@ object PrTracker {
         val exerciseBests: Map<String, ExerciseBests>,
     )
 
+    /**
+     * All-time personal-best summary for a single exercise, with provenance.
+     *
+     * - [bestWeightLb]       : highest weight used in any single set
+     * - [bestEst1RmLb]       : highest Epley estimated 1-rep-max from any set
+     * - [bestVolumeKg]       : highest total volume in any single session
+     * - [bestTotalReps]      : most reps accumulated in any single session
+     * - [bestSetWeightLb]    : weight of the set that produced [bestEst1RmLb]
+     * - [bestSetReps]        : reps of the set that produced [bestEst1RmLb]
+     * - [bestWeightAtReps]   : per-rep-count weight bests (reps → weightLb)
+     * - [latestPbAchievedAtMs] : endTimeMs of the most recent session where any PB was set
+     * - [latestPbSessionId]  : id of that session
+     */
+    data class PersonalBestSummary(
+        val exerciseName: String,
+        val bestWeightLb: Int,
+        val bestEst1RmLb: Double,
+        val bestVolumeKg: Double,
+        val bestTotalReps: Int,
+        val bestSetWeightLb: Int,
+        val bestSetReps: Int,
+        val bestWeightAtReps: Map<Int, Int>,
+        val latestPbAchievedAtMs: Long,
+        val latestPbSessionId: String,
+    )
+
     // ── Public API ──────────────────────────────────────────────────────
 
     /**
@@ -154,4 +180,95 @@ object PrTracker {
     /** Count total PRs in a session. */
     fun sessionPrCount(scanResult: PrScanResult, sessionId: String): Int =
         scanResult.sessionPrs[sessionId]?.values?.sumOf { it.size } ?: 0
+
+    /**
+     * Compute per-exercise all-time personal-best summaries from [logs].
+     *
+     * Returns a map keyed by **lowercased exercise name** for case-insensitive
+     * lookup. Pure function — no side effects, no writes.
+     *
+     * Duplicate set rows within a session (same exercise + setIndex) are
+     * de-duplicated before aggregation to prevent inflated bests.
+     */
+    fun bestSummary(logs: List<AnalyticsStore.SessionLog>): Map<String, PersonalBestSummary> {
+        if (logs.isEmpty()) return emptyMap()
+
+        // Mutable tracker per exercise (lowercased key)
+        data class T(
+            var exerciseName: String = "",
+            var bestWeightLb: Int = 0,
+            var bestEst1RmLb: Double = 0.0,
+            var bestVolumeKg: Double = 0.0,
+            var bestTotalReps: Int = 0,
+            var bestSetWeightLb: Int = 0,
+            var bestSetReps: Int = 0,
+            val bestWeightAtReps: MutableMap<Int, Int> = mutableMapOf(),
+            var latestPbMs: Long = 0L,
+            var latestPbSessionId: String = "",
+        )
+
+        val trackers = mutableMapOf<String, T>()
+
+        for (session in logs.sortedBy { it.endTimeMs }) {
+            if (session.exerciseSets.isEmpty()) continue
+
+            // De-duplicate sets: same (exerciseName, setIndex) within a session
+            val groups = session.exerciseSets
+                .distinctBy { "${it.exerciseName.lowercase().trim()}_${it.setIndex}" }
+                .groupBy { it.exerciseName.lowercase().trim() }
+
+            for ((exKey, sets) in groups) {
+                val t = trackers.getOrPut(exKey) { T() }
+                if (t.exerciseName.isEmpty()) t.exerciseName = sets.first().exerciseName
+                var pbThisSession = false
+
+                // Best weight (any single set)
+                val maxW = sets.filter { it.weightLb > 0 }.maxOfOrNull { it.weightLb } ?: 0
+                if (maxW > t.bestWeightLb) { t.bestWeightLb = maxW; pbThisSession = true }
+
+                // Best est 1RM (Epley) + best-set provenance
+                for (s in sets) {
+                    if (s.reps <= 0 || s.weightLb <= 0) continue
+                    val e1rm = s.weightLb * (1.0 + s.reps / 30.0)
+                    if (e1rm > t.bestEst1RmLb) {
+                        t.bestEst1RmLb = e1rm
+                        t.bestSetWeightLb = s.weightLb
+                        t.bestSetReps = s.reps
+                        pbThisSession = true
+                    }
+                    // Per-rep-count weight best
+                    val cur = t.bestWeightAtReps[s.reps] ?: 0
+                    if (s.weightLb > cur) { t.bestWeightAtReps[s.reps] = s.weightLb; pbThisSession = true }
+                }
+
+                // Best volume per session
+                val vol = sets.sumOf { it.volumeKg.toDouble() }
+                if (vol > t.bestVolumeKg && vol > 0.0) { t.bestVolumeKg = vol; pbThisSession = true }
+
+                // Best total reps per session
+                val reps = sets.sumOf { it.reps }
+                if (reps > t.bestTotalReps && reps > 0) { t.bestTotalReps = reps; pbThisSession = true }
+
+                if (pbThisSession) {
+                    t.latestPbMs = session.endTimeMs
+                    t.latestPbSessionId = session.id
+                }
+            }
+        }
+
+        return trackers.mapValues { (_, t) ->
+            PersonalBestSummary(
+                exerciseName         = t.exerciseName,
+                bestWeightLb         = t.bestWeightLb,
+                bestEst1RmLb         = t.bestEst1RmLb,
+                bestVolumeKg         = t.bestVolumeKg,
+                bestTotalReps        = t.bestTotalReps,
+                bestSetWeightLb      = t.bestSetWeightLb,
+                bestSetReps          = t.bestSetReps,
+                bestWeightAtReps     = t.bestWeightAtReps.toMap(),
+                latestPbAchievedAtMs = t.latestPbMs,
+                latestPbSessionId    = t.latestPbSessionId,
+            )
+        }
+    }
 }

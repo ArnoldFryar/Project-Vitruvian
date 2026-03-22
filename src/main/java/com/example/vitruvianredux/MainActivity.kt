@@ -13,6 +13,7 @@ import com.example.vitruvianredux.cloud.CloudSyncWorker
 import com.example.vitruvianredux.cloud.SupabaseProvider
 import com.example.vitruvianredux.data.ActivityStatsStore
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.data.JustLiftStore
@@ -82,6 +83,7 @@ class MainActivity : ComponentActivity() {
 
             WorkoutHistoryStore.init(applicationContext)
             AnalyticsStore.init(applicationContext)
+            PersonalBestStore.init(lifecycleScope)
             ActivityStatsStore.seedFromAnalytics()
             SessionLogRepository.init(applicationContext)
             TemplateRepository.init(applicationContext)

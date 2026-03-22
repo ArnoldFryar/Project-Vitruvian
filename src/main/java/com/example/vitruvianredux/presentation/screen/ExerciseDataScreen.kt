@@ -35,6 +35,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.PersonalBestStore
+import com.example.vitruvianredux.data.PrTracker
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.Error
@@ -280,6 +282,12 @@ fun ExerciseDataScreen(
             ?.let { prev -> ExerciseAnalytics.buildComparison(sets, prev) }
     }
 
+    // ── All-time personal bests (reactive, from PersonalBestStore) ───────────
+    val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
+    val allTimePbs = remember(pbSummaries, exerciseName) {
+        pbSummaries[exerciseName.lowercase().trim()]
+    }
+
     val performedDateLabel = session?.endTimeMs?.let { ms ->
         DateTimeFormatter.ofPattern("d MMM yyyy")
             .format(Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()))
@@ -382,6 +390,12 @@ fun ExerciseDataScreen(
             // ── PR BADGES — only when prior history supports them ─────────
             if (prBadges.isNotEmpty()) {
                 PrBadgesRow(badges = prBadges, gold = gold)
+            }
+
+            // ── ALL-TIME PERSONAL BESTS ────────────────────────────────────
+            if (allTimePbs != null) {
+                EdsSection("Personal Bests")
+                AllTimePbsCard(pbs = allTimePbs, unitSystem = unitSystem)
             }
 
             // ── STATS + ANALYTICS — only when set data is available ────────
@@ -545,6 +559,79 @@ private fun BestSetCard(result: BestSetResult, unitSystem: UnitsStore.UnitSystem
                 }
             }
         }
+    }
+}
+
+// ── ALL-TIME PERSONAL BESTS CARD ─────────────────────────────────────────────
+
+/**
+ * Compact card showing all-time bests for this exercise from completed history.
+ * Each row is omitted gracefully when no data is available for that metric.
+ */
+@Composable
+private fun AllTimePbsCard(
+    pbs: PrTracker.PersonalBestSummary,
+    unitSystem: UnitsStore.UnitSystem,
+) {
+    val cs = MaterialTheme.colorScheme
+    EdsCard {
+        Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+            if (pbs.bestWeightLb > 0) {
+                PbRow("Best Weight", formatWeightLb(pbs.bestWeightLb, unitSystem))
+            }
+            if (pbs.bestEst1RmLb > 0.0) {
+                PbRow("Best Est. 1RM", formatWeightLb(pbs.bestEst1RmLb.roundToInt(), unitSystem))
+            }
+            if (pbs.bestSetWeightLb > 0 && pbs.bestSetReps > 0) {
+                PbRow(
+                    "Best Set",
+                    "${pbs.bestSetReps} × ${formatWeightLb(pbs.bestSetWeightLb, unitSystem)}",
+                )
+            }
+            if (pbs.bestVolumeKg > 0.0) {
+                PbRow(
+                    "Best Volume / Session",
+                    "${UnitConversions.formatVolumeFromKg(pbs.bestVolumeKg, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}",
+                )
+            }
+            if (pbs.bestTotalReps > 0) {
+                PbRow("Best Reps / Session", "${pbs.bestTotalReps} reps")
+            }
+        }
+        if (pbs.latestPbAchievedAtMs > 0L) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            Divider(color = cs.outlineVariant, thickness = 0.5.dp)
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            val dateStr = DateTimeFormatter.ofPattern("d MMM yyyy")
+                .format(Instant.ofEpochMilli(pbs.latestPbAchievedAtMs).atZone(ZoneId.systemDefault()))
+            Text(
+                "Last PB: $dateStr",
+                style = MaterialTheme.typography.labelSmall,
+                color = cs.onSurfaceVariant.copy(alpha = 0.70f),
+            )
+        }
+    }
+}
+
+/** Two-column label / value row used inside [AllTimePbsCard]. */
+@Composable
+private fun PbRow(label: String, value: String) {
+    val cs = MaterialTheme.colorScheme
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = cs.onSurfaceVariant,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
