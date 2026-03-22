@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayer
+import com.example.vitruvianredux.presentation.components.PbLoadSheet
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
@@ -69,6 +70,20 @@ internal fun SetReadyContent(
     showSetsStepper: Boolean = false,
 ) {
     val haptic = LocalHapticFeedback.current
+    var showPbSheet by remember { mutableStateOf(false) }
+
+    // PB load sheet — opens when user taps "% of PB"
+    if (showPbSheet) {
+        PbLoadSheet(
+            exerciseName = exerciseName,
+            onApplyKg    = { kg ->
+                onResistanceChange((kg * UnitConversions.LB_PER_KG).toFloat())
+                showPbSheet = false
+            },
+            onDismiss = { showPbSheet = false },
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -216,6 +231,26 @@ internal fun SetReadyContent(
                     visibleItemCount = 3,
                     itemHeight       = 32.dp,
                     modifier         = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        // % of PB shortcut — shown when the exercise has recorded history
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(
+                onClick = { showPbSheet = true },
+                contentPadding = PaddingValues(
+                    horizontal = AppDimens.Spacing.sm,
+                    vertical   = AppDimens.Spacing.xxs,
+                ),
+            ) {
+                Text(
+                    "% of PB",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
