@@ -307,11 +307,14 @@ private fun ExerciseCard(
     onLongPress: () -> Unit = {},
 ) {
     // Use group labels ("Arms", "Legs") as concise tags on the card
+    // Limit to 1 visible tag + overflow count — the content column is narrow
     val tags        = exercise.groupLabels
-    val visibleTags = tags.take(2)
+    val visibleTags = tags.take(1)
     val overflow    = tags.size - visibleTags.size
-    // Equipment: show first 2 items, formatted as title-case (e.g. "SHORT_BAR" → "Short Bar")
-    val equipmentLabels = exercise.equipment.take(2).map { it.replace('_', ' ').lowercase(java.util.Locale.ROOT).replaceFirstChar { c -> c.uppercaseChar() } }
+    // Equipment: show first item only with an overflow indicator if there are more
+    val allEquipment    = exercise.equipment.map { it.replace('_', ' ').lowercase(java.util.Locale.ROOT).replaceFirstChar { c -> c.uppercaseChar() } }
+    val visibleEquip    = allEquipment.take(1)
+    val equipOverflow   = allEquipment.size - visibleEquip.size
 
     ElevatedCard(
         modifier  = Modifier.fillMaxWidth().combinedClickable(
@@ -390,13 +393,18 @@ private fun ExerciseCard(
                     }
                 }
                 // Equipment / accessory labels
-                if (equipmentLabels.isNotEmpty()) {
+                if (visibleEquip.isNotEmpty()) {
                     Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-                        equipmentLabels.forEach { equip ->
+                        visibleEquip.forEach { equip ->
                             SuggestionChip(
                                 onClick = {},
-                                icon    = { Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm)) },
                                 label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
+                            )
+                        }
+                        if (equipOverflow > 0) {
+                            SuggestionChip(
+                                onClick = {},
+                                label   = { Text("+$equipOverflow", style = MaterialTheme.typography.labelSmall) },
                             )
                         }
                     }

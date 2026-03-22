@@ -24,7 +24,10 @@ import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.data.PersonalBestStore
+import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.components.PbLoadSheet
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
@@ -57,6 +60,20 @@ fun EditExerciseSheet(
     var isBeastMode   by remember { mutableStateOf(item.programMode == "TUT Beast") }
     var progRegLb     by remember { mutableIntStateOf(item.progressionRegressionLb) }
     var restTimerSec  by remember { mutableIntStateOf(item.restTimerSec) }
+    var showPbSheet   by remember { mutableStateOf(false) }
+
+    val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
+    val pbs = remember(pbSummaries, item.exerciseName) {
+        pbSummaries[item.exerciseName.lowercase().trim()]
+    }
+
+    if (showPbSheet) {
+        PbLoadSheet(
+            exerciseName = item.exerciseName,
+            onApplyKg    = { kg -> weightKg = kg; showPbSheet = false },
+            onDismiss    = { showPbSheet = false },
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -218,7 +235,28 @@ fun EditExerciseSheet(
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                 // ── Section: Resistance ──────────────────────────────────────
-                SectionHeader("Resistance")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    SectionHeader("Resistance")
+                    if (pbs != null) {
+                        TextButton(
+                            onClick = { showPbSheet = true },
+                            contentPadding = PaddingValues(
+                                horizontal = AppDimens.Spacing.sm,
+                                vertical   = AppDimens.Spacing.xxs,
+                            ),
+                        ) {
+                            Text(
+                                "% of PB",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
                 SelectorCard(modifier = Modifier.fillMaxWidth()) {
                     ResistanceTumbler(
                         valueKg         = weightKg,

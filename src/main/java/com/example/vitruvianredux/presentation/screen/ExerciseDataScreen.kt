@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.LoadRecommendationHelper
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.PrTracker
 import com.example.vitruvianredux.data.UnitsStore
@@ -396,6 +397,8 @@ fun ExerciseDataScreen(
             if (allTimePbs != null) {
                 EdsSection("Personal Bests")
                 AllTimePbsCard(pbs = allTimePbs, unitSystem = unitSystem)
+                EdsSection("Next Session Load")
+                NextSessionLoadCard(pbs = allTimePbs, unitSystem = unitSystem)
             }
 
             // ── STATS + ANALYTICS — only when set data is available ────────
@@ -558,6 +561,131 @@ private fun BestSetCard(result: BestSetResult, unitSystem: UnitsStore.UnitSystem
                     }
                 }
             }
+        }
+    }
+}
+
+// ── NEXT SESSION LOAD CARD ──────────────────────────────────────────────────
+
+/**
+ * Interactive card that computes a working-weight recommendation from the
+ * user's recorded personal bests at a user-chosen percentage.
+ *
+ * Uses [LoadRecommendationHelper] — pure, stateless, no side effects.
+ */
+@Composable
+private fun NextSessionLoadCard(
+    pbs: PrTracker.PersonalBestSummary,
+    unitSystem: UnitsStore.UnitSystem,
+) {
+    val cs = MaterialTheme.colorScheme
+
+    val availableBases = remember(pbs) {
+        LoadRecommendationHelper.PbBasis.entries
+            .filter { LoadRecommendationHelper.isAvailable(pbs, it) }
+    }
+
+    if (availableBases.isEmpty()) return
+
+    var selectedBasis by remember(availableBases) {
+        mutableStateOf(
+            availableBases.firstOrNull { it == LoadRecommendationHelper.PbBasis.EST_1RM }
+                ?: availableBases.first()
+        )
+    }
+    var selectedPct by remember { mutableIntStateOf(80) }
+
+    val suggestedKg = remember(pbs, selectedBasis, selectedPct, unitSystem) {
+        LoadRecommendationHelper.suggestedLoadKg(pbs, selectedBasis, selectedPct, unitSystem)
+    }
+
+    val suggestedDisplay = if (suggestedKg != null)
+        UnitConversions.formatWeightFromKg(suggestedKg.toDouble(), unitSystem)
+    else "—"
+
+    val basisRefDisplay = LoadRecommendationHelper.formatBasisValue(pbs, selectedBasis, unitSystem)
+
+    EdsCard {
+        // ── Basis selector ──────────────────────────────────────────────────
+        if (availableBases.size > 1) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                availableBases.forEach { basis ->
+                    FilterChip(
+                        selected = selectedBasis == basis,
+                        onClick  = { selectedBasis = basis },
+                        label    = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(basis.label, fontWeight = FontWeight.SemiBold)
+                                LoadRecommendationHelper.formatBasisValue(pbs, basis, unitSystem)
+                                    ?.let { v ->
+                                        Text(
+                                            v,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (selectedBasis == basis)
+                                                cs.onSecondaryContainer
+                                            else cs.onSurfaceVariant,
+                                        )
+                                    }
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+        }
+
+        // ── Percentage chips ────────────────────────────────────────────────
+        LoadRecommendationHelper.percentagePresets.chunked(3).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                row.forEach { pct ->
+                    FilterChip(
+                        selected = selectedPct == pct,
+                        onClick  = { selectedPct = pct },
+                        label    = { Text("$pct%", fontWeight = FontWeight.Medium) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.xs))
+        Divider(color = cs.outlineVariant.copy(alpha = 0.4f))
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+        // ── Weight display ──────────────────────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column {
+                Text(
+                    "$selectedPct% of ${selectedBasis.label}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = cs.onSurfaceVariant,
+                )
+                if (basisRefDisplay != null) {
+                    Text(
+                        "ref: $basisRefDisplay",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                    )
+                }
+            }
+            Text(
+                suggestedDisplay,
+                style      = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color      = if (suggestedKg != null) cs.primary else cs.onSurfaceVariant,
+            )
         }
     }
 }
