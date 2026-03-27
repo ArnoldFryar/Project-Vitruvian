@@ -1,8 +1,13 @@
-package com.example.vitruvianredux.presentation.screen
+﻿package com.example.vitruvianredux.presentation.screen
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -909,12 +915,34 @@ fun ProfileScreen(
         // ═══════════════════════════════════════════════════════════
         //  Exercise History – date-grouped sessions with PR badges
         // ═══════════════════════════════════════════════════════════
-        Text(
-            "Exercise History",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
-        )
+        var historyExpanded by rememberSaveable { mutableStateOf(true) }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { historyExpanded = !historyExpanded }
+                .padding(bottom = AppDimens.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Exercise History",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                if (historyExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (historyExpanded) "Collapse history" else "Expand history",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(AppDimens.Icon.md),
+            )
+        }
+
+        AnimatedVisibility(
+            visible = historyExpanded,
+            enter = fadeIn(tween(MotionTokens.STANDARD_MS)) + expandVertically(tween(MotionTokens.STANDARD_MS)),
+            exit  = fadeOut(tween(MotionTokens.STANDARD_MS)) + shrinkVertically(tween(MotionTokens.STANDARD_MS)),
+        ) {
+        Column {
 
         if (allLogs.isEmpty() && history.isEmpty()) {
             // ── Empty state ──
@@ -1217,6 +1245,9 @@ fun ProfileScreen(
                 }
             }
         }
+        } // end Column (AnimatedVisibility)
+        } // end AnimatedVisibility
+
         Spacer(Modifier.height(AppDimens.Spacing.lg))
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  Settings
