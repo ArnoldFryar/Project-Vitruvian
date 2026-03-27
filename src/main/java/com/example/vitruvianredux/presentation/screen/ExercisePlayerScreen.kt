@@ -343,6 +343,7 @@ fun ExercisePlayerScreen(
                             onSkipExercise = { workoutVM.skipExercise() },
                             progressionSuggestionLb = progressionSuggestion,
                             onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
+                            isEchoMode     = (selectedMode == "Echo"),
                             modifier       = Modifier.fillMaxSize(),
                         )
                     }

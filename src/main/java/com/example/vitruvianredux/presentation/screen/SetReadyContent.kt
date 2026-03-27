@@ -70,6 +70,8 @@ internal fun SetReadyContent(
     /** When non-null, show a "level up" suggestion banner above the weight selector. */
     progressionSuggestionLb: Int? = null,
     onAcceptProgression: (Int) -> Unit = {},
+    /** Echo (isokinetic) mode — weight is adaptive so the selector is hidden. */
+    isEchoMode: Boolean = false,
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -251,15 +253,31 @@ internal fun SetReadyContent(
                 }
             }
             SelectorCard(modifier = Modifier.weight(1f)) {
-                ResistanceTumbler(
-                    valueKg         = (resistanceLb * UnitConversions.KG_PER_LB).toFloat(),
-                    onValueKgChange = { newKg -> onResistanceChange((newKg * UnitConversions.LB_PER_KG).toFloat()) },
-                    surfaceColor     = MaterialTheme.colorScheme.surfaceVariant,
-                    compact          = true,
-                    visibleItemCount = 3,
-                    itemHeight       = 32.dp,
-                    modifier         = Modifier.fillMaxWidth(),
-                )
+                if (isEchoMode) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = AppDimens.Spacing.md_sm),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text  = "Adaptive",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                } else {
+                    ResistanceTumbler(
+                        valueKg         = (resistanceLb * UnitConversions.KG_PER_LB).toFloat(),
+                        onValueKgChange = { newKg -> onResistanceChange((newKg * UnitConversions.LB_PER_KG).toFloat()) },
+                        surfaceColor     = MaterialTheme.colorScheme.surfaceVariant,
+                        compact          = true,
+                        visibleItemCount = 3,
+                        itemHeight       = 32.dp,
+                        modifier         = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
 
