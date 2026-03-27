@@ -38,6 +38,7 @@ import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.data.HevyStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
@@ -1613,6 +1614,72 @@ fun ProfileScreen(
                     }
                     Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+        }
+
+        // ── Hevy Sync ────────────────────────────────────────────────────────
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        val hevyApiKey  by HevyStore.apiKeyFlow.collectAsState()
+        val hevyEnabled by HevyStore.enabledFlow.collectAsState()
+        var showHevyDialog by remember { mutableStateOf(false) }
+
+        if (showHevyDialog) {
+            var keyInput by remember { mutableStateOf(hevyApiKey) }
+            AlertDialog(
+                onDismissRequest = { showHevyDialog = false },
+                title = { Text("Hevy API Key") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                        Text(
+                            "Enter your Hevy API key to automatically push workouts after each session.\n\nGet your key at hevy.com → Settings → Developer.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedTextField(
+                            value = keyInput,
+                            onValueChange = { keyInput = it },
+                            label = { Text("API key") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val trimmed = keyInput.trim()
+                        HevyStore.setApiKey(trimmed)
+                        HevyStore.setEnabled(trimmed.isNotBlank())
+                        showHevyDialog = false
+                    }) { Text("Save") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showHevyDialog = false }) { Text("Cancel") }
+                },
+            )
+        }
+
+        PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showHevyDialog = true }) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Default.SyncAlt,
+                    contentDescription = null,
+                    tint = if (hevyEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(AppDimens.Icon.lg),
+                )
+                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Hevy Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                    Text(
+                        if (hevyEnabled) "Pushing workouts to Hevy" else "Tap to connect Hevy account",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 

@@ -1,5 +1,9 @@
 package com.example.vitruvianredux.data
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import com.example.vitruvianredux.ble.session.WorkoutStats
 
@@ -16,6 +20,8 @@ import com.example.vitruvianredux.ble.session.WorkoutStats
 object AnalyticsRecorder {
 
     private const val TAG = "AnalyticsRecorder"
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Record a completed workout session.
@@ -50,6 +56,13 @@ object AnalyticsRecorder {
             )
             AnalyticsStore.record(log)
             Timber.tag("analytics").i("Session logged: ${log.id} (${stats.totalSets} sets, ${stats.totalReps} reps, ${stats.durationSec}s)")
+
+            // Push to Hevy asynchronously — never blocks the UI
+            if (HevyStore.enabled) {
+                scope.launch {
+                    HevyClient.pushSession(log)
+                }
+            }
         } catch (e: Exception) {
             Timber.tag("analytics").e(e, "Failed to record session: ${e.message}")
         }

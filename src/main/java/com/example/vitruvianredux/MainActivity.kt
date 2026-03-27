@@ -16,6 +16,7 @@ import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.data.HevyStore
 import com.example.vitruvianredux.data.JustLiftStore
 import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.data.ProgramStore
@@ -44,6 +45,7 @@ class MainActivity : ComponentActivity() {
         HealthConnectStore.init(applicationContext)
         HealthConnectManager.init(applicationContext)
         ThemeStore.init(applicationContext)
+        HevyStore.init(applicationContext)
 
         // Warn the user (and any tester) that this is a debug build so it is
         // never silently distributed as a production APK.
