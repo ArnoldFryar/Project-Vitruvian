@@ -161,17 +161,19 @@ private fun WorkoutHistoryCard(
     }
 
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(AppDimens.Corner.md),
         color = cs.surfaceVariant,
         tonalElevation = AppDimens.Elevation.card,
     ) {
-        Column(modifier = Modifier
-            .animateContentSize(tween(MotionTokens.STANDARD_MS))
-            .padding(AppDimens.Spacing.md)
-        ) {
+        Column(modifier = Modifier.animateContentSize(tween(MotionTokens.STANDARD_MS))) {
+            // ── Tappable header (toggle expand/collapse) ──────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(AppDimens.Spacing.md),
+            ) {
             // ── Program label (when applicable) ──────────────────────
             if (isProgramWorkout) {
                 Text(
@@ -258,8 +260,19 @@ private fun WorkoutHistoryCard(
                 color = cs.onSurfaceVariant.copy(alpha = 0.6f),
             )
 
+            } // end header column
+
             // ── Expandable per-exercise breakdown ────────────────────
             if (expanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = AppDimens.Spacing.md,
+                            end   = AppDimens.Spacing.md,
+                            bottom = AppDimens.Spacing.md,
+                        ),
+                ) {
                 Spacer(Modifier.height(AppDimens.Spacing.md_sm))
                 Divider(
                     color = cs.outlineVariant.copy(alpha = 0.4f),
@@ -400,10 +413,11 @@ private fun WorkoutHistoryCard(
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     )
                 }
-            }
-        }
-    }
-}
+                } // end expanded Column
+            } // end if (expanded)
+        } // end outer Column (animateContentSize)
+    } // end Surface
+} // end WorkoutHistoryCard
 
 /** Compact stat pill used in the history card stats grid. */
 @Composable

@@ -204,6 +204,11 @@ fun AppNavHost(
             SessionDetailScreen(
                 sessionId = sessionId,
                 onBack = { nav.popBackStack() },
+                onNavigateToExercise = { exerciseName ->
+                    nav.navigate(
+                        "${Route.ExerciseDataDetail.path}/$sessionId/${Uri.encode(exerciseName)}"
+                    )
+                },
             )
         }
         composable(route = "${Route.ExerciseDataDetail.path}/{sessionId}/{exerciseName}") { backStackEntry ->

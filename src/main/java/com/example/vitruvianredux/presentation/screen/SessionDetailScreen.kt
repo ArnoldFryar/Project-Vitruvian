@@ -51,6 +51,7 @@ import java.time.format.DateTimeFormatter
 fun SessionDetailScreen(
     sessionId: String,
     onBack: () -> Unit,
+    onNavigateToExercise: (exerciseName: String) -> Unit = {},
 ) {
     val logs by AnalyticsStore.logsFlow.collectAsState()
     val session = remember(logs, sessionId) { AnalyticsStore.sessionById(sessionId) }
@@ -266,9 +267,18 @@ fun SessionDetailScreen(
                             "%.1f kg".format(topWeight * 0.45359237)
                         }
 
-                        SdCard {
+                        Surface(
+                            onClick = { onNavigateToExercise(name) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                            color = cs.surfaceVariant,
+                            tonalElevation = AppDimens.Elevation.card,
+                            border = GlassBorder,
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(AppDimens.Spacing.md),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Box(
@@ -291,14 +301,29 @@ fun SessionDetailScreen(
                                         color = cs.onSurfaceVariant,
                                     )
                                 }
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = "View exercise data",
+                                    tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(AppDimens.Icon.sm),
+                                )
                             }
                         }
                     }
                 } else {
                     session.exerciseNames.forEach { name ->
-                        SdCard {
+                        Surface(
+                            onClick = { onNavigateToExercise(name) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                            color = cs.surfaceVariant,
+                            tonalElevation = AppDimens.Elevation.card,
+                            border = GlassBorder,
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(AppDimens.Spacing.md),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
@@ -311,6 +336,13 @@ fun SessionDetailScreen(
                                 Text(
                                     name,
                                     style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = "View exercise data",
+                                    tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(AppDimens.Icon.sm),
                                 )
                             }
                         }
