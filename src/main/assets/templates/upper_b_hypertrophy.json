@@ -1,0 +1,104 @@
+{
+  "id": "builtin_upper_b_hypertrophy",
+  "name": "Upper B (Hypertrophy)",
+  "category": "Hypertrophy",
+  "description": "Vertical push/pull focused upper body day. Targets the upper chest, lateral delts, rear delts, and arm isolation for complete shoulder width and arm development.",
+  "days": [
+    {
+      "name": "Push/Pull — Vertical & Incline",
+      "focus": "Upper Chest, Lateral Delts, Rear Delts, Arms",
+      "exercises": [
+        {
+          "exerciseId": "8a1690db-cb4f-4e0a-9f66-425e0d5fc3c3",
+          "exerciseName": "Incline Bench Press",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "nLSiGdO5Pt5xB2Jl",
+          "exerciseName": "Incline Fly",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 35,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "6f2112ee-73db-44e8-bef7-cd159b240ee6",
+          "exerciseName": "Lawnmower SA Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "rIjnJFQUK3mDbwBW",
+          "exerciseName": "Lateral Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 20,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "z70P8xJtRTKpAUbr",
+          "exerciseName": "Crossover Lateral Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 15,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "CL3J9A1NUUk3Lyez",
+          "exerciseName": "Half Kneeling SA Rear Delt Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "20b9cd61-8720-4546-a3c0-8926e3b37559",
+          "exerciseName": "Crossover Rear Delt Fly",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 12,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "bf1437e9-f8ca-4bfe-b766-af5fee1834a5",
+          "exerciseName": "Overhead Tricep Extension",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "I4ZzPJg0qt7dw8sV",
+          "exerciseName": "Seated Bicep Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

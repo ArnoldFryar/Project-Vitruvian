@@ -1,0 +1,64 @@
+{
+  "id": "builtin_lower_a_belt_squat",
+  "name": "Lower A (Belt Squat & Quads)",
+  "category": "Lower Body",
+  "description": "Quad-dominant lower body session built around belt squat mechanics. Bulgarian split squats, goblet squat, and pull-through create full lower body development with a quad emphasis.",
+  "days": [
+    {
+      "name": "Quad Dominant",
+      "focus": "Quads, Glutes, Hamstrings, Calves",
+      "exercises": [
+        {
+          "exerciseId": "lpnNPw86Vud67vWQ",
+          "exerciseName": "Squat",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 70,
+          "programMode": "Old School",
+          "restTimerSec": 120
+        },
+        {
+          "exerciseId": "a255fcc3-af4d-44b1-8f88-8de014b39ed3",
+          "exerciseName": "Bulgarian Split Squats",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 50,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "8c291e21-6e26-49ff-9e24-048d6868f05d",
+          "exerciseName": "Goblet Squat",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 105,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "LoaPkKfJhQSfn-vH",
+          "exerciseName": "Pull Through",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 125,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "287a9e39-fd0f-426f-bac1-2b121befb397",
+          "exerciseName": "Calf Raise",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 15,
+          "targetWeightLb": 95,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

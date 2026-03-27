@@ -36,8 +36,138 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private const val TAG = "WorkoutSession"
-private const val REPS_UUID = "8308f2a6-0875-4a94-a86f-5c5c5e1b068a"
+private const val REPS_UUID   = "8308f2a6-0875-4a94-a86f-5c5c5e1b068a"
 private const val SAMPLE_UUID = "90e991a6-c548-44ed-969b-eb541014eae3"
+private const val WIFI_STATE_UUID   = "5fa538ec-d041-42f6-bbd6-c30d475387b7"
+private const val DIAGNOSTIC_UUID   = "92ef83d6-8916-4921-8172-a9919bc82566"
+private const val MODE_UUID          = "67d0dae0-5bfc-4ea2-acc9-ac784dee7f29"
+private const val HEURISTIC_UUID     = "c7b73007-b245-4503-a1ed-9e4e97eb9802"
+private const val VERSION_UUID       = "74e994ac-0e80-4c02-9cd0-76cb31d3959b"
+private const val UPDATE_STATE_UUID  = "383f7276-49af-4335-9072-f01b0f8acad6"
+
+/**
+ * WiFi credentials broadcast by the Vitruvian machine via the WIFI_STATE characteristic.
+ * The machine sends its current connected SSID and network key as two null-terminated
+ * UTF-8 strings packed back-to-back in the notification payload.
+ */
+data class MachineWifiState(
+    val ssid: String,
+    val password: String,
+)
+
+/** Parse WIFI_STATE notification bytes into [MachineWifiState].
+ *  Format: two sequential null-terminated UTF-8 strings [ssid\0password\0].
+ *  Falls back to treating non-null bytes as SSID only if no null separator found. */
+internal fun parseMachineWifiState(bytes: ByteArray): MachineWifiState {
+    val nullIdx = bytes.indexOf(0.toByte())
+    return if (nullIdx >= 0) {
+        val ssid = String(bytes, 0, nullIdx, Charsets.UTF_8).trim()
+        val remaining = if (nullIdx + 1 < bytes.size) bytes.sliceArray(nullIdx + 1 until bytes.size) else ByteArray(0)
+        val pwdEnd = remaining.indexOf(0.toByte()).let { if (it < 0) remaining.size else it }
+        val pwd = String(remaining, 0, pwdEnd, Charsets.UTF_8).trim()
+        MachineWifiState(ssid, pwd)
+    } else {
+        MachineWifiState(String(bytes, Charsets.UTF_8).trim(), "")
+    }
+}
+
+// ─── Machine mode (MODE characteristic) ──────────────────────────────────────
+enum class MachineMode { BASELINE, SOFTWARE, STATIC, TWO_PHASE, MASTER }
+
+internal fun parseMachineMode(bytes: ByteArray): MachineMode {
+    if (bytes.size < 4) return MachineMode.BASELINE
+    val v = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).int
+    return when (v) {
+        1    -> MachineMode.SOFTWARE
+        2    -> MachineMode.STATIC
+        3    -> MachineMode.TWO_PHASE
+        4    -> MachineMode.MASTER
+        else -> MachineMode.BASELINE
+    }
+}
+
+// ─── Heuristic (HEURISTIC characteristic) ────────────────────────────────────
+/** Per-phase force/velocity/power stats from the machine after each rep. */
+data class HeuristicPhaseStats(
+    val kgAvg:   Float, val kgMax:   Float,
+    val velAvg:  Float, val velMax:  Float,
+    val wattAvg: Float, val wattMax: Float,
+)
+
+data class HeuristicSideStats(
+    val concentric: HeuristicPhaseStats,
+    val eccentric:  HeuristicPhaseStats,
+)
+
+data class MachineHeuristic(
+    val left:  HeuristicSideStats,
+    val right: HeuristicSideStats,
+)
+
+private fun readPhaseStats(buf: java.nio.ByteBuffer) = HeuristicPhaseStats(
+    kgAvg = buf.float,  kgMax = buf.float,
+    velAvg = buf.float, velMax = buf.float,
+    wattAvg = buf.float, wattMax = buf.float,
+)
+
+private fun readSideStats(buf: java.nio.ByteBuffer) = HeuristicSideStats(
+    concentric = readPhaseStats(buf),
+    eccentric  = readPhaseStats(buf),
+)
+
+internal fun parseMachineHeuristic(bytes: ByteArray): MachineHeuristic? {
+    if (bytes.size < 96) return null
+    return try {
+        val buf = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        MachineHeuristic(left = readSideStats(buf), right = readSideStats(buf))
+    } catch (e: Exception) { null }
+}
+
+// ─── Version (VERSION characteristic) ────────────────────────────────────────
+data class MachineVersion(
+    val hardware:   String,
+    val firmware:   String,
+    val maxForceKg: Float,
+)
+
+private fun readNullTerminatedString(buf: java.nio.ByteBuffer): String {
+    val sb = StringBuilder()
+    while (buf.hasRemaining()) {
+        val b = buf.get()
+        if (b == 0.toByte()) break
+        sb.append(b.toInt().and(0xFF).toChar())
+    }
+    return sb.toString()
+}
+
+internal fun parseMachineVersion(bytes: ByteArray): MachineVersion? {
+    if (bytes.isEmpty()) return null
+    return try {
+        val buf = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        val hw       = readNullTerminatedString(buf)
+        val fw       = readNullTerminatedString(buf)
+        val maxForce = if (buf.remaining() >= 4) buf.float else 0f
+        MachineVersion(hw, fw, maxForce)
+    } catch (e: Exception) { null }
+}
+
+// ─── UpdateState (UPDATE_STATE characteristic) ───────────────────────────────
+data class MachineUpdateState(
+    val statusCode:  Int,  // 0=idle 1=pending 2=inProgress 3=complete
+    val errorCode:   Int,  // 0=none 1-4=errors
+    val progressPct: Int,  // 0-100
+)
+
+internal fun parseMachineUpdateState(bytes: ByteArray): MachineUpdateState? {
+    if (bytes.size < 9) return null
+    return try {
+        val buf      = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        val status   = buf.int.coerceIn(0, 3)
+        val error    = buf.int.coerceIn(0, 4)
+        val progress = buf.get().toInt().and(0xFF).coerceIn(0, 100)
+        MachineUpdateState(status, error, progress)
+    } catch (e: Exception) { null }
+}
 
 sealed class SessionPhase {
     // ── Legacy / quick-start ──────────────────────────────────────────────────
@@ -143,6 +273,30 @@ class WorkoutSessionEngine(
 ) {
     private val _state = MutableStateFlow(SessionState())
     val state: StateFlow<SessionState> = _state.asStateFlow()
+
+    /** Last WiFi credentials broadcast by the machine (null until first WIFI_STATE notification). */
+    private val _machineWifiState = MutableStateFlow<MachineWifiState?>(null)
+    val machineWifiState: StateFlow<MachineWifiState?> = _machineWifiState.asStateFlow()
+
+    /** Raw bytes of the most recent DIAGNOSTIC notification (null until first received). */
+    private val _machineRawDiagnostic = MutableStateFlow<ByteArray?>(null)
+    val machineRawDiagnostic: StateFlow<ByteArray?> = _machineRawDiagnostic.asStateFlow()
+
+    /** Current machine operating mode (null until first MODE notification). */
+    private val _machineMode = MutableStateFlow<MachineMode?>(null)
+    val machineMode: StateFlow<MachineMode?> = _machineMode.asStateFlow()
+
+    /** Machine firmware/hardware version (null until first VERSION notification). */
+    private val _machineVersion = MutableStateFlow<MachineVersion?>(null)
+    val machineVersion: StateFlow<MachineVersion?> = _machineVersion.asStateFlow()
+
+    /** Per-rep force/velocity/power heuristics from the machine (null until first HEURISTIC notification). */
+    private val _machineHeuristic = MutableStateFlow<MachineHeuristic?>(null)
+    val machineHeuristic: StateFlow<MachineHeuristic?> = _machineHeuristic.asStateFlow()
+
+    /** Firmware update status (null until first UPDATE_STATE notification). */
+    private val _machineUpdateState = MutableStateFlow<MachineUpdateState?>(null)
+    val machineUpdateState: StateFlow<MachineUpdateState?> = _machineUpdateState.asStateFlow()
 
     private var programJob: Job? = null
     @Volatile private var stopSignal = false
@@ -536,6 +690,35 @@ class WorkoutSessionEngine(
                     // Monitor/Sample notifications are rare (device primarily supports READ),
                     // but handle them if they arrive to keep telemetry timestamp alive.
                     _state.value = _state.value.copy(lastTelemetryTimestamp = now)
+                } else if (event.uuid.equals(WIFI_STATE_UUID, ignoreCase = true)) {
+                    val wifi = parseMachineWifiState(event.bytes)
+                    _machineWifiState.value = wifi
+                    Log.i(TAG, "WIFI_STATE: ssid=\"${wifi.ssid}\" (${event.bytes.size}B)")
+                } else if (event.uuid.equals(DIAGNOSTIC_UUID, ignoreCase = true)) {
+                    _machineRawDiagnostic.value = event.bytes.copyOf()
+                    Log.i(TAG, "DIAGNOSTIC: ${event.bytes.size}B  ${event.bytes.joinToString(" ") { "%02x".format(it) }}")
+                } else if (event.uuid.equals(MODE_UUID, ignoreCase = true)) {
+                    val mode = parseMachineMode(event.bytes)
+                    _machineMode.value = mode
+                    Log.d(TAG, "MODE: $mode")
+                } else if (event.uuid.equals(HEURISTIC_UUID, ignoreCase = true)) {
+                    val h = parseMachineHeuristic(event.bytes)
+                    if (h != null) {
+                        _machineHeuristic.value = h
+                        Log.d(TAG, "HEURISTIC L peak=${h.left.concentric.kgMax}kg ${h.left.concentric.wattMax}W | R peak=${h.right.concentric.kgMax}kg ${h.right.concentric.wattMax}W")
+                    }
+                } else if (event.uuid.equals(VERSION_UUID, ignoreCase = true)) {
+                    val v = parseMachineVersion(event.bytes)
+                    if (v != null) {
+                        _machineVersion.value = v
+                        Log.i(TAG, "VERSION: hw=${v.hardware} fw=${v.firmware} maxForce=${v.maxForceKg}kg")
+                    }
+                } else if (event.uuid.equals(UPDATE_STATE_UUID, ignoreCase = true)) {
+                    val u = parseMachineUpdateState(event.bytes)
+                    if (u != null) {
+                        _machineUpdateState.value = u
+                        Log.d(TAG, "UPDATE_STATE: status=${u.statusCode} error=${u.errorCode} progress=${u.progressPct}%")
+                    }
                 } else {
                     Log.d(TAG, "Notify [${event.uuid.take(8)}] ${event.bytes.size}B  ${event.bytes.hexPreview()}")
                     _state.value = _state.value.copy(lastTelemetryTimestamp = now)

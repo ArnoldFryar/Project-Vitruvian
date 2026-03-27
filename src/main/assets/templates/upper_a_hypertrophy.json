@@ -1,0 +1,94 @@
+{
+  "id": "builtin_upper_a_hypertrophy",
+  "name": "Upper A (Hypertrophy)",
+  "category": "Hypertrophy",
+  "description": "Horizontal push/pull dominant upper body day. Combines compound pressing, rowing, and isolation work for full chest, back, and arm development.",
+  "days": [
+    {
+      "name": "Push/Pull — Horizontal",
+      "focus": "Chest, Lats, Rear Delts, Arms",
+      "exercises": [
+        {
+          "exerciseId": "b5d0f3d1-994b-4589-9d2b-b3f36f1412c7",
+          "exerciseName": "Bench Press",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "31ea9d9e-669c-4752-9f44-80c3fa864021",
+          "exerciseName": "Bent Over Row",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 140,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "b3ba4645-6b3f-4058-b1f4-0d8fc3e49dff",
+          "exerciseName": "Cable Fly",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 25,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "lqezCotrgYPfpuDg",
+          "exerciseName": "Seated Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 125,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "lKxWrGuEzVcxLYqG",
+          "exerciseName": "Face Pull",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 50,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "GIQYOXGxJkgszu1e",
+          "exerciseName": "SA Rear Delt Fly Bench Supported",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 14,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "QzWldJ1xdgra87Z1",
+          "exerciseName": "Bayesian Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "rSP8JKeoDxexC_Gu",
+          "exerciseName": "Tricep Dip",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 60,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

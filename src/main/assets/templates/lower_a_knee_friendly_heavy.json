@@ -1,0 +1,74 @@
+{
+  "id": "builtin_lower_a_knee_friendly_heavy",
+  "name": "Lower A (Knee Friendly Heavy)",
+  "category": "Lower Body",
+  "description": "Quad and hamstring strength with joint-safe squat patterns. Includes unilateral step-down work and core anti-rotation for knee stability at heavier loads.",
+  "days": [
+    {
+      "name": "Quad & Hamstring Strength",
+      "focus": "Quads, Hamstrings, Calves, Core",
+      "exercises": [
+        {
+          "exerciseId": "lpnNPw86Vud67vWQ",
+          "exerciseName": "Squat",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 70,
+          "programMode": "Old School",
+          "restTimerSec": 120
+        },
+        {
+          "exerciseId": "49c4594c-f997-4d70-8008-b293e247e2e4",
+          "exerciseName": "Romanian Deadlift",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 140,
+          "programMode": "Old School",
+          "restTimerSec": 120
+        },
+        {
+          "exerciseId": "cJkTi7rZz0DmvcIF",
+          "exerciseName": "Lying Hamstring Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "1W_0cwjBVboBtCcY",
+          "exerciseName": "Step Downs",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 50,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "uswNmWgAK9AdRXja",
+          "exerciseName": "Seated Calf Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 95,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "1j1WimoER0Y18K3E",
+          "exerciseName": "Dead Bug SA Press (Staggered)",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 18,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

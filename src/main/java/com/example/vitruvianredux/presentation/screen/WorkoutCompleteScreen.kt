@@ -33,6 +33,8 @@ fun WorkoutCompleteContent(
     onDismiss: () -> Unit,
     onSaveAndExit: () -> Unit,
     avgQualityScore: Int? = null,
+    notes: String = "",
+    onNotesChange: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -166,6 +168,18 @@ fun WorkoutCompleteContent(
                 }
             }
         }
+
+        // ── Workout notes ─────────────────────────────────────────────────────
+        OutlinedTextField(
+            value = notes,
+            onValueChange = onNotesChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Workout notes (optional)") },
+            placeholder = { Text("How did it go? Any PRs?", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
+            minLines = 2,
+            maxLines = 5,
+            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+        )
 
         // ── Action buttons ──────────────────────────────────────────────────
         Button(

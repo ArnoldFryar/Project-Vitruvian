@@ -8,6 +8,9 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -46,6 +49,7 @@ object HealthConnectManager {
         HealthPermission.getWritePermission(ExerciseSessionRecord::class),
         HealthPermission.getWritePermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getWritePermission(TotalCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(WeightRecord::class),
     )
 
     private var _availability = Availability.NOT_INSTALLED
@@ -211,6 +215,37 @@ object HealthConnectManager {
         } catch (e: Exception) {
             Timber.tag("sync").e(e, "writeWorkoutSummary: FAILED — ${e.javaClass.simpleName}: ${e.message}")
             false
+        }
+    }
+
+    /**
+     * Read the most recent body weight entry from Health Connect.
+     *
+     * Returns the weight in kilograms, or null if not available / no data.
+     * Samsung Health automatically syncs WeightRecord to Health Connect.
+     *
+     * Runs on [Dispatchers.IO]. Never throws.
+     */
+    suspend fun readLatestWeightKg(): Double? = withContext(Dispatchers.IO) {
+        val hc = client ?: return@withContext null
+        try {
+            val now = Instant.now()
+            val ninetyDaysAgo = now.minusSeconds(90L * 24 * 3600)
+            val request = ReadRecordsRequest(
+                recordType      = WeightRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(ninetyDaysAgo, now),
+            )
+            val response = hc.readRecords(request)
+            response.records
+                .maxByOrNull { it.time }
+                ?.weight
+                ?.inKilograms
+        } catch (e: SecurityException) {
+            Timber.tag("sync").w(e, "readLatestWeightKg: permission denied")
+            null
+        } catch (e: Exception) {
+            Timber.tag("sync").w(e, "readLatestWeightKg: ${e.message}")
+            null
         }
     }
 }

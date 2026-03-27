@@ -20,9 +20,11 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
+import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.util.loadExercises
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
@@ -124,8 +126,10 @@ fun ProgramDetailScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Spacer(Modifier.height(4.dp))
+                        val daysLabel = formatScheduledDays(program.scheduledDays)
                         Text(
-                            "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}  ·  Custom program",
+                            "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}  ·  Custom program" +
+                                if (daysLabel.isNotEmpty()) "  ·  $daysLabel" else "",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -143,24 +147,7 @@ fun ProgramDetailScreen(
                         A_PROGRAMS_DETAIL_START,
                         ActualOutcome.Navigated("workout"),
                     )
-                    val sets = program.items.flatMap { item ->
-                        val ex = exerciseCatalog[item.exerciseId]
-                        List(item.sets) {
-                            PlayerSetParams(
-                                exerciseName = item.exerciseName,
-                                thumbnailUrl = ex?.thumbnailUrl,
-                                videoUrl = ex?.videoUrl,
-                                targetReps = if (item.mode == ExerciseMode.REPS) item.reps else null,
-                                targetDurationSec = if (item.mode == ExerciseMode.TIME) item.durationSec else null,
-                                weightPerCableLb = item.targetWeightLb,
-                                restAfterSec = item.restTimerSec,
-                                warmupReps = 3,
-                                programMode = item.programMode,
-                                progressionRegressionLb = item.progressionRegressionLb,
-                                muscleGroups = ex?.muscleGroups ?: emptyList(),
-                            )
-                        }
-                    }
+                    val sets = CircuitSetBuilder.build(program.items, exerciseCatalog)
                     workoutVM.startProgramWorkout(programId, sets)
                     // We don't need to navigate to WorkoutScreen anymore, the global overlay will show
                 },

@@ -1,0 +1,84 @@
+{
+  "id": "builtin_lower_b_hypertrophy",
+  "name": "Lower B (Hypertrophy)",
+  "category": "Lower Body",
+  "description": "Glute and hamstring hypertrophy focused lower body session. Bulgarian split squats, hip thrust, and RDL create maximal glute stimulus with functional rotational core work.",
+  "days": [
+    {
+      "name": "Glute & Hamstring Hypertrophy",
+      "focus": "Glutes, Hamstrings, Quads, Core",
+      "exercises": [
+        {
+          "exerciseId": "lpnNPw86Vud67vWQ",
+          "exerciseName": "Squat",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 70,
+          "programMode": "Old School",
+          "restTimerSec": 120
+        },
+        {
+          "exerciseId": "39689096-7fb9-46aa-a411-59c5c6886c5d",
+          "exerciseName": "Hip Thrust",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 85,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "49c4594c-f997-4d70-8008-b293e247e2e4",
+          "exerciseName": "Romanian Deadlift",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 140,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "mG5IivMZ7IORv3Pn",
+          "exerciseName": "Bulgarian Split Squat Pulse",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 20,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "cJkTi7rZz0DmvcIF",
+          "exerciseName": "Lying Hamstring Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "uswNmWgAK9AdRXja",
+          "exerciseName": "Seated Calf Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 95,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "QK0V6VzQMtdY8aWg",
+          "exerciseName": "Wood Chop",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 22,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

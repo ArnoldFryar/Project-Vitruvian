@@ -83,6 +83,9 @@ data class RemoteProgram(
     val updatedAt: Long = 0L,
     @SerialName("deleted_at")
     val deletedAt: Long? = null,
+    /** JSON-encoded list of DayOfWeek names, e.g. ["MONDAY","WEDNESDAY"]. */
+    @SerialName("scheduled_days")
+    val scheduledDays: JsonElement = JsonArray(emptyList()),
 )
 
 // ═══════════════════════════════════════════════════════════════════════════════

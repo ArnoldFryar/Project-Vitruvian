@@ -1,0 +1,64 @@
+{
+  "id": "builtin_lower_b_posterior_chain",
+  "name": "Lower B (Posterior Chain)",
+  "category": "Lower Body",
+  "description": "Posterior chain focused lower body session. Deadlift, hip thrust, and hamstring curl create deep glute and hamstring stimulus, with core finisher for full posterior chain development.",
+  "days": [
+    {
+      "name": "Posterior Chain",
+      "focus": "Hamstrings, Glutes, Lower Back, Core",
+      "exercises": [
+        {
+          "exerciseId": "e64c7837-52e2-4b97-b771-cf08ab861af1",
+          "exerciseName": "Conventional Deadlift",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 8,
+          "targetWeightLb": 145,
+          "programMode": "Old School",
+          "restTimerSec": 120
+        },
+        {
+          "exerciseId": "39689096-7fb9-46aa-a411-59c5c6886c5d",
+          "exerciseName": "Hip Thrust",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 85,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "49c4594c-f997-4d70-8008-b293e247e2e4",
+          "exerciseName": "Romanian Deadlift",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 140,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "cJkTi7rZz0DmvcIF",
+          "exerciseName": "Lying Hamstring Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "U9nn8f-vcAltrR-E",
+          "exerciseName": "Plank",
+          "mode": "TIME",
+          "sets": 3,
+          "durationSec": 45,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

@@ -16,8 +16,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
 import com.example.vitruvianredux.ble.BleDiagnostics
 import com.example.vitruvianredux.ble.BleConnectionState
+import com.example.vitruvianredux.ble.MachineWifiState
+import com.example.vitruvianredux.ble.MachineMode
+import com.example.vitruvianredux.ble.MachineVersion
+import com.example.vitruvianredux.ble.MachineHeuristic
+import com.example.vitruvianredux.ble.MachineUpdateState
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
@@ -31,11 +37,17 @@ import kotlin.math.roundToInt
 
 // ─── Paused screen ───────────────────────────────────────────────────────────
 
+private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo")
+
 @Composable
 internal fun PausedContent(
     exerciseName: String,
     setIndex: Int,
     totalSets: Int,
+    selectedMode: String,
+    modeExpanded: Boolean,
+    onModeSelect: (String) -> Unit,
+    onModeExpandChange: (Boolean) -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
@@ -98,7 +110,65 @@ internal fun PausedContent(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(AppDimens.Spacing.xl))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+        // ── Mode selector (same look as active player) ────────────
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(AppDimens.Corner.sm),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            ExposedDropdownMenuBox(
+                expanded         = modeExpanded,
+                onExpandedChange = onModeExpandChange,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                        .clickable { onModeExpandChange(!modeExpanded) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Tune,
+                            contentDescription = null,
+                            modifier = Modifier.size(AppDimens.Icon.md),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text = selectedMode,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Icon(
+                        Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.size(AppDimens.Icon.md),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                ExposedDropdownMenu(
+                    expanded         = modeExpanded,
+                    onDismissRequest = { onModeExpandChange(false) },
+                ) {
+                    MODE_OPTIONS.forEach { mode ->
+                        DropdownMenuItem(
+                            text    = { Text(mode) },
+                            onClick = { onModeSelect(mode) },
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
         Button(
             onClick = onResume,
             modifier = Modifier
@@ -131,6 +201,12 @@ internal fun PausedContent(
 internal fun BleDiagnosticsDialog(
     diagnostics: BleDiagnostics,
     bleState: BleConnectionState,
+    machineWifi: MachineWifiState? = null,
+    machineRawDiagnostic: ByteArray? = null,
+    machineMode: MachineMode? = null,
+    machineVersion: MachineVersion? = null,
+    machineHeuristic: MachineHeuristic? = null,
+    machineUpdateState: MachineUpdateState? = null,
     onDismiss: () -> Unit,
 ) {
     val fmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
@@ -158,6 +234,46 @@ internal fun BleDiagnosticsDialog(
                 if (diagnostics.lastError != null) {
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
                     DiagRow("lastError", diagnostics.lastError, isError = true)
+                }
+                if (machineWifi != null) {
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    DiagRow("WiFi SSID",     machineWifi.ssid.ifEmpty { "—" })
+                    DiagRow("WiFi Password", machineWifi.password.ifEmpty { "—" })
+                }
+                if (machineRawDiagnostic != null) {
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    DiagRow("Diag (hex)",
+                        machineRawDiagnostic.joinToString(" ") { "%02x".format(it) }
+                            .ifEmpty { "—" })
+                }
+                if (machineMode != null) {
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    DiagRow("Machine Mode", machineMode.name)
+                }
+                if (machineVersion != null) {
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    DiagRow("HW",        machineVersion.hardware.ifEmpty { "—" })
+                    DiagRow("FW",        machineVersion.firmware.ifEmpty { "—" })
+                    DiagRow("Max Force", "${ "%.1f".format(machineVersion.maxForceKg) } kg")
+                }
+                if (machineHeuristic != null) {
+                    val l = machineHeuristic.left.concentric
+                    val r = machineHeuristic.right.concentric
+                    val total = (l.kgAvg + r.kgAvg).coerceAtLeast(0.001f)
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    DiagRow("Last Rep Peak L", "${ "%.1f".format(l.kgMax) }kg / ${ "%.0f".format(l.wattMax) }W")
+                    DiagRow("Last Rep Peak R", "${ "%.1f".format(r.kgMax) }kg / ${ "%.0f".format(r.wattMax) }W")
+                    DiagRow("L/R Balance",     "${ "%.0f".format(l.kgAvg / total * 100) }% / ${ "%.0f".format(r.kgAvg / total * 100) }%")
+                }
+                if (machineUpdateState != null && machineUpdateState.statusCode != 0) {
+                    val statusName = listOf("Idle", "Pending", "In Progress", "Complete")
+                        .getOrElse(machineUpdateState.statusCode) { "Unknown (${machineUpdateState.statusCode})" }
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    DiagRow("OTA Status",   statusName)
+                    DiagRow("OTA Progress", "${machineUpdateState.progressPct}%")
+                    if (machineUpdateState.errorCode != 0) {
+                        DiagRow("OTA Error", machineUpdateState.errorCode.toString(), isError = true)
+                    }
                 }
             }
         },

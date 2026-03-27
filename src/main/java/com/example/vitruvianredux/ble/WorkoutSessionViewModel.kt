@@ -2,6 +2,7 @@
 
 import android.app.Application
 import android.speech.tts.TextToSpeech
+import android.speech.tts.Voice
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -11,6 +12,7 @@ import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.HandleState
 import com.example.vitruvianredux.ble.session.NextStep
+import com.example.vitruvianredux.data.TtsVoiceStore
 import com.example.vitruvianredux.model.Exercise
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,11 +56,36 @@ class WorkoutSessionViewModel(
     /** When false, TTS rep/rest announcements are silenced. */
     val soundEnabled = MutableStateFlow(true)
 
+    /** Available TTS voices for the current locale — populated after TTS init. */
+    private val _availableVoices = MutableStateFlow<List<Voice>>(emptyList())
+    val availableVoices: StateFlow<List<Voice>> = _availableVoices.asStateFlow()
+
+    /** The currently selected voice name (empty = engine default). */
+    val selectedVoiceName: StateFlow<String> = TtsVoiceStore.voiceNameFlow
+
     /** True when the BLE client is fully ready (connected + writeChar + notifications). */
     val bleIsReady: StateFlow<Boolean> = engine.bleClient.isReady
 
     /** Bundled diagnostics snapshot for the debug panel. */
     val bleDiagnostics: StateFlow<BleDiagnostics> = engine.bleClient.diagnostics
+
+    /** WiFi credentials last broadcast by the connected machine (null if never received). */
+    val machineWifiState: StateFlow<MachineWifiState?> = engine.machineWifiState
+
+    /** Raw bytes of the most recent DIAGNOSTIC notification from the machine. */
+    val machineRawDiagnostic: StateFlow<ByteArray?> = engine.machineRawDiagnostic
+
+    /** Current operating mode of the machine (BASELINE / SOFTWARE / TWO_PHASE etc). */
+    val machineMode: StateFlow<MachineMode?> = engine.machineMode
+
+    /** Machine firmware/hardware version info. */
+    val machineVersion: StateFlow<MachineVersion?> = engine.machineVersion
+
+    /** Per-rep force/velocity/power stats from the machine's force heuristics. */
+    val machineHeuristic: StateFlow<MachineHeuristic?> = engine.machineHeuristic
+
+    /** Firmware update progress (rarely non-null during normal use). */
+    val machineUpdateState: StateFlow<MachineUpdateState?> = engine.machineUpdateState
 
     /** In-memory ring buffer of the last 50 session + BLE events (for debug UI). */
     val sessionEvents: StateFlow<List<SessionEventLog.Event>> = SessionEventLog.events
@@ -94,6 +121,9 @@ class WorkoutSessionViewModel(
     /** Day/split label within the program (e.g. "Push Day"); null if not applicable. */
     var activeDayName: String? = null
         private set
+
+    /** User-entered notes for the current workout session. */
+    var sessionNotes: String = ""
 
     /** Epoch millis captured when the workout starts; used to compute session startTime. */
     var sessionStartMs: Long = 0L
@@ -209,7 +239,69 @@ class WorkoutSessionViewModel(
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale.US
             isTtsInitialized = true
+            // Use language+country matching instead of exact Locale equality —
+            // some voices register locale variants that don't equal Locale.US directly.
+            val allVoices = tts?.voices ?: emptySet()
+            android.util.Log.d("TtsVoices", "Total voices from engine: ${allVoices.size}")
+            allVoices.forEach { v ->
+                android.util.Log.d("TtsVoices", "  ${v.name}  locale=${v.locale}  network=${v.isNetworkConnectionRequired}  quality=${v.quality}")
+            }
+            val voices = allVoices
+                .filter { it.locale.language == "en" && it.locale.country == "US" }
+                .sortedWith(compareBy({ it.isNetworkConnectionRequired }, { it.quality * -1 }, { it.name }))
+            android.util.Log.d("TtsVoices", "Filtered to ${voices.size} en-US voices")
+            _availableVoices.value = voices
+            // Apply saved voice preference
+            applyVoiceByName(TtsVoiceStore.voiceNameFlow.value)
         }
+    }
+
+    /** Apply a voice by name and persist the choice. */
+    fun setVoiceName(name: String) {
+        TtsVoiceStore.setVoiceName(getApplication(), name)
+        applyVoiceByName(name)
+    }
+
+    /**
+     * Speak a short sample phrase using the given voice name without changing
+     * the persisted selection.  Restores the active voice afterwards.
+     */
+    fun previewVoice(name: String) {
+        if (!isTtsInitialized) return
+        val savedVoice = tts?.voice
+        // Temporarily apply the preview voice
+        if (name.isEmpty()) {
+            tts?.voice = tts?.defaultVoice
+        } else {
+            val voice = _availableVoices.value.firstOrNull { it.name == name }
+            if (voice != null) tts?.voice = voice
+        }
+        tts?.speak("1, 2, 3", TextToSpeech.QUEUE_FLUSH, null, "voice_preview")
+        // Restore after the utterance completes
+        tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+            override fun onStart(utteranceId: String) {}
+            override fun onDone(utteranceId: String) {
+                if (utteranceId == "voice_preview") {
+                    tts?.voice = savedVoice
+                    tts?.setOnUtteranceProgressListener(null)
+                }
+            }
+            @Suppress("OVERRIDE_DEPRECATION")
+            override fun onError(utteranceId: String) {
+                tts?.voice = savedVoice
+                tts?.setOnUtteranceProgressListener(null)
+            }
+        })
+    }
+
+    private fun applyVoiceByName(name: String) {
+        if (!isTtsInitialized) return
+        if (name.isEmpty()) {
+            tts?.voice = tts?.defaultVoice
+            return
+        }
+        val voice = _availableVoices.value.firstOrNull { it.name == name }
+        if (voice != null) tts?.voice = voice
     }
 
     private fun speakRep(rep: Int) {
@@ -435,6 +527,7 @@ class WorkoutSessionViewModel(
         activeProgramName = null
         activeDayName     = null
         sessionStartMs    = 0L
+        sessionNotes      = ""
         _completedExerciseStats.clear()
         _currentSetRepQualities.clear()
         soundEnabled.value = true   // Restore default so every new workout starts with audio on

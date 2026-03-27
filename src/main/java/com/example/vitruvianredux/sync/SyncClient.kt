@@ -4,7 +4,7 @@ import com.example.vitruvianredux.data.ProgramRepository
 import com.example.vitruvianredux.data.SessionRepository
 import io.ktor.client.*
 import io.ktor.client.call.*
-import io.ktor.client.engine.cio.*
+import io.ktor.client.engine.android.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -44,7 +44,7 @@ class SyncClient(
         prettyPrint = false
     }
 
-    private val httpClient = HttpClient(CIO) {
+    private val httpClient = HttpClient(Android) {
         install(ContentNegotiation) {
             json(jsonCodec)
         }

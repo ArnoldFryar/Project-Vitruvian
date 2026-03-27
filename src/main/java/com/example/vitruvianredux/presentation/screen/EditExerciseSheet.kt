@@ -23,11 +23,9 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramItemDraft
+import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.presentation.audit.*
-import com.example.vitruvianredux.data.PersonalBestStore
-import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.GradientButton
-import com.example.vitruvianredux.presentation.components.PbLoadSheet
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
@@ -51,6 +49,10 @@ fun EditExerciseSheet(
         confirmValueChange    = { it != SheetValue.Hidden },
     )
 
+    val suggestedWeightLb = remember(item.exerciseName) {
+        ProgressionEngine.suggestedStartingWeightLb(item.exerciseName)
+    }
+
     var mode          by remember { mutableStateOf(item.mode) }
     var sets          by remember { mutableIntStateOf(item.sets) }
     var reps          by remember { mutableIntStateOf(item.reps ?: 10) }
@@ -60,20 +62,8 @@ fun EditExerciseSheet(
     var isBeastMode   by remember { mutableStateOf(item.programMode == "TUT Beast") }
     var progRegLb     by remember { mutableIntStateOf(item.progressionRegressionLb) }
     var restTimerSec  by remember { mutableIntStateOf(item.restTimerSec) }
-    var showPbSheet   by remember { mutableStateOf(false) }
-
-    val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
-    val pbs = remember(pbSummaries, item.exerciseName) {
-        pbSummaries[item.exerciseName.lowercase().trim()]
-    }
-
-    if (showPbSheet) {
-        PbLoadSheet(
-            exerciseName = item.exerciseName,
-            onApplyKg    = { kg -> weightKg = kg; showPbSheet = false },
-            onDismiss    = { showPbSheet = false },
-        )
-    }
+    var isSuperset    by remember { mutableStateOf(item.circuitGroup != null) }
+    var circuitGroup  by remember { mutableIntStateOf(item.circuitGroup ?: 1) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -235,34 +225,21 @@ fun EditExerciseSheet(
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                 // ── Section: Resistance ──────────────────────────────────────
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    SectionHeader("Resistance")
-                    if (pbs != null) {
-                        TextButton(
-                            onClick = { showPbSheet = true },
-                            contentPadding = PaddingValues(
-                                horizontal = AppDimens.Spacing.sm,
-                                vertical   = AppDimens.Spacing.xxs,
-                            ),
-                        ) {
-                            Text(
-                                "% of PB",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                }
+                SectionHeader("Resistance")
                 SelectorCard(modifier = Modifier.fillMaxWidth()) {
                     ResistanceTumbler(
                         valueKg         = weightKg,
                         onValueKgChange = { weightKg = it },
                         modifier        = Modifier.fillMaxWidth(),
                         surfaceColor    = MaterialTheme.colorScheme.surfaceVariant,
+                    )
+                }
+                if (suggestedWeightLb != null) {
+                    Text(
+                        "Population median: ${suggestedWeightLb} lb",
+                        style  = MaterialTheme.typography.bodySmall,
+                        color  = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp),
                     )
                 }
 
@@ -284,6 +261,40 @@ fun EditExerciseSheet(
                         surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
                         modifier      = Modifier.width(140.dp),
                     )
+                }
+
+                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                // ── Section: Superset ────────────────────────────────────────
+                SectionHeader("Superset")
+                SelectorCard(
+                    title    = "Link as Superset",
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Switch(
+                        checked         = isSuperset,
+                        onCheckedChange = { isSuperset = it },
+                    )
+                }
+                if (isSuperset) {
+                    SelectorCard(
+                        title    = "Superset Group #",
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        SmoothValuePicker(
+                            value         = circuitGroup.toFloat(),
+                            onValueChange = { circuitGroup = it.toInt().coerceAtLeast(1) },
+                            range         = 1f..9f,
+                            step          = 1f,
+                            unitLabel     = "",
+                            formatLabel   = { v -> "Group ${v.toInt()}" },
+                            compact       = true,
+                            visibleItemCount = 3,
+                            itemHeight    = 32.dp,
+                            surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier      = Modifier.width(140.dp),
+                        )
+                    }
                 }
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
@@ -338,6 +349,7 @@ fun EditExerciseSheet(
                                 programMode             = if (programMode == "TUT" && isBeastMode) "TUT Beast" else programMode,
                                 progressionRegressionLb = progRegLb,
                                 restTimerSec            = restTimerSec,
+                                circuitGroup            = if (isSuperset) circuitGroup else null,
                             ))
                         },
                         modifier = Modifier.weight(1f),

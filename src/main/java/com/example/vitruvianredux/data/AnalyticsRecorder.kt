@@ -32,6 +32,7 @@ object AnalyticsRecorder {
         programName: String? = null,
         dayName: String? = null,
         exerciseSets: List<AnalyticsStore.ExerciseSetLog> = emptyList(),
+        notes: String = "",
     ) {
         try {
             val log = AnalyticsStore.buildLog(
@@ -45,6 +46,7 @@ object AnalyticsRecorder {
                 programName    = programName,
                 dayName        = dayName,
                 exerciseSets   = exerciseSets,
+                notes          = notes,
             )
             AnalyticsStore.record(log)
             Timber.tag("analytics").i("Session logged: ${log.id} (${stats.totalSets} sets, ${stats.totalReps} reps, ${stats.durationSec}s)")

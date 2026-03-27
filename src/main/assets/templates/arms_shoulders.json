@@ -1,0 +1,160 @@
+{
+  "id": "builtin_arms_shoulders",
+  "name": "Arms & Shoulders",
+  "category": "Hypertrophy",
+  "description": "Two dedicated sessions to pack size onto your arms and build cannonball shoulders. High volume pump training for maximum growth.",
+  "days": [
+    {
+      "name": "Arms",
+      "focus": "Biceps, Triceps, Forearms",
+      "exercises": [
+        {
+          "exerciseId": "k-PGXPztgc5uS42S",
+          "exerciseName": "Bicep Curl",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "05wiA4Eqtrj388Ui",
+          "exerciseName": "Hammer Curl",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "4ksnpJ1IfVp7QH5n",
+          "exerciseName": "Preacher Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 20,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "63dc79af-81cd-4180-afea-e07204d2b0fd",
+          "exerciseName": "Close Grip Bench Press",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 50,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "NTtSMyHmJmTE7iQ5",
+          "exerciseName": "Skull Crusher",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "RASpI84AvAi3ucvr",
+          "exerciseName": "Overhead Tricep Extension",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 18,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "IrPf7PCbwEcuJEG5",
+          "exerciseName": "Tricep Kick Back",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 12,
+          "programMode": "Pump",
+          "restTimerSec": 45
+        }
+      ]
+    },
+    {
+      "name": "Shoulders",
+      "focus": "Anterior, Medial & Posterior Deltoids, Traps",
+      "exercises": [
+        {
+          "exerciseId": "e467f6b8-1e92-4571-b3e6-c020ca7099c3",
+          "exerciseName": "Overhead Press",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 40,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "3cd0a0cb-8e56-4b0e-83a0-d88ff369749f",
+          "exerciseName": "Arnold Press",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "qfeYOQWqoOIAw_0H",
+          "exerciseName": "Lateral Raise",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 15,
+          "targetWeightLb": 12,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "w7GvCyjz7FQ_18iw",
+          "exerciseName": "Rear Delt Fly",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 12,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "dolYIaKI1o1wn_Oh",
+          "exerciseName": "Upright Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 30,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "149484fe-3baa-4601-97c5-8d273a6b455a",
+          "exerciseName": "Shrug",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 50,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "lKxWrGuEzVcxLYqG",
+          "exerciseName": "Face Pull",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 15,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

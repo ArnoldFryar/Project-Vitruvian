@@ -1,0 +1,74 @@
+{
+  "id": "builtin_lower_b_hr_safe",
+  "name": "Lower B (HR Safe)",
+  "category": "Lower Body",
+  "description": "Low-heart-rate lower body session using controlled strength movements. Ideal for days when cardiovascular output needs to stay low while still accumulating quality lower body volume.",
+  "days": [
+    {
+      "name": "Controlled Lower Strength",
+      "focus": "Quads, Glutes, Core, Calves",
+      "exercises": [
+        {
+          "exerciseId": "lpnNPw86Vud67vWQ",
+          "exerciseName": "Squat",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 70,
+          "programMode": "Old School",
+          "restTimerSec": 120
+        },
+        {
+          "exerciseId": "8c291e21-6e26-49ff-9e24-048d6868f05d",
+          "exerciseName": "Goblet Squat",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 105,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "LoaPkKfJhQSfn-vH",
+          "exerciseName": "Pull Through",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 125,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "S_MwKyRVHgu57rOk",
+          "exerciseName": "Alternating Suitcase Deficit Lunge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 50,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "287a9e39-fd0f-426f-bac1-2b121befb397",
+          "exerciseName": "Calf Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 95,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "U9nn8f-vcAltrR-E",
+          "exerciseName": "Plank",
+          "mode": "TIME",
+          "sets": 3,
+          "durationSec": 45,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

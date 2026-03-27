@@ -27,6 +27,16 @@ data class Exercise(
     val equipment: List<String> = emptyList(),
     /** Non-null means this exercise has been retired; skip it. */
     val archived: String? = null,
+    /** Movement pattern category, e.g. "squat", "deadlift", "row". Null for multi-pattern exercises. */
+    val movement: String? = null,
+    /**
+     * Cable-path leverage multiplier from Vitruvian API.
+     * A value > 1.0 means the cable path amplifies the load; < 1.0 means mechanical advantage.
+     * Used for leverage-aware weight progression suggestions.
+     */
+    val movementCoefficient: Double? = null,
+    /** Popularity score from Vitruvian API (0..1+). Higher = more popular globally. */
+    val popularity: Double? = null,
     // ── Custom exercise fields (ignored during built-in JSON deserialization) ──
     /** Whether this is a built-in or user-created exercise. */
     val source: ExerciseSource = ExerciseSource.BUILT_IN,

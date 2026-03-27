@@ -36,6 +36,7 @@ import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
+import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import kotlinx.coroutines.flow.StateFlow
@@ -272,7 +273,13 @@ fun ProgramsScreen(
                             Column(Modifier.weight(1f)) {
                                 Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                Text("${p.exerciseCount} exercise · Custom program", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                val daysLabel = formatScheduledDays(p.scheduledDays)
+                                Text(
+                                    "${p.exerciseCount} exercise · Custom program" +
+                                        if (daysLabel.isNotEmpty()) " · $daysLabel" else "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                             Icon(
                                 Icons.Default.DragHandle,

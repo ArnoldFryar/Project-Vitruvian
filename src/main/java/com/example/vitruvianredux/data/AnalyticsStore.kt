@@ -60,6 +60,7 @@ object AnalyticsStore {
         val createdAt: Long,
         val exerciseSets: List<ExerciseSetLog> = emptyList(),
         val avgQualityScore: Int? = null,
+        val notes: String = "",
     )
 
     // ── State ────────────────────────────────────────────────────────────────
@@ -241,6 +242,7 @@ object AnalyticsStore {
         programName: String? = null,
         dayName: String? = null,
         exerciseSets: List<ExerciseSetLog> = emptyList(),
+        notes: String = "",
     ): SessionLog {
         val endMs = System.currentTimeMillis()
         val startMs = endMs - (durationSec * 1_000L)
@@ -262,6 +264,7 @@ object AnalyticsStore {
             exerciseSets     = exerciseSets,
             avgQualityScore  = exerciseSets.mapNotNull { it.avgQualityScore }
                                    .takeIf { it.isNotEmpty() }?.average()?.toInt(),
+            notes            = notes,
         )
     }
 
@@ -299,6 +302,7 @@ object AnalyticsStore {
                         }
                     })
                     if (log.avgQualityScore != null) put("avgQualityScore", log.avgQualityScore)
+                    if (log.notes.isNotEmpty()) put("notes", log.notes)
                 })
             }
             prefs.edit().putString(KEY_LOGS, arr.toString()).apply()
@@ -344,6 +348,7 @@ object AnalyticsStore {
                         }
                     } ?: emptyList(),
                     avgQualityScore = if (o.has("avgQualityScore")) o.getInt("avgQualityScore") else null,
+                    notes           = o.optString("notes", ""),
                 )
             }
         } catch (e: Exception) {

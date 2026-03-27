@@ -27,9 +27,12 @@ import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
+import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import java.time.DayOfWeek
 
 @Composable
 fun ProgramEditorScreen(
@@ -41,6 +44,7 @@ fun ProgramEditorScreen(
 
     var programName by remember(program) { mutableStateOf(program?.name ?: "") }
     var draftItems by remember(program) { mutableStateOf(program?.items ?: emptyList()) }
+    var scheduledDays by remember(program) { mutableStateOf(program?.scheduledDays ?: emptySet()) }
     var showPicker by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<ProgramItemDraft?>(null) }
 
@@ -71,7 +75,14 @@ fun ProgramEditorScreen(
             onDone = { picked ->
                 val existingById = draftItems.associateBy { it.exerciseId }
                 draftItems = picked.map { ex ->
-                    existingById[ex.id.ifBlank { ex.name }] ?: ProgramItemDraft(exerciseId = ex.id.ifBlank { ex.name }, exerciseName = ex.name)
+                    existingById[ex.id.ifBlank { ex.name }] ?: run {
+                        val suggested = ProgressionEngine.suggestedStartingWeightLb(ex.name)
+                        ProgramItemDraft(
+                            exerciseId     = ex.id.ifBlank { ex.name },
+                            exerciseName   = ex.name,
+                            targetWeightLb = suggested ?: 30,
+                        )
+                    }
                 }
                 showPicker = false
             },
@@ -121,7 +132,8 @@ fun ProgramEditorScreen(
                                     program.copy(
                                         name = programName.trim(),
                                         exerciseCount = draftItems.size,
-                                        items = draftItems
+                                        items = draftItems,
+                                        scheduledDays = scheduledDays,
                                     )
                                 )
                                 onBack()
@@ -171,6 +183,16 @@ fun ProgramEditorScreen(
                                 color     = if (programName.length >= 35) MaterialTheme.colorScheme.error
                                             else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        },
+                    )
+                }
+
+                // Workout days selector
+                item(key = "__days__") {
+                    DayOfWeekSelector(
+                        selected = scheduledDays,
+                        onToggle = { day ->
+                            scheduledDays = if (day in scheduledDays) scheduledDays - day else scheduledDays + day
                         },
                     )
                 }

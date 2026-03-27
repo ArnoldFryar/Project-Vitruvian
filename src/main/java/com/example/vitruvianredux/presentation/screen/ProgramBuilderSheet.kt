@@ -38,8 +38,10 @@ import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.util.loadExercises
+import java.time.DayOfWeek
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Program Builder sheet  — premium redesign
@@ -53,6 +55,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
     )
     var programName by remember { mutableStateOf("") }
     var draftItems  by remember { mutableStateOf<List<ProgramItemDraft>>(emptyList()) }
+    var scheduledDays by remember { mutableStateOf<Set<DayOfWeek>>(emptySet()) }
     var showPicker  by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<ProgramItemDraft?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -201,6 +204,16 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     )
                 }
 
+                // ── Workout days selector ─────────────────────────────────────
+                item(key = "__days__") {
+                    DayOfWeekSelector(
+                        selected = scheduledDays,
+                        onToggle = { day ->
+                            scheduledDays = if (day in scheduledDays) scheduledDays - day else scheduledDays + day
+                        },
+                    )
+                }
+
                 // ── Section header with count badge ──────────────────────────
                 if (draftItems.isNotEmpty()) {
                     item(key = "__section__") {
@@ -332,6 +345,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                                         name          = programName.trim(),
                                         exerciseCount = draftItems.size,
                                         items         = draftItems,
+                                        scheduledDays = scheduledDays,
                                     )
                                 )
                             }

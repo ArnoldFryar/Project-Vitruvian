@@ -23,6 +23,7 @@ import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.ThemeStore
 import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.data.HistorySeedManager
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.AppScaffold
 import com.example.vitruvianredux.sync.SyncServiceLocator
@@ -83,6 +84,7 @@ class MainActivity : ComponentActivity() {
 
             WorkoutHistoryStore.init(applicationContext)
             AnalyticsStore.init(applicationContext)
+            HistorySeedManager.seed(applicationContext)
             PersonalBestStore.init(lifecycleScope)
             ActivityStatsStore.seedFromAnalytics()
             SessionLogRepository.init(applicationContext)

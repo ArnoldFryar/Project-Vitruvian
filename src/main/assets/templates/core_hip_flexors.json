@@ -1,0 +1,74 @@
+{
+  "id": "builtin_core_hip_flexors",
+  "name": "Core + Hip Flexors",
+  "category": "Core & Mobility",
+  "description": "Targeted core stability and hip flexor strength session. Combines Vitruvian-assisted core exercises with bodyweight hip flexor marches to build anterior chain resilience.",
+  "days": [
+    {
+      "name": "Core Stability & Hip Flexors",
+      "focus": "Core, Hip Flexors, Calves",
+      "exercises": [
+        {
+          "exerciseId": "MUu5o4_srT0c4ptN",
+          "exerciseName": "Double Leg Raise w/ Reverse Crunch",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 15,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "8hbXFqffiMF_8D8R",
+          "exerciseName": "V-Tucks",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 12,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "U9nn8f-vcAltrR-E",
+          "exerciseName": "Plank",
+          "mode": "TIME",
+          "sets": 3,
+          "durationSec": 45,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "IuVCdM4pnGdd6w8i",
+          "exerciseName": "Standing SL Hip Flexor March",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 20,
+          "targetWeightLb": 17,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "287a9e39-fd0f-426f-bac1-2b121befb397",
+          "exerciseName": "Calf Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 95,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "uswNmWgAK9AdRXja",
+          "exerciseName": "Seated Calf Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 95,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

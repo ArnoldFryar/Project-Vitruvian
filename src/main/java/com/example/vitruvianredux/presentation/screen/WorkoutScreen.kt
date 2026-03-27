@@ -25,7 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.example.vitruvianredux.ble.SessionPhase
 import com.example.vitruvianredux.ble.SessionState
 import com.example.vitruvianredux.ble.ActualOutcome
@@ -338,21 +338,21 @@ private fun ExerciseCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
-                if (exercise.thumbnailUrl != null) {
-                    AsyncImage(
-                        model              = exercise.thumbnailUrl,
-                        contentDescription = exercise.name,
-                        contentScale       = ContentScale.Crop,
-                        modifier           = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector        = Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                        modifier           = Modifier.size(36.dp),
-                    )
-                }
+                SubcomposeAsyncImage(
+                    model              = exercise.thumbnailUrl,
+                    contentDescription = exercise.name,
+                    contentScale       = ContentScale.Crop,
+                    modifier           = Modifier.fillMaxSize(),
+                    error = {
+                        Icon(
+                            imageVector        = Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            modifier           = Modifier.size(36.dp),
+                        )
+                    },
+                    loading = { /* Box surfaceVariant background shows while loading */ },
+                )
             }
 
             // ── Name + muscle-group tags ──────────────────────────────
@@ -457,21 +457,21 @@ private fun ExerciseDetailSheet(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
-                if (exercise.thumbnailUrl != null) {
-                    AsyncImage(
-                        model              = exercise.thumbnailUrl,
-                        contentDescription = exercise.name,
-                        contentScale       = ContentScale.Crop,
-                        modifier           = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector        = Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                        modifier           = Modifier.size(56.dp),
-                    )
-                }
+                SubcomposeAsyncImage(
+                    model              = exercise.thumbnailUrl,
+                    contentDescription = exercise.name,
+                    contentScale       = ContentScale.Crop,
+                    modifier           = Modifier.fillMaxSize(),
+                    error = {
+                        Icon(
+                            imageVector        = Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                            modifier           = Modifier.size(56.dp),
+                        )
+                    },
+                    loading = { /* Box surfaceVariant background shows while loading */ },
+                )
             }
 
             Text(

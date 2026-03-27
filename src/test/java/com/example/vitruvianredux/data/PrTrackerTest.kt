@@ -5,7 +5,7 @@ import org.junit.Test
 import java.util.UUID
 
 /**
- * Unit tests for [PrTracker] and [LoadRecommendationHelper].
+ * Unit tests for [PrTracker].
  *
  * No Android dependencies. Pure Kotlin/JVM.
  */
@@ -508,107 +508,4 @@ class PrTrackerTest {
         assertEquals(pbs.bestEst1RmLb, e1rmAudit.computedValue, 0.0001)
     }
 
-    // ══════════════════════════════════════════════════════════
-    // LoadRecommendationHelper — suggestedLoadKg
-    // ══════════════════════════════════════════════════════════
-
-    @Test
-    fun `suggestedLoadKg returns non-null for valid e1RM PB`() {
-        val pbs = makePbs(bestEst1RmLb = 200.0, bestWeightLb = 200)
-        val result = LoadRecommendationHelper.suggestedLoadKg(
-            pbs        = pbs,
-            basis      = LoadRecommendationHelper.PbBasis.EST_1RM,
-            percentPct = 80,
-            unitSystem = UnitsStore.UnitSystem.IMPERIAL_LB,
-        )
-        assertNotNull(result)
-        assertTrue(result!! > 0f)
-    }
-
-    @Test
-    fun `suggestedLoadKg returns null when e1RM is zero`() {
-        val pbs = makePbs(bestEst1RmLb = 0.0, bestWeightLb = 0)
-        val result = LoadRecommendationHelper.suggestedLoadKg(
-            pbs        = pbs,
-            basis      = LoadRecommendationHelper.PbBasis.EST_1RM,
-            percentPct = 80,
-            unitSystem = UnitsStore.UnitSystem.IMPERIAL_LB,
-        )
-        assertNull(result)
-    }
-
-    @Test
-    fun `suggestedLoadKg returns null when topWeight is zero`() {
-        val pbs = makePbs(bestEst1RmLb = 200.0, bestWeightLb = 0)
-        val result = LoadRecommendationHelper.suggestedLoadKg(
-            pbs        = pbs,
-            basis      = LoadRecommendationHelper.PbBasis.TOP_WEIGHT,
-            percentPct = 80,
-            unitSystem = UnitsStore.UnitSystem.IMPERIAL_LB,
-        )
-        assertNull(result)
-    }
-
-    @Test
-    fun `suggestedLoadKg 80pct of 200lb with imperial unit snaps to 0_5lb boundary`() {
-        // 80% of 200 lb = 160 lb → nearest 0.5 lb = 160.0 lb → converted to kg
-        val pbs = makePbs(bestEst1RmLb = 200.0, bestWeightLb = 200)
-        val result = LoadRecommendationHelper.suggestedLoadKg(
-            pbs        = pbs,
-            basis      = LoadRecommendationHelper.PbBasis.EST_1RM,
-            percentPct = 80,
-            unitSystem = UnitsStore.UnitSystem.IMPERIAL_LB,
-        )
-        assertNotNull(result)
-        // 160.0 lb × 0.45359237 ≈ 72.575 kg; should be snapped to nearest 0.5 lb step
-        // 160 lb is already on a 0.5 lb boundary, so result = 160.0 lb → kg
-        val expectedKg = 160.0 * 0.45359237
-        assertEquals(expectedKg.toFloat(), result!!, 0.02f)
-    }
-
-    @Test
-    fun `suggestedLoadKg uses topWeight when PbBasis is TOP_WEIGHT`() {
-        val pbs = makePbs(bestEst1RmLb = 300.0, bestWeightLb = 200)
-        val result = LoadRecommendationHelper.suggestedLoadKg(
-            pbs        = pbs,
-            basis      = LoadRecommendationHelper.PbBasis.TOP_WEIGHT,
-            percentPct = 80,
-            unitSystem = UnitsStore.UnitSystem.IMPERIAL_LB,
-        )
-        assertNotNull(result)
-        // Based on 200 lb (top weight), not 300 lb (e1RM)
-        // 80% of 200 = 160 lb; 80% of 300 = 240 lb — result should be closer to 160 lb
-        val expectedKg = 160.0 * 0.45359237
-        assertEquals(expectedKg.toFloat(), result!!, 0.02f)
-    }
-
-    // ══════════════════════════════════════════════════════════
-    // LoadRecommendationHelper — isAvailable
-    // ══════════════════════════════════════════════════════════
-
-    @Test
-    fun `isAvailable returns false when both PB values are zero`() {
-        val pbs = makePbs(bestEst1RmLb = 0.0, bestWeightLb = 0)
-        assertFalse(LoadRecommendationHelper.isAvailable(pbs, LoadRecommendationHelper.PbBasis.EST_1RM))
-        assertFalse(LoadRecommendationHelper.isAvailable(pbs, LoadRecommendationHelper.PbBasis.TOP_WEIGHT))
-    }
-
-    @Test
-    fun `isAvailable returns true when e1RM is positive`() {
-        val pbs = makePbs(bestEst1RmLb = 200.0, bestWeightLb = 0)
-        assertTrue(LoadRecommendationHelper.isAvailable(pbs, LoadRecommendationHelper.PbBasis.EST_1RM))
-    }
-
-    @Test
-    fun `isAvailable returns true when topWeight is positive`() {
-        val pbs = makePbs(bestEst1RmLb = 0.0, bestWeightLb = 180)
-        assertTrue(LoadRecommendationHelper.isAvailable(pbs, LoadRecommendationHelper.PbBasis.TOP_WEIGHT))
-    }
-
-    @Test
-    fun `isAvailable is independent per basis type`() {
-        val pbs = makePbs(bestEst1RmLb = 0.0, bestWeightLb = 180)
-        assertFalse(LoadRecommendationHelper.isAvailable(pbs, LoadRecommendationHelper.PbBasis.EST_1RM))
-        assertTrue(LoadRecommendationHelper.isAvailable(pbs, LoadRecommendationHelper.PbBasis.TOP_WEIGHT))
-    }
 }

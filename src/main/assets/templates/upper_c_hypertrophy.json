@@ -1,0 +1,94 @@
+{
+  "id": "builtin_upper_c_hypertrophy",
+  "name": "Upper C (Hypertrophy)",
+  "category": "Hypertrophy",
+  "description": "Arm and rear delt dominant upper body day. Heavy emphasis on bicep variation, tricep isolation, and posterior shoulder for balanced upper body development.",
+  "days": [
+    {
+      "name": "Arms & Rear Delts",
+      "focus": "Biceps, Triceps, Rear Delts, Lats",
+      "exercises": [
+        {
+          "exerciseId": "5g98sjn_L1EN7_11",
+          "exerciseName": "Lat Pullover",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "lird71_6aqwu88tw",
+          "exerciseName": "Bicep Curl - Pronated",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 45,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "nFR6tLChZbdWvLhP",
+          "exerciseName": "Seated Concentration Curl",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 27,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "6f2112ee-73db-44e8-bef7-cd159b240ee6",
+          "exerciseName": "Lawnmower SA Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "QPiIhCZA7LwgHjrf",
+          "exerciseName": "Bent Over Crossover Rear Delt Row",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 35,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "d99a9738-3828-42a6-815e-459c1f825ff9",
+          "exerciseName": "Skull Crusher",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 40,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "bf1437e9-f8ca-4bfe-b766-af5fee1834a5",
+          "exerciseName": "Overhead Tricep Extension",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 30,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "rSP8JKeoDxexC_Gu",
+          "exerciseName": "Tricep Dip",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 60,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

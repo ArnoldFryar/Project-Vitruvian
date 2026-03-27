@@ -415,6 +415,11 @@ class AndroidBleClient(context: Context) {
                     _state.value = BleConnectionState.Connected(device)
                     SessionEventLog.append(SessionEventLog.EventType.STATE, "Connected: ${device.name}")
 
+                    // Request high-priority connection (matches official Connection.requestHighPriority())
+                    // This reduces BLE latency and improves packet throughput for workout telemetry.
+                    val priorityResult = gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+                    Log.d(TAG, "requestConnectionPriority(HIGH): $priorityResult")
+
                     discoveryTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                     val dtRunnable = Runnable {
                         Log.e(TAG, "serviceDiscoveryTimeout: ${SERVICE_DISCOVERY_TIMEOUT_MS}ms elapsed")

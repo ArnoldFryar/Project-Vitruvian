@@ -1,12 +1,16 @@
 package com.example.vitruvianredux.data
 
+import java.time.LocalDate
+
 /**
  * Determines which program to surface as "Up Next" on the Activity screen.
  *
  * Priority:
  *  a. Active program + history → next program in sorted list after the active one (cyclic).
  *  b. Active program + no history → the active program itself (first session).
- *  c. No active program + history → the most recently used program (by date).
+ *  c. No active program + history → most recently used program, UNLESS it was completed
+ *     today — in that case advance to the next program in sequence (cyclic) so the card
+ *     reflects what comes after today's completed session.
  *  d. No active program + no history → first available program.
  *
  * Pure Kotlin — no Android dependencies, fully unit-testable.
@@ -43,14 +47,21 @@ object UpNextResolver {
         }
 
         // c. No active program, but history exists → most recently used program.
-        //    Picks up where the user left off between sessions.
+        //    If the last workout was completed today, advance to the next program in sequence
+        //    so the card reflects what comes after the session the user just finished.
         if (workoutHistory.isNotEmpty()) {
-            val lastProgramName = workoutHistory
-                .maxByOrNull { it.date }
-                ?.programName
+            val lastRecord = workoutHistory.maxByOrNull { it.date }
+            val lastProgramName = lastRecord?.programName
             if (lastProgramName != null) {
                 val lastProgram = programs.firstOrNull { it.name == lastProgramName }
-                if (lastProgram != null) return lastProgram
+                if (lastProgram != null) {
+                    if (lastRecord?.date == LocalDate.now()) {
+                        // Today's workout is done — show the next one in the rotation.
+                        val lastIndex = programs.indexOfFirst { it.id == lastProgram.id }
+                        return programs[(lastIndex + 1) % programs.size]
+                    }
+                    return lastProgram
+                }
             }
             // History present but records have no programName (free workouts) → fall through.
         }

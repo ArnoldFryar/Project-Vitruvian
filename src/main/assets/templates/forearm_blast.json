@@ -1,0 +1,34 @@
+{
+  "id": "builtin_forearm_blast",
+  "name": "Forearm Blast",
+  "category": "Specialization",
+  "description": "Targeted forearm hypertrophy using both pronated and supinated wrist curl variations. Add this as a finisher or standalone session to build grip strength and forearm size.",
+  "days": [
+    {
+      "name": "Forearm Hypertrophy",
+      "focus": "Forearms, Wrist Flexors & Extensors",
+      "exercises": [
+        {
+          "exerciseId": "qoA-t0Aa6EdiK1z-",
+          "exerciseName": "Pronated Seated Wrist Curls",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 15,
+          "targetWeightLb": 30,
+          "programMode": "Pump",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "0L6wSUIpGi8G4fS8",
+          "exerciseName": "Supinated Wrist Curls",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 15,
+          "targetWeightLb": 35,
+          "programMode": "Pump",
+          "restTimerSec": 45
+        }
+      ]
+    }
+  ]
+}

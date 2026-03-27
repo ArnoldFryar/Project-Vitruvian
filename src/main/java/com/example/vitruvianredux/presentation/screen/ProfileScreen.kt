@@ -4,6 +4,8 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -28,9 +30,11 @@ import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
+import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.data.HealthConnectStore
@@ -61,6 +65,7 @@ import java.time.temporal.IsoFields
 fun ProfileScreen(
     innerPadding: PaddingValues = PaddingValues(),
     bleVM: BleViewModel? = null,
+    workoutVM: WorkoutSessionViewModel? = null,
     onNavigateToDebug: () -> Unit = {},
     onNavigateToAccount: () -> Unit = {},
 ) {
@@ -70,6 +75,10 @@ fun ProfileScreen(
     val history by WorkoutHistoryStore.historyFlow.collectAsState()
     val displayName by ProfileStore.displayNameFlow.collectAsState()
     val scheduledDays by ProfileStore.scheduledDaysFlow.collectAsState()
+    val programs by savedProgramsFlow.collectAsState()
+    // Union of all active program days; fall back to user-level profile schedule when none are set.
+    val fromPrograms = remember(programs) { programs.flatMap { it.scheduledDays }.toSet() }
+    val effectiveScheduledDays = if (fromPrograms.isNotEmpty()) fromPrograms else scheduledDays
     var showEditNameDialog by remember { mutableStateOf(false) }
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
@@ -827,7 +836,7 @@ fun ProfileScreen(
         //  Consistency heatmap — GitHub-style training calendar
         // ═══════════════════════════════════════════════════════════
         ProfileSection(title = "Training Momentum") {
-            TrainingMomentumCard(allLogs = allLogs, scheduledDays = scheduledDays)
+            TrainingMomentumCard(allLogs = allLogs, scheduledDays = effectiveScheduledDays)
 
             Spacer(Modifier.height(AppDimens.Spacing.md))
             Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
@@ -840,6 +849,14 @@ fun ProfileScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
             )
+            if (fromPrograms.isNotEmpty()) {
+                Text(
+                    "Days driven by your programs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
+                )
+            }
             val allDays = remember {
                 listOf(
                     DayOfWeek.MONDAY    to "M",
@@ -1200,45 +1217,6 @@ fun ProfileScreen(
             }
         }
         Spacer(Modifier.height(AppDimens.Spacing.lg))
-
-
-        // ── Cloud Account ────────────────────────────────────────────
-        if (com.example.vitruvianredux.cloud.SupabaseProvider.isInitialized) {
-            val sessionStatus by com.example.vitruvianredux.cloud.AuthRepository.sessionStatus
-                .collectAsState(initial = io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated(false))
-            val isSignedIn = sessionStatus is io.github.jan.supabase.gotrue.SessionStatus.Authenticated
-            val userEmail = com.example.vitruvianredux.cloud.AuthRepository.currentUser?.email
-
-            PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToAccount) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        Icons.Default.Cloud,
-                        contentDescription = null,
-                        tint = if (isSignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(AppDimens.Icon.lg),
-                    )
-                    Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            if (isSignedIn) "Cloud Sync" else "Cloud Account",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                        Text(
-                            if (isSignedIn) userEmail ?: "Signed in" else "Sign in to sync across devices",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            Spacer(Modifier.height(AppDimens.Spacing.sm))
-        }
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  Settings
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -1306,8 +1284,228 @@ fun ProfileScreen(
                 }
             }
         }
+
+        // ── TTS Voice ────────────────────────────────────────────────────
+        if (workoutVM != null) {
+            val availableVoices by workoutVM.availableVoices.collectAsState()
+            val selectedVoiceName by workoutVM.selectedVoiceName.collectAsState()
+            if (availableVoices.isNotEmpty()) {
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
+                var showVoicePicker by remember { mutableStateOf(false) }
+                PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showVoicePicker = true }) {
+                    Row(
+                        modifier          = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Default.RecordVoiceOver,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(AppDimens.Icon.lg),
+                        )
+                        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Workout Voice", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                            Text(
+                                if (selectedVoiceName.isEmpty()) "Default"
+                                else {
+                                    val raw = selectedVoiceName.substringAfterLast("-x-").substringBeforeLast("-").uppercase()
+                                    when (raw) {
+                                        "IOB" -> "Neural · Voice 1"; "IOG" -> "Neural · Voice 2"
+                                        "IOM" -> "Neural · Voice 3"; "IOL" -> "Neural · Voice 4"
+                                        "TPF" -> "Standard · Voice A"; "TPD" -> "Standard · Voice B"
+                                        "TPC" -> "Standard · Voice C"; "SFG" -> "Standard · Voice D"
+                                        else  -> raw.ifEmpty { selectedVoiceName }
+                                    }
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (showVoicePicker) {
+                    AlertDialog(
+                        onDismissRequest = { showVoicePicker = false },
+                        title = { Text("Workout Voice") },
+                        text = {
+                            Column(
+                                modifier = Modifier.verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
+                            ) {
+                                Text("Choose the voice used for rep counting and rest countdown.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                // Tip about WaveNet voices
+                                if (availableVoices.any { it.isNetworkConnectionRequired }) {
+                                    Spacer(Modifier.height(AppDimens.Spacing.xs))
+                                    Surface(
+                                        shape = MaterialTheme.shapes.small,
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                        ) {
+                                            Icon(Icons.Default.Wifi, null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(AppDimens.Icon.sm))
+                                            Text(
+                                                "WaveNet/neural voices sound more natural. Download them offline in your device\u2019s Text-to-Speech settings.",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(AppDimens.Spacing.xs))
+                                // Default option
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { workoutVM.setVoiceName(""); showVoicePicker = false }
+                                        .padding(vertical = AppDimens.Spacing.sm),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text("Default", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                    IconButton(
+                                        onClick = { workoutVM.previewVoice("") },
+                                        modifier = Modifier.size(AppDimens.Icon.lg),
+                                    ) {
+                                        Icon(Icons.Default.VolumeUp, contentDescription = "Preview",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(AppDimens.Icon.md))
+                                    }
+                                    if (selectedVoiceName.isEmpty()) Icon(Icons.Default.Check, null,
+                                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
+                                    else Spacer(Modifier.size(AppDimens.Icon.md))
+                                }
+                                Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                                availableVoices.forEach { voice ->
+                                    // Google TTS: "io" prefix = WaveNet/neural; "tp"/"sf" = standard
+                                    val codeSegment = voice.name.substringAfterLast("-x-").take(2).lowercase()
+                                    val isNeural = codeSegment == "io"
+                                    val label = buildString {
+                                        // Map Google's internal codes to friendlier names
+                                        val raw = voice.name.substringAfterLast("-x-").substringBeforeLast("-").uppercase()
+                                        val friendly = when (raw) {
+                                            "IOB" -> "Neural · Voice 1"
+                                            "IOG" -> "Neural · Voice 2"
+                                            "IOM" -> "Neural · Voice 3"
+                                            "IOL" -> "Neural · Voice 4"
+                                            "TPF" -> "Standard · Voice A"
+                                            "TPD" -> "Standard · Voice B"
+                                            "TPC" -> "Standard · Voice C"
+                                            "SFG" -> "Standard · Voice D"
+                                            else  -> raw.ifEmpty { voice.name }
+                                        }
+                                        append(friendly)
+                                    }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { workoutVM.setVoiceName(voice.name); showVoicePicker = false }
+                                            .padding(vertical = AppDimens.Spacing.sm),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                                            if (voice.isNetworkConnectionRequired) {
+                                                Text("Requires internet",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                                            }
+                                        }
+                                        IconButton(
+                                            onClick = { workoutVM.previewVoice(voice.name) },
+                                            modifier = Modifier.size(AppDimens.Icon.lg),
+                                        ) {
+                                            Icon(Icons.Default.VolumeUp, contentDescription = "Preview",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(AppDimens.Icon.md))
+                                        }
+                                        if (selectedVoiceName == voice.name) Icon(Icons.Default.Check, null,
+                                            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
+                                        else Spacer(Modifier.size(AppDimens.Icon.md))
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showVoicePicker = false }) { Text("Done") }
+                        },
+                    )
+                }
+            }
+        }
         // â”€â”€ Samsung Health (Health Connect) sync toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         val hcAvailability = HealthConnectManager.availability
+        // ── Body weight ───────────────────────────────────────────────────────
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        val manualWeightKg by BodyWeightStore.manualWeightKgFlow.collectAsState()
+        var showWeightDialog by remember { mutableStateOf(false) }
+
+        PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showWeightDialog = true }) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Default.MonitorWeight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(AppDimens.Icon.lg),
+                )
+                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Body Weight", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                    Text(
+                        if (manualWeightKg != null)
+                            "${"%.1f".format(manualWeightKg)} kg  (~${"%.0f".format((manualWeightKg ?: 0.0) * 2.20462)} lb)"
+                        else "Tap to enter your body weight",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        if (showWeightDialog) {
+            var weightInput by remember { mutableStateOf(manualWeightKg?.let { "%.1f".format(it) } ?: "") }
+            AlertDialog(
+                onDismissRequest = { showWeightDialog = false },
+                title = { Text("Body Weight") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                        Text("Enter your current body weight in kg. Used for relative strength calculations.", style = MaterialTheme.typography.bodySmall)
+                        OutlinedTextField(
+                            value = weightInput,
+                            onValueChange = { weightInput = it.filter { c -> c.isDigit() || c == '.' } },
+                            label = { Text("Weight (kg)") },
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                            singleLine = true,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        weightInput.toDoubleOrNull()?.let { BodyWeightStore.setWeightKg(it) }
+                        showWeightDialog = false
+                    }) { Text("Save") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showWeightDialog = false }) { Text("Cancel") }
+                },
+            )
+        }
+
         if (hcAvailability == HealthConnectManager.Availability.AVAILABLE) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             val hcEnabled by HealthConnectStore.enabledFlow.collectAsState()
@@ -1380,6 +1578,44 @@ fun ProfileScreen(
         }
 
         // â”€â”€ Debug tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Cloud Account ────────────────────────────────────────────
+        if (com.example.vitruvianredux.cloud.SupabaseProvider.isInitialized) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            val sessionStatus by com.example.vitruvianredux.cloud.AuthRepository.sessionStatus
+                .collectAsState(initial = io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated(false))
+            val isSignedIn = sessionStatus is io.github.jan.supabase.gotrue.SessionStatus.Authenticated
+            val userEmail = com.example.vitruvianredux.cloud.AuthRepository.currentUser?.email
+
+            PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToAccount) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Default.Cloud,
+                        contentDescription = null,
+                        tint = if (isSignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(AppDimens.Icon.lg),
+                    )
+                    Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            if (isSignedIn) "Cloud Sync" else "Cloud Account",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                        Text(
+                            if (isSignedIn) userEmail ?: "Signed in" else "Sign in to sync across devices",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
         if (BuildConfig.IS_DEBUG_BUILD) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDebug) {

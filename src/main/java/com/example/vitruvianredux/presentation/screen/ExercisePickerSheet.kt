@@ -24,7 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.model.ExerciseSource
@@ -241,21 +241,21 @@ fun ExercisePickerSheet(
                                         .background(MaterialTheme.colorScheme.surfaceVariant),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    if (ex.thumbnailUrl != null) {
-                                        AsyncImage(
-                                            model              = ex.thumbnailUrl,
-                                            contentDescription = ex.name,
-                                            contentScale       = ContentScale.Crop,
-                                            modifier           = Modifier.fillMaxSize(),
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector        = Icons.Default.FitnessCenter,
-                                            contentDescription = null,
-                                            tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                                            modifier           = Modifier.size(36.dp),
-                                        )
-                                    }
+                                    SubcomposeAsyncImage(
+                                        model              = ex.thumbnailUrl,
+                                        contentDescription = ex.name,
+                                        contentScale       = ContentScale.Crop,
+                                        modifier           = Modifier.fillMaxSize(),
+                                        error = {
+                                            Icon(
+                                                imageVector        = Icons.Default.FitnessCenter,
+                                                contentDescription = null,
+                                                tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                                                modifier           = Modifier.size(36.dp),
+                                            )
+                                        },
+                                        loading = { /* Box surfaceVariant background shows while loading */ },
+                                    )
                                 }
 
                                 // ── Name + muscle-group chips + equipment ──

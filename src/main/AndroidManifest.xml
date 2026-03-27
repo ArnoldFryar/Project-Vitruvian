@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- POST_NOTIFICATIONS required for workout reminders on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Camera is used for the front-camera live overlay during workouts
          (FrontCameraOverlay). It is NOT used for QR code scanning — QR codes
          are generated only (encoded via ZXing). Front camera is a non-core
@@ -30,6 +32,8 @@
     <uses-permission android:name="android.permission.health.WRITE_EXERCISE" />
     <uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.WRITE_TOTAL_CALORIES_BURNED" />
+    <!-- Health Connect — read body weight for relative strength index -->
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
 
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
     <uses-feature android:name="android.hardware.wifi.direct" android:required="false" />
@@ -46,6 +50,7 @@
 
     <application
         android:name="com.example.vitruvianredux.VitruvianApp"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

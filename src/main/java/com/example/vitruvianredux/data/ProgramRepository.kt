@@ -2,6 +2,7 @@ package com.example.vitruvianredux.data
 
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.DayOfWeek
 import java.util.UUID
 
 // ── Domain model ──────────────────────────────────────────────────────────────
@@ -26,6 +27,8 @@ data class ProgramItemDraft(
     val programMode: String = "Old School",
     val progressionRegressionLb: Int = 0,
     val restTimerSec: Int = 60,
+    /** Non-null ⇒ this item belongs to a superset group (A1/B1 interleaved). */
+    val circuitGroup: Int? = null,
 ) {
     val isValid: Boolean get() = when (mode) {
         ExerciseMode.REPS -> reps != null
@@ -50,6 +53,8 @@ data class SavedProgram(
     val deviceId: String = "",
     /** Zero-based display position in the programs list (user-defined order). */
     val sortOrder: Int = 0,
+    /** Days of the week this program is scheduled for. */
+    val scheduledDays: Set<DayOfWeek> = emptySet(),
 )
 
 // ── Backing-store interface ────────────────────────────────────────────────────
@@ -264,7 +269,8 @@ class ProgramRepository(
                                 targetWeightLb = targetWeightLb,
                                 programMode = programMode,
                                 progressionRegressionLb = progressionRegressionLb,
-                                restTimerSec = restTimerSec
+                                restTimerSec = restTimerSec,
+                                circuitGroup = if (itemObj.has("circuitGroup") && !itemObj.isNull("circuitGroup")) itemObj.optInt("circuitGroup") else null,
                             ))
                         }
                     }
@@ -273,8 +279,14 @@ class ProgramRepository(
                     val deletedAt  = if (obj.has("deletedAt") && !obj.isNull("deletedAt")) obj.optLong("deletedAt") else null
                     val devId      = obj.optString("deviceId", "")
                     val sortOrder  = obj.optInt("sortOrder", 0)
+                    val daysArray  = obj.optJSONArray("scheduledDays")
+                    val days = if (daysArray != null) {
+                        (0 until daysArray.length()).mapNotNull { i ->
+                            try { DayOfWeek.valueOf(daysArray.getString(i)) } catch (_: Exception) { null }
+                        }.toSet()
+                    } else emptySet()
 
-                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder)
+                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder, days)
                 }
         } catch (_: Exception) {
             backing.writePrograms("[]")
@@ -303,6 +315,7 @@ class ProgramRepository(
                         put("programMode", item.programMode)
                         put("progressionRegressionLb", item.progressionRegressionLb)
                         put("restTimerSec", item.restTimerSec)
+                        if (item.circuitGroup != null) put("circuitGroup", item.circuitGroup)
                     })
                 }
                 put("items", itemsArray)
@@ -310,6 +323,7 @@ class ProgramRepository(
                 if (p.deletedAt != null) put("deletedAt", p.deletedAt) else put("deletedAt", JSONObject.NULL)
                 put("deviceId", p.deviceId)
                 put("sortOrder", p.sortOrder)
+                put("scheduledDays", JSONArray().apply { p.scheduledDays.forEach { put(it.name) } })
             })
         }
         backing.writePrograms(array.toString())

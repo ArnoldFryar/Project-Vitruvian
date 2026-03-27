@@ -4,10 +4,13 @@ import android.app.Application
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.BleForegroundService
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.data.BodyWeightStore
+import com.example.vitruvianredux.data.TtsVoiceStore
 import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.cloud.SupabaseProvider
+import com.example.vitruvianredux.workers.WorkoutReminderWorker
 import timber.log.Timber
 
 /**
@@ -45,12 +48,21 @@ class VitruvianApp : Application() {
         if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
         // Register the BLE notification channel once at process start.
         BleForegroundService.createNotificationChannel(this)
+        // Register the workout reminder notification channel.
+        val nm = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        WorkoutReminderWorker.createChannel(nm)
+        // Schedule daily workout reminders (idempotent; KEEP policy skips on re-enqueue).
+        WorkoutReminderWorker.schedule(this)
         // Eagerly initialise both VMs so BLE auto-reconnect starts immediately.
         bleViewModel.initAutoReconnect()
         // Load any user-created custom exercises from SharedPreferences.
         CustomExerciseStore.init(this)
         // Load the user's editable display name.
         ProfileStore.init(this)
+        // Load manually-entered body weight for relative strength calculations.
+        BodyWeightStore.init(this)
+        // Load persisted TTS voice preference.
+        TtsVoiceStore.init(this)
         // Initialise Supabase client for cloud sync (reads config from resources).
         SupabaseProvider.init(this)
     }

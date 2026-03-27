@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -339,6 +340,31 @@ fun SessionDetailScreen(
                             "${session.calories} kcal",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+            // ── Workout notes ─────────────────────────────────────────────────────
+            if (session.notes.isNotBlank()) {
+                SdSectionHeader("Notes")
+                SdCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(AppDimens.Icon.md).padding(top = 2.dp),
+                        )
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Text(
+                            text = session.notes,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }

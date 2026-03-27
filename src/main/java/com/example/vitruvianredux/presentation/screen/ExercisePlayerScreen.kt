@@ -26,6 +26,8 @@ import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.UnitConversions
@@ -44,6 +46,12 @@ fun ExercisePlayerScreen(
     val sessionState  by workoutVM.state.collectAsState()
     val isReady       by workoutVM.bleIsReady.collectAsState()
     val bleDiagnostics by workoutVM.bleDiagnostics.collectAsState()
+    val machineWifi    by workoutVM.machineWifiState.collectAsState()
+    val machineRawDiag by workoutVM.machineRawDiagnostic.collectAsState()
+    val machineMode        by workoutVM.machineMode.collectAsState()
+    val machineVersion     by workoutVM.machineVersion.collectAsState()
+    val machineHeuristic   by workoutVM.machineHeuristic.collectAsState()
+    val machineUpdateState by workoutVM.machineUpdateState.collectAsState()
     val phase = sessionState.sessionPhase
 
     // â”€â”€ Local player UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -115,9 +123,15 @@ fun ExercisePlayerScreen(
 
     if (showDebugPanel) {
         BleDiagnosticsDialog(
-            diagnostics = bleDiagnostics,
-            bleState    = sessionState.connectionState,
-            onDismiss   = { showDebugPanel = false },
+            diagnostics         = bleDiagnostics,
+            bleState            = sessionState.connectionState,
+            machineWifi         = machineWifi,
+            machineRawDiagnostic = machineRawDiag,
+            machineMode         = machineMode,
+            machineVersion      = machineVersion,
+            machineHeuristic    = machineHeuristic,
+            machineUpdateState  = machineUpdateState,
+            onDismiss           = { showDebugPanel = false },
         )
     }
 
@@ -245,6 +259,8 @@ fun ExercisePlayerScreen(
                                 .mapNotNull { it.avgQualityScore }
                                 .takeIf { it.isNotEmpty() }
                                 ?.average()?.toInt(),
+                            notes        = workoutVM.sessionNotes,
+                            onNotesChange = { workoutVM.sessionNotes = it },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -254,10 +270,21 @@ fun ExercisePlayerScreen(
                     val readyPhase = phase as? SessionPhase.SetReady
                     if (readyPhase != null) {
                         val isOpenEnded = readyPhase.isJustLift
-                        // Exercise-menu launch: not JustLift, not a saved program.
-                        // The engine was queued with 1 set by setPlayerExercise(); we
-                        // re-queue with the user's desired count when they press GO.
                         val isExerciseMenuLaunch = !isOpenEnded && workoutVM.activeProgramId == null
+
+                        // Compute progression suggestion only on the first set of a program workout
+                        val allSessions by AnalyticsStore.logsFlow.collectAsState()
+                        val progressionSuggestion = remember(readyPhase.exerciseName, targetReps, resistanceLb, allSessions) {
+                            if (!isOpenEnded && readyPhase.setIndex == 0 && isRepsMode)
+                                ProgressionEngine.suggestWeightLb(
+                                    exerciseName      = readyPhase.exerciseName,
+                                    targetReps        = targetReps,
+                                    currentWeightLb   = resistanceLb.toInt(),
+                                    progressionStepLb = 5,
+                                    sessions          = allSessions,
+                                )
+                            else null
+                        }
                         SetReadyContent(
                             exerciseName      = readyPhase.exerciseName,
                             setIndex          = readyPhase.setIndex,
@@ -314,6 +341,8 @@ fun ExercisePlayerScreen(
                             },
                             onSkipSet      = { workoutVM.skipSet() },
                             onSkipExercise = { workoutVM.skipExercise() },
+                            progressionSuggestionLb = progressionSuggestion,
+                            onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
                             modifier       = Modifier.fillMaxSize(),
                         )
                     }
@@ -393,6 +422,7 @@ fun ExercisePlayerScreen(
                         onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
                         onRepQualityScored     = { quality -> workoutVM.recordRepQuality(quality) },
+                        machineHeuristic       = machineHeuristic,
                     )
                 }
 
@@ -400,14 +430,18 @@ fun ExercisePlayerScreen(
                     val pausedPhase = phase as? SessionPhase.Paused
                     if (pausedPhase != null) {
                         PausedContent(
-                            exerciseName = pausedPhase.exerciseName,
-                            setIndex     = pausedPhase.setIndex,
+                            exerciseName       = pausedPhase.exerciseName,
+                            setIndex           = pausedPhase.setIndex,
                             // Use the same draft value so the count matches what
                             // the user saw on the SetReady screen before lifting.
-                            totalSets    = targetSets,
-                            onResume     = { workoutVM.resumePlayerWorkout() },
-                            onStop       = { workoutVM.panicStop(); onBack() },
-                            modifier     = Modifier.fillMaxSize(),
+                            totalSets          = targetSets,
+                            selectedMode       = selectedMode,
+                            modeExpanded       = modeExpanded,
+                            onModeSelect       = { mode -> selectedMode = mode; modeExpanded = false },
+                            onModeExpandChange = { modeExpanded = it },
+                            onResume           = { workoutVM.resumePlayerWorkout() },
+                            onStop             = { workoutVM.panicStop(); onBack() },
+                            modifier           = Modifier.fillMaxSize(),
                         )
                     }
                 }

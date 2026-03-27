@@ -59,6 +59,7 @@ import com.example.vitruvianredux.presentation.mirror.MirrorModeController
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.repquality.RepQuality
 import com.example.vitruvianredux.presentation.repquality.RepQualityBadge
+import com.example.vitruvianredux.ble.MachineHeuristic
 import com.example.vitruvianredux.presentation.repquality.RepQualityCalculator
 import com.example.vitruvianredux.presentation.repquality.TelemetryFrame
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -108,6 +109,7 @@ internal fun ActivePlayerContent(
     onSkipExercise: () -> Unit,
     onDebugRepIncrement: () -> Unit,
     onRepQualityScored: (com.example.vitruvianredux.presentation.repquality.RepQuality) -> Unit = {},
+    machineHeuristic: MachineHeuristic? = null,
 ) {
     val isActive   = phase is SessionPhase.ExerciseActive
     val isComplete = phase is SessionPhase.ExerciseComplete
@@ -278,6 +280,53 @@ internal fun ActivePlayerContent(
                                 quality  = lastRepQuality,
                                 modifier = Modifier.padding(bottom = 2.dp),
                             )
+
+                            if (isActive && machineHeuristic != null) {
+                                val l = machineHeuristic.left.concentric
+                                val r = machineHeuristic.right.concentric
+                                val total = (l.kgAvg + r.kgAvg).coerceAtLeast(0.001f)
+                                val balL = (l.kgAvg / total * 100).toInt()
+                                val balR = 100 - balL
+                                Row(
+                                    modifier = Modifier
+                                        .padding(bottom = 2.dp)
+                                        .fillMaxWidth(0.8f),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text  = "${ "%.0f".format(l.kgMax) }kg",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                        Text(
+                                            text  = "${ "%.0f".format(l.wattMax) }W ◄",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    Text(
+                                        text  = "$balL/$balR",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.align(Alignment.CenterVertically),
+                                    )
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text  = "${ "%.0f".format(r.kgMax) }kg",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                        Text(
+                                            text  = "► ${ "%.0f".format(r.wattMax) }W",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            }
 
                             Surface(
                                 shape = RoundedCornerShape(AppDimens.Corner.pill),

@@ -161,6 +161,9 @@ object CloudSyncRepository {
                 deviceId = p.deviceId.ifBlank { deviceId },
                 updatedAt = p.updatedAt,
                 deletedAt = p.deletedAt,
+                scheduledDays = json.parseToJsonElement(
+                    org.json.JSONArray().apply { p.scheduledDays.forEach { put(it.name) } }.toString()
+                ),
             )
         }
         RemoteDataSource.upsertPrograms(remote)
@@ -311,6 +314,7 @@ object CloudSyncRepository {
                     deviceId = rp.deviceId,
                     updatedAt = rp.updatedAt,
                     deletedAt = rp.deletedAt,
+                    scheduledDays = scheduledDaysFromJson(rp.scheduledDays.toString()),
                 )
                 ProgramStore.repository.importSynced(program)
                 accepted++
@@ -600,6 +604,15 @@ object CloudSyncRepository {
                 )
             }
         } catch (_: Exception) { emptyList() }
+    }
+
+    private fun scheduledDaysFromJson(jsonStr: String): Set<java.time.DayOfWeek> {
+        return try {
+            val arr = JSONArray(jsonStr)
+            (0 until arr.length()).mapNotNull { i ->
+                try { java.time.DayOfWeek.valueOf(arr.getString(i)) } catch (_: Exception) { null }
+            }.toSet()
+        } catch (_: Exception) { emptySet() }
     }
 
     private fun exerciseSetsToJson(sets: List<AnalyticsStore.ExerciseSetLog>): String {

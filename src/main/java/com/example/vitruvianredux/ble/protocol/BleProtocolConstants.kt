@@ -34,14 +34,24 @@ object BleProtocolConstants {
     const val UPDATE_STATE_CHAR_UUID = "383f7276-49af-4335-9072-f01b0f8acad6"
     /** 5-byte BLE-DFU update request. */
     const val BLE_UPDATE_REQ_CHAR_UUID = "ef0e485a-8749-4314-b1be-01e57cd1712e"
-    /** Auth / unknown — web apps subscribe to this; purpose TBD. */
-    const val AUTH_CHAR_UUID        = "36e6c2ee-21c7-404e-aa9b-f74ca4728ad4"
+    /**
+     * WiFi/OTA state characteristic — confirmed present in official APK (classes2.dex).
+     * Maps to WifiState notification type in the official formtrainer dispatch (Zj/l.java).
+     */
+    const val WIFI_STATE_CHAR_UUID  = "5fa538ec-d041-42f6-bbd6-c30d475387b7"
+    /**
+     * Diagnostic details characteristic — confirmed present in official APK (classes2.dex).
+     * Maps to DiagnosticDetails notification type in the official formtrainer dispatch (Zj/l.java).
+     */
+    const val DIAGNOSTIC_CHAR_UUID  = "92ef83d6-8916-4921-8172-a9919bc82566"
 
     /**
      * Ordered list of characteristic UUIDs to enable for notifications.
-     * Matches the Project Phoenix NOTIFY_CHAR_UUID_STRINGS order.
+     * Verified against official Vitruvian APK (classes2.dex UUID scan, March 2026).
+     * Removed: AUTH_CHAR_UUID (36e6c2ee) — absent from official APK, Phoenix-only.
+     * Added:   WIFI_STATE_CHAR_UUID and DIAGNOSTIC_CHAR_UUID — present in official APK.
      * NOTE: SAMPLE/Monitor is intentionally excluded — it is POLLED via read,
-     * not notified, matching Phoenix's MetricPollingEngine approach.
+     * matching Phoenix's MetricPollingEngine approach.
      */
     val NOTIFY_CHAR_UUIDS: List<String> = listOf(
         UPDATE_STATE_CHAR_UUID,
@@ -50,7 +60,8 @@ object BleProtocolConstants {
         REPS_CHAR_UUID,
         HEURISTIC_CHAR_UUID,
         BLE_UPDATE_REQ_CHAR_UUID,
-        AUTH_CHAR_UUID,
+        WIFI_STATE_CHAR_UUID,
+        DIAGNOSTIC_CHAR_UUID,
     )
 
     // ── Command byte identifiers ──────────────────────────────────────────────

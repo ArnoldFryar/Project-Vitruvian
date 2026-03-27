@@ -226,6 +226,7 @@ fun AppScaffold() {
                             exerciseSets  = exerciseSets,
                             programName   = workoutVM.activeProgramName,
                             dayName       = workoutVM.activeDayName,
+                            notes         = workoutVM.sessionNotes,
                         )
                         // Reseed activity stats from the now-persisted AnalyticsStore so that
                         // weekly volume, session count, and streak reflect real data rather

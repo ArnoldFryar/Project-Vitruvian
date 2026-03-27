@@ -1,0 +1,150 @@
+{
+  "id": "builtin_core_power",
+  "name": "Core Power",
+  "category": "Conditioning",
+  "description": "Two targeted sessions to build a strong and stable core. Day 1 focuses on power and anti-rotation. Day 2 builds endurance and hip flexor strength.",
+  "days": [
+    {
+      "name": "Core Strength",
+      "focus": "Abs, Obliques, Anti-Rotation",
+      "exercises": [
+        {
+          "exerciseId": "8hbXFqffiMF_8D8R",
+          "exerciseName": "V-Tucks",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "66ggji_PJQIsQbS0",
+          "exerciseName": "Crunch",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 20,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "lgYX50v_dhlQzGkS",
+          "exerciseName": "Russian Twist",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 20,
+          "targetWeightLb": 10,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "mp97oJ4W0SI78jvT",
+          "exerciseName": "Leg Lower",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "_YQXCLQ49sZ9xus0",
+          "exerciseName": "Plank & Rotation",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "ap50el1J3FSodPME",
+          "exerciseName": "Copenhagen Plank",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 8,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "NNxOd-C972Jqef4L",
+          "exerciseName": "Dead Bug SA Press",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 8,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    },
+    {
+      "name": "Core Stability & Endurance",
+      "focus": "Deep Core, Hip Flexors, Stability",
+      "exercises": [
+        {
+          "exerciseId": "U9nn8f-vcAltrR-E",
+          "exerciseName": "Plank",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 1,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "0yBVwuQwNsQ3JKng",
+          "exerciseName": "Side Plank",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 1,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "4zUD8GNoHcRFbuzM",
+          "exerciseName": "Side Plank Hip Dips",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "oFP4aOA23Uo82gRD",
+          "exerciseName": "Bird Dog",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "2S9GLUWvISCI0RFC",
+          "exerciseName": "Mountain Climber",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 20,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "8hbXFqffiMF_8D8R",
+          "exerciseName": "V-Tucks",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 0,
+          "programMode": "Old School",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

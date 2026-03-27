@@ -115,6 +115,7 @@ fun AppNavHost(
             ProfileScreen(
                 innerPadding = innerPadding,
                 bleVM = bleVM,
+                workoutVM = workoutVM,
                 onNavigateToDebug = { if (BuildConfig.IS_DEBUG_BUILD) nav.navigate(Route.Debug.path) },
                 onNavigateToAccount = { nav.navigate(Route.Account.path) },
             )

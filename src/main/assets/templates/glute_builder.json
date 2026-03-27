@@ -1,0 +1,150 @@
+{
+  "id": "builtin_glute_builder",
+  "name": "Glute Builder",
+  "category": "Hypertrophy",
+  "description": "Two focused sessions per week to build strong, full glutes and a powerful posterior chain. Progressive overload on hip hinge and thrust movements.",
+  "days": [
+    {
+      "name": "Glute Focus",
+      "focus": "Glutes, Hamstrings, Hip Abductors",
+      "exercises": [
+        {
+          "exerciseId": "o6m-8Vt7VBtb0zNj",
+          "exerciseName": "Hip Thrust",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 12,
+          "targetWeightLb": 65,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "49c4594c-f997-4d70-8008-b293e247e2e4",
+          "exerciseName": "Romanian Deadlift",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 55,
+          "programMode": "Pump",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "I6HAxWzI9ZrdIS2v",
+          "exerciseName": "SL Hip Thrust",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 35,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "2c46a233-e244-4ef1-9d58-7f9756b66b17",
+          "exerciseName": "SL Romanian Deadlift",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 25,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "e280829c-aa17-4812-b8fa-bcd0d89ad815",
+          "exerciseName": "Glute Kickbacks",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 10,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "Ug8YmwoOxjKOEeNg",
+          "exerciseName": "Frog Glute Bridge",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 20,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        },
+        {
+          "exerciseId": "0c131bda-bf01-41b2-97ce-80d1fc83026e",
+          "exerciseName": "Fire Hydrant",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 8,
+          "programMode": "Pump",
+          "restTimerSec": 45
+        }
+      ]
+    },
+    {
+      "name": "Lower Body Compound",
+      "focus": "Quads, Glutes, Hamstrings",
+      "exercises": [
+        {
+          "exerciseId": "ePpAzISZjVFNQfSM",
+          "exerciseName": "Bulgarian Split Squat",
+          "mode": "REPS",
+          "sets": 4,
+          "reps": 10,
+          "targetWeightLb": 30,
+          "programMode": "Old School",
+          "restTimerSec": 90
+        },
+        {
+          "exerciseId": "7g8m11dxjxFtlVaE",
+          "exerciseName": "Goblet Squat",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 12,
+          "targetWeightLb": 40,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "rCG6HJi50F2REZCw",
+          "exerciseName": "Alternating Lunges",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 10,
+          "targetWeightLb": 30,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "T6Vf4-OIurKVfECK",
+          "exerciseName": "Hip Thrust",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 55,
+          "programMode": "Pump",
+          "restTimerSec": 75
+        },
+        {
+          "exerciseId": "tfsJJRS6I7cOSo71",
+          "exerciseName": "Kneeling Kickback",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 8,
+          "programMode": "Pump",
+          "restTimerSec": 45
+        },
+        {
+          "exerciseId": "287a9e39-fd0f-426f-bac1-2b121befb397",
+          "exerciseName": "Calf Raise",
+          "mode": "REPS",
+          "sets": 3,
+          "reps": 15,
+          "targetWeightLb": 30,
+          "programMode": "Pump",
+          "restTimerSec": 60
+        }
+      ]
+    }
+  ]
+}

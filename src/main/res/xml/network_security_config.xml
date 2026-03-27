@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network security configuration.
+
+    Several CDN / backend servers (Mux, Supabase) omit intermediate CA
+    certificates from their TLS handshake and expect clients to fetch them
+    via the AIA (Authority Information Access) extension.  Android's
+    NetworkSecurityTrustManager supports AIA-based chain building; OkHttp's
+    default TrustManagerFactory path does not always.
+
+    Bundling the two intermediates here as explicit trust-anchors lets
+    Android verify the chain leaf → intermediate (bundled) without requiring
+    AIA lookup or the full chain from the server.
+
+    Certs:
+      • globalsign_atlas_r3_2025q4  – image.mux.com  (valid until 2027-07-15)
+      • google_we1                  – *.supabase.co  (valid until 2029-02-20)
+-->
+<network-security-config>
+    <!-- Debug: also trust user-installed CAs (e.g. Charles / mitmproxy) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+
+    <!-- Production: system CAs + bundled intermediates -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/globalsign_atlas_r3_2025q4" />
+            <certificates src="@raw/google_we1" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
