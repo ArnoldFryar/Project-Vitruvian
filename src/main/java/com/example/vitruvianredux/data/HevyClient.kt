@@ -54,6 +54,7 @@ object HevyClient {
     private val json = Json {
         ignoreUnknownKeys = true
         coerceInputValues  = true
+        encodeDefaults     = true
     }
 
     private val http = HttpClient(Android) {
@@ -99,7 +100,7 @@ object HevyClient {
                 )
             )
 
-            val response: HttpResponse = http.post("$BASE_URL/v1/workout") {
+            val response: HttpResponse = http.post("$BASE_URL/v1/workouts") {
                 header("api-key", apiKey)
                 contentType(ContentType.Application.Json)
                 setBody(body)
@@ -215,6 +216,7 @@ object HevyClient {
         val description: String?,
         val start_time: String,
         val end_time: String,
+        val is_private: Boolean = false,
         val exercises: List<ExercisePayload>,
     )
 

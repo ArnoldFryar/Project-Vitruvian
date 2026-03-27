@@ -343,8 +343,16 @@ fun ExercisePlayerScreen(
                             onSkipExercise = { workoutVM.skipExercise() },
                             progressionSuggestionLb = progressionSuggestion,
                             onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
-                            isEchoMode     = (selectedMode == "Echo"),
-                            modifier       = Modifier.fillMaxSize(),
+                            isEchoMode          = (selectedMode == "Echo"),
+                            selectedMode        = selectedMode,
+                            onModeSelect        = { selectedMode = it },
+                            isBeastMode         = isBeastMode,
+                            onBeastModeChange   = { isBeastMode = it },
+                            echoLevel           = echoLevel,
+                            onEchoLevelChange   = { echoLevel = it },
+                            eccentricPct        = eccentricPct,
+                            onEccentricPctChange = { eccentricPct = it },
+                            modifier            = Modifier.fillMaxSize(),
                         )
                     }
                 }

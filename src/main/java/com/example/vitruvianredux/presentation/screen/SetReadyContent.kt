@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayer
+import androidx.compose.foundation.clickable
+import com.example.vitruvianredux.ble.protocol.EchoLevel
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
@@ -72,6 +74,18 @@ internal fun SetReadyContent(
     onAcceptProgression: (Int) -> Unit = {},
     /** Echo (isokinetic) mode — weight is adaptive so the selector is hidden. */
     isEchoMode: Boolean = false,
+    /** Currently selected training mode (e.g. "Old School", "Pump", "TUT", "Echo"). */
+    selectedMode: String = "Old School",
+    onModeSelect: (String) -> Unit = {},
+    /** TUT — Beast Mode (faster loading). */
+    isBeastMode: Boolean = false,
+    onBeastModeChange: (Boolean) -> Unit = {},
+    /** Echo — resistance level. */
+    echoLevel: EchoLevel = EchoLevel.HARD,
+    onEchoLevelChange: (EchoLevel) -> Unit = {},
+    /** Eccentric load percentage. */
+    eccentricPct: Int = 75,
+    onEccentricPctChange: (Int) -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -315,6 +329,94 @@ internal fun SetReadyContent(
             }
         }
 
+        // ── Mode selector ─────────────────────────────────────────────
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+        ) {
+            listOf("Old School", "Pump", "TUT", "Echo").forEach { mode ->
+                FilterChip(
+                    selected  = selectedMode == mode,
+                    onClick   = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onModeSelect(mode) },
+                    label     = { Text(mode, maxLines = 1) },
+                    modifier  = Modifier.weight(1f),
+                )
+            }
+        }
+        // ── TUT: Beast Mode toggle ────────────────────────────────────
+        AnimatedVisibility(
+            visible = selectedMode == "TUT",
+            enter   = expandVertically(tween(200)) + fadeIn(tween(170)),
+            exit    = shrinkVertically(tween(170)) + fadeOut(tween(140)),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = AppDimens.Spacing.sm),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text("Beast Mode", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text("Faster eccentric loading", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = isBeastMode, onCheckedChange = onBeastModeChange)
+            }
+        }
+
+        // ── Echo: level chips + eccentric % ──────────────────────────
+        AnimatedVisibility(
+            visible = selectedMode == "Echo",
+            enter   = expandVertically(tween(200)) + fadeIn(tween(170)),
+            exit    = shrinkVertically(tween(170)) + fadeOut(tween(140)),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                   modifier = Modifier.padding(top = AppDimens.Spacing.sm)) {
+                // Echo Level
+                Text(
+                    "Echo Level",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                ) {
+                    EchoLevel.entries.forEach { level ->
+                        val isSelected = level == echoLevel
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onEchoLevelChange(level) },
+                            shape = RoundedCornerShape(AppDimens.Corner.sm),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surfaceVariant,
+                        ) {
+                            Text(
+                                text = level.displayName,
+                                modifier = Modifier.padding(vertical = AppDimens.Spacing.sm),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+                // Eccentric %
+                SelectorCard(title = "Eccentric Load", modifier = Modifier.fillMaxWidth()) {
+                    ValueStepper(
+                        value         = eccentricPct,
+                        onValueChange = { onEccentricPctChange(it.coerceIn(0, 200)) },
+                        range         = 0..200,
+                        unitLabel     = "%",
+                        compact       = true,
+                    )
+                }
+            }
+        }
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
         Divider(
