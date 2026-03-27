@@ -61,6 +61,75 @@ object HevyClient {
         install(ContentNegotiation) { json(json) }
     }
 
+    // Static Vitruvian exercise name → canonical Hevy exercise name overrides.
+    // Checked before the API-fetched template cache so these always resolve correctly
+    // regardless of fuzzy-match quality.
+    private val STATIC_NAME_OVERRIDES: Map<String, String> = mapOf(
+        "BAYESIAN CURL"                              to "Behind the Back Curl (Cable)",
+        "BENCH PRESS"                                to "Bench Press (Smith Machine)",
+        "BENCH PRESS - WIDE GRIP"                    to "Bench Press (Smith Machine)",
+        "CLOSE GRIP BENCH PRESS"                     to "Bench Press (Smith Machine)",
+        "NEUTRAL GRIP BENCH PRESS"                   to "Bench Press (Smith Machine)",
+        "SA BENCH PRESS"                             to "Bench Press (Smith Machine)",
+        "BICEP CURL (SC)"                            to "Bicep Curl (Cable)",
+        "BICEP CURL"                                 to "Bicep Curl (Machine)",
+        "PALLOF PRESS"                               to "Cable Core Palloff Press",
+        "CABLE FLY"                                  to "Cable Fly Crossovers",
+        "KNEELING PULL THROUGH"                      to "Cable Pull Through",
+        "PULL THROUGH"                               to "Cable Pull Through",
+        "DECLINE BENCH PRESS"                        to "Decline Bench Press (Smith Machine)",
+        "FACE PULL"                                  to "Face Pull",
+        "FACE PULLS"                                 to "Face Pull",
+        "FRONT RAISE"                                to "Front Raise (Cable)",
+        "FRONT RAISE (SC)"                           to "Front Raise (Cable)",
+        "HAMMER CURL"                                to "Hammer Curl (Cable)",
+        "HAMMER CURL (SC)"                           to "Hammer Curl (Cable)",
+        "HAMMER CURL SA"                             to "Hammer Curl (Cable)",
+        "SA HAMMER CURL"                             to "Hammer Curl (Cable)",
+        "SIDE LYING HIP ADDUCTION"                   to "Hip Adduction (Machine)",
+        "HIP THRUST"                                 to "Hip Thrust (Machine)",
+        "HIP THRUST (SC)"                            to "Hip Thrust (Machine)",
+        "HIP THRUST - SHOULDERS ELEVATED"            to "Hip Thrust (Machine)",
+        "SL HIP THRUST"                              to "Hip Thrust (Machine)",
+        "TABLE TOP HIP THRUST"                       to "Hip Thrust (Machine)",
+        "INCLINE BENCH PRESS"                        to "Incline Bench Press (Smith Machine)",
+        "CLOSE GRIP PULLDOWN"                        to "Lat Pulldown - Close Grip (Cable)",
+        "CROSSOVER LATERAL RAISE"                    to "Lateral Raise (Cable)",
+        "LATERAL RAISE"                              to "Lateral Raise (Cable)",
+        "LYING LEG EXTENSION"                        to "Leg Extension (Machine)",
+        "SEATED LEG EXTENSION"                       to "Leg Extension (Machine)",
+        "LYING HAMSTRING CURL"                       to "Lying Leg Curl (Machine)",
+        "PREACHER CURL"                              to "Preacher Curl (Machine)",
+        "LAT PULLOVER"                               to "Pullover (Machine)",
+        "PRONE LAT PULLOVER"                         to "Pullover (Machine)",
+        "PULLOVER"                                   to "Pullover (Machine)",
+        "CROSSOVER REAR DELT FLY"                    to "Rear Delt Reverse Fly (Cable)",
+        "CROSSOVER REAR DELT FLY (CHEST SUPPORTED)"  to "Rear Delt Reverse Fly (Cable)",
+        "REAR DELT FLY"                              to "Rear Delt Reverse Fly (Cable)",
+        "CLOSE GRIP PRONATED BICEP CURL"             to "Reverse Curl (Cable)",
+        "WIDE GRIP PRONATED BICEP CURL"              to "Reverse Curl (Cable)",
+        "SA REAR DELT FLY BENCH SUPPORTED"           to "Reverse Fly Single Arm (Cable)",
+        "SEATED CALF RAISE"                          to "Seated Calf Raise",
+        "BENT OVER SHRUG"                            to "Shrug (Cable)",
+        "SHRUG"                                      to "Shrug (Cable)",
+        "CONCENTRATION CURL"                         to "Single Arm Curl (Cable)",
+        "SEATED CONCENTRATION CURL"                  to "Single Arm Curl (Cable)",
+        "BENT OVER SA LATERAL RAISE"                 to "Single Arm Lateral Raise (Cable)",
+        "SEATED SA LATERAL RAISE"                    to "Single Arm Lateral Raise (Cable)",
+        "SL CALF RAISE"                              to "Single Leg Standing Calf Raise (Machine)",
+        "GLUTE KICKBACKS"                            to "Standing Cable Glute Kickbacks",
+        "LYING GLUTE KICKBACK"                       to "Standing Cable Glute Kickbacks",
+        "STANDING GLUTE KICKBACK"                    to "Standing Cable Glute Kickbacks",
+        "CALF RAISE"                                 to "Standing Calf Raise (Machine)",
+        "CALF RAISE (SC)"                            to "Standing Calf Raise (Machine)",
+        "THREE STANCE CALF RAISE"                    to "Standing Calf Raise (Machine)",
+        "STANDING HAMSTRING CURL"                    to "Standing Leg Curls",
+        "BENT OVER CROSSOVER UPRIGHT ROW"            to "Upright Row (Cable)",
+        "CROSSOVER UPRIGHT ROW"                      to "Upright Row (Cable)",
+        "UPRIGHT ROW"                                to "Upright Row (Cable)",
+        "UPRIGHT ROW (SC)"                           to "Upright Row (Cable)",
+    )
+
     // In-memory exercise name → template_id cache (keyed to API key so it
     // resets if the user switches accounts).
     private var cacheKey: String = ""
@@ -183,18 +252,27 @@ object HevyClient {
 
     /**
      * Resolve an exercise name to a Hevy template ID.
-     * Falls back to a generic "custom_exercise" sentinel so nothing is lost.
-     * Tries exact match first, then case-insensitive, then substring.
+     * 1. Checks static Vitruvian→Hevy name overrides first.
+     * 2. Exact match in fetched template cache.
+     * 3. Substring match.
+     * 4. Falls back to Hevy canonical name (or raw name) so nothing is lost.
      */
     private fun resolveTemplateId(name: String): String {
         val upper = name.uppercase()
-        // Exact
-        templateCache[upper]?.let { return it }
-        // Substring — find any template whose title contains the exercise name
-        templateCache.entries.firstOrNull { upper in it.key }?.let { return it.value }
-        // No match — return name as custom marker; Hevy will create a custom exercise
-        Timber.tag(TAG).d("No Hevy template for '$name' — using title fallback")
-        return name
+        // Apply static override to get canonical Hevy name if known
+        val hevyName  = STATIC_NAME_OVERRIDES[upper] ?: name
+        val hevyUpper = hevyName.uppercase()
+        // Exact match in fetched templates
+        templateCache[hevyUpper]?.let { return it }
+        // Substring — find any template whose title contains the (possibly translated) name
+        templateCache.entries.firstOrNull { hevyUpper in it.key }?.let { return it.value }
+        // No match — use canonical Hevy name as fallback (better than Vitruvian variant)
+        if (hevyName != name) {
+            Timber.tag(TAG).d("No template ID for '$name' → using override name '$hevyName'")
+        } else {
+            Timber.tag(TAG).d("No Hevy template for '$name' — using title fallback")
+        }
+        return hevyName
     }
 
     private fun buildTitle(session: AnalyticsStore.SessionLog): String {
