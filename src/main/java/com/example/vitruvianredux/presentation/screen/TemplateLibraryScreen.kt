@@ -3,7 +3,12 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,6 +25,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -79,15 +87,54 @@ fun TemplateLibraryScreen(
         ) { state ->
             when (state) {
                 "loading" -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize().padding(innerPadding),
-                        contentAlignment = Alignment.Center,
+                    val shimmer = rememberInfiniteTransition(label = "shimmer")
+                    val translateAnim by shimmer.animateFloat(
+                        initialValue = 0f, targetValue = 1000f,
+                        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Restart),
+                        label = "shimmerOffset",
+                    )
+                    val shimmerBrush = Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        ),
+                        start = Offset(translateAnim - 200f, 0f),
+                        end = Offset(translateAnim, 0f),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(AppDimens.Icon.xl),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                        repeat(5) {
+                            Surface(
+                                shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+                                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth(0.5f)
+                                            .height(16.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(shimmerBrush),
+                                    )
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth(0.8f)
+                                            .height(12.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(shimmerBrush),
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 "empty" -> {

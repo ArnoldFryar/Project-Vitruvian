@@ -53,6 +53,7 @@ import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.data.WorkoutSessionRecord
 import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.sync.SyncServiceLocator
+import com.example.vitruvianredux.presentation.screen.OnboardingScreen
 import com.example.vitruvianredux.presentation.screen.ExercisePlayerScreen
 import com.example.vitruvianredux.presentation.screen.SplashScreen
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -71,6 +72,22 @@ fun AppScaffold() {
         var showSplash by rememberSaveable { mutableStateOf(true) }
         if (showSplash) {
             SplashScreen(onFinished = { showSplash = false })
+            return@VitruvianTheme
+        }
+
+        // ── First-run onboarding gate ───────────────────────────────────────
+        val context = LocalContext.current
+        val onboardingPrefs = remember {
+            context.getSharedPreferences("vitruvian_onboarding", android.content.Context.MODE_PRIVATE)
+        }
+        var showOnboarding by rememberSaveable {
+            mutableStateOf(!onboardingPrefs.getBoolean("completed", false))
+        }
+        if (showOnboarding) {
+            OnboardingScreen(onComplete = {
+                onboardingPrefs.edit().putBoolean("completed", true).apply()
+                showOnboarding = false
+            })
             return@VitruvianTheme
         }
 

@@ -3,6 +3,11 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +25,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -151,12 +158,58 @@ fun ExercisePickerSheet(
                 label = "exercisePickerContent",
             ) { isLoading ->
                 if (isLoading) {
-                    Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(AppDimens.Icon.xl),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                    // Shimmer skeleton placeholders
+                    val shimmer = rememberInfiniteTransition(label = "shimmer")
+                    val translateAnim by shimmer.animateFloat(
+                        initialValue = 0f, targetValue = 1000f,
+                        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Restart),
+                        label = "shimmerOffset",
+                    )
+                    val shimmerBrush = Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        ),
+                        start = Offset(translateAnim - 200f, 0f),
+                        end = Offset(translateAnim, 0f),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    ) {
+                        repeat(6) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                                        .background(shimmerBrush),
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth(0.6f)
+                                            .height(14.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(shimmerBrush),
+                                    )
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth(0.35f)
+                                            .height(10.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(shimmerBrush),
+                                    )
+                                }
+                            }
+                        }
                     }
                 } else {
                 LazyColumn(

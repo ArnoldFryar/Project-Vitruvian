@@ -27,6 +27,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.util.ResistanceLimits
@@ -244,6 +245,20 @@ fun ExercisePlayerScreen(
                             )
                         }
                         val hasProgramChanges = workoutVM.activeProgramId != null
+
+                        // ── PR detection ──────────────────────────────────────
+                        // Snapshot the PB store *before* recording updates it.
+                        val preBests = remember(completePhase) {
+                            PersonalBestStore.summariesFlow.value
+                        }
+                        val prCount = remember(completePhase) {
+                            workoutVM.completedExerciseStats.count { stat ->
+                                val key = stat.exerciseName.lowercase().trim()
+                                val prev = preBests[key]
+                                prev == null || stat.weightPerCableLb > prev.bestWeightLb
+                            }
+                        }
+
                         WorkoutCompleteContent(
                             stats    = completePhase.workoutStats,
                             onDismiss = {
@@ -261,6 +276,7 @@ fun ExercisePlayerScreen(
                                 ?.average()?.toInt(),
                             notes        = workoutVM.sessionNotes,
                             onNotesChange = { workoutVM.sessionNotes = it },
+                            prCount      = prCount,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
