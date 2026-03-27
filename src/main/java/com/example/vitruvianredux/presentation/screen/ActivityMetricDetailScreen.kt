@@ -39,10 +39,11 @@ fun ActivityMetricDetailScreen(
     type: String,
     onBack: () -> Unit,
     onNavigateToSessionDetail: (sessionId: String) -> Unit = {},
+    onNavigateToExerciseDetail: (sessionId: String, exerciseName: String) -> Unit = { _, _ -> },
 ) {
     when (type) {
         "volume"   -> VolumeContent(onBack)
-        "sessions" -> SessionsContent(onBack, onNavigateToSessionDetail)
+        "sessions" -> SessionsContent(onBack, onNavigateToSessionDetail, onNavigateToExerciseDetail)
         "streak"   -> StreakContent(onBack)
         else       -> VolumeContent(onBack)
     }
@@ -281,11 +282,13 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
 private fun SessionsContent(
     onBack: () -> Unit,
     onNavigateToSessionDetail: (String) -> Unit,
+    onNavigateToExerciseDetail: (String, String) -> Unit,
 ) {
     // Delegate to the full sessions screen (ActivityHistoryScreen)
     ActivityHistoryScreen(
         onBack = onBack,
         onNavigateToSessionDetail = onNavigateToSessionDetail,
+        onNavigateToExerciseDetail = onNavigateToExerciseDetail,
     )
 }
 
