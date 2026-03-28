@@ -1,7 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -14,11 +14,14 @@ import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,169 +35,288 @@ private data class OnboardingPage(
     val icon: ImageVector,
     val title: String,
     val subtitle: String,
-    val accentColor: androidx.compose.ui.graphics.Color,
+    val accentColor: Color,
+    val tag: String,
 )
 
-private val pages = listOf(
+private val PAGES = listOf(
     OnboardingPage(
-        icon = Icons.Default.Bluetooth,
-        title = "Connect Your Trainer",
-        subtitle = "Pair your V-Form via Bluetooth for real-time rep tracking and force feedback.",
+        icon        = Icons.Default.Bluetooth,
+        title       = "Connect Your Trainer",
+        subtitle    = "Pair your Vitruvian via Bluetooth for real-time rep tracking, force feedback, and intelligent load control.",
         accentColor = BrandCyan,
+        tag         = "HARDWARE",
     ),
     OnboardingPage(
-        icon = Icons.Default.Sync,
-        title = "Sync Across Devices",
-        subtitle = "Use Wi-Fi Direct to mirror your workout to a hub display — no internet needed.",
+        icon        = Icons.Default.Sync,
+        title       = "Sync Across Devices",
+        subtitle    = "Mirror your session to a hub display over Wi-Fi Direct — no internet, no latency, no limits.",
         accentColor = AccentCyan,
+        tag         = "CONNECTIVITY",
     ),
     OnboardingPage(
-        icon = Icons.Default.FitnessCenter,
-        title = "Train Smarter",
-        subtitle = "Choose Old School, Pump, TUT, or Echo modes. Your Vitruvian adapts to you.",
+        icon        = Icons.Default.FitnessCenter,
+        title       = "Train Smarter",
+        subtitle    = "Choose Old School, Pump, TUT, or Echo modes. Track PRs, quality scores, and volume history automatically.",
         accentColor = AccentAmber,
+        tag         = "PERFORMANCE",
     ),
 )
 
 /**
- * Minimal onboarding pager — 3 steps introducing pairing, sync, and modes.
- * Shown once after first install, then dismissed with [onComplete].
+ * Premium first-run onboarding — 3-page pager with per-page entrance animations.
+ * Dismissed with [onComplete], which the caller marks as seen in SharedPreferences.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(
     onComplete: () -> Unit,
 ) {
-    val pagerState = rememberPagerState(pageCount = { pages.size })
+    val pagerState = rememberPagerState(pageCount = { PAGES.size })
     val scope = rememberCoroutineScope()
+    val currentPage = pagerState.currentPage
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.0f to Surface3,
+                        0.4f to Surface1,
+                        1.0f to Surface0,
+                    )
+                )
+            ),
     ) {
+        // ── Subtle accent glow at top ─────────────────────────────────
+        val glowColor = PAGES[currentPage].accentColor
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+                .align(Alignment.TopCenter)
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                glowColor.copy(alpha = 0.12f),
+                                Color.Transparent,
+                            ),
+                            radius = size.width * 0.75f,
+                            center = center.copy(y = 0f),
+                        ),
+                    )
+                },
+        )
+
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(AppDimens.Spacing.xxl))
+            // ── Step counter ──────────────────────────────────────────
+            Spacer(Modifier.height(AppDimens.Spacing.xl))
+            Text(
+                text = "${currentPage + 1} / ${PAGES.size}",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = PAGES[currentPage].accentColor.copy(alpha = 0.8f),
+                letterSpacing = 2.sp,
+            )
 
-            // Page content
+            // ── Page content ──────────────────────────────────────────
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
             ) { pageIndex ->
-                val page = pages[pageIndex]
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = AppDimens.Spacing.xl),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    // Icon in accent circle
-                    Surface(
-                        modifier = Modifier.size(96.dp),
-                        shape = CircleShape,
-                        color = page.accentColor.copy(alpha = 0.12f),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = page.icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(44.dp),
-                                tint = page.accentColor,
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(AppDimens.Spacing.xl))
-
-                    Text(
-                        text = page.title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                    )
-
-                    Spacer(Modifier.height(AppDimens.Spacing.md))
-
-                    Text(
-                        text = page.subtitle,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Center,
-                        lineHeight = 24.sp,
-                    )
-                }
+                OnboardingPageContent(
+                    page = PAGES[pageIndex],
+                    isActive = pageIndex == currentPage,
+                )
             }
 
-            // Dot indicators
+            // ── Pill indicator ────────────────────────────────────────
             Row(
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.lg),
-                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                repeat(pages.size) { index ->
-                    val isSelected = pagerState.currentPage == index
+                repeat(PAGES.size) { index ->
+                    val isSelected = index == currentPage
+                    val width by animateDpAsState(
+                        targetValue = if (isSelected) 28.dp else 8.dp,
+                        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                        label = "indicatorWidth",
+                    )
                     Box(
                         modifier = Modifier
-                            .size(if (isSelected) 10.dp else 6.dp)
+                            .size(width = width, height = 8.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                            )
-                            .animateContentSize(tween(200)),
+                                if (isSelected) PAGES[currentPage].accentColor
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            ),
                     )
                 }
             }
 
-            // CTA button
-            val isLastPage = pagerState.currentPage == pages.lastIndex
+            // ── Primary CTA ───────────────────────────────────────────
+            val isLastPage = currentPage == PAGES.lastIndex
             Button(
                 onClick = {
-                    if (isLastPage) {
-                        onComplete()
-                    } else {
-                        scope.launch {
-                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                        }
-                    }
+                    if (isLastPage) onComplete()
+                    else scope.launch { pagerState.animateScrollToPage(currentPage + 1) }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = AppDimens.Spacing.xl)
-                    .height(52.dp),
+                    .height(54.dp),
                 shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = PAGES[currentPage].accentColor,
+                    contentColor   = Surface0,
                 ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
             ) {
                 Text(
-                    text = if (isLastPage) "Get Started" else "Next",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    text      = if (isLastPage) "Get Started" else "Next",
+                    style     = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
                 )
             }
 
-            // Skip
+            // ── Skip ──────────────────────────────────────────────────
             if (!isLastPage) {
                 TextButton(
                     onClick = onComplete,
-                    modifier = Modifier.padding(top = AppDimens.Spacing.sm),
+                    modifier = Modifier.padding(top = 4.dp),
                 ) {
                     Text(
                         "Skip",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                     )
                 }
+            } else {
+                Spacer(Modifier.height(AppDimens.Spacing.lg))
             }
 
             Spacer(Modifier.height(AppDimens.Spacing.xl))
         }
     }
 }
+
+@Composable
+private fun OnboardingPageContent(
+    page: OnboardingPage,
+    isActive: Boolean,
+) {
+    // Entrance animation per page
+    val enterAlpha by animateFloatAsState(
+        targetValue = if (isActive) 1f else 0f,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "pageAlpha",
+    )
+    val enterScale by animateFloatAsState(
+        targetValue = if (isActive) 1f else 0.92f,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "pageScale",
+    )
+
+    // Pulsing glow ring behind icon (only on active page)
+    val infinite = rememberInfiniteTransition(label = "iconPulse")
+    val ringScale by infinite.animateFloat(
+        initialValue = 1.0f, targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(
+            tween(1800, easing = EaseInOutCubic), RepeatMode.Reverse
+        ),
+        label = "ringScale",
+    )
+    val ringAlpha by infinite.animateFloat(
+        initialValue = 0.18f, targetValue = 0.06f,
+        animationSpec = infiniteRepeatable(
+            tween(1800, easing = EaseInOutCubic), RepeatMode.Reverse
+        ),
+        label = "ringAlpha",
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp)
+            .graphicsLayer { alpha = enterAlpha; scaleX = enterScale; scaleY = enterScale },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        // Tag chip
+        Surface(
+            shape = RoundedCornerShape(AppDimens.Corner.pill),
+            color = page.accentColor.copy(alpha = 0.15f),
+        ) {
+            Text(
+                text     = page.tag,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style    = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color    = page.accentColor,
+                letterSpacing = 2.sp,
+            )
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.xl))
+
+        // Icon with pulsing ring
+        Box(contentAlignment = Alignment.Center) {
+            // Outer glow ring
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .graphicsLayer { scaleX = ringScale; scaleY = ringScale; this.alpha = ringAlpha }
+                    .background(page.accentColor, CircleShape),
+            )
+            // Icon container
+            Surface(
+                modifier = Modifier.size(96.dp),
+                shape    = CircleShape,
+                color    = page.accentColor.copy(alpha = 0.16f),
+                border   = androidx.compose.foundation.BorderStroke(
+                    1.dp, page.accentColor.copy(alpha = 0.35f)
+                ),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector        = page.icon,
+                        contentDescription = null,
+                        modifier           = Modifier.size(46.dp),
+                        tint               = page.accentColor,
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.xl))
+
+        // Title — full opacity, high weight
+        Text(
+            text       = page.title,
+            style      = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign  = TextAlign.Center,
+            color      = MaterialTheme.colorScheme.onSurface,
+        )
+
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+
+        // Subtitle — fixed to 0.85f for actual readability in dark mode
+        Text(
+            text       = page.subtitle,
+            style      = MaterialTheme.typography.bodyLarge,
+            color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            textAlign  = TextAlign.Center,
+            lineHeight = 26.sp,
+        )
+    }
+}
+
