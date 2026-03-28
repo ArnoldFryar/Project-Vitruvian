@@ -6,10 +6,8 @@ import androidx.compose.ui.graphics.Color
 
 // ── Brand ──────────────────────────────────────────────────────────────
 val BrandCyan     = Color(0xFF22D3EE)   // electric cyan — primary accent
-val BrandPink     = Color(0xFFF72585)
-val BrandOrange   = Color(0xFFFF7A00)
-val BrandMagenta  = Color(0xFFD8005A)
-val BrandPurple   = Color(0xFF7C3AED)
+val BrandRed      = Color(0xFFFF4D4D)   // hard red — working set / eccentric phase
+val BrandBlue     = Color(0xFF3B82F6)   // steel blue — secondary / static phase
 
 // ── Premium accent system ──────────────────────────────────────────────
 val AccentCyan    = Color(0xFF06D6A0)   // success / positive metrics
@@ -68,7 +66,7 @@ data class ExtendedColors(
     val accentAmber: Color = AccentAmber,
     val accentRed: Color = AccentRed,
     val warmupColor: Color = AccentAmber,
-    val workingColor: Color = BrandPink,
+    val workingColor: Color = BrandRed,
     val restColor: Color = AccentCyan,
     val repCounterGlow: Color = BrandCyan.copy(alpha = 0.18f),
     val gold: Color = Gold,
