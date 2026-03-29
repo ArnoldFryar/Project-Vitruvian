@@ -129,6 +129,16 @@ object HevyClient {
         "CROSSOVER UPRIGHT ROW"                      to "Upright Row (Cable)",
         "UPRIGHT ROW"                                to "Upright Row (Cable)",
         "UPRIGHT ROW (SC)"                           to "Upright Row (Cable)",
+        "LAWNMOWER SA ROW"                           to "Dumbbell Row",
+        "LAWNMOWER ROW"                              to "Dumbbell Row",
+        "DEAD BUG SA PRESS (STAGGERED)"              to "Dead Bug",
+        "DEAD BUG SA PRESS"                          to "Dead Bug",
+        "INCLINE FLY"                                to "Incline Chest Fly (Dumbbell)",
+        "OVERHEAD TRICEP EXTENSION"                  to "Overhead Tricep Extension (Cable)",
+        "WIDE GRIP BICEP CURL"                       to "Bicep Curl (Cable)",
+        "WIDE GRIP BICEP CURL "                      to "Bicep Curl (Cable)",
+        "STEP DOWNS"                                 to "Step Up",
+        "STEP DOWN"                                  to "Step Up",
     )
 
     // In-memory exercise name → template_id cache (keyed to API key so it
