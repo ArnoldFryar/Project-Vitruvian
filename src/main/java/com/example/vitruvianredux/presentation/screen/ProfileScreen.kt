@@ -1745,20 +1745,23 @@ fun ProfileScreen(
                         hevySyncMessage = null
                         scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                             var succeeded = 0
-                            var failed = 0
+                            var firstError: String? = null
                             unsynced.forEachIndexed { index, session ->
                                 HevyClient.pushSession(session)
                                     .onSuccess { succeeded++ }
-                                    .onFailure { failed++ }
+                                    .onFailure { e ->
+                                        if (firstError == null) firstError = e.message
+                                    }
                                 // Respect Hevy API rate limits between requests
                                 if (index < unsynced.lastIndex) delay(400L)
                             }
+                            val failed = unsynced.size - succeeded
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 hevySyncing = false
                                 hevySyncMessage = when {
                                     failed == 0 -> "Synced $succeeded workout${if (succeeded != 1) "s" else ""} to Hevy."
-                                    succeeded == 0 -> "Sync failed (${unsynced.size} workouts). Check your connection and try again."
-                                    else -> "Synced $succeeded, failed $failed. Tap again to retry the rest."
+                                    succeeded == 0 -> "All failed. Error: $firstError"
+                                    else -> "Synced $succeeded, failed $failed. Error: $firstError"
                                 }
                             }
                         }
