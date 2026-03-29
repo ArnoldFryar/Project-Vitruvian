@@ -3,21 +3,26 @@ package com.example.vitruvianredux.presentation.screen
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.vitruvianredux.ble.session.NextStep
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendGraph
 import com.example.vitruvianredux.presentation.repquality.RepQuality
@@ -118,18 +123,23 @@ fun RestScreenContent(
                 FatigueTrendGraph(scores = repScores)
             }
 
-            // ── Next step hint ────────────────────────────────────────────────
+            // ── Next step card ────────────────────────────────────────────────
             when (next) {
-                is NextStep.NextSet -> Text(
-                    text  = "Next: ${next.exerciseName}  (set ${next.setIndex + 1}/${next.totalSets})",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                )
-                is NextStep.WorkoutDone -> Text(
-                    text  = "Workout complete after this rest",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                )
+                is NextStep.NextSet -> NextExerciseCard(next = next, accentColor = ext.accentCyan)
+                is NextStep.WorkoutDone -> Surface(
+                    modifier = Modifier.fillMaxWidth(0.85f),
+                    shape    = RoundedCornerShape(AppDimens.Corner.md_sm),
+                    color    = ext.accentCyan.copy(alpha = 0.12f),
+                    border   = androidx.compose.foundation.BorderStroke(1.dp, ext.accentCyan.copy(alpha = 0.3f)),
+                ) {
+                    Text(
+                        text       = "Last rest — workout complete after this!",
+                        style      = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color      = ext.accentCyan,
+                        modifier   = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                    )
+                }
             }
 
             // ── Skip button ───────────────────────────────────────────────────
@@ -169,6 +179,73 @@ fun RestScreenContent(
                 shape = RoundedCornerShape(AppDimens.Corner.sm),
             ) {
                 Text("Edit Sets", fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NextExerciseCard(
+    next: NextStep.NextSet,
+    accentColor: androidx.compose.ui.graphics.Color,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(0.85f),
+        shape    = RoundedCornerShape(AppDimens.Corner.md_sm),
+        color    = MaterialTheme.colorScheme.surfaceVariant,
+        border   = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.25f)),
+    ) {
+        Row(
+            modifier            = Modifier.padding(AppDimens.Spacing.md_sm),
+            verticalAlignment   = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+        ) {
+            // Thumbnail or icon fallback
+            Box(
+                modifier         = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                    .background(accentColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (next.thumbnailUrl != null) {
+                    AsyncImage(
+                        model              = next.thumbnailUrl,
+                        contentDescription = null,
+                        contentScale       = ContentScale.Crop,
+                        modifier           = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint     = accentColor,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text       = "UP NEXT",
+                    style      = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color      = accentColor,
+                    letterSpacing = 2.sp,
+                )
+                Text(
+                    text       = next.exerciseName,
+                    style      = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = MaterialTheme.colorScheme.onSurface,
+                    maxLines   = 1,
+                    overflow   = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
+                Text(
+                    text  = "Set ${next.setIndex + 1} of ${next.totalSets}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                )
             }
         }
     }
