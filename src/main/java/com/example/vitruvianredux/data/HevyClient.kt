@@ -55,6 +55,7 @@ object HevyClient {
         ignoreUnknownKeys = true
         coerceInputValues  = true
         encodeDefaults     = true
+        explicitNulls      = false  // omit null fields so Hevy doesn't receive "reps":null etc.
     }
 
     private val http = HttpClient(Android) {

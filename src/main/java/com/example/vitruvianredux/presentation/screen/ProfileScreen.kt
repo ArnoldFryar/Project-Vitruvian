@@ -1757,8 +1757,8 @@ fun ProfileScreen(
                                 hevySyncing = false
                                 hevySyncMessage = when {
                                     failed == 0 -> "Synced $succeeded workout${if (succeeded != 1) "s" else ""} to Hevy."
-                                    succeeded == 0 -> "Sync failed. Check your connection and try again."
-                                    else -> "Synced $succeeded, failed $failed. Try again to push the rest."
+                                    succeeded == 0 -> "Sync failed (${unsynced.size} workouts). Check your connection and try again."
+                                    else -> "Synced $succeeded, failed $failed. Tap again to retry the rest."
                                 }
                             }
                         }
