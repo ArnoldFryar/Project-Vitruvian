@@ -69,7 +69,7 @@ fun ActivityHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Workout History", fontWeight = FontWeight.Bold) },
+                title = { Text("History", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")

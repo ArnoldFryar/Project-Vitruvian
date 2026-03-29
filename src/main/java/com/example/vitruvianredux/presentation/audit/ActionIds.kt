@@ -21,6 +21,7 @@ const val A_NAV_ACTIVITY = "nav_tab_activity"
 const val A_NAV_WORKOUT  = "nav_tab_workout"
 const val A_NAV_PROGRAMS = "nav_tab_programs"
 const val A_NAV_DEVICE   = "nav_tab_device"
+const val A_NAV_HISTORY  = "nav_tab_history"
 const val A_NAV_PROFILE  = "nav_tab_profile"
 const val A_NAV_DEBUG    = "nav_tab_debug"
 const val A_GLOBAL_CONNECT    = "global_connect"
@@ -107,6 +108,7 @@ val ALL_ACTION_DEFINITIONS: List<ActionDefinition> = listOf(
     ActionDefinition(A_NAV_WORKOUT,        "Workout Tab",          SCR_GLOBAL,   ExpectedOutcome.Navigate("workout")),
     ActionDefinition(A_NAV_PROGRAMS,       "Programs Tab",         SCR_GLOBAL,   ExpectedOutcome.Navigate("coaching")),
     ActionDefinition(A_NAV_DEVICE,         "Device Tab",           SCR_GLOBAL,   ExpectedOutcome.Navigate("device")),
+    ActionDefinition(A_NAV_HISTORY,        "History Tab",          SCR_GLOBAL,   ExpectedOutcome.Navigate("activity_history")),
     ActionDefinition(A_NAV_PROFILE,        "Profile Tab",          SCR_GLOBAL,   ExpectedOutcome.Navigate("profile")),
     ActionDefinition(A_NAV_DEBUG,          "Debug Tab",            SCR_GLOBAL,   ExpectedOutcome.Navigate("debug")),
     ActionDefinition(A_GLOBAL_CONNECT,     "TopBar Connect",       SCR_GLOBAL,   ExpectedOutcome.OpenSheet("device_picker")),

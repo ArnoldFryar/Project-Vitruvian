@@ -125,7 +125,7 @@ fun AppScaffold() {
         }
 
         val headerTitle = when (currentRoute) {
-            Route.Activity.path        -> "Activity"
+            Route.Activity.path        -> "Home"
             Route.Workout.path         -> "Workout"
             Route.Coaching.path        -> "Programs"
             Route.Device.path          -> "Device"
@@ -143,7 +143,7 @@ fun AppScaffold() {
         // Bottom bar should only show on top-level tabs
         val showBottomBar = currentRoute in setOf(
             Route.Activity.path, Route.Workout.path, Route.Coaching.path,
-            Route.Device.path, Route.Profile.path,
+            Route.ActivityHistory.path, Route.Profile.path,
         )
 
         var showDevicePicker by remember { mutableStateOf(false) }

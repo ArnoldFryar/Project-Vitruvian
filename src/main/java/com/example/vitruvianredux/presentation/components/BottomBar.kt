@@ -27,19 +27,19 @@ private data class NavItem(
 @Composable
 fun BottomBar(nav: NavController) {
     val items = listOf(
-        NavItem(Route.Activity, Icons.Default.Home,          Icons.Outlined.Home,          "Activity"),
-        NavItem(Route.Workout,  Icons.Default.FitnessCenter, Icons.Outlined.FitnessCenter, "Workout"),
-        NavItem(Route.Coaching, Icons.Default.PlayCircle,    Icons.Outlined.PlayCircle,    "Programs"),
-        NavItem(Route.Device,   Icons.Default.Bluetooth,     Icons.Outlined.Bluetooth,     "Device"),
-        NavItem(Route.Profile,  Icons.Default.Person,        Icons.Outlined.Person,        "Profile"),
+        NavItem(Route.Activity,        Icons.Default.Home,          Icons.Outlined.Home,          "Home"),
+        NavItem(Route.Workout,         Icons.Default.FitnessCenter, Icons.Outlined.FitnessCenter, "Workout"),
+        NavItem(Route.Coaching,        Icons.Default.Assignment,    Icons.Outlined.Assignment,    "Programs"),
+        NavItem(Route.ActivityHistory, Icons.Default.BarChart,      Icons.Outlined.BarChart,      "History"),
+        NavItem(Route.Profile,         Icons.Default.Person,        Icons.Outlined.Person,        "Profile"),
     )
     // Map route → wiring ID
     val navHitIds = mapOf(
-        Route.Activity to A_NAV_ACTIVITY,
-        Route.Workout  to A_NAV_WORKOUT,
-        Route.Coaching to A_NAV_PROGRAMS,
-        Route.Device   to A_NAV_DEVICE,
-        Route.Profile  to A_NAV_PROFILE,
+        Route.Activity        to A_NAV_ACTIVITY,
+        Route.Workout         to A_NAV_WORKOUT,
+        Route.Coaching        to A_NAV_PROGRAMS,
+        Route.ActivityHistory to A_NAV_HISTORY,
+        Route.Profile         to A_NAV_PROFILE,
     )
     val backStack = nav.currentBackStackEntryAsState()
     val startDestination = Route.Activity.path

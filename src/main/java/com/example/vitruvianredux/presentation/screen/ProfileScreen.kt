@@ -73,6 +73,7 @@ fun ProfileScreen(
     innerPadding: PaddingValues = PaddingValues(),
     bleVM: BleViewModel? = null,
     workoutVM: WorkoutSessionViewModel? = null,
+    onNavigateToDevice: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToAccount: () -> Unit = {},
 ) {
@@ -1711,6 +1712,24 @@ fun ProfileScreen(
                     )
                 }
                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        // ── Device Management ────────────────────────────────────────────
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDevice) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Bluetooth, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(AppDimens.Icon.lg))
+                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Device", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                    Text("Manage your Vitruvian trainer connection", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 

@@ -116,7 +116,8 @@ fun AppNavHost(
                 innerPadding = innerPadding,
                 bleVM = bleVM,
                 workoutVM = workoutVM,
-                onNavigateToDebug = { if (BuildConfig.IS_DEBUG_BUILD) nav.navigate(Route.Debug.path) },
+                onNavigateToDevice  = { nav.navigate(Route.Device.path) },
+                onNavigateToDebug   = { if (BuildConfig.IS_DEBUG_BUILD) nav.navigate(Route.Debug.path) },
                 onNavigateToAccount = { nav.navigate(Route.Account.path) },
             )
         }
