@@ -8,10 +8,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
@@ -24,6 +26,7 @@ import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.util.loadExercises
 import androidx.compose.ui.platform.LocalContext
@@ -46,10 +49,15 @@ fun ProgramDetailScreen(
     // Load exercise catalog for video/thumbnail URLs
     val context = LocalContext.current
     var exerciseCatalog by remember { mutableStateOf<Map<String, Exercise>>(emptyMap()) }
+    var isLoadingCatalog by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
-        exerciseCatalog = try {
-            withContext(Dispatchers.IO) { loadExercises(context) }.associateBy { it.stableKey }
-        } catch (_: Exception) { emptyMap() }
+        try {
+            exerciseCatalog = withContext(Dispatchers.IO) { loadExercises(context) }.associateBy { it.stableKey }
+        } catch (_: Exception) {
+            exerciseCatalog = emptyMap()
+        } finally {
+            isLoadingCatalog = false
+        }
     }
 
     // If the program was deleted (or never existed), return immediately.
@@ -124,6 +132,8 @@ fun ProgramDetailScreen(
                             program.name,
                             style      = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
+                            maxLines   = 1,
+                            overflow   = TextOverflow.Ellipsis,
                         )
                         Spacer(Modifier.height(4.dp))
                         val daysLabel = formatScheduledDays(program.scheduledDays)
@@ -140,8 +150,12 @@ fun ProgramDetailScreen(
             Spacer(Modifier.height(AppDimens.Spacing.xl))
 
             // ── Start ───────────────────────────────────────────────────────
-            Button(
-                onClick = {
+            GradientButton(
+                text     = if (isLoadingCatalog) "Loading exercise data…" else "Start Workout",
+                icon     = if (isLoadingCatalog) null else Icons.Default.PlayArrow,
+                enabled  = !isLoadingCatalog,
+                modifier = Modifier.fillMaxWidth(),
+                onClick  = {
                     WiringRegistry.hit(A_PROGRAMS_DETAIL_START)
                     WiringRegistry.recordOutcome(
                         A_PROGRAMS_DETAIL_START,
@@ -149,12 +163,8 @@ fun ProgramDetailScreen(
                     )
                     val sets = CircuitSetBuilder.build(program.items, exerciseCatalog)
                     workoutVM.startProgramWorkout(programId, sets)
-                    // We don't need to navigate to WorkoutScreen anymore, the global overlay will show
                 },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Start Workout")
-            }
+            )
 
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 

@@ -24,6 +24,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -271,7 +272,7 @@ fun ProgramsScreen(
                             Icon(Icons.Default.FitnessCenter, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(AppDimens.Icon.xl))
                             Spacer(Modifier.width(AppDimens.Spacing.md))
                             Column(Modifier.weight(1f)) {
-                                Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                                Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                 val daysLabel = formatScheduledDays(p.scheduledDays)
                                 Text(
