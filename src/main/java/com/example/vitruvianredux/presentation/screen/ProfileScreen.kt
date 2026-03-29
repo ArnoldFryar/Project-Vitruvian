@@ -44,6 +44,7 @@ import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.data.HevyClient
 import com.example.vitruvianredux.data.HevyStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.UnitsStore
@@ -1712,6 +1713,66 @@ fun ProfileScreen(
                     )
                 }
                 Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        // ── Hevy manual re-sync ──────────────────────────────────────────────
+        AnimatedVisibility(visible = hevyEnabled) {
+            val allLogs by AnalyticsStore.logsFlow.collectAsState()
+            val scope = rememberCoroutineScope()
+            var hevySyncing by remember { mutableStateOf(false) }
+            var hevySyncMessage by remember { mutableStateOf<String?>(null) }
+
+            Column {
+                Spacer(Modifier.height(AppDimens.Spacing.xs))
+                OutlinedButton(
+                    onClick = {
+                        val recent = allLogs.sortedByDescending { it.endTimeMs }.take(5)
+                        if (recent.isEmpty()) {
+                            hevySyncMessage = "No workouts to sync yet."
+                            return@OutlinedButton
+                        }
+                        hevySyncing = true
+                        hevySyncMessage = null
+                        scope.launch {
+                            var succeeded = 0
+                            var failed = 0
+                            recent.forEach { session ->
+                                HevyClient.pushSession(session)
+                                    .onSuccess { succeeded++ }
+                                    .onFailure { failed++ }
+                            }
+                            hevySyncing = false
+                            hevySyncMessage = when {
+                                failed == 0 -> "Synced $succeeded session${if (succeeded != 1) "s" else ""} successfully."
+                                succeeded == 0 -> "Sync failed. Check your API key and connection."
+                                else -> "Synced $succeeded, failed $failed. Check your connection."
+                            }
+                        }
+                    },
+                    enabled = !hevySyncing,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (hevySyncing) {
+                        CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Text("Syncing\u2026")
+                    } else {
+                        Icon(Icons.Default.Sync, null, modifier = Modifier.size(AppDimens.Icon.md))
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Text("Re-sync Last 5 Workouts")
+                    }
+                }
+                hevySyncMessage?.let { msg ->
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
+                    Text(
+                        msg,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (msg.startsWith("Synced") && !msg.contains("failed"))
+                            AccentCyan else MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs),
+                    )
+                }
             }
         }
 

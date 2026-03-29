@@ -138,14 +138,15 @@ object HevyClient {
     // ── Public API ─────────────────────────────────────────────────────────
 
     /**
-     * Push a completed session to Hevy asynchronously.
-     * Silently logs errors — never throws.
+     * Push a completed session to Hevy.
+     * Returns [Result.success] on HTTP 2xx, [Result.failure] on any error.
+     * Never throws.
      */
-    suspend fun pushSession(session: AnalyticsStore.SessionLog) {
+    suspend fun pushSession(session: AnalyticsStore.SessionLog): Result<Unit> {
         val apiKey = HevyStore.apiKey
-        if (!HevyStore.enabled || apiKey.isBlank()) return
+        if (!HevyStore.enabled || apiKey.isBlank()) return Result.success(Unit)
 
-        try {
+        return try {
             // Refresh template cache if API key changed
             if (apiKey != cacheKey) {
                 templateCache.clear()
@@ -156,7 +157,7 @@ object HevyClient {
             val exercises = buildExercises(session)
             if (exercises.isEmpty()) {
                 Timber.tag(TAG).w("Session ${session.id} has no exercises — skipping Hevy push")
-                return
+                return Result.failure(IllegalStateException("Session has no exercises"))
             }
 
             val body = WorkoutRequest(
@@ -177,11 +178,15 @@ object HevyClient {
 
             if (response.status.isSuccess()) {
                 Timber.tag(TAG).i("Hevy push OK for session ${session.id} (${response.status})")
+                Result.success(Unit)
             } else {
-                Timber.tag(TAG).w("Hevy push failed: ${response.status} — ${response.bodyAsText()}")
+                val msg = "HTTP ${response.status.value}: ${response.bodyAsText().take(120)}"
+                Timber.tag(TAG).w("Hevy push failed: $msg")
+                Result.failure(Exception(msg))
             }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Hevy push error for session ${session.id}: ${e.message}")
+            Result.failure(e)
         }
     }
 
