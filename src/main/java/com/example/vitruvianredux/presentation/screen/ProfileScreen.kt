@@ -50,6 +50,7 @@ import com.example.vitruvianredux.data.HevyStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
@@ -1744,17 +1745,19 @@ fun ProfileScreen(
                         scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                             var succeeded = 0
                             var failed = 0
-                            unsynced.forEach { session ->
+                            unsynced.forEachIndexed { index, session ->
                                 HevyClient.pushSession(session)
                                     .onSuccess { succeeded++ }
                                     .onFailure { failed++ }
+                                // Respect Hevy API rate limits between requests
+                                if (index < unsynced.lastIndex) delay(400L)
                             }
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 hevySyncing = false
                                 hevySyncMessage = when {
                                     failed == 0 -> "Synced $succeeded workout${if (succeeded != 1) "s" else ""} to Hevy."
-                                    succeeded == 0 -> "Sync failed. Check your API key and connection."
-                                    else -> "Synced $succeeded, failed $failed. Check your API key."
+                                    succeeded == 0 -> "Sync failed. Check your connection and try again."
+                                    else -> "Synced $succeeded, failed $failed. Try again to push the rest."
                                 }
                             }
                         }

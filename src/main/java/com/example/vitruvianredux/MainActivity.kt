@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
 
             WorkoutHistoryStore.init(applicationContext)
             AnalyticsStore.init(applicationContext)
+            HevySyncStore.seedIfFirstRun(AnalyticsStore.logsFlow.value.map { it.id })
             HistorySeedManager.seed(applicationContext)
             PersonalBestStore.init(lifecycleScope)
             ActivityStatsStore.seedFromAnalytics()

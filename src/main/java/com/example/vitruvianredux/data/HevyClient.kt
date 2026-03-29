@@ -180,6 +180,11 @@ object HevyClient {
                 Timber.tag(TAG).i("Hevy push OK for session ${session.id} (${response.status})")
                 HevySyncStore.markSynced(session.id)
                 Result.success(Unit)
+            } else if (response.status.value == 409) {
+                // 409 = Conflict: workout already exists in Hevy — mark as synced, not a failure
+                Timber.tag(TAG).i("Hevy: session ${session.id} already exists (409) — marking synced")
+                HevySyncStore.markSynced(session.id)
+                Result.success(Unit)
             } else {
                 val msg = "HTTP ${response.status.value}: ${response.bodyAsText().take(120)}"
                 Timber.tag(TAG).w("Hevy push failed: $msg")
