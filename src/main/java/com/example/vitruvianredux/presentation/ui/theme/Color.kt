@@ -7,7 +7,6 @@ import androidx.compose.ui.graphics.Color
 // ── Brand ──────────────────────────────────────────────────────────────
 val BrandCyan     = Color(0xFF22D3EE)   // electric cyan — primary accent
 val BrandRed      = Color(0xFFFF4D4D)   // hard red — working set / eccentric phase
-val BrandBlue     = Color(0xFF3B82F6)   // steel blue — secondary / static phase
 
 // ── Premium accent system ──────────────────────────────────────────────
 val AccentCyan    = Color(0xFF06D6A0)   // success / positive metrics
