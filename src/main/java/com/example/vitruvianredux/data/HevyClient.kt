@@ -371,11 +371,14 @@ object HevyClient {
                 if (!resp.status.isSuccess()) {
                     return Result.failure(Exception("HTTP ${resp.status.value}: ${resp.bodyAsText().take(120)}"))
                 }
-                val parsed = json.decodeFromString<RoutinesResponse>(resp.bodyAsText())
+                val body = resp.bodyAsText()
+                Timber.tag(TAG).d("fetchRoutines page=$page body=${body.take(500)}")
+                val parsed = json.decodeFromString<RoutinesResponse>(body)
+                Timber.tag(TAG).d("fetchRoutines parsed ${parsed.routines.size} routines")
                 parsed.routines.forEach { r ->
                     val exercises = r.exercises.mapNotNull { ex ->
-                        val templateTitle = ex.exercise_template?.title ?: return@mapNotNull null
-                        val templateId    = ex.exercise_template.id
+                        val templateTitle = ex.title ?: return@mapNotNull null
+                        val templateId    = ex.exercise_template_id ?: templateTitle
                         val firstSet      = ex.sets.firstOrNull()
                         val weightLb      = firstSet?.weight_kg?.let { kg ->
                             (kg * 2.20462).toInt().coerceAtLeast(0)
@@ -455,14 +458,9 @@ object HevyClient {
 
     @Serializable
     private data class RoutineExerciseDto(
-        val exercise_template: RoutineTemplateRef? = null,
+        val title: String? = null,
+        val exercise_template_id: String? = null,
         val sets: List<RoutineSetDto> = emptyList(),
-    )
-
-    @Serializable
-    private data class RoutineTemplateRef(
-        val id: String,
-        val title: String,
     )
 
     @Serializable
