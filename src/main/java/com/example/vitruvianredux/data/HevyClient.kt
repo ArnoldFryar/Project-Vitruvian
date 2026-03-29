@@ -157,7 +157,7 @@ object HevyClient {
             val exercises = buildExercises(session)
             if (exercises.isEmpty()) {
                 Timber.tag(TAG).w("Session ${session.id} has no exercises — skipping Hevy push")
-                return Result.failure(IllegalStateException("Session has no exercises"))
+                return Result.success(Unit) // nothing to push, not a failure
             }
 
             val body = WorkoutRequest(
@@ -178,6 +178,7 @@ object HevyClient {
 
             if (response.status.isSuccess()) {
                 Timber.tag(TAG).i("Hevy push OK for session ${session.id} (${response.status})")
+                HevySyncStore.markSynced(session.id)
                 Result.success(Unit)
             } else {
                 val msg = "HTTP ${response.status.value}: ${response.bodyAsText().take(120)}"

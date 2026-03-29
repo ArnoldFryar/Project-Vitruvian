@@ -45,6 +45,7 @@ import com.example.vitruvianredux.data.HealthConnectManager
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.data.HevyClient
+import com.example.vitruvianredux.data.HevySyncStore
 import com.example.vitruvianredux.data.HevyStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.UnitsStore
@@ -1723,30 +1724,38 @@ fun ProfileScreen(
             var hevySyncing by remember { mutableStateOf(false) }
             var hevySyncMessage by remember { mutableStateOf<String?>(null) }
 
+            // Only consider sessions that haven't been successfully pushed yet
+            val unsynced = remember(allLogs) {
+                allLogs
+                    .sortedByDescending { it.endTimeMs }
+                    .filter { !HevySyncStore.isSynced(it.id) }
+            }
+
             Column {
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
                 OutlinedButton(
                     onClick = {
-                        val recent = allLogs.sortedByDescending { it.endTimeMs }.take(5)
-                        if (recent.isEmpty()) {
-                            hevySyncMessage = "No workouts to sync yet."
+                        if (unsynced.isEmpty()) {
+                            hevySyncMessage = "All workouts are already synced to Hevy."
                             return@OutlinedButton
                         }
                         hevySyncing = true
                         hevySyncMessage = null
-                        scope.launch {
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                             var succeeded = 0
                             var failed = 0
-                            recent.forEach { session ->
+                            unsynced.forEach { session ->
                                 HevyClient.pushSession(session)
                                     .onSuccess { succeeded++ }
                                     .onFailure { failed++ }
                             }
-                            hevySyncing = false
-                            hevySyncMessage = when {
-                                failed == 0 -> "Synced $succeeded session${if (succeeded != 1) "s" else ""} successfully."
-                                succeeded == 0 -> "Sync failed. Check your API key and connection."
-                                else -> "Synced $succeeded, failed $failed. Check your connection."
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                hevySyncing = false
+                                hevySyncMessage = when {
+                                    failed == 0 -> "Synced $succeeded workout${if (succeeded != 1) "s" else ""} to Hevy."
+                                    succeeded == 0 -> "Sync failed. Check your API key and connection."
+                                    else -> "Synced $succeeded, failed $failed. Check your API key."
+                                }
                             }
                         }
                     },
@@ -1760,7 +1769,10 @@ fun ProfileScreen(
                     } else {
                         Icon(Icons.Default.Sync, null, modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
-                        Text("Re-sync Last 5 Workouts")
+                        Text(
+                            if (unsynced.isEmpty()) "All workouts synced \u2713"
+                            else "Sync ${unsynced.size} Unsynced Workout${if (unsynced.size != 1) "s" else ""}"
+                        )
                     }
                 }
                 hevySyncMessage?.let { msg ->
@@ -1768,7 +1780,7 @@ fun ProfileScreen(
                     Text(
                         msg,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (msg.startsWith("Synced") && !msg.contains("failed"))
+                        color = if (msg.contains("Synced") && !msg.contains("failed"))
                             AccentCyan else MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs),
                     )
