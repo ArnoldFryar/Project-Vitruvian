@@ -38,6 +38,7 @@ enum class Route(val path: String) {
     Sync("sync"),
     Account("account"),
     ImportProgram("import_program"),
+    HevyImport("hevy_import"),
     SessionDetail("session_detail"),
     TemplatePreview("template_preview"),
     ExerciseDataDetail("exercise_data"),
@@ -100,8 +101,9 @@ fun AppNavHost(
                 onNavigateToProgramDetail = { programId ->
                     nav.navigate("${Route.ProgramDetail.path}/${Uri.encode(programId)}")
                 },
-                onNavigateToTemplates    = { nav.navigate(Route.Templates.path) },
-                onNavigateToImport       = { nav.navigate(Route.ImportProgram.path) },
+                onNavigateToTemplates       = { nav.navigate(Route.Templates.path) },
+                onNavigateToImport          = { nav.navigate(Route.ImportProgram.path) },
+                onNavigateToHevyImport      = { nav.navigate(Route.HevyImport.path) },
             )
         }
         composable(Route.Device.path)    {
@@ -225,6 +227,12 @@ fun AppNavHost(
                 sessionId    = sessionId,
                 exerciseName = exerciseName,
                 onBack       = { nav.popBackStack() },
+            )
+        }
+        composable(Route.HevyImport.path) {
+            HevyImportScreen(
+                onBack           = { nav.popBackStack() },
+                onImportComplete = { nav.popBackStack() },
             )
         }
         // Import program (paste JSON / share-sheet)

@@ -31,6 +31,7 @@ import androidx.compose.ui.zIndex
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.data.HevyStore
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
@@ -56,9 +57,11 @@ fun ProgramsScreen(
     onNavigateToProgramDetail: (String) -> Unit = {},
     onNavigateToTemplates: () -> Unit = {},
     onNavigateToImport: () -> Unit = {},
+    onNavigateToHevyImport: () -> Unit = {},
 ) {
     val programs by savedProgramsFlow.collectAsState()
     var showBuilder by remember { mutableStateOf(false) }
+    val hevyEnabled by HevyStore.enabledFlow.collectAsState()
 
     // Ordered list -- preserves user order across external changes
     var orderedPrograms by remember { mutableStateOf(programs) }
@@ -169,6 +172,35 @@ fun ProgramsScreen(
                     }
                 }
                 Spacer(Modifier.height(AppDimens.Spacing.lg))
+            }
+
+            if (hevyEnabled) {
+                item(key = "hevy_import") {
+                    val hevyInteraction = remember { MutableInteractionSource() }
+                    val hevyPressed by hevyInteraction.collectIsPressedAsState()
+                    val hevyScale by animateFloatAsState(
+                        targetValue   = if (hevyPressed) MotionTokens.PRESS_SCALE else 1f,
+                        animationSpec = MotionTokens.SnapSpring, label = "hevyScale",
+                    )
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth()
+                            .graphicsLayer(scaleX = hevyScale, scaleY = hevyScale)
+                            .clickable(interactionSource = hevyInteraction, indication = null) { onNavigateToHevyImport() },
+                        shape    = MaterialTheme.shapes.medium,
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CloudDownload, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+                            Spacer(Modifier.width(AppDimens.Spacing.md))
+                            Column(Modifier.weight(1f)) {
+                                Text("Import from Hevy", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                Text("Bring your Hevy routines into Vitruvian", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(Modifier.height(AppDimens.Spacing.lg))
+                }
             }
 
             item(key = "programs_header") {

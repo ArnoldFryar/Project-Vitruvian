@@ -343,4 +343,131 @@ object HevyClient {
         val id: String,
         val title: String,
     )
+
+    // ── Routines (for import) ──────────────────────────────────────────────
+
+    /**
+     * Fetch all Hevy routines for the authenticated user and convert them to
+     * [ImportedProgram] objects ready for the import/disambiguation pipeline.
+     *
+     * Each routine becomes one [ImportedProgram]. Exercise weight targets are
+     * taken from the first set (kg → lb). Set counts come from the sets array.
+     */
+    suspend fun fetchRoutines(): Result<List<ImportedProgram>> {
+        val apiKey = HevyStore.apiKey
+        if (!HevyStore.enabled || apiKey.isBlank()) {
+            return Result.failure(Exception("Hevy is not configured. Enable it in Profile > Hevy Sync."))
+        }
+        return try {
+            var page = 1
+            val all = mutableListOf<ImportedProgram>()
+            while (true) {
+                val resp: HttpResponse = http.get("$BASE_URL/v1/routines") {
+                    header("api-key", apiKey)
+                    parameter("page", page)
+                    parameter("pageSize", PAGE_SIZE)
+                }
+                if (!resp.status.isSuccess()) {
+                    return Result.failure(Exception("HTTP ${resp.status.value}: ${resp.bodyAsText().take(120)}"))
+                }
+                val parsed = json.decodeFromString<RoutinesResponse>(resp.bodyAsText())
+                parsed.routines.forEach { r ->
+                    val exercises = r.exercises.mapNotNull { ex ->
+                        val templateTitle = ex.exercise_template?.title ?: return@mapNotNull null
+                        val templateId    = ex.exercise_template.id
+                        val firstSet      = ex.sets.firstOrNull()
+                        val weightLb      = firstSet?.weight_kg?.let { kg ->
+                            (kg * 2.20462).toInt().coerceAtLeast(0)
+                        } ?: 0
+                        val reps          = firstSet?.reps?.coerceIn(1, 100) ?: 10
+                        ImportedExercise(
+                            exerciseId              = templateId,
+                            exerciseName            = templateTitle,
+                            mode                    = ExerciseMode.REPS,
+                            sets                    = ex.sets.size.coerceIn(1, 20),
+                            reps                    = reps,
+                            durationSec             = null,
+                            targetWeightLb          = weightLb,
+                            programMode             = "Old School",
+                            progressionRegressionLb = 0,
+                            restTimerSec            = 60,
+                        )
+                    }
+                    if (exercises.isNotEmpty()) {
+                        all.add(ImportedProgram(name = r.title, exercises = exercises))
+                    }
+                }
+                if (parsed.routines.size < PAGE_SIZE) break
+                page++
+            }
+            if (all.isEmpty()) {
+                Result.failure(Exception("No routines found in your Hevy account. Create one in Hevy first."))
+            } else {
+                Result.success(all)
+            }
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "fetchRoutines error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    /** Serialise a list of [ImportedProgram]s to the app's standard JSON import format. */
+    fun routinesToImportJson(programs: List<ImportedProgram>): String {
+        return org.json.JSONObject().apply {
+            put("schemaVersion", 1)
+            put("programs", org.json.JSONArray().also { arr ->
+                programs.forEach { p ->
+                    arr.put(org.json.JSONObject().apply {
+                        put("name", p.name)
+                        put("exercises", org.json.JSONArray().also { exArr ->
+                            p.exercises.forEach { ex ->
+                                exArr.put(org.json.JSONObject().apply {
+                                    put("exerciseId",              ex.exerciseId)
+                                    put("exerciseName",            ex.exerciseName)
+                                    put("mode",                    ex.mode.name)
+                                    put("sets",                    ex.sets)
+                                    put("reps",                    ex.reps ?: 10)
+                                    put("targetWeightLb",          ex.targetWeightLb)
+                                    put("programMode",             ex.programMode)
+                                    put("progressionRegressionLb", ex.progressionRegressionLb)
+                                    put("restTimerSec",            ex.restTimerSec)
+                                })
+                            }
+                        })
+                    })
+                }
+            })
+        }.toString()
+    }
+
+    @Serializable
+    private data class RoutinesResponse(
+        val routines: List<RoutineDto> = emptyList(),
+    )
+
+    @Serializable
+    private data class RoutineDto(
+        val id: String,
+        val title: String,
+        val exercises: List<RoutineExerciseDto> = emptyList(),
+    )
+
+    @Serializable
+    private data class RoutineExerciseDto(
+        val exercise_template: RoutineTemplateRef? = null,
+        val sets: List<RoutineSetDto> = emptyList(),
+    )
+
+    @Serializable
+    private data class RoutineTemplateRef(
+        val id: String,
+        val title: String,
+    )
+
+    @Serializable
+    private data class RoutineSetDto(
+        val type: String = "normal",
+        val weight_kg: Double? = null,
+        val reps: Int? = null,
+    )
 }
