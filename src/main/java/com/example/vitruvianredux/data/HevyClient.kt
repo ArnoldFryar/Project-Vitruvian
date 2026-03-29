@@ -231,9 +231,10 @@ object HevyClient {
             session.exerciseSets.forEach { s ->
                 grouped.getOrPut(s.exerciseName) { mutableListOf() }.add(s)
             }
-            return grouped.map { (name, sets) ->
+            return grouped.mapNotNull { (name, sets) ->
+                val templateId = resolveTemplateId(name) ?: return@mapNotNull null
                 ExercisePayload(
-                    exercise_template_id = resolveTemplateId(name),
+                    exercise_template_id = templateId,
                     notes                = null,
                     sets                 = sets.map { s ->
                         SetPayload(
@@ -251,9 +252,10 @@ object HevyClient {
         }
 
         // Fallback: name-only list, no set details
-        return session.exerciseNames.map { name ->
+        return session.exerciseNames.mapNotNull { name ->
+            val templateId = resolveTemplateId(name) ?: return@mapNotNull null
             ExercisePayload(
-                exercise_template_id = resolveTemplateId(name),
+                exercise_template_id = templateId,
                 notes                = null,
                 sets                 = listOf(
                     SetPayload(type = "normal", weight_kg = null, reps = null, rpe = null)
@@ -263,13 +265,13 @@ object HevyClient {
     }
 
     /**
-     * Resolve an exercise name to a Hevy template ID.
+     * Resolve an exercise name to a Hevy template ID (a UUID string).
      * 1. Checks static Vitruvian→Hevy name overrides first.
      * 2. Exact match in fetched template cache.
      * 3. Substring match.
-     * 4. Falls back to Hevy canonical name (or raw name) so nothing is lost.
+     * 4. Returns null if no template found — caller should skip the exercise.
      */
-    private fun resolveTemplateId(name: String): String {
+    private fun resolveTemplateId(name: String): String? {
         val upper = name.uppercase()
         // Apply static override to get canonical Hevy name if known
         val hevyName  = STATIC_NAME_OVERRIDES[upper] ?: name
@@ -278,13 +280,9 @@ object HevyClient {
         templateCache[hevyUpper]?.let { return it }
         // Substring — find any template whose title contains the (possibly translated) name
         templateCache.entries.firstOrNull { hevyUpper in it.key }?.let { return it.value }
-        // No match — use canonical Hevy name as fallback (better than Vitruvian variant)
-        if (hevyName != name) {
-            Timber.tag(TAG).d("No template ID for '$name' → using override name '$hevyName'")
-        } else {
-            Timber.tag(TAG).d("No Hevy template for '$name' — using title fallback")
-        }
-        return hevyName
+        // No match — skip this exercise to avoid HTTP 400
+        Timber.tag(TAG).d("No Hevy template for '$name' — skipping exercise")
+        return null
     }
 
     private fun buildTitle(session: AnalyticsStore.SessionLog): String {
