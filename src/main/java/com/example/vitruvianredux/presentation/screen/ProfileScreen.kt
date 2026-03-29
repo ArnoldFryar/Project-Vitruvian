@@ -1725,11 +1725,12 @@ fun ProfileScreen(
             var hevySyncing by remember { mutableStateOf(false) }
             var hevySyncMessage by remember { mutableStateOf<String?>(null) }
 
-            // Only consider sessions that haven't been successfully pushed yet
+            // Only consider unsynced sessions from the last 7 days
+            val sevenDaysAgo = remember { System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000 }
             val unsynced = remember(allLogs) {
                 allLogs
+                    .filter { it.endTimeMs >= sevenDaysAgo && !HevySyncStore.isSynced(it.id) }
                     .sortedByDescending { it.endTimeMs }
-                    .filter { !HevySyncStore.isSynced(it.id) }
             }
 
             Column {
