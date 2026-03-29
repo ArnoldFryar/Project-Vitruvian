@@ -49,7 +49,8 @@ object HevyClient {
 
     private const val TAG        = "HevyClient"
     private const val BASE_URL   = "https://api.hevyapp.com"
-    private const val PAGE_SIZE  = 100
+    private const val PAGE_SIZE          = 100
+    private const val ROUTINES_PAGE_SIZE  = 10
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -365,7 +366,7 @@ object HevyClient {
                 val resp: HttpResponse = http.get("$BASE_URL/v1/routines") {
                     header("api-key", apiKey)
                     parameter("page", page)
-                    parameter("pageSize", PAGE_SIZE)
+                    parameter("pageSize", ROUTINES_PAGE_SIZE)
                 }
                 if (!resp.status.isSuccess()) {
                     return Result.failure(Exception("HTTP ${resp.status.value}: ${resp.bodyAsText().take(120)}"))
@@ -397,7 +398,7 @@ object HevyClient {
                         all.add(ImportedProgram(name = r.title, exercises = exercises))
                     }
                 }
-                if (parsed.routines.size < PAGE_SIZE) break
+                if (parsed.routines.size < ROUTINES_PAGE_SIZE) break
                 page++
             }
             if (all.isEmpty()) {
