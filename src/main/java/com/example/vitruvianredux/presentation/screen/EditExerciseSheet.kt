@@ -23,6 +23,7 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramItemDraft
+import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.GradientButton
@@ -64,6 +65,8 @@ fun EditExerciseSheet(
     var restTimerSec  by remember { mutableIntStateOf(item.restTimerSec) }
     var isSuperset    by remember { mutableStateOf(item.circuitGroup != null) }
     var circuitGroup  by remember { mutableIntStateOf(item.circuitGroup ?: 1) }
+    val pbMap          by PersonalBestStore.summariesFlow.collectAsState()
+    val prLb           = pbMap[item.exerciseName.lowercase().trim()]?.bestWeightLb ?: 0
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -241,6 +244,39 @@ fun EditExerciseSheet(
                         color  = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 4.dp),
                     )
+                }
+                if (prLb > 0) {
+                    val currentLb = (weightKg * UnitConversions.LB_PER_KG).roundToInt()
+                    val isNewPr   = currentLb >= prLb
+                    val pct       = (currentLb.toFloat() / prLb * 100f).roundToInt().coerceIn(0, 999)
+                    Surface(
+                        shape    = RoundedCornerShape(50),
+                        color    = if (isNewPr) MaterialTheme.colorScheme.secondaryContainer
+                                   else        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+                        modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+                    ) {
+                        Row(
+                            modifier              = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment     = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            if (isNewPr) {
+                                Icon(
+                                    imageVector        = Icons.Default.Star,
+                                    contentDescription = null,
+                                    modifier           = Modifier.size(11.dp),
+                                    tint               = MaterialTheme.colorScheme.secondary,
+                                )
+                            }
+                            Text(
+                                text       = if (isNewPr) "New PR weight!" else "$pct% of PR",
+                                style      = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (isNewPr) FontWeight.Bold else FontWeight.Medium,
+                                color      = if (isNewPr) MaterialTheme.colorScheme.secondary
+                                             else        MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
 
                 // Progression / Regression

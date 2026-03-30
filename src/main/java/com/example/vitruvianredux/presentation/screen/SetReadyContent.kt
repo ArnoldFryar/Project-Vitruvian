@@ -38,8 +38,10 @@ import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
 import com.example.vitruvianredux.presentation.components.ValueStepper
+import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.util.UnitConversions
+import kotlin.math.roundToInt
 
 @Composable
 internal fun SetReadyContent(
@@ -88,6 +90,23 @@ internal fun SetReadyContent(
     onEccentricPctChange: (Int) -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
+
+    val pbMap           by PersonalBestStore.summariesFlow.collectAsState()
+    val prLb             = pbMap[exerciseName.lowercase().trim()]?.bestWeightLb ?: 0
+    val currentWeightLb  = resistanceLb.roundToInt()
+    val isNewPr          = prLb > 0 && !isEchoMode && currentWeightLb >= prLb
+    val chipBg by animateColorAsState(
+        targetValue   = if (isNewPr) MaterialTheme.colorScheme.secondaryContainer
+                        else        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+        animationSpec = tween(300),
+        label         = "prChipBg",
+    )
+    val chipFg by animateColorAsState(
+        targetValue   = if (isNewPr) MaterialTheme.colorScheme.secondary
+                        else        MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(300),
+        label         = "prChipFg",
+    )
 
     Column(
         modifier = modifier
@@ -290,6 +309,37 @@ internal fun SetReadyContent(
                         visibleItemCount = 3,
                         itemHeight       = 32.dp,
                         modifier         = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+
+        // ── PR percentage indicator ──────────────────────────────────────
+        if (prLb > 0 && !isEchoMode) {
+            Spacer(Modifier.height(4.dp))
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = chipBg,
+            ) {
+                Row(
+                    modifier              = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (isNewPr) {
+                        Icon(
+                            imageVector        = Icons.Default.Star,
+                            contentDescription = null,
+                            modifier           = Modifier.size(11.dp),
+                            tint               = chipFg,
+                        )
+                    }
+                    Text(
+                        text       = if (isNewPr) "New PR weight!"
+                                     else "${(resistanceLb / prLb.toFloat() * 100f).roundToInt()}% of PR",
+                        style      = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (isNewPr) FontWeight.Bold else FontWeight.Medium,
+                        color      = chipFg,
                     )
                 }
             }
