@@ -34,8 +34,8 @@ object ActivityStatsStore {
      * Call once after [AnalyticsStore.init] on app startup.
      */
     fun seedFromAnalytics() {
-        val weeklyVolumeKg = AnalyticsStore.weeklyVolumesKg(1).sumOf { it.second }
-        val weeklySessions = AnalyticsStore.sessionsPerWeek(1).sumOf { it.second }
+        val weeklyVolumeKg = AnalyticsStore.rollingVolumeKg(7)
+        val weeklySessions = AnalyticsStore.rollingSessionCount(7)
         val streak = AnalyticsStore.currentStreak()
         _stats.value = Stats(
             volumeKg = weeklyVolumeKg,

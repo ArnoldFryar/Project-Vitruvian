@@ -140,6 +140,22 @@ object AnalyticsStore {
         return if (recent.isEmpty()) 0 else recent.sumOf { it.durationSec } / recent.size
     }
 
+    /** Total volume (kg) over a rolling [days]-day window ending today. */
+    fun rollingVolumeKg(days: Int = 7): Double {
+        val zone   = ZoneId.systemDefault()
+        val cutoff = LocalDate.now().minusDays(days.toLong() - 1)
+        return _logs.value
+            .filter { Instant.ofEpochMilli(it.endTimeMs).atZone(zone).toLocalDate() >= cutoff }
+            .sumOf { it.totalVolumeKg }
+    }
+
+    /** Number of sessions over a rolling [days]-day window ending today. */
+    fun rollingSessionCount(days: Int = 7): Int {
+        val zone   = ZoneId.systemDefault()
+        val cutoff = LocalDate.now().minusDays(days.toLong() - 1)
+        return _logs.value.count { Instant.ofEpochMilli(it.endTimeMs).atZone(zone).toLocalDate() >= cutoff }
+    }
+
     /** Total volume (kg) per calendar week for last [weeks] weeks (current week first). */
     fun weeklyVolumesKg(weeks: Int): List<Pair<LocalDate, Double>> {
         val zone = ZoneId.systemDefault()

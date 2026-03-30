@@ -83,10 +83,10 @@ fun HomeScreen(
         } catch (_: Exception) { emptyMap() }
     }
 
-    // Real stats from AnalyticsStore — calendar-week semantics match ProfileScreen.
+    // Real stats from AnalyticsStore — rolling 7-day window matches the "Last 7 days" label.
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
-    val weekVolumeKg = remember(allLogs) { AnalyticsStore.weeklyVolumesKg(1).lastOrNull()?.second ?: 0.0 }
-    val weekSessions = remember(allLogs) { AnalyticsStore.sessionsPerWeek(1).lastOrNull()?.second ?: 0 }
+    val weekVolumeKg  = remember(allLogs) { AnalyticsStore.rollingVolumeKg(7) }
+    val weekSessions  = remember(allLogs) { AnalyticsStore.rollingSessionCount(7) }
     val currentStreak = remember(allLogs) { AnalyticsStore.currentStreak() }
     val volumeValue = UnitConversions.formatVolumeFromKg(weekVolumeKg, unitSystem)
     val volumeLabel = "Volume (${UnitConversions.unitLabel(unitSystem)})"
