@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.repquality
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -25,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -75,14 +78,14 @@ fun RepQualityBadge(
             color = bgColor,
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = 3.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                 verticalAlignment     = Alignment.CenterVertically,
             ) {
                 Icon(
                     imageVector        = Icons.Default.Star,
-                    contentDescription = null,
-                    modifier           = Modifier.size(12.dp),
+                    contentDescription = stringResource(R.string.cd_personal_record),
+                    modifier           = Modifier.size(AppDimens.Icon.xs),
                     tint               = fgColor,
                 )
                 Text(

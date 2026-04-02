@@ -10,13 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import com.vitruvian.trainer.R
 
 /**
  * Section row: bold title on the left, optional tappable action label on the right.
  *
  * Usage:
- *   SectionHeader(title = "Last 7 days")
- *   SectionHeader(title = "Up Next", actionLabel = "See all") { /* navigate */ }
+ *   SectionHeader(title = stringResource(R.string.home_last_7_days))
+ *   SectionHeader(title = stringResource(R.string.rest_up_next), actionLabel = "See all") { /* navigate */ }
  */
 @Composable
 fun SectionHeader(

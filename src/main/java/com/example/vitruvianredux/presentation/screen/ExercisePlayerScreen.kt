@@ -1,6 +1,8 @@
-﻿@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalFoundationApi::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class, ExperimentalFoundationApi::class)
 
 package com.example.vitruvianredux.presentation.screen
+
+import com.vitruvian.trainer.R
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -55,7 +57,7 @@ fun ExercisePlayerScreen(
     val machineUpdateState by workoutVM.machineUpdateState.collectAsState()
     val phase = sessionState.sessionPhase
 
-    // â”€â”€ Local player UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Local player UI state ─────────────────────────────────────────────────
     var selectedTab    by rememberSaveable { mutableIntStateOf(0) }
     var isRepsMode     by rememberSaveable { mutableStateOf(true) }
     var targetReps     by rememberSaveable { mutableIntStateOf(10) }
@@ -85,7 +87,7 @@ fun ExercisePlayerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // â”€â”€ Sync local steppers from program set when a new set launches â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Sync local steppers from program set when a new set launches ─────────
     // This keeps the bottom-sheet controls in sync with the active program values
     // (e.g. the program says 6 reps but the local default was 10).
     LaunchedEffect(phase) {
@@ -232,10 +234,10 @@ fun ExercisePlayerScreen(
                 PlayerView.WORKOUT_COMPLETE -> {
                     val completePhase = phase as? SessionPhase.WorkoutComplete
                     if (completePhase != null) {
-                        // â”€â”€ Passive session recording (fires exactly once per session) â”€â”€
+                        // ── Passive session recording (fires exactly once per session) ──
                         // LaunchedEffect is keyed on completePhase so it re-fires only when
                         // a new WorkoutComplete phase object arrives. Never touches BLE or
-                        // rep-detection code â€” purely reads the final stats and writes to DB.
+                        // rep-detection code — purely reads the final stats and writes to DB.
                         LaunchedEffect(completePhase) {
                             WorkoutSessionRecorder.record(
                                 stats       = completePhase.workoutStats,
@@ -246,7 +248,7 @@ fun ExercisePlayerScreen(
                         }
                         val hasProgramChanges = workoutVM.activeProgramId != null
 
-                        // ── PR detection ──────────────────────────────────────
+                        // -- PR detection --------------------------------------
                         // Snapshot the PB store *before* recording updates it.
                         val preBests = remember(completePhase) {
                             PersonalBestStore.summariesFlow.value
@@ -357,6 +359,14 @@ fun ExercisePlayerScreen(
                             },
                             onSkipSet      = { workoutVM.skipSet() },
                             onSkipExercise = { workoutVM.skipExercise() },
+                            onAddSet       = {
+                                workoutVM.addSet(
+                                    weightOverrideLb        = resistanceLb.roundToInt(),
+                                    targetRepsOverride      = if (isRepsMode) targetReps else null,
+                                    targetDurationOverride  = if (!isRepsMode) targetDuration else null,
+                                    warmupOverride          = warmupReps,
+                                )
+                            },
                             progressionSuggestionLb = progressionSuggestion,
                             onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
                             isEchoMode          = (selectedMode == "Echo"),

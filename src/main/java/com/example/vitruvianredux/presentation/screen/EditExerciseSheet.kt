@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
@@ -93,8 +96,7 @@ fun EditExerciseSheet(
                         fontWeight = FontWeight.Bold,
                         maxLines   = 2,
                     )
-                    Text(
-                        "Quick Edit",
+                    Text(stringResource(R.string.edit_exercise_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -146,8 +148,8 @@ fun EditExerciseSheet(
                         verticalAlignment     = Alignment.CenterVertically,
                     ) {
                         Column {
-                            Text("Beast Mode", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                            Text("Faster loading phase", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.edit_beast_mode), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.edit_beast_mode_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(checked = isBeastMode, onCheckedChange = { isBeastMode = it })
                     }
@@ -178,14 +180,14 @@ fun EditExerciseSheet(
 
                 // Sets picker
                 SelectorCard(
-                    title    = "Sets",
+                    title    = stringResource(R.string.session_stat_sets),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     ValueStepper(
                         value         = sets,
                         onValueChange = { sets = it },
                         range         = 1..10,
-                        unitLabel     = "sets",
+                        unitLabel     = stringResource(R.string.session_stat_sets),
                         compact       = true,
                     )
                 }
@@ -193,20 +195,20 @@ fun EditExerciseSheet(
                 // Reps or Duration picker
                 if (mode == ExerciseMode.REPS) {
                     SelectorCard(
-                        title    = "Reps",
+                        title    = stringResource(R.string.session_stat_reps),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         ValueStepper(
                             value         = reps,
                             onValueChange = { reps = it },
                             range         = 1..30,
-                            unitLabel     = "reps",
+                            unitLabel     = stringResource(R.string.session_stat_reps),
                             compact       = true,
                         )
                     }
                 } else {
                     SelectorCard(
-                        title    = "Duration",
+                        title    = stringResource(R.string.session_stat_duration),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         SmoothValuePicker(
@@ -214,7 +216,7 @@ fun EditExerciseSheet(
                             onValueChange = { durationSec = it.toInt() },
                             range         = 10f..300f,
                             step          = 5f,
-                            unitLabel     = "sec",
+                            unitLabel     = stringResource(R.string.unit_sec),
                             formatLabel   = { "%d".format(it.toInt()) },
                             compact       = true,
                             visibleItemCount = 3,
@@ -242,7 +244,7 @@ fun EditExerciseSheet(
                         "Population median: ${suggestedWeightLb} lb",
                         style  = MaterialTheme.typography.bodySmall,
                         color  = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 4.dp),
+                        modifier = Modifier.padding(start = AppDimens.Spacing.xs),
                     )
                 }
                 if (prLb > 0) {
@@ -253,17 +255,16 @@ fun EditExerciseSheet(
                         shape    = RoundedCornerShape(50),
                         color    = if (isNewPr) MaterialTheme.colorScheme.secondaryContainer
                                    else        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
-                        modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+                        modifier = Modifier.padding(start = AppDimens.Spacing.xs, top = AppDimens.Spacing.xxs),
                     ) {
                         Row(
-                            modifier              = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            modifier              = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.xs),
                             verticalAlignment     = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                         ) {
                             if (isNewPr) {
                                 Icon(
-                                    imageVector        = Icons.Default.Star,
-                                    contentDescription = null,
+                                    imageVector        = Icons.Default.Star, contentDescription = stringResource(R.string.cd_personal_record),
                                     modifier           = Modifier.size(11.dp),
                                     tint               = MaterialTheme.colorScheme.secondary,
                                 )
@@ -281,7 +282,7 @@ fun EditExerciseSheet(
 
                 // Progression / Regression
                 SelectorCard(
-                    title    = "Prog / Reg (lb)",
+                    title    = stringResource(R.string.edit_progression),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     SmoothValuePicker(
@@ -289,7 +290,7 @@ fun EditExerciseSheet(
                         onValueChange = { progRegLb = it.toInt() },
                         range         = -10f..10f,
                         step          = 1f,
-                        unitLabel     = "lb",
+                        unitLabel     = stringResource(R.string.unit_lb),
                         formatLabel   = { v -> val i = v.toInt(); if (i > 0) "+$i" else "$i" },
                         compact       = true,
                         visibleItemCount = 3,
@@ -304,7 +305,7 @@ fun EditExerciseSheet(
                 // ── Section: Superset ────────────────────────────────────────
                 SectionHeader("Superset")
                 SelectorCard(
-                    title    = "Link as Superset",
+                    title    = stringResource(R.string.edit_superset_toggle),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Switch(
@@ -314,7 +315,7 @@ fun EditExerciseSheet(
                 }
                 if (isSuperset) {
                     SelectorCard(
-                        title    = "Superset Group #",
+                        title    = stringResource(R.string.edit_superset_group),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         SmoothValuePicker(
@@ -338,7 +339,7 @@ fun EditExerciseSheet(
                 // ── Section: Recovery ────────────────────────────────────────
                 SectionHeader("Recovery")
                 SelectorCard(
-                    title    = "Rest Timer",
+                    title    = stringResource(R.string.justlift_rest_title),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     SmoothValuePicker(
@@ -346,7 +347,7 @@ fun EditExerciseSheet(
                         onValueChange = { restTimerSec = it.toInt() },
                         range         = 0f..300f,
                         step          = 5f,
-                        unitLabel     = "sec",
+                        unitLabel     = stringResource(R.string.unit_sec),
                         formatLabel   = { v -> val s = v.toInt(); if (s == 0) "Off" else "%d:%02d".format(s / 60, s % 60) },
                         compact       = true,
                         visibleItemCount = 3,
@@ -369,7 +370,7 @@ fun EditExerciseSheet(
                         modifier = Modifier.weight(1f),
                         shape    = RoundedCornerShape(AppDimens.Corner.md),
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
                     GradientButton(
                         text    = "Save changes",
@@ -404,7 +405,7 @@ private fun SectionHeader(title: String) {
         text          = title.uppercase(),
         style         = MaterialTheme.typography.labelMedium,
         color         = MaterialTheme.colorScheme.onSurfaceVariant,
-        letterSpacing = 1.sp,
+        letterSpacing = AppDimens.LetterSpacing.wide,
         modifier      = Modifier.padding(bottom = AppDimens.Spacing.xs),
     )
 }

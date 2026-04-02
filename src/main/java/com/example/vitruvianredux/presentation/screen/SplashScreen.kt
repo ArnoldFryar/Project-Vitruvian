@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
@@ -121,17 +124,17 @@ fun SplashScreen(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
-                letterSpacing = 7.sp,
+                letterSpacing = AppDimens.LetterSpacing.brand,
             )
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
 
             Text(
                 text = "TRAIN SMARTER",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
                 color = BrandCyan.copy(alpha = 0.7f),
-                letterSpacing = 4.sp,
+                letterSpacing = AppDimens.LetterSpacing.heroTitle,
             )
         }
     }

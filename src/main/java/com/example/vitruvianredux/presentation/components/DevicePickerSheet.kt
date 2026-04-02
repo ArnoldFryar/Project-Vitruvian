@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import android.Manifest
 import android.os.Build
 import androidx.compose.animation.core.LinearEasing
@@ -36,6 +38,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
 
 private val blePermissions
     get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -121,10 +124,9 @@ fun DevicePickerSheet(
                     // ── Permission denied ──────────────────────────────────
                     !permState.allPermissionsGranted -> {
                         Icon(
-                            imageVector = Icons.Default.BluetoothDisabled,
-                            contentDescription = null,
+                            imageVector = Icons.Default.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.size(AppDimens.Icon.xxl),
                         )
                         Text(
                             text = "Bluetooth Permission Required",
@@ -151,13 +153,11 @@ fun DevicePickerSheet(
                     connectionState is BleConnectionState.Connected -> {
                         val device = (connectionState as BleConnectionState.Connected).device
                         Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
+                            imageVector = Icons.Default.Check, contentDescription = stringResource(R.string.cd_check),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.size(AppDimens.Icon.xxl),
                         )
-                        Text(
-                            text = "Connected",
+                        Text(text = stringResource(R.string.trainer_status_connected),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                         )
@@ -172,10 +172,9 @@ fun DevicePickerSheet(
                     connectionState is BleConnectionState.Error -> {
                         val msg = (connectionState as BleConnectionState.Error).message
                         Icon(
-                            imageVector = Icons.Default.BluetoothDisabled,
-                            contentDescription = null,
+                            imageVector = Icons.Default.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected),
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.size(AppDimens.Icon.xxl),
                         )
                         Text(
                             text = msg,
@@ -195,7 +194,7 @@ fun DevicePickerSheet(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(AppDimens.Corner.lg),
                             ) {
-                                Text("Cancel")
+                                Text(stringResource(R.string.common_cancel))
                             }
                             Button(
                                 onClick = { bleVM.startScan() },
@@ -224,11 +223,10 @@ fun DevicePickerSheet(
 
                         Icon(
                             imageVector = if (isConnecting) Icons.Default.Bluetooth
-                                          else Icons.Default.BluetoothSearching,
-                            contentDescription = null,
+                                          else Icons.Default.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(AppDimens.Icon.xxl)
                                 .then(if (!isConnecting) Modifier.rotate(rotation) else Modifier),
                         )
 
@@ -256,7 +254,7 @@ fun DevicePickerSheet(
                                 onDismiss()
                             },
                         ) {
-                            Text("Cancel")
+                            Text(stringResource(R.string.common_cancel))
                         }
                     }
                 }

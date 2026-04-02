@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.horizontalScroll
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.data.ExerciseMode
@@ -57,7 +60,7 @@ fun ProgramItemCard(
                 Icons.Default.DragHandle,
                 contentDescription = "Drag to reorder",
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(AppDimens.Icon.lg)
                     .padding(end = AppDimens.Spacing.sm),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
@@ -74,7 +77,7 @@ fun ProgramItemCard(
 
                 // ── Metadata badges ──────────────────────────────────────
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                 ) {
                     // Mode badge (colored by resistance mode)
@@ -106,12 +109,12 @@ fun ProgramItemCard(
                     WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_REMOVE, ActualOutcome.StateChanged("itemRemoved"))
                     onRemove()
                 },
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(AppDimens.Icon.xxl_sm),
             ) {
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "Remove",
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(AppDimens.Icon.sm),
                     tint     = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -136,7 +139,7 @@ private fun MetadataBadge(
             text     = text,
             style    = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 3.dp),
         )
     }
 }

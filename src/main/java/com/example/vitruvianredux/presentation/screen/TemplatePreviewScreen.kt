@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.TemplateRepository
@@ -45,7 +48,7 @@ fun TemplatePreviewScreen(
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            icon = { Icon(Icons.Default.Add, contentDescription = null) },
+            icon = { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add)) },
             title = { Text("Use Template") },
             text = {
                 Text(
@@ -97,7 +100,7 @@ fun TemplatePreviewScreen(
                         onClick = { showConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text("Use Template", fontWeight = FontWeight.SemiBold)
                     }
@@ -207,12 +210,12 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
                 OverviewStat(
                     icon = Icons.Default.FitnessCenter,
                     value = "${template.totalExercises}",
-                    label = "Exercises",
+                    label = stringResource(R.string.session_exercises_header),
                 )
                 OverviewStat(
                     icon = Icons.Default.Repeat,
                     value = "${template.days.sumOf { d -> d.exercises.sumOf { it.sets } }}",
-                    label = "Total Sets",
+                    label = stringResource(R.string.complete_total_sets),
                 )
             }
         }

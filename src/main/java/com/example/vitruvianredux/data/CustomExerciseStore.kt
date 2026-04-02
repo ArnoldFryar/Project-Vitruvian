@@ -8,6 +8,7 @@ import com.example.vitruvianredux.model.TrackingType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -60,7 +61,7 @@ object CustomExerciseStore {
             exercise.copy(source = ExerciseSource.CUSTOM)
         val updated = (_exercises.value + withId).sortedBy { it.name.lowercase() }
         persist(updated)
-        _exercises.value = updated
+        _exercises.update { updated }
         return withId
     }
 
@@ -72,7 +73,7 @@ object CustomExerciseStore {
         val updated = _exercises.value.map { if (it.id == exercise.id) exercise else it }
             .sortedBy { it.name.lowercase() }
         persist(updated)
-        _exercises.value = updated
+        _exercises.update { updated }
     }
 
     /**
@@ -82,7 +83,7 @@ object CustomExerciseStore {
     fun delete(id: String) {
         val updated = _exercises.value.filter { it.id != id }
         persist(updated)
-        _exercises.value = updated
+        _exercises.update { updated }
     }
 
     // ── Serialization ─────────────────────────────────────────────────────────

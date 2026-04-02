@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities  = [SessionLog::class, ExerciseHistoryEntity::class, SetHistoryEntity::class],
     version   = 3,
-    exportSchema = false,
+    exportSchema = true,
 )
 abstract class SessionLogDatabase : RoomDatabase() {
 

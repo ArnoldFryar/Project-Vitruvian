@@ -63,7 +63,7 @@ fun CoachingCueBanner(
         ) {
             Text(
                 text       = c.message,
-                modifier   = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                modifier   = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.xs),
                 style      = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color      = MaterialTheme.colorScheme.onSurface,

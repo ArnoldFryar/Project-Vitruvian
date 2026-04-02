@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
@@ -92,7 +95,7 @@ fun HomeScreen(
     val volumeLabel = "Volume (${UnitConversions.unitLabel(unitSystem)})"
 
     ScreenScaffold(
-        title = "Activity",
+        title = stringResource(R.string.screen_title_home),
         innerPadding = innerPadding,
         fillWidth = true,
         actions = {
@@ -103,7 +106,7 @@ fun HomeScreen(
     ) {
 
         // ── Last 7 days ──────────────────────────────────────────────
-        SectionHeader(title = "Last 7 days", actionLabel = "History") {
+        SectionHeader(title = stringResource(R.string.home_last_7_days), actionLabel = stringResource(R.string.home_action_history)) {
             WiringRegistry.hit(A_ACTIVITY_HISTORY)
             WiringRegistry.recordOutcome(
                 A_ACTIVITY_HISTORY,
@@ -133,7 +136,7 @@ fun HomeScreen(
             StatCard(
                 icon     = Icons.Default.FitnessCenter,
                 value    = weekSessions.toString(),
-                label    = "Sessions",
+                label    = stringResource(R.string.profile_stat_sessions),
                 modifier = Modifier.weight(1f),
                 onClick  = {
                     WiringRegistry.hit(A_ACTIVITY_METRIC_SESSIONS)
@@ -147,7 +150,7 @@ fun HomeScreen(
             StatCard(
                 icon     = Icons.Default.LocalFireDepartment,
                 value    = currentStreak.toString(),
-                label    = "Day streak",
+                label    = stringResource(R.string.metric_day_streak),
                 modifier = Modifier.weight(1f),
                 onClick  = {
                     WiringRegistry.hit(A_ACTIVITY_METRIC_STREAK)
@@ -165,7 +168,7 @@ fun HomeScreen(
         // ── Up Next ───────────────────────────────────────────────────
         // Reads from ProgramStore — the single repository source of truth.
         // Deleted programs and an empty list are handled gracefully.
-        SectionHeader(title = "Up Next")
+        SectionHeader(title = stringResource(R.string.rest_up_next))
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         ElevatedCard(
             modifier  = Modifier.fillMaxWidth(),
@@ -183,6 +186,8 @@ fun HomeScreen(
                                 program.name,
                                 fontWeight = FontWeight.SemiBold,
                                 style      = MaterialTheme.typography.bodyLarge,
+                                maxLines   = 2,
+                                overflow   = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             )
                             Text(
                                 "${program.exerciseCount} exercise",
@@ -205,24 +210,22 @@ fun HomeScreen(
                                 )
                                 OutlinedButton(
                                     onClick  = { onNavigateToProgramDetail(program.id) },
-                                    modifier = Modifier.weight(1f).height(48.dp),
+                                    modifier = Modifier.weight(1f).height(AppDimens.Component.buttonHeight),
                                 ) {
-                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit), modifier = Modifier.size(AppDimens.Icon.sm))
                                     Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Text("Edit")
+                                    Text(stringResource(R.string.cd_edit))
                                 }
                             }
                         }
                     } else {
                         Column {
-                            Text(
-                                "No program scheduled",
+                            Text(stringResource(R.string.home_no_program),
                                 color = cs.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Spacer(Modifier.height(AppDimens.Spacing.sm))
-                            Text(
-                                "Go to Programs to create or choose a routine.",
+                            Text(stringResource(R.string.home_no_program_message),
                                 color = cs.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall,
                             )
@@ -235,7 +238,7 @@ fun HomeScreen(
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // ── Workout Calendar ──────────────────────────────────────────
-        SectionHeader(title = "Workout Calendar")
+        SectionHeader(title = stringResource(R.string.home_workout_calendar))
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         // Real workout history — dates come from WorkoutHistoryStore
         val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
@@ -378,7 +381,7 @@ private fun WorkoutCalendar(
                         .background(cs.primary),
                 )
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text("Workout", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                Text(stringResource(R.string.player_tab_workout), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                 Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                 Box(
                     modifier = Modifier
@@ -387,7 +390,7 @@ private fun WorkoutCalendar(
                         .background(cs.primary.copy(alpha = 0.12f)),
                 )
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text("Today", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                Text(stringResource(R.string.history_today), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
             }
         }
     }

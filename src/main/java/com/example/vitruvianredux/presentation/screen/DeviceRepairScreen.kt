@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -24,6 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.vitruvianredux.ble.BleConnectionState
@@ -132,11 +136,12 @@ fun DeviceRepairScreen(
     val writeChar    = diag.writeCharCached
     val notifyOn     = diag.notifyEnabled
     val recentRx     = diag.lastRxAt > 0L && (nowMs - diag.lastRxAt) < 5_000L
+    val capturedLastDevice = lastDevice
 
     val steps = listOf(
         WizardStep(
             number   = 1,
-            title    = "Bluetooth Enabled",
+            title    = stringResource(R.string.repair_bt_enabled),
             detail   = if (btEnabled) "Adapter is on" else "Bluetooth is off",
             status   = if (btEnabled) StepStatus.OK else StepStatus.FAILED,
             fixLabel = if (!btEnabled) "Open Settings" else null,
@@ -151,7 +156,7 @@ fun DeviceRepairScreen(
         ),
         WizardStep(
             number   = 2,
-            title    = "Permissions Granted",
+            title    = stringResource(R.string.repair_permissions),
             detail   = if (permissionsGranted) "All BLE permissions present"
                        else "Missing: ${requiredPermissions.filterNot {
                            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
@@ -167,11 +172,11 @@ fun DeviceRepairScreen(
         ),
         WizardStep(
             number   = 3,
-            title    = "Device Connected",
+            title    = stringResource(R.string.repair_device_connected),
             detail   = when {
                 isConnected  -> (bleState as BleConnectionState.Connected).device.let { "${it.name} (${it.address})" }
                 isConnecting -> "Connecting..."
-                lastDevice != null -> "Last: ${lastDevice!!.name} (${lastDevice!!.address})"
+                capturedLastDevice != null -> "Last: ${capturedLastDevice.name} (${capturedLastDevice.address})"
                 else         -> "No device — scan first"
             },
             status   = when {
@@ -181,18 +186,19 @@ fun DeviceRepairScreen(
             },
             fixLabel = when {
                 isConnected  -> null
-                lastDevice != null -> "Reconnect"
+                capturedLastDevice != null -> "Reconnect"
                 else         -> "Scan"
             },
             onFix    = when {
                 isConnected       -> null
-                lastDevice != null -> {
+                capturedLastDevice != null -> {
+                    val addr = capturedLastDevice.address
                     {
-                        SessionEventLog.append(SessionEventLog.EventType.STATE, "Repair: reconnecting to ${lastDevice!!.address}")
+                        SessionEventLog.append(SessionEventLog.EventType.STATE, "Repair: reconnecting to $addr")
                         bleVM.disconnect()
                         scope.launch {
                             delay(300L)
-                            bleVM.connect(lastDevice!!.address)
+                            bleVM.connect(addr)
                         }
                     }
                 }
@@ -201,7 +207,7 @@ fun DeviceRepairScreen(
         ),
         WizardStep(
             number   = 4,
-            title    = "Services Discovered",
+            title    = stringResource(R.string.repair_services),
             detail   = when {
                 writeChar    -> "NUS write characteristic cached"
                 isConnected  -> "Services not found — try reconnecting"
@@ -219,7 +225,7 @@ fun DeviceRepairScreen(
                 {
                     SessionEventLog.append(SessionEventLog.EventType.STATE, "Repair: force reconnect for service rediscovery")
                     val addr = (bleState as? BleConnectionState.Connected)?.device?.address
-                        ?: lastDevice?.address
+                        ?: capturedLastDevice?.address
                     bleVM.disconnect()
                     if (addr != null) {
                         scope.launch {
@@ -232,7 +238,7 @@ fun DeviceRepairScreen(
         ),
         WizardStep(
             number   = 5,
-            title    = "Notifications Enabled",
+            title    = stringResource(R.string.repair_notifications),
             detail   = when {
                 notifyOn     -> "All CCCD descriptors written"
                 writeChar    -> "Write char ready — re-subscribing..."
@@ -255,7 +261,7 @@ fun DeviceRepairScreen(
         ),
         WizardStep(
             number   = 6,
-            title    = "Telemetry Alive",
+            title    = stringResource(R.string.repair_telemetry),
             detail   = when {
                 recentRx ->
                     "RX ${((nowMs - diag.lastRxAt) / 1_000L)}s ago"
@@ -286,7 +292,7 @@ fun DeviceRepairScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Connection Repair", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.screen_title_connection_repair), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -301,7 +307,7 @@ fun DeviceRepairScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
 
             // ── Overall health card ───────────────────────────────────────────
@@ -317,7 +323,7 @@ fun DeviceRepairScreen(
 
             // ── Auto-repair button ────────────────────────────────────────────
             item {
-                val lastAddr = lastDevice?.address
+                val lastAddr = capturedLastDevice?.address
                     ?: (bleState as? BleConnectionState.Connected)?.device?.address
                 AutoRepairCard(
                     autoRepairState = autoRepairState,
@@ -342,30 +348,28 @@ fun DeviceRepairScreen(
 
             // ── Recent event log ──────────────────────────────────────────────
             item {
-                Text(
-                    text     = "Recent Events",
+                Text(text = stringResource(R.string.repair_recent_events),
                     style    = MaterialTheme.typography.labelMedium,
                     color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(top = 4.dp, bottom = AppDimens.Spacing.xs),
                 )
             }
 
             val recentEvents = SessionEventLog.events.value.takeLast(12).reversed()
             if (recentEvents.isEmpty()) {
                 item {
-                    Text(
-                        "No events yet",
+                    Text(stringResource(R.string.repair_no_events),
                         color  = MaterialTheme.colorScheme.onSurfaceVariant,
                         style  = MaterialTheme.typography.bodySmall,
                     )
                 }
             } else {
-                items(recentEvents, key = { it.timestampMs * 100 + recentEvents.indexOf(it) }) { ev ->
+                itemsIndexed(recentEvents, key = { idx, ev -> ev.timestampMs * 1000 + idx }) { _, ev ->
                     EventLogRow(ev)
                 }
             }
 
-            item { Spacer(Modifier.height(16.dp)) }
+            item { Spacer(Modifier.height(AppDimens.Spacing.md)) }
         }
     }
 }
@@ -504,14 +508,14 @@ private fun OverallHealthCard(
         Row(
             modifier          = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(AppDimens.Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
             if (repairing) {
-                CircularProgressIndicator(modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+                CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.xl), strokeWidth = AppDimens.Stroke.thick)
             } else {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(28.dp))
+                Icon(icon, contentDescription = stringResource(R.string.cd_repair_step), modifier = Modifier.size(AppDimens.Icon.xl))
             }
             Column {
                 Text(headline, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
@@ -537,14 +541,14 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
         Row(
             modifier          = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Step number circle
             Surface(
                 shape = RoundedCornerShape(AppDimens.Corner.pill),
                 color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(AppDimens.Icon.xxl_sm),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -555,7 +559,7 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
                 }
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.md_sm))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(step.title, fontWeight = FontWeight.SemiBold,
@@ -564,7 +568,7 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
                      color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.sm))
 
             // Status chip
             Surface(
@@ -572,18 +576,18 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
                 color = dotColor.copy(alpha = 0.15f),
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                 ) {
                     if (step.status == StepStatus.FIXING) {
                         CircularProgressIndicator(
-                            modifier    = Modifier.size(12.dp),
-                            strokeWidth = 2.dp,
+                            modifier    = Modifier.size(AppDimens.Icon.xs),
+                            strokeWidth = AppDimens.Stroke.medium,
                             color       = dotColor,
                         )
                     } else {
-                        Icon(statusIcon, contentDescription = null,
+                        Icon(statusIcon, contentDescription = stringResource(R.string.cd_repair_status),
                             tint     = dotColor, modifier = Modifier.size(AppDimens.Icon.sm))
                     }
                     Text(statusLabel, style = MaterialTheme.typography.labelSmall,
@@ -594,21 +598,21 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
 
         // Fix button (only if a fix action is available)
         if (step.fixLabel != null && step.onFix != null && enabled) {
-            Divider(modifier = Modifier.padding(horizontal = 16.dp))
+            Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
                 horizontalArrangement = Arrangement.End,
             ) {
                 OutlinedButton(
                     onClick  = step.onFix,
-                    modifier = Modifier.height(34.dp),
+                    modifier = Modifier.height(AppDimens.Component.buttonHeightCompact),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
                 ) {
-                    Icon(Icons.Default.Build, contentDescription = null,
+                    Icon(Icons.Default.Build, contentDescription = stringResource(R.string.cd_device_repair),
                         modifier = Modifier.size(AppDimens.Icon.sm))
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text(step.fixLabel, style = MaterialTheme.typography.labelMedium)
                 }
             }
@@ -629,14 +633,14 @@ private fun AutoRepairCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.Build, contentDescription = null,
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                Icon(Icons.Default.Build, contentDescription = stringResource(R.string.cd_device_repair),
                     tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
-                Text("Auto Repair", fontWeight = FontWeight.SemiBold,
+                Text(stringResource(R.string.repair_auto_repair), fontWeight = FontWeight.SemiBold,
                      style = MaterialTheme.typography.titleSmall)
             }
             Text(
@@ -651,7 +655,7 @@ private fun AutoRepairCard(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                 Button(
                     onClick  = onRepair,
                     enabled  = !isRunning && hasAddress,
@@ -659,20 +663,20 @@ private fun AutoRepairCard(
                 ) {
                     if (isRunning) {
                         CircularProgressIndicator(
-                            modifier    = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
+                            modifier    = Modifier.size(AppDimens.Icon.sm),
+                            strokeWidth = AppDimens.Stroke.medium,
                             color       = MaterialTheme.colorScheme.onPrimary,
                         )
-                        Spacer(Modifier.width(6.dp))
+                        Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
                         Text("Repairing...")
                     } else {
-                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(AppDimens.Icon.md))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Repair Now", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh), modifier = Modifier.size(AppDimens.Icon.md))
+                        Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
+                        Text(stringResource(R.string.repair_repair_now), fontWeight = FontWeight.Bold)
                     }
                 }
                 if (autoRepairState is AutoRepairState.Success || autoRepairState is AutoRepairState.Failure) {
-                    OutlinedButton(onClick = onDismiss) { Text("Dismiss") }
+                    OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.repair_dismiss)) }
                 }
             }
         }
@@ -698,7 +702,7 @@ private fun EventLogRow(ev: SessionEventLog.Event) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 1.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
     ) {
         Text(
             text  = fmt.format(Date(ev.timestampMs)),

@@ -34,10 +34,10 @@ object SyncServiceLocator {
         private set
 
     private var _syncHub: SyncHub? = null
-    val syncHub: SyncHub get() = _syncHub!!
+    val syncHub: SyncHub get() = _syncHub ?: error("SyncServiceLocator.syncHub accessed before init()")
 
     private var _syncClient: SyncClient? = null
-    val syncClient: SyncClient get() = _syncClient!!
+    val syncClient: SyncClient get() = _syncClient ?: error("SyncServiceLocator.syncClient accessed before init()")
 
     var isInitialized = false
         private set

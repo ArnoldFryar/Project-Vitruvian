@@ -515,6 +515,29 @@ class WorkoutSessionViewModel(
     /** Skip the current exercise entirely and advance to the next different exercise. */
     fun skipExercise() = engine.skipExercise()
 
+    /**
+     * Insert one additional set identical to the current set (with the user's live overrides)
+     * immediately after the current set in the queue. This lets users do an extra set of the
+     * same exercise before moving on.
+     */
+    fun addSet(
+        weightOverrideLb: Int? = null,
+        targetRepsOverride: Int? = null,
+        targetDurationOverride: Int? = null,
+        warmupOverride: Int? = null,
+    ) {
+        val current = upcomingSets.firstOrNull() ?: return
+        val extra = current.copy(
+            weightPerCableLb  = weightOverrideLb ?: current.weightPerCableLb,
+            targetReps        = targetRepsOverride ?: current.targetReps,
+            targetDurationSec = targetDurationOverride ?: current.targetDurationSec,
+            warmupReps        = warmupOverride ?: current.warmupReps,
+        )
+        // Insert the extra set right after the current set (position 1 in upcomingSets)
+        val newQueue = listOf(upcomingSets.first()) + listOf(extra) + upcomingSets.drop(1)
+        updateUpcomingSets(newQueue)
+    }
+
     /** Update the upcoming sets in the player workout. */
     fun updateUpcomingSets(newSets: List<PlayerSetParams>) = engine.updateUpcomingSets(newSets)
 

@@ -36,6 +36,7 @@ object HealthConnectStore {
     // ── Public API ────────────────────────────────────────────────────────────
 
     fun setEnabled(enabled: Boolean) {
+        if (!::prefs.isInitialized) return
         _enabled.value = enabled
         prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()
     }

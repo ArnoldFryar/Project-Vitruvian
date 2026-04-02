@@ -58,9 +58,9 @@ fun FatigueTrendGraph(
         color    = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
     ) {
         Column(
-            modifier            = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier            = Modifier.padding(horizontal = AppDimens.Spacing.md_sm2, vertical = AppDimens.Spacing.sm_md),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
             Text(
                 text       = "Rep Quality Trend",
@@ -72,7 +72,7 @@ fun FatigueTrendGraph(
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(AppDimens.Component.buttonHeight),
             ) {
                 val pts     = scores.map { it.score }
                 val yMin    = 0f

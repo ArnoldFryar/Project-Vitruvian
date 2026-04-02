@@ -233,7 +233,7 @@ fun SmoothValuePicker(
                 color      = (if (enabled) cs.primary else cs.onSurface).copy(alpha = 0.85f),
                 modifier   = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 20.dp),
+                    .padding(end = AppDimens.Spacing.md_lg),
             )
         }
     }

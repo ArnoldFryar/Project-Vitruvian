@@ -322,15 +322,17 @@ class WorkoutSessionEngine(
     }
 
     // ── Player-mode state ─────────────────────────────────────────────────────
-    private var playerSets: List<PlayerSetParams> = emptyList()
-    private var currentPlayerIndex = 0
+    @Volatile private var playerSets: List<PlayerSetParams> = emptyList()
+    @Volatile private var currentPlayerIndex = 0
+    /** Guard to prevent `completeCurrentPlayerSet()` from firing more than once per set. */
+    @Volatile private var setCompletionInFlight = false
     
     val upcomingSets: List<PlayerSetParams>
         get() = if (currentPlayerIndex < playerSets.size) playerSets.subList(currentPlayerIndex, playerSets.size) else emptyList()
     private var playerJob: Job? = null
     private var restJob: Job? = null
-    private var setStartTimeMs = 0L
-    private var workoutStartTimeMs = 0L
+    @Volatile private var setStartTimeMs = 0L
+    @Volatile private var workoutStartTimeMs = 0L
     private val completedStats = mutableListOf<ExerciseStats>()
     /** Reducer's canonical session state — single source of truth for phase/rep tracking. */
     private var engineState = EngineState()
@@ -564,10 +566,21 @@ class WorkoutSessionEngine(
                             SessionEventLog.append(SessionEventLog.EventType.ERROR, "Connection lost while InSet")
                         }
                         is SessionPhase.ExerciseActive -> {
-                            // Don't abort – bleAdapter already skips writes when disconnected.
-                            // A transient BLE state flicker would otherwise kill the overlay.
-                            Log.w(TAG, "Device disconnected during ExerciseActive – will resume if reconnected")
-                            SessionEventLog.append(SessionEventLog.EventType.ERROR, "Connection lost while ExerciseActive (non-fatal)")
+                            // Transient flickers are common — give the connection a chance to recover
+                            // before forcefully completing the set. For rep-mode sets without a
+                            // duration target the session would otherwise get permanently stuck.
+                            Log.w(TAG, "Device disconnected during ExerciseActive – scheduling auto-complete in 5s")
+                            SessionEventLog.append(SessionEventLog.EventType.ERROR, "Connection lost while ExerciseActive – auto-complete in 5s")
+                            scope.launch {
+                                delay(5_000L)
+                                // If still disconnected AND still in ExerciseActive, force-complete the set
+                                val current = _state.value
+                                if (current.connectionState is BleConnectionState.Disconnected &&
+                                    current.sessionPhase is SessionPhase.ExerciseActive) {
+                                    Log.w(TAG, "Still disconnected after 5s – force-completing current set")
+                                    completeCurrentPlayerSet()
+                                }
+                            }
                         }
                         is SessionPhase.Resting -> {
                             Log.w(TAG, "Device disconnected during Resting - aborting")
@@ -1213,6 +1226,7 @@ class WorkoutSessionEngine(
     }
 
     private fun launchPlayerSet(index: Int) {
+        setCompletionInFlight = false   // reset guard for the new set
         val set = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
         val isDurationMode = set.targetDurationSec != null && set.targetReps == null
         Log.d(TAG, "launchPlayerSet[$index] workingRes=${set.weightPerCableLb}lb " +
@@ -1370,8 +1384,10 @@ class WorkoutSessionEngine(
     }
 
     private fun completeCurrentPlayerSet() {
+        if (setCompletionInFlight) { Log.w(TAG, "completeCurrentPlayerSet: already in-flight – skipping"); return }
+        setCompletionInFlight = true
         playerJob?.cancel()
-        val set    = playerSets.getOrNull(currentPlayerIndex) ?: return
+        val set    = playerSets.getOrNull(currentPlayerIndex) ?: run { setCompletionInFlight = false; return }
         val now    = System.currentTimeMillis()
         val durSec = ((now - setStartTimeMs) / 1_000L).toInt().coerceAtLeast(1)
         val totalDeviceReps = _state.value.repsCount
@@ -1384,6 +1400,7 @@ class WorkoutSessionEngine(
             warmupRepsCompleted  = set.warmupReps,
             durationSec          = durSec,
             weightPerCableLb     = set.weightPerCableLb,
+            numCables            = set.numCables,
             volumeKg             = setVolumeAccumulator.workingKg,
         )
         completedStats.add(stats)
@@ -1628,6 +1645,12 @@ class WorkoutSessionEngine(
     }
 
     private fun advanceAfterRest(next: NextStep) {
+        // Guard: if we're no longer in Resting (e.g. auto-skip + user tap race), bail out.
+        val phase = _state.value.sessionPhase
+        if (phase !is SessionPhase.Resting && phase !is SessionPhase.ExerciseComplete) {
+            Log.w(TAG, "advanceAfterRest: phase is $phase, not Resting – skipping double advance")
+            return
+        }
         when (next) {
             is NextStep.NextSet -> {
                 if (justLiftArmed && playerSets.getOrNull(currentPlayerIndex)?.isJustLift == true) {
@@ -1650,7 +1673,7 @@ class WorkoutSessionEngine(
         val totalReps      = completedStats.sumOf { it.repsCompleted }
         // Sum per-set working volumes — all in kg, the canonical unit.
         val totalVolumeKg  = completedStats.sumOf { it.volumeKg.toDouble() }.toFloat()
-        val heaviest       = completedStats.maxOfOrNull { it.weightPerCableLb } ?: 0
+        val heaviest       = completedStats.maxOfOrNull { it.weightPerCableLb * it.numCables } ?: 0
         val stats = WorkoutStats(
             totalReps      = totalReps,
             totalVolumeKg  = totalVolumeKg,

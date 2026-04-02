@@ -15,6 +15,8 @@ data class ExerciseStats(
     /** Working volume for this set in **kg** (canonical). Converted to lb only at the display layer. */
     val volumeKg: Float = 0f,
     val weightPerCableLb: Int = 0,
+    /** Number of cables used (1 or 2). Determines total load = weightPerCableLb × numCables. */
+    val numCables: Int = 2,
     /** Average rep quality score for this set (0–100), or null if unavailable. */
     val avgQualityScore: Int? = null,
     /** Average ROM sub-score for this set (0–100). */
@@ -75,4 +77,6 @@ data class PlayerSetParams(
         com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
     /** Muscle groups for this exercise, e.g. ["CHEST", "ARMS"]. Used for workout history tracking. */
     val muscleGroups: List<String> = emptyList(),
+    /** Number of cables used for this exercise (1 or 2). Default 2 covers most Vitruvian movements. */
+    val numCables: Int = 2,
 )

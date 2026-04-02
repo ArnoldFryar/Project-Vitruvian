@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.ActionStat
@@ -52,7 +55,7 @@ fun AuditScreen(onBack: () -> Unit) {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Wiring Audit", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.screen_title_wiring_audit), fontWeight = FontWeight.Bold)
                         Text(
                             "$opCount / $totalActions operational Â· ${(opCoverage * 100).toInt()}%",
                             style = MaterialTheme.typography.labelSmall,
@@ -84,7 +87,7 @@ fun AuditScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(innerPadding),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
 
             // â”€â”€ Summary card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -97,7 +100,7 @@ fun AuditScreen(onBack: () -> Unit) {
                     opCoverage   = opCoverage,
                     highlightOn  = highlight,
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
             }
 
             // â”€â”€ Per-screen groups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -108,10 +111,10 @@ fun AuditScreen(onBack: () -> Unit) {
                 items(actions, key = { it.id }) { stat ->
                     ActionStatRow(stat = stat)
                 }
-                item(key = "spacer_$screen") { Spacer(Modifier.height(8.dp)) }
+                item(key = "spacer_$screen") { Spacer(Modifier.height(AppDimens.Spacing.sm)) }
             }
 
-            item { Spacer(Modifier.height(24.dp)) }
+            item { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
         }
     }
 }
@@ -131,15 +134,15 @@ private fun SummaryCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm_md),
         ) {
             Row(
                 modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment     = Alignment.CenterVertically,
             ) {
-                Text("Operational Coverage", fontWeight = FontWeight.Bold,
+                Text(stringResource(R.string.audit_coverage), fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleMedium)
                 Text(
                     "${(opCoverage * 100).toInt()}%",
@@ -156,18 +159,18 @@ private fun SummaryCard(
                 color      = coverageColor(opCoverage),
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
-            Text("Contract-validated", style = MaterialTheme.typography.labelSmall,
+            Text(stringResource(R.string.audit_validated), style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Row(
                 modifier              = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
-                StatChip(label = "Total",   value = "$totalActions", color = MaterialTheme.colorScheme.onSurface)
-                StatChip(label = "Tapped",  value = "$hitCount",     color = Color(0xFF2196F3))
-                StatChip(label = "Operational", value = "$opCount",
+                StatChip(label = stringResource(R.string.audit_total),   value = "$totalActions", color = MaterialTheme.colorScheme.onSurface)
+                StatChip(label = stringResource(R.string.audit_tapped),  value = "$hitCount",     color = Color(0xFF2196F3))
+                StatChip(label = stringResource(R.string.audit_operational), value = "$opCount",
                     color = if (opCount == totalActions) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error)
-                StatChip(label = "Gap", value = "${totalActions - opCount}",
+                StatChip(label = stringResource(R.string.audit_gap), value = "${totalActions - opCount}",
                     color = if (opCount == totalActions) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error)
             }
 
@@ -185,7 +188,7 @@ private fun SummaryCard(
             if (highlightOn) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                 ) {
                     Icon(Icons.Default.Visibility, null,
                         tint     = MaterialTheme.colorScheme.primary,
@@ -218,7 +221,7 @@ private fun ScreenSectionHeader(screen: String, actions: List<ActionStat>) {
     Row(
         modifier          = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 2.dp),
+            .padding(top = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -255,13 +258,13 @@ private fun ActionStatRow(stat: ActionStat) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 5.dp, horizontal = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+                .padding(vertical = 5.dp, horizontal = AppDimens.Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
         ) {
             Row(
                 modifier          = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 // Operational / Hit / Not-hit icon
                 Icon(
@@ -270,7 +273,7 @@ private fun ActionStatRow(stat: ActionStat) {
                         wasHit -> Icons.Default.Warning
                         else   -> Icons.Default.RadioButtonUnchecked
                     },
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_audit_status),
                     tint = when {
                         isOp   -> Color(0xFF4CAF50)
                         wasHit -> Color(0xFFFF9800)
@@ -305,7 +308,7 @@ private fun ActionStatRow(stat: ActionStat) {
                             text       = "Ã—${stat.count}",
                             style      = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            modifier   = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            modifier   = Modifier.padding(horizontal = AppDimens.Spacing.xs_sm, vertical = AppDimens.Spacing.xxs),
                             color      = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
@@ -325,7 +328,7 @@ private fun ActionStatRow(stat: ActionStat) {
             if (hasContract) {
                 Row(
                     modifier              = Modifier.fillMaxWidth().padding(start = 26.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                     verticalAlignment     = Alignment.Top,
                 ) {
                     // Expected outcome tag

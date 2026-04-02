@@ -200,7 +200,12 @@ object CloudSyncRepository {
         val logs = AnalyticsStore.logsFlow.value
         if (logs.isEmpty()) return 0
 
-        val remote = logs.map { log ->
+        // Only push logs created/modified since the last successful sync
+        val lastSync = lastSyncAt
+        val newLogs = if (lastSync > 0L) logs.filter { it.createdAt >= lastSync } else logs
+        if (newLogs.isEmpty()) return 0
+
+        val remote = newLogs.map { log ->
             RemoteAnalyticsLog(
                 id = log.id,
                 userId = userId,
@@ -468,6 +473,24 @@ object CloudSyncRepository {
                 CustomExerciseStore.delete(re.id)
                 accepted++
             }
+            // If exists locally and remotely updated more recently, apply remote edits
+            else if (local != null && re.updatedAt > 0 && re.deletedAt == null) {
+                val updated = local.copy(
+                    name = re.name,
+                    primaryMuscleGroup = re.primaryMuscleGroup,
+                    secondaryMuscleGroup = re.secondaryMuscleGroup,
+                    muscleGroups = buildList {
+                        if (re.primaryMuscleGroup.isNotBlank()) add(re.primaryMuscleGroup.uppercase())
+                        if (re.secondaryMuscleGroup.isNotBlank()) add(re.secondaryMuscleGroup.uppercase())
+                    },
+                    defaultMode = re.defaultMode,
+                    notes = re.notes,
+                    perSide = re.perSide,
+                    isFavorite = re.isFavorite,
+                )
+                CustomExerciseStore.update(updated)
+                accepted++
+            }
         }
         return accepted
     }
@@ -623,6 +646,7 @@ object CloudSyncRepository {
                 put("setIndex", s.setIndex)
                 put("reps", s.reps)
                 put("weightLb", s.weightLb)
+                put("numCables", s.numCables)
                 put("volumeKg", s.volumeKg.toDouble())
             })
         }
@@ -640,6 +664,7 @@ object CloudSyncRepository {
                     reps = obj.optInt("reps", 0),
                     weightLb = obj.optInt("weightLb", 0),
                     volumeKg = obj.optDouble("volumeKg", 0.0).toFloat(),
+                    numCables = obj.optInt("numCables", 2),
                 )
             }
         } catch (_: Exception) { emptyList() }
@@ -807,10 +832,9 @@ object CloudSyncRepository {
         if (remoteList.isEmpty()) return 0
 
         val dao = SessionLogRepository.exerciseHistoryDao()
-        // Bulk-check existing IDs to avoid N queries
-        val allLocalSets = dao.getPendingSets() + remoteList.mapNotNull { rs ->
-            dao.getSetsByExerciseId(rs.exerciseHistoryId).find { it.id == rs.id }
-        }
+        // Fetch matching local sets in one batch query to avoid N+1
+        val remoteIds = remoteList.map { it.id }
+        val allLocalSets = remoteIds.chunked(500).flatMap { dao.getSetsByIds(it) }
         val localIdMap = allLocalSets.associateBy { it.id }
         var accepted = 0
 

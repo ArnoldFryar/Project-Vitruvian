@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -91,8 +93,7 @@ private fun StatCardContent(icon: ImageVector, value: String, label: String) {
         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
     ) {
         Icon(
-            imageVector       = icon,
-            contentDescription = null,
+            imageVector       = icon, contentDescription = null /* decorative: value text beside */,
             tint              = MaterialTheme.colorScheme.primary,
             modifier          = Modifier.size(AppDimens.Icon.md),
         )

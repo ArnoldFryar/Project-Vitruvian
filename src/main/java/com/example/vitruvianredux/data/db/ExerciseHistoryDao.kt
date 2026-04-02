@@ -49,4 +49,7 @@ interface ExerciseHistoryDao {
 
     @Query("SELECT * FROM set_history WHERE session_id = :sessionId ORDER BY exercise_name, set_index ASC")
     suspend fun getSetsBySessionId(sessionId: String): List<SetHistoryEntity>
+
+    @Query("SELECT * FROM set_history WHERE id IN (:ids)")
+    suspend fun getSetsByIds(ids: List<String>): List<SetHistoryEntity>
 }

@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -32,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -150,8 +153,7 @@ fun TemplateLibraryScreen(
                             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                         ) {
                             Icon(
-                                Icons.Default.GridView,
-                                contentDescription = null,
+                                Icons.Default.GridView, contentDescription = stringResource(R.string.cd_grid_view),
                                 modifier = Modifier.size(AppDimens.Icon.hero),
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                             )
@@ -224,14 +226,14 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(AppDimens.Icon.xxl_sm)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 icon,
-                contentDescription = null,
+                contentDescription = null /* decorative */,
                 modifier = Modifier.size(AppDimens.Icon.md),
                 tint = MaterialTheme.colorScheme.primary,
             )
@@ -269,7 +271,7 @@ private fun TemplateCard(
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
         shape = MaterialTheme.shapes.medium,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -282,21 +284,21 @@ private fun TemplateCard(
                             fontWeight = FontWeight.SemiBold,
                         )
                         if (template.isUserTemplate) {
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(AppDimens.Spacing.sm))
                             Surface(
                                 color = cs.primaryContainer,
                                 shape = MaterialTheme.shapes.small,
                             ) {
                                 Text(
                                     "Custom",
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs_sm, vertical = AppDimens.Spacing.xxs),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = cs.onPrimaryContainer,
                                 )
                             }
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
                     Text(
                         template.summary,
                         style = MaterialTheme.typography.bodySmall,
@@ -304,14 +306,13 @@ private fun TemplateCard(
                     )
                 }
                 Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = null,
+                    Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
                     tint = cs.onSurfaceVariant,
                 )
             }
 
             if (template.description.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
                 Text(
                     template.description,
                     style = MaterialTheme.typography.bodySmall,
@@ -322,9 +323,9 @@ private fun TemplateCard(
 
             // Day chips
             if (template.days.size > 1) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                 ) {
                     template.days.forEach { day ->
                         Surface(
@@ -333,7 +334,7 @@ private fun TemplateCard(
                         ) {
                             Text(
                                 "${day.name} · ${day.exercises.size} ex",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = cs.onSurfaceVariant,
                             )

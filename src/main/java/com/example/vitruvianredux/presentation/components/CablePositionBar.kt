@@ -163,7 +163,7 @@ fun CablePositionBar(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             color = activeColor,
-            modifier = Modifier.padding(bottom = 4.dp),
+            modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
         )
 
         // Canvas bar
@@ -200,7 +200,7 @@ fun CablePositionBar(
             text = "${cable.force.toInt()}",
             style = MaterialTheme.typography.labelSmall,
             color = activeColor,
-            modifier = Modifier.padding(top = 4.dp),
+            modifier = Modifier.padding(top = AppDimens.Spacing.xs),
         )
     }
 }

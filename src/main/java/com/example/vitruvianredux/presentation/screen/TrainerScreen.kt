@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
@@ -118,8 +121,7 @@ fun TrainerScreen(
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.BluetoothSearching,
-                        contentDescription = null,
+                        imageVector = Icons.Default.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting),
                         modifier = Modifier.size(56.dp),
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                     )
@@ -149,7 +151,7 @@ fun TrainerScreen(
             text = "GENERAL",
             style = MaterialTheme.typography.labelMedium,
             color = cs.onSurfaceVariant,
-            letterSpacing = 1.sp,
+            letterSpacing = AppDimens.LetterSpacing.wide,
         )
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
@@ -162,7 +164,7 @@ fun TrainerScreen(
             Column {
                 // Connection row
                 TrainerInfoRow(
-                    label = "Connection",
+                    label = stringResource(R.string.trainer_connection),
                     trailing = {
                         Surface(
                             shape = RoundedCornerShape(AppDimens.Corner.xs),
@@ -180,7 +182,7 @@ fun TrainerScreen(
                                     state is BleConnectionState.Error -> "Error"
                                     else -> "Disconnected"
                                 },
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.xs),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = when {
@@ -196,14 +198,14 @@ fun TrainerScreen(
 
                 // Machine ID
                 TrainerInfoRow(
-                    label = "Machine ID",
+                    label = stringResource(R.string.trainer_machine_id),
                     value = if (isConnected) (state as BleConnectionState.Connected).device.address else "\u2013",
                 )
                 Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
 
                 // Status
                 TrainerInfoRow(
-                    label = "Status",
+                    label = stringResource(R.string.trainer_status),
                     value = when {
                         isConnected -> "Ready"
                         isScanning || isConnecting -> "Busy"
@@ -214,12 +216,12 @@ fun TrainerScreen(
 
                 // Colour indicator — opens LED colour picker
                 TrainerInfoRow(
-                    label = "Colour",
+                    label = stringResource(R.string.trainer_colour),
                     modifier = Modifier.clickable { showColorPicker = true },
                     trailing = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                         ) {
                             Box(
                                 modifier = Modifier
@@ -237,10 +239,9 @@ fun TrainerScreen(
                                     )
                             )
                             Icon(
-                                Icons.Default.ChevronRight,
-                                contentDescription = null,
+                                Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
                                 tint = cs.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(AppDimens.Icon.md),
                             )
                         }
                     },
@@ -257,7 +258,7 @@ fun TrainerScreen(
             text = "VERSIONS",
             style = MaterialTheme.typography.labelMedium,
             color = cs.onSurfaceVariant,
-            letterSpacing = 1.sp,
+            letterSpacing = AppDimens.LetterSpacing.wide,
         )
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
@@ -268,16 +269,16 @@ fun TrainerScreen(
             tonalElevation = AppDimens.Elevation.selector,
         ) {
             Column {
-                TrainerInfoRow(label = "Firmware", value = "\u2013")
+                TrainerInfoRow(label = stringResource(R.string.trainer_firmware), value = "\u2013")
                 Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
-                TrainerInfoRow(label = "Hardware", value = "\u2013")
+                TrainerInfoRow(label = stringResource(R.string.trainer_hardware), value = "\u2013")
                 Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
                 TrainerInfoRow(
-                    label = "App",
+                    label = stringResource(R.string.trainer_app),
                     trailing = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                         ) {
                             Text(
                                 text = "v${BuildConfig.VERSION_NAME}",
@@ -285,10 +286,9 @@ fun TrainerScreen(
                                 color = cs.onSurfaceVariant,
                             )
                             Icon(
-                                Icons.Default.ChevronRight,
-                                contentDescription = null,
+                                Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
                                 tint = cs.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(AppDimens.Icon.md),
                             )
                         }
                     },
@@ -307,14 +307,14 @@ fun TrainerScreen(
                     onClick  = { WiringRegistry.hit(A_DEVICE_DISCONNECT); WiringRegistry.recordOutcome(A_DEVICE_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect")); bleVM?.clearAutoReconnect(); bleVM?.disconnect() },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(AppDimens.Component.buttonHeightXl),
                     shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = cs.errorContainer,
                         contentColor   = cs.onErrorContainer,
                     ),
                 ) {
-                    Icon(Icons.Default.BluetoothDisabled, null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text("Disconnect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
@@ -325,12 +325,12 @@ fun TrainerScreen(
                     enabled  = false,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(AppDimens.Component.buttonHeightXl),
                     shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                 ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(AppDimens.Icon.md),
+                        strokeWidth = AppDimens.Stroke.medium,
                         color = cs.onPrimary,
                     )
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -346,14 +346,14 @@ fun TrainerScreen(
                     onClick  = { WiringRegistry.hit(A_DEVICE_CONNECT); WiringRegistry.recordOutcome(A_DEVICE_CONNECT, ActualOutcome.SheetOpened("device_picker")); showDevicePicker = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(AppDimens.Component.buttonHeightXl),
                     shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = cs.primary,
                         contentColor = cs.onPrimary,
                     ),
                 ) {
-                    Icon(Icons.Default.Bluetooth, null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text("Connect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
@@ -367,14 +367,14 @@ fun TrainerScreen(
             onClick  = { WiringRegistry.hit(A_DEVICE_REPAIR); WiringRegistry.recordOutcome(A_DEVICE_REPAIR, ActualOutcome.Navigated("repair")); onNavigateToRepair() },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp),
+                .height(AppDimens.Component.buttonHeight),
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = cs.primary,
             ),
         ) {
-            Icon(Icons.Default.Build, null, modifier = Modifier.size(AppDimens.Icon.md))
-            Spacer(Modifier.width(8.dp))
+            Icon(Icons.Default.Build, contentDescription = stringResource(R.string.cd_device_repair), modifier = Modifier.size(AppDimens.Icon.md))
+            Spacer(Modifier.width(AppDimens.Spacing.sm))
             Text("Check & Repair", fontWeight = FontWeight.SemiBold)
         }
 

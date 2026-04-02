@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import androidx.compose.ui.res.stringResource
 
 /**
  * Full-screen-style dialog that plays a looping exercise demo video.
@@ -85,10 +88,9 @@ fun ExerciseVideoPreviewDialog(
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                Icons.Default.VideocamOff,
-                                contentDescription = null,
+                                Icons.Default.VideocamOff, contentDescription = stringResource(R.string.cd_video_unavailable),
                                 tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-                                modifier = Modifier.size(48.dp),
+                                modifier = Modifier.size(AppDimens.Icon.xxl),
                             )
                             Spacer(Modifier.height(AppDimens.Spacing.sm))
                             Text(

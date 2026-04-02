@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -10,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import androidx.compose.ui.res.stringResource
 
 /**
  * Full-screen centred empty state with icon, headline, optional description,
@@ -36,8 +39,7 @@ fun AppEmptyState(
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
             Icon(
-                imageVector = icon,
-                contentDescription = null,
+                imageVector = icon, contentDescription = stringResource(R.string.cd_empty_state),
                 modifier = Modifier.size(AppDimens.Icon.hero),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
             )

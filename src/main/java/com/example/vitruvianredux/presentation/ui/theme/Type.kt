@@ -9,6 +9,7 @@ import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
 import com.vitruvian.trainer.R
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 private val fontProvider = GoogleFont.Provider(
     providerAuthority = "com.google.android.gms.fonts",
@@ -123,13 +124,13 @@ val AppTypography = Typography(
         fontWeight    = FontWeight.Medium,
         fontSize      = 12.sp,
         lineHeight    = 16.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = AppDimens.LetterSpacing.tight,
     ),
     labelSmall = TextStyle(
         fontFamily    = SpaceGrotesk,
         fontWeight    = FontWeight.Medium,
         fontSize      = 11.sp,
         lineHeight    = 16.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = AppDimens.LetterSpacing.tight,
     ),
 )

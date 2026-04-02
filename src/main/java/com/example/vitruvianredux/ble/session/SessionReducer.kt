@@ -69,7 +69,7 @@ object SessionReducer {
             return Result(state)  // duplicate ignored — engine logs this at call site
         }
         val set = event.setDef
-        val loadKg = WorkoutParameters.lbsToKg(set.weightPerCableLb)
+        val loadKg = WorkoutParameters.lbsToKg(set.weightPerCableLb) * set.numCables
         val startPhase = if (set.warmupReps > 0) SetPhase.WARMUP else SetPhase.WORKING
 
         val params = WorkoutParameters.fromLegacyMode(
@@ -190,6 +190,7 @@ object SessionReducer {
             repsCompleted       = state.workingRepsCompleted,
             warmupRepsCompleted = state.warmupTarget,
             weightPerCableLb    = set.weightPerCableLb,
+            numCables           = set.numCables,
             // volumeKg is intentionally 0 here: the authoritative working volume is
             // accumulated per-rep in VolumeAccumulator (inside WorkoutSessionEngine) via
             // VolumeAdd(WORKING, loadKg, 1) emitted in onRepDetected.

@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 /**
  * Lightweight per-screen scaffold that supplies:

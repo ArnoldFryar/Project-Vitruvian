@@ -9,6 +9,7 @@ import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
@@ -133,6 +134,7 @@ object HealthConnectManager {
         val totalSets: Int = 0,
         val totalReps: Int = 0,
         val totalVolumeKg: Float = 0f,
+        val sessionId: String = "",
     )
 
     /**
@@ -182,6 +184,7 @@ object HealthConnectManager {
                 exerciseType    = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
                 title           = summary.title,
                 notes           = notes,
+                metadata        = Metadata(clientRecordId = summary.sessionId.ifEmpty { null }),
             )
 
             val records = mutableListOf<androidx.health.connect.client.records.Record>(exerciseSession)
@@ -195,6 +198,7 @@ object HealthConnectManager {
                     endTime         = endInstant,
                     endZoneOffset   = zone.rules.getOffset(endInstant),
                     energy          = energyKcal,
+                    metadata        = Metadata(clientRecordId = "${summary.sessionId}::active_cal".ifEmpty { null }),
                 )
                 records += TotalCaloriesBurnedRecord(
                     startTime       = startInstant,
@@ -202,6 +206,7 @@ object HealthConnectManager {
                     endTime         = endInstant,
                     endZoneOffset   = zone.rules.getOffset(endInstant),
                     energy          = energyKcal,
+                    metadata        = Metadata(clientRecordId = "${summary.sessionId}::total_cal".ifEmpty { null }),
                 )
             }
 

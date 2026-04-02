@@ -16,8 +16,10 @@ import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.data.HevyClient
 import com.example.vitruvianredux.data.HevyStore
 import com.example.vitruvianredux.data.HevySyncStore
+import com.example.vitruvianredux.data.HealthConnectSyncStore
 import com.example.vitruvianredux.data.JustLiftStore
 import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.data.ProgramStore
@@ -48,6 +50,7 @@ class MainActivity : ComponentActivity() {
         ThemeStore.init(applicationContext)
         HevyStore.init(applicationContext)
         HevySyncStore.init(applicationContext)
+        HealthConnectSyncStore.init(applicationContext)
 
         // Warn the user (and any tester) that this is a debug build so it is
         // never silently distributed as a production APK.
@@ -105,6 +108,46 @@ class MainActivity : ComponentActivity() {
             CloudSyncRepository.init(applicationContext)
             if (SupabaseProvider.isInitialized && AuthRepository.isSignedIn) {
                 CloudSyncWorker.enqueue(applicationContext)
+            }
+
+            // ── On-open retry: push any sessions not yet synced to Hevy or Health Connect ──
+            // Covers the case where the network was down at workout completion,
+            // or the app was killed before the sync could complete.
+            val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
+            val recentSessions = AnalyticsStore.logsFlow.value
+                .filter { it.endTimeMs >= thirtyDaysAgo }
+
+            // Hevy retry — HevyClient.pushSession already guards against duplicates
+            if (HevyStore.enabled && HevyStore.apiKey.isNotBlank()) {
+                val unsyncedHevy = recentSessions.filter { !HevySyncStore.isSynced(it.id) }
+                unsyncedHevy.forEachIndexed { index, session ->
+                    HevyClient.pushSession(session)
+                    if (index < unsyncedHevy.lastIndex) kotlinx.coroutines.delay(400L)
+                }
+            }
+
+            // Health Connect retry — clientRecordId ensures HC deduplicates on its side
+            if (HealthConnectManager.isAvailable && HealthConnectStore.isEnabled
+                && HealthConnectManager.hasPermissions()) {
+                val unsyncedHc = recentSessions.filter { !HealthConnectSyncStore.isSynced(it.id) }
+                for (session in unsyncedHc) {
+                    val programTitle = session.programName
+                        ?: session.exerciseNames.firstOrNull()
+                        ?: "Vitruvian Workout"
+                    val ok = HealthConnectManager.writeWorkoutSummary(
+                        HealthConnectManager.WorkoutSummary(
+                            title         = programTitle,
+                            startEpochMs  = session.startTimeMs,
+                            endEpochMs    = session.endTimeMs,
+                            calories      = session.calories,
+                            totalSets     = session.totalSets,
+                            totalReps     = session.totalReps,
+                            totalVolumeKg = session.totalVolumeKg.toFloat(),
+                            sessionId     = session.id,
+                        )
+                    )
+                    if (ok) HealthConnectSyncStore.markSynced(session.id)
+                }
             }
         }
     }

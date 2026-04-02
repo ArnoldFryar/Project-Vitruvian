@@ -6,6 +6,7 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -59,7 +60,7 @@ object WorkoutHistoryStore {
 
     /** Record a completed workout. Called from WorkoutSessionEngine.finishWorkout(). */
     fun record(record: WorkoutRecord) {
-        _history.value = _history.value + record
+        _history.update { it + record }
         persist()
     }
 
@@ -177,6 +178,7 @@ object WorkoutHistoryStore {
     // ── Persistence (SharedPreferences + JSON) ───────────────────────────────
 
     private fun persist() {
+        if (!::prefs.isInitialized) return
         try {
             val arr = JSONArray()
             for (record in _history.value) {
@@ -191,7 +193,7 @@ object WorkoutHistoryStore {
                     put("programName", record.programName ?: "")
                 })
             }
-            prefs.edit().putString(KEY_HISTORY, arr.toString()).apply()
+            prefs.edit().putString(KEY_HISTORY, arr.toString()).commit()
         } catch (e: Exception) {
             Log.e(TAG, "persist: ${e.message}")
         }

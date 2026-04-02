@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.presentation.audit.*
@@ -70,8 +73,8 @@ fun ProgramDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete program?") },
-            text  = { Text("This cannot be undone.") },
+            title = { Text(stringResource(R.string.program_delete_title)) },
+            text  = { Text(stringResource(R.string.program_delete_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -85,11 +88,11 @@ fun ProgramDetailScreen(
                         onBack()
                     },
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -117,16 +120,15 @@ fun ProgramDetailScreen(
             // ── Summary card ────────────────────────────────────────────────
             ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
                 Row(
-                    modifier          = Modifier.padding(16.dp),
+                    modifier          = Modifier.padding(AppDimens.Spacing.md),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.FitnessCenter,
-                        contentDescription = null,
+                        Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         tint     = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(36.dp),
                     )
-                    Spacer(Modifier.width(16.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.md))
                     Column {
                         Text(
                             program.name,
@@ -135,7 +137,7 @@ fun ProgramDetailScreen(
                             maxLines   = 1,
                             overflow   = TextOverflow.Ellipsis,
                         )
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(AppDimens.Spacing.xs))
                         val daysLabel = formatScheduledDays(program.scheduledDays)
                         Text(
                             "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}  ·  Custom program" +
@@ -180,7 +182,7 @@ fun ProgramDetailScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Edit")
+                Text(stringResource(R.string.cd_edit))
             }
 
             Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -207,7 +209,7 @@ fun ProgramDetailScreen(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Text("Delete")
+                Text(stringResource(R.string.cd_delete))
             }
         }
     }

@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import com.example.vitruvianredux.ble.session.WorkoutStats
 
@@ -57,10 +58,12 @@ object AnalyticsRecorder {
             AnalyticsStore.record(log)
             Timber.tag("analytics").i("Session logged: ${log.id} (${stats.totalSets} sets, ${stats.totalReps} reps, ${stats.durationSec}s)")
 
-            // Push to Hevy asynchronously — never blocks the UI
+            // Push to Hevy asynchronously — never blocks the UI (30s timeout to prevent leak)
             if (HevyStore.enabled) {
                 scope.launch {
-                    HevyClient.pushSession(log)
+                    withTimeoutOrNull(30_000L) {
+                        HevyClient.pushSession(log)
+                    } ?: Timber.tag(TAG).w("Hevy push timed out after 30s")
                 }
             }
         } catch (e: Exception) {

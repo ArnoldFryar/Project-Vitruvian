@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -68,7 +71,7 @@ private fun VolumeContent(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Volume", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.metric_volume), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -100,24 +103,23 @@ private fun VolumeContent(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.padding(AppDimens.Spacing.md)) {
-                            Text(
-                                "This Week",
+                            Text(stringResource(R.string.metric_current_week),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(AppDimens.Spacing.xs))
                             Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
                                     UnitConversions.formatVolumeFromKg(thisWeek, unitSystem),
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                 )
-                                Spacer(Modifier.width(4.dp))
+                                Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text(
                                     UnitConversions.unitLabel(unitSystem),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 4.dp),
+                                    modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
                                 )
                                 Spacer(Modifier.weight(1f))
                                 if (pctChange != null) {
@@ -127,7 +129,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                                         "$sign$pctChange% vs last week",
                                         style = MaterialTheme.typography.labelMedium,
                                         color = color,
-                                        modifier = Modifier.padding(bottom = 4.dp),
+                                        modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
                                     )
                                 }
                             }
@@ -137,8 +139,7 @@ private fun VolumeContent(onBack: () -> Unit) {
 
                 // ── 6-week trend ─────────────────────────────────────
                 item {
-                    Text(
-                        "6-Week Trend",
+                    Text(stringResource(R.string.metric_6_week_trend),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -154,7 +155,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                         Column(Modifier.padding(AppDimens.Spacing.md)) {
                             val barColor = MaterialTheme.colorScheme.primary
                             val bgBar = MaterialTheme.colorScheme.surface
-                            Canvas(Modifier.fillMaxWidth().height(120.dp)) {
+                            Canvas(Modifier.fillMaxWidth().height(AppDimens.Component.chartLarge)) {
                                 val gap = size.width / weeklyData.size
                                 val barW = gap * 0.55f
                                 weeklyData.forEachIndexed { i, (_, vol) ->
@@ -176,7 +177,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                                     }
                                 }
                             }
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(AppDimens.Spacing.sm))
                             Row(
                                 Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -205,7 +206,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
-                            Modifier.padding(14.dp),
+                            Modifier.padding(AppDimens.Spacing.md_sm2),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.weight(1f)) {
@@ -215,8 +216,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                                     fontWeight = if (isCurrentWeek) FontWeight.Bold else FontWeight.Normal,
                                 )
                                 if (isCurrentWeek) {
-                                    Text(
-                                        "This week",
+                                    Text(stringResource(R.string.metric_current_week),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                                     )
@@ -250,12 +250,11 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
         ) {
             Icon(
                 Icons.Default.ShowChart,
-                contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_performance_chart),
                 modifier = Modifier.size(AppDimens.Icon.xxl),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
             )
-            Text(
-                "Volume insights will appear once enough data is recorded",
+            Text(stringResource(R.string.metric_volume_empty),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
@@ -312,7 +311,7 @@ private fun StreakContent(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Day Streak", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.metric_day_streak), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -340,17 +339,15 @@ private fun StreakContent(onBack: () -> Unit) {
                     ) {
                         Icon(
                             Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_calories),
                             modifier = Modifier.size(AppDimens.Icon.xxl),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                         )
-                        Text(
-                            "No sessions recorded yet",
+                        Text(stringResource(R.string.metric_streak_empty),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        Text(
-                            "Complete workouts on consecutive days to build your streak.",
+                        Text(stringResource(R.string.metric_streak_empty_message),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -376,13 +373,13 @@ private fun StreakContent(onBack: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
                     StreakCard(
-                        label = "Current Streak",
+                        label = stringResource(R.string.metric_streak_current),
                         value = "$currentStreak day${if (currentStreak != 1) "s" else ""}",
                         highlight = true,
                         modifier = Modifier.weight(1f),
                     )
                     StreakCard(
-                        label = "Longest Streak",
+                        label = stringResource(R.string.metric_streak_longest),
                         value = "$bestStreak day${if (bestStreak != 1) "s" else ""}",
                         highlight = false,
                         modifier = Modifier.weight(1f),
@@ -392,8 +389,7 @@ private fun StreakContent(onBack: () -> Unit) {
 
             // ── 30-day activity grid ─────────────────────────────────
             item {
-                Text(
-                    "Last 30 Days",
+                Text(stringResource(R.string.metric_last_30_days),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -421,7 +417,7 @@ private fun StreakContent(onBack: () -> Unit) {
                                 )
                             }
                         }
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(AppDimens.Spacing.xs))
 
                         // Grid: align days to 5 rows of 7 (30 days + padding)
                         val startDay = today.minusDays(29)
@@ -433,12 +429,12 @@ private fun StreakContent(onBack: () -> Unit) {
 
                         gridDays.chunked(7).forEach { week ->
                             Row(
-                                Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.xxs),
                                 horizontalArrangement = Arrangement.SpaceEvenly,
                             ) {
                                 week.forEach { day ->
                                     Box(
-                                        modifier = Modifier.size(32.dp),
+                                        modifier = Modifier.size(AppDimens.Icon.xxl_sm),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         if (day != null) {
@@ -467,7 +463,7 @@ private fun StreakContent(onBack: () -> Unit) {
                                 }
                                 // Pad incomplete row
                                 repeat(7 - week.size) {
-                                    Spacer(Modifier.size(32.dp))
+                                    Spacer(Modifier.size(AppDimens.Icon.xxl_sm))
                                 }
                             }
                         }
@@ -477,8 +473,7 @@ private fun StreakContent(onBack: () -> Unit) {
 
             // ── Sessions per week (4-week history) ───────────────────
             item {
-                Text(
-                    "Sessions per Week",
+                Text(stringResource(R.string.metric_sessions_per_week),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -498,7 +493,7 @@ private fun StreakContent(onBack: () -> Unit) {
                             Row(
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .padding(vertical = AppDimens.Spacing.xs),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
@@ -514,7 +509,7 @@ private fun StreakContent(onBack: () -> Unit) {
                                 )
                             }
                         }
-                        Divider(Modifier.padding(vertical = 8.dp))
+                        Divider(Modifier.padding(vertical = AppDimens.Spacing.sm))
                         Row(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -561,7 +556,7 @@ private fun StreakCard(
                 fontWeight = FontWeight.Bold,
                 color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
                 label,
                 style = MaterialTheme.typography.labelMedium,

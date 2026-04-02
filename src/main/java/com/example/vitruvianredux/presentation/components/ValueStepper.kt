@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn

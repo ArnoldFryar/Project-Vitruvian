@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -25,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import coil.compose.SubcomposeAsyncImage
 import com.example.vitruvianredux.ble.SessionPhase
 import com.example.vitruvianredux.ble.SessionState
@@ -174,7 +177,7 @@ fun WorkoutScreen(
                         onValueChange = { WiringRegistry.hit(A_WORKOUT_SEARCH_CHANGE); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CHANGE, ActualOutcome.StateChanged("searchQuery")); searchQuery = it },
                         modifier      = Modifier.fillMaxWidth(),
                         placeholder   = { Text("Search exercises") },
-                        leadingIcon   = { Icon(Icons.Default.Search, contentDescription = null) },
+                        leadingIcon   = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
                         trailingIcon  = if (searchQuery.isNotEmpty()) {
                             { IconButton(onClick = { WiringRegistry.hit(A_WORKOUT_SEARCH_CLEAR); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CLEAR, ActualOutcome.StateChanged("searchCleared")); searchQuery = "" }) {
                                 Icon(Icons.Default.Close, contentDescription = "Clear search")
@@ -194,13 +197,13 @@ fun WorkoutScreen(
                                         onClick      = { WiringRegistry.hit(A_WORKOUT_FILTER_CLEAR); WiringRegistry.recordOutcome(A_WORKOUT_FILTER_CLEAR, ActualOutcome.StateChanged("filterCleared")); selectedMuscles = emptySet() },
                                         label        = { Text("Clear") },
                                         trailingIcon = {
-                                            Icon(Icons.Default.Close, contentDescription = null,
+                                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close),
                                                 modifier = Modifier.size(AppDimens.Icon.sm))
                                         },
                                     )
                                 }
                             }
-                            items(allGroups) { group ->
+                            items(allGroups, key = { it }) { group ->
                                 val active = group in selectedMuscles
                                 FilterChip(
                                     selected = active,
@@ -232,7 +235,7 @@ fun WorkoutScreen(
                                 readOnly      = true,
                                 modifier      = Modifier
                                     .menuAnchor()
-                                    .width(170.dp),
+                                    .width(AppDimens.Component.cardFixedWidth),
                                 trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(sortMenuExpanded) },
                                 singleLine    = true,
                                 textStyle     = MaterialTheme.typography.bodySmall,
@@ -345,8 +348,7 @@ private fun ExerciseCard(
                     modifier           = Modifier.fillMaxSize(),
                     error = {
                         Icon(
-                            imageVector        = Icons.Default.FitnessCenter,
-                            contentDescription = null,
+                            imageVector        = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                             tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                             modifier           = Modifier.size(36.dp),
                         )
@@ -452,7 +454,7 @@ private fun ExerciseDetailSheet(
             Box(
                 modifier         = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
+                    .height(AppDimens.Component.cardTallHeight)
                     .clip(RoundedCornerShape(AppDimens.Corner.md))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
@@ -464,8 +466,7 @@ private fun ExerciseDetailSheet(
                     modifier           = Modifier.fillMaxSize(),
                     error = {
                         Icon(
-                            imageVector        = Icons.Default.FitnessCenter,
-                            contentDescription = null,
+                            imageVector        = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                             tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                             modifier           = Modifier.size(56.dp),
                         )
@@ -519,7 +520,7 @@ private fun ExerciseSkeletonCard() {
     ElevatedCard(
         modifier  = Modifier
             .fillMaxWidth()
-            .height(96.dp),
+            .height(AppDimens.Component.onboardingIcon),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.selector),
         colors    = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
@@ -537,8 +538,7 @@ private fun ExerciseEmptyState(message: String, onRetry: (() -> Unit)? = null) {
         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
     ) {
         Icon(
-            imageVector        = Icons.Default.SentimentDissatisfied,
-            contentDescription = null,
+            imageVector        = Icons.Default.SentimentDissatisfied, contentDescription = stringResource(R.string.cd_empty_state),
             modifier           = Modifier.size(AppDimens.Icon.xxl),
             tint               = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
         )
@@ -681,8 +681,7 @@ private fun ActiveSessionBanner(
                         modifier              = Modifier.weight(1f),
                     ) {
                         Icon(
-                            imageVector        = Icons.Default.CheckCircle,
-                            contentDescription = null,
+                            imageVector        = Icons.Default.CheckCircle, contentDescription = stringResource(R.string.cd_check),
                             tint               = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                         Text(
@@ -718,8 +717,7 @@ private fun ActiveSessionBanner(
                         modifier              = Modifier.weight(1f),
                     ) {
                         Icon(
-                            imageVector        = Icons.Default.Error,
-                            contentDescription = null,
+                            imageVector        = Icons.Default.Error, contentDescription = stringResource(R.string.cd_error),
                             tint               = MaterialTheme.colorScheme.onErrorContainer,
                         )
                         Text(

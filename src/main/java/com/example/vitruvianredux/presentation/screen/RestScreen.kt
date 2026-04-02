@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.ble.session.NextStep
@@ -60,11 +63,10 @@ fun RestScreenContent(
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
         ) {
             // ── Title ─────────────────────────────────────────────────────────
-            Text(
-                text       = "REST",
+            Text(text = stringResource(R.string.justlift_rest),
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
-                letterSpacing = 6.sp,
+                letterSpacing = AppDimens.LetterSpacing.display,
                 color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
             )
 
@@ -110,8 +112,7 @@ fun RestScreenContent(
                         fontWeight = FontWeight.Black,
                         color      = ext.accentCyan,
                     )
-                    Text(
-                        text  = "sec",
+                    Text(text = stringResource(R.string.unit_sec),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     )
@@ -132,8 +133,7 @@ fun RestScreenContent(
                     color    = ext.accentCyan.copy(alpha = 0.12f),
                     border   = androidx.compose.foundation.BorderStroke(1.dp, ext.accentCyan.copy(alpha = 0.3f)),
                 ) {
-                    Text(
-                        text       = "Last rest — workout complete after this!",
+                    Text(text = stringResource(R.string.rest_last_warning),
                         style      = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color      = ext.accentCyan,
@@ -148,26 +148,26 @@ fun RestScreenContent(
                     onClick  = onSkip,
                     modifier = Modifier
                         .defaultMinSize(minWidth = 120.dp)
-                        .height(48.dp),
+                        .height(AppDimens.Component.buttonHeight),
                     shape = RoundedCornerShape(AppDimens.Corner.sm),
                 ) {
-                    Icon(Icons.Default.SkipNext, contentDescription = null,
+                    Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next),
                         modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.xs))
-                    Text("Skip Rest", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.cd_skip_rest), fontWeight = FontWeight.SemiBold)
                 }
 
                 OutlinedButton(
                     onClick = onSkipExercise,
                     modifier = Modifier
                         .defaultMinSize(minWidth = 120.dp)
-                        .height(48.dp),
+                        .height(AppDimens.Component.buttonHeight),
                     shape = RoundedCornerShape(AppDimens.Corner.sm),
                 ) {
-                    Icon(Icons.Default.SkipNext, contentDescription = null,
+                    Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next),
                         modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.xs))
-                    Text("Skip Exercise", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.rest_skip_exercise), fontWeight = FontWeight.SemiBold)
                 }
             }
 
@@ -175,10 +175,10 @@ fun RestScreenContent(
                 onClick = onEditUpcomingSets,
                 modifier = Modifier
                     .defaultMinSize(minWidth = 160.dp)
-                    .height(48.dp),
+                    .height(AppDimens.Component.buttonHeight),
                 shape = RoundedCornerShape(AppDimens.Corner.sm),
             ) {
-                Text("Edit Sets", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.rest_edit_sets), fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -211,27 +211,25 @@ private fun NextExerciseCard(
                 if (next.thumbnailUrl != null) {
                     AsyncImage(
                         model              = next.thumbnailUrl,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_next_exercise),
                         contentScale       = ContentScale.Crop,
                         modifier           = Modifier.fillMaxSize(),
                     )
                 } else {
                     Icon(
-                        Icons.Default.FitnessCenter,
-                        contentDescription = null,
+                        Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         tint     = accentColor,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(AppDimens.Icon.xl),
                     )
                 }
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text       = "UP NEXT",
+                Text(text = stringResource(R.string.rest_up_next),
                     style      = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color      = accentColor,
-                    letterSpacing = 2.sp,
+                    letterSpacing = AppDimens.LetterSpacing.spaced,
                 )
                 Text(
                     text       = next.exerciseName,

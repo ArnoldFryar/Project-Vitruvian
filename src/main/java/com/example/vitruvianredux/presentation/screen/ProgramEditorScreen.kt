@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
@@ -20,6 +22,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
@@ -141,7 +144,7 @@ fun ProgramEditorScreen(
                         },
                         enabled = isSaveEnabled
                     ) {
-                        Text("Save")
+                        Text(stringResource(R.string.cd_save))
                     }
                 },
             )
@@ -171,7 +174,7 @@ fun ProgramEditorScreen(
                         value = programName,
                         onValueChange = { if (it.length <= 40) programName = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Program name") },
+                        label = { Text(stringResource(R.string.program_name_label)) },
                         singleLine = true,
                         shape = RoundedCornerShape(AppDimens.Corner.md),
                         supportingText = {
@@ -204,11 +207,10 @@ fun ProgramEditorScreen(
                             modifier          = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                "EXERCISES",
+                            Text(stringResource(R.string.session_exercises_header),
                                 style         = MaterialTheme.typography.labelMedium,
                                 color         = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 1.sp,
+                                letterSpacing = AppDimens.LetterSpacing.wide,
                             )
                             Spacer(Modifier.weight(1f))
                             Surface(
@@ -220,7 +222,7 @@ fun ProgramEditorScreen(
                                     style      = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color      = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier   = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier   = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xxs),
                                 )
                             }
                         }
@@ -258,7 +260,7 @@ fun ProgramEditorScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape    = RoundedCornerShape(AppDimens.Corner.md),
                 ) {
-                    Icon(Icons.Default.Add, null, modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text(
                         if (draftItems.isEmpty()) "Add Exercises" else "Add / Edit Exercises (${draftItems.size})",

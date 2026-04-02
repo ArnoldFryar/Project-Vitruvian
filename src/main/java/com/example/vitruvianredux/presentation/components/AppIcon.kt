@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable

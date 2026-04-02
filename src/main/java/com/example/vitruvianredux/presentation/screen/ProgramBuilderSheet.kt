@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
@@ -23,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
@@ -105,11 +108,11 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title   = { Text("Discard changes?") },
-            text    = { Text("Your program has unsaved changes that will be lost.") },
+            title   = { Text(stringResource(R.string.program_discard_title)) },
+            text    = { Text(stringResource(R.string.program_discard_message)) },
             confirmButton = {
                 TextButton(onClick = { showDiscardDialog = false; onDismiss() }) {
-                    Text("Discard", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_discard), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -148,8 +151,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "New Program",
+                    Text(stringResource(R.string.screen_title_new_program),
                         style      = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                     )
@@ -188,7 +190,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                         value         = programName,
                         onValueChange = { if (it.length <= 40) programName = it },
                         modifier      = Modifier.fillMaxWidth(),
-                        label         = { Text("Program name") },
+                        label         = { Text(stringResource(R.string.program_name_label)) },
                         singleLine    = true,
                         shape         = RoundedCornerShape(AppDimens.Corner.md),
                         supportingText = {
@@ -223,11 +225,10 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                                 .padding(top = AppDimens.Spacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                "EXERCISES",
+                            Text(stringResource(R.string.session_exercises_header),
                                 style         = MaterialTheme.typography.labelMedium,
                                 color         = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 1.sp,
+                                letterSpacing = AppDimens.LetterSpacing.wide,
                             )
                             Spacer(Modifier.weight(1f))
                             Surface(
@@ -239,7 +240,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                                     style      = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color      = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier   = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier   = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xxs),
                                 )
                             }
                         }
@@ -268,7 +269,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(140.dp)
+                                .height(AppDimens.Component.previewHeight)
                                 .clip(RoundedCornerShape(AppDimens.Corner.md))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
                             contentAlignment = Alignment.Center,
@@ -278,12 +279,11 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                             ) {
                                 Icon(
-                                    Icons.Default.FitnessCenter, null,
+                                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                     tint     = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                                     modifier = Modifier.size(AppDimens.Icon.xxl),
                                 )
-                                Text(
-                                    "Add exercises to build your program",
+                                Text(stringResource(R.string.program_add_empty_message),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -317,7 +317,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     modifier = Modifier.fillMaxWidth(),
                     shape    = RoundedCornerShape(AppDimens.Corner.md),
                 ) {
-                    Icon(Icons.Default.Add, null, modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text(
                         if (draftItems.isEmpty()) "Add Exercises" else "Add / Edit Exercises (${draftItems.size})",
@@ -355,7 +355,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                         modifier = Modifier.weight(1f),
                         shape    = RoundedCornerShape(AppDimens.Corner.md),
                     ) {
-                        Text("Save", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.cd_save), fontWeight = FontWeight.SemiBold)
                     }
 
                     if (canStart) {

@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -104,7 +106,7 @@ fun WorkoutLiveContainer(
             visible  = mirrorEnabled,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 40.dp, vertical = 8.dp),
+                .padding(horizontal = 40.dp, vertical = AppDimens.Spacing.sm),
             enter    = fadeIn(tween(350)) + scaleIn(tween(350), initialScale = 0.94f),
             exit     = fadeOut(tween(250)) + scaleOut(tween(250), targetScale = 0.94f),
         ) {
@@ -142,15 +144,15 @@ fun WorkoutLiveContainer(
             Row(
                 modifier = Modifier
                     .clickable(onClick = { MirrorModeController.toggle() })
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = AppDimens.Spacing.md_sm2, vertical = AppDimens.Spacing.sm_md),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
             ) {
                 Icon(
                     imageVector        = Icons.Default.FlipCameraAndroid,
                     contentDescription = if (mirrorEnabled) "Disable mirror" else "Enable mirror",
                     tint               = mirrorTint,
-                    modifier           = Modifier.size(16.dp),
+                    modifier           = Modifier.size(AppDimens.Icon.sm),
                 )
                 Text(
                     text       = "Mirror",
@@ -183,15 +185,15 @@ fun WorkoutLiveContainer(
                     Row(
                         modifier = Modifier
                             .clickable(onClick = { MirrorModeController.toggleFormGuides() })
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .padding(horizontal = AppDimens.Spacing.md_sm2, vertical = AppDimens.Spacing.sm_md),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                     ) {
                         Icon(
                             imageVector        = Icons.Default.GridView,
                             contentDescription = if (showFormGuides) "Hide guides" else "Show guides",
                             tint               = guidesTint,
-                            modifier           = Modifier.size(16.dp),
+                            modifier           = Modifier.size(AppDimens.Icon.sm),
                         )
                         Text(
                             text       = "Guides",

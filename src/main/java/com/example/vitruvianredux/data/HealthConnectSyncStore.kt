@@ -4,14 +4,13 @@ import android.content.Context
 import android.content.SharedPreferences
 
 /**
- * Persists the set of session IDs that have already been successfully pushed to Hevy.
- * Used to prevent duplicate entries when the user triggers a manual re-sync.
+ * Persists the set of session IDs that have already been successfully written to Health Connect.
+ * Used to avoid re-writing on every app open and to drive the on-open retry pass.
  */
-object HevySyncStore {
+object HealthConnectSyncStore {
 
-    // v2: cleared the incorrectly-seeded v1 store
-    private const val PREFS_NAME  = "vitruvian_hevy_sync_v2"
-    private const val KEY_SYNCED  = "synced_session_ids"
+    private const val PREFS_NAME = "vitruvian_hc_sync_v1"
+    private const val KEY_SYNCED = "synced_session_ids"
 
     private lateinit var prefs: SharedPreferences
 

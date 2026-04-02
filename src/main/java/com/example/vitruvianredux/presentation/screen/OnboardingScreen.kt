@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -26,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
@@ -49,15 +52,15 @@ private val PAGES = listOf(
     ),
     OnboardingPage(
         icon        = Icons.Default.Sync,
-        title       = "Sync Across Devices",
-        subtitle    = "Mirror your session to a hub display over Wi-Fi Direct — no internet, no latency, no limits.",
+        title       = "Track Every Rep",
+        subtitle    = "Every set is stored automatically — review history, spot trends, and share progress with your trainer.",
         accentColor = AccentCyan,
         tag         = "CONNECTIVITY",
     ),
     OnboardingPage(
         icon        = Icons.Default.FitnessCenter,
-        title       = "Train Smarter",
-        subtitle    = "Choose Old School, Pump, TUT, or Echo modes. Track PRs, quality scores, and volume history automatically.",
+        title       = "Choose Your Style",
+        subtitle    = "From beginner programs to advanced progressive overload — pick your training mode and let the Trainer adapt.",
         accentColor = AccentAmber,
         tag         = "PERFORMANCE",
     ),
@@ -94,7 +97,7 @@ fun OnboardingScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(240.dp)
+                .height(AppDimens.Component.heroArea)
                 .align(Alignment.TopCenter)
                 .drawBehind {
                     drawRect(
@@ -121,7 +124,7 @@ fun OnboardingScreen(
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
                 color = PAGES[currentPage].accentColor.copy(alpha = 0.8f),
-                letterSpacing = 2.sp,
+                letterSpacing = AppDimens.LetterSpacing.spaced,
             )
 
             // ── Page content ──────────────────────────────────────────
@@ -140,7 +143,7 @@ fun OnboardingScreen(
             // ── Pill indicator ────────────────────────────────────────
             Row(
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.lg),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 repeat(PAGES.size) { index ->
@@ -191,10 +194,9 @@ fun OnboardingScreen(
             if (!isLastPage) {
                 TextButton(
                     onClick = onComplete,
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(top = AppDimens.Spacing.xs),
                 ) {
-                    Text(
-                        "Skip",
+                    Text(stringResource(R.string.common_skip),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                     )
@@ -245,7 +247,7 @@ private fun OnboardingPageContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp)
+            .padding(horizontal = AppDimens.Spacing.xl)
             .graphicsLayer { alpha = enterAlpha; scaleX = enterScale; scaleY = enterScale },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -257,11 +259,11 @@ private fun OnboardingPageContent(
         ) {
             Text(
                 text     = page.tag,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.xs),
                 style    = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color    = page.accentColor,
-                letterSpacing = 2.sp,
+                letterSpacing = AppDimens.LetterSpacing.spaced,
             )
         }
 
@@ -288,7 +290,7 @@ private fun OnboardingPageContent(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector        = page.icon,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_empty_state),
                         modifier           = Modifier.size(46.dp),
                         tint               = page.accentColor,
                     )

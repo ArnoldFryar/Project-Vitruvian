@@ -69,7 +69,7 @@ private fun Modifier.selectorCardDepth(cornerDp: Float = 12f): Modifier =
             color       = Color.White.copy(alpha = 0.14f),
             start       = Offset(cornerPx, 1f),
             end         = Offset(size.width - cornerPx, 1f),
-            strokeWidth = 1.dp.toPx(),
+            strokeWidth = AppDimens.Stroke.thin.toPx(),
         )
     }
 

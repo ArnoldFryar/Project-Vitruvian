@@ -49,6 +49,7 @@ import com.example.vitruvianredux.data.AnalyticsRecorder
 import com.example.vitruvianredux.data.ExerciseHistoryRecorder
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
+import com.example.vitruvianredux.data.HealthConnectSyncStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.data.WorkoutSessionRecord
 import com.example.vitruvianredux.data.HealthConnectStore
@@ -57,6 +58,8 @@ import com.example.vitruvianredux.presentation.screen.OnboardingScreen
 import com.example.vitruvianredux.presentation.screen.ExercisePlayerScreen
 import com.example.vitruvianredux.presentation.screen.SplashScreen
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.stringResource
+import com.vitruvian.trainer.R
 
 @Composable
 fun AppScaffold() {
@@ -231,9 +234,10 @@ fun AppScaffold() {
                                 exerciseName    = es.exerciseName,
                                 setIndex        = es.setIndex,
                                 reps            = es.repsCompleted,
-                                weightLb        = es.weightPerCableLb,
+                                weightLb        = es.weightPerCableLb * es.numCables,
                                 volumeKg        = es.volumeKg,
                                 avgQualityScore = es.avgQualityScore,
+                                numCables       = es.numCables,
                             )
                         }
 
@@ -291,8 +295,10 @@ fun AppScaffold() {
                                 totalSets      = stats.totalSets,
                                 totalReps      = stats.totalReps,
                                 totalVolumeKg  = stats.totalVolumeKg,
+                                sessionId      = sessionId,
                             )
-                            HealthConnectManager.writeWorkoutSummary(summary)
+                            val ok = HealthConnectManager.writeWorkoutSummary(summary)
+                            if (ok) HealthConnectSyncStore.markSynced(sessionId)
                         }
                     }
                     // Reset the recording guard when transitioning to a new session
@@ -354,7 +360,7 @@ private fun AppTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(horizontal = AppDimens.Spacing.md_lg, vertical = AppDimens.Spacing.md_sm),
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
@@ -364,8 +370,7 @@ private fun AppTopBar(
                     style      = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                 )
-                Text(
-                    text  = "Project Vitruvian",
+                Text(text = stringResource(R.string.project_tagline),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.combinedClickable(
@@ -396,8 +401,8 @@ private fun AppTopBar(
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.BluetoothConnected, null, modifier = Modifier.size(AppDimens.Icon.sm))
-                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Default.BluetoothConnected, contentDescription = stringResource(R.string.cd_bluetooth_connected), modifier = Modifier.size(AppDimens.Icon.sm))
+                        Spacer(Modifier.width(AppDimens.Spacing.xs))
                         Text(bleState.device.name, style = MaterialTheme.typography.labelMedium)
                     }
                 }
@@ -407,8 +412,8 @@ private fun AppTopBar(
                         enabled = false,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.BluetoothSearching, null, modifier = Modifier.size(AppDimens.Icon.sm))
-                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Default.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting), modifier = Modifier.size(AppDimens.Icon.sm))
+                        Spacer(Modifier.width(AppDimens.Spacing.xs))
                         val label = if (bleState is BleConnectionState.Scanning) "Scanning…" else "Connecting…"
                         Text(label, style = MaterialTheme.typography.labelMedium)
                     }
@@ -418,9 +423,9 @@ private fun AppTopBar(
                         onClick        = onConnectClick,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.Bluetooth, null, modifier = Modifier.size(AppDimens.Icon.sm))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Connect", style = MaterialTheme.typography.labelLarge)
+                        Icon(Icons.Default.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.sm))
+                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                        Text(stringResource(R.string.trainer_connect), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }

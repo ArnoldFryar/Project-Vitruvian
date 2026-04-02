@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -92,8 +94,7 @@ fun GradientButton(
             ) {
                 if (icon != null) {
                     Icon(
-                        imageVector       = icon,
-                        contentDescription = null,
+                        imageVector       = icon, contentDescription = null /* decorative: label text beside */,
                         tint              = contentColor,
                         modifier          = Modifier.size(AppDimens.Icon.md),
                     )

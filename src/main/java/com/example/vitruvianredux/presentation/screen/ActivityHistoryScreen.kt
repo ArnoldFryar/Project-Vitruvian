@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -28,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
@@ -69,7 +72,7 @@ fun ActivityHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("History", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.home_action_history), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -105,7 +108,7 @@ fun ActivityHistoryScreen(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.5.sp,
+                        letterSpacing = AppDimens.LetterSpacing.tight,
                         modifier = Modifier.padding(
                             top = AppDimens.Spacing.lg,
                             bottom = AppDimens.Spacing.sm,
@@ -177,10 +180,10 @@ private fun WorkoutHistoryCard(
             // ── Program label (when applicable) ──────────────────────
             if (isProgramWorkout) {
                 Text(
-                    session.programName!!.uppercase(),
+                    session.programName?.uppercase() ?: "",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
+                    letterSpacing = AppDimens.LetterSpacing.wide,
                     color = cs.primary,
                     modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
                 )
@@ -192,8 +195,7 @@ private fun WorkoutHistoryCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.FitnessCenter,
-                    contentDescription = null,
+                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                     tint = cs.primary,
                     modifier = Modifier.size(AppDimens.Icon.md),
                 )
@@ -316,7 +318,7 @@ private fun WorkoutHistoryCard(
                                     Modifier
                                         .width(3.dp)
                                         .height(32.dp)
-                                        .clip(RoundedCornerShape(2.dp))
+                                        .clip(RoundedCornerShape(AppDimens.Corner.micro))
                                         .background(cs.primary.copy(alpha = 0.5f))
                                 )
                                 Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -364,8 +366,7 @@ private fun WorkoutHistoryCard(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
-                                    Icons.Default.FitnessCenter,
-                                    contentDescription = null,
+                                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                     modifier = Modifier.size(AppDimens.Icon.sm),
                                     tint = cs.primary.copy(alpha = 0.6f),
                                 )
@@ -387,8 +388,7 @@ private fun WorkoutHistoryCard(
                         }
                     }
                 } else {
-                    Text(
-                        "No exercise details available",
+                    Text(stringResource(R.string.profile_no_exercise_data),
                         style = MaterialTheme.typography.bodySmall,
                         color = cs.onSurfaceVariant.copy(alpha = 0.5f),
                     )
@@ -402,8 +402,7 @@ private fun WorkoutHistoryCard(
                     shape = RoundedCornerShape(AppDimens.Corner.sm),
                     color = cs.primary.copy(alpha = 0.08f),
                 ) {
-                    Text(
-                        "View Full Session",
+                    Text(stringResource(R.string.history_view_full),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = cs.primary,
@@ -440,7 +439,7 @@ private fun MiniStat(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(AppDimens.Icon.sm))
+            Icon(icon, contentDescription = null /* decorative */, tint = iconTint, modifier = Modifier.size(AppDimens.Icon.sm))
             Spacer(Modifier.width(AppDimens.Spacing.xs))
             Text(
                 value,

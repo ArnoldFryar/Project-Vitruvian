@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.data.*
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.components.GradientButton
@@ -73,7 +76,7 @@ fun HevyImportScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Import from Hevy", fontWeight = FontWeight.SemiBold) },
+                title = { Text(stringResource(R.string.programs_hevy_import_title), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -98,7 +101,7 @@ fun HevyImportScreen(
                         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                     ) {
                         CircularProgressIndicator()
-                        Text("Fetching your Hevy routines…", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.hevy_fetching), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
 
@@ -113,7 +116,7 @@ fun HevyImportScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
-                        OutlinedButton(onClick = onBack) { Text("Go back") }
+                        OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                     }
                 }
 
@@ -124,8 +127,7 @@ fun HevyImportScreen(
                         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
                         item {
-                            Text(
-                                "Select routines to import",
+                            Text(stringResource(R.string.hevy_select_routines),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
@@ -158,8 +160,7 @@ fun HevyImportScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Icon(
-                                        imageVector = if (isSelected) Icons.Default.Check else Icons.Default.FitnessCenter,
-                                        contentDescription = null,
+                                        imageVector = if (isSelected) Icons.Default.Check else Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                         tint = if (isSelected) MaterialTheme.colorScheme.secondary
                                                else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(AppDimens.Icon.lg),
@@ -179,8 +180,7 @@ fun HevyImportScreen(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                         if (existing != null) {
-                                            Text(
-                                                "Already in library — will be skipped",
+                                            Text(stringResource(R.string.hevy_already_in_library),
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.error,
                                             )
@@ -242,7 +242,7 @@ fun HevyImportScreen(
                                     if (savedCount > 0) {
                                         onImportComplete()
                                     } else {
-                                        importMessage = "All selected routines are already in your library."
+                                        importMessage = "All routines already imported — no new programs."
                                     }
                                 }
                             }

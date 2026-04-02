@@ -35,11 +35,13 @@ object HevyStore {
     }
 
     fun setApiKey(key: String) {
+        if (!::prefs.isInitialized) return
         _apiKey.value = key
         prefs.edit().putString(KEY_API_KEY, key).apply()
     }
 
     fun setEnabled(enabled: Boolean) {
+        if (!::prefs.isInitialized) return
         _enabled.value = enabled
         prefs.edit().putBoolean(KEY_ENABLED, enabled).apply()
     }

@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -33,6 +35,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.BodyWeightStore
@@ -301,7 +304,7 @@ fun ExerciseDataScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Exercise Data", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.screen_title_exercise_data), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -320,11 +323,11 @@ fun ExerciseDataScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                 ) {
-                    Icon(Icons.Default.FitnessCenter, null,
-                        Modifier.size(48.dp), tint = cs.onSurfaceVariant.copy(alpha = 0.4f))
-                    Text("Exercise data not found.",
+                    Icon(Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                        Modifier.size(AppDimens.Icon.xxl), tint = cs.onSurfaceVariant.copy(alpha = 0.4f))
+                    Text(stringResource(R.string.exercise_data_not_found),
                         style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
-                    OutlinedButton(onClick = onBack) { Text("Go Back") }
+                    OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                 }
             }
             return@Scaffold
@@ -342,8 +345,8 @@ fun ExerciseDataScreen(
             // ── HEADER ───────────────────────────────────────────────────────
             EdsCard {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.FitnessCenter, null,
-                        tint = cs.primary, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                        tint = cs.primary, modifier = Modifier.size(AppDimens.Icon.xl))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(exerciseName,
@@ -419,7 +422,7 @@ fun ExerciseDataScreen(
                 if (totalVolKg > 0.0) {
                     EdsCard {
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                            Text("VOLUME", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                            Text(stringResource(R.string.metric_volume), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                             Text(
                                 "${UnitConversions.formatVolumeFromKg(totalVolKg, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}",
                                 style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
@@ -432,7 +435,7 @@ fun ExerciseDataScreen(
                 if (avgQuality != null) {
                     EdsCard {
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                            Text("LIFT QUALITY", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                            Text(stringResource(R.string.complete_quality), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                             val qualColor = when {
                                 avgQuality >= 80 -> cs.primary
                                 avgQuality >= 60 -> Warning
@@ -461,8 +464,8 @@ fun ExerciseDataScreen(
                     EdsCard {
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                             Column {
-                                Text("RELATIVE STRENGTH", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                                Text("Est. 1RM ÷ bodyweight", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant.copy(alpha = 0.6f))
+                                Text(stringResource(R.string.exercise_stat_relative_strength), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                                Text(stringResource(R.string.exercise_stat_relative_help), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant.copy(alpha = 0.6f))
                             }
                             val rsColor = when {
                                 relStrength >= 1.5 -> Success
@@ -502,8 +505,7 @@ fun ExerciseDataScreen(
 
             } else {
                 EdsCard {
-                    Text(
-                        "No detailed set data is available for this exercise instance.",
+                    Text(stringResource(R.string.exercise_no_sets),
                         style = MaterialTheme.typography.bodyMedium,
                         color = cs.onSurfaceVariant,
                     )
@@ -562,7 +564,7 @@ private fun BestSetCard(result: BestSetResult, unitSystem: UnitsStore.UnitSystem
     EdsCard {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("BEST SET", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+                Text(stringResource(R.string.pb_best_set), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
                 Text(
                     "Set ${result.setIndex + 1}  ·  ${result.reps} reps  ·  ${formatWeightLb(result.weightLb, unitSystem)}",
@@ -575,7 +577,7 @@ private fun BestSetCard(result: BestSetResult, unitSystem: UnitsStore.UnitSystem
                         modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text("EST. 1RM", style = MaterialTheme.typography.labelSmall, color = cs.onPrimaryContainer)
+                        Text(stringResource(R.string.exercise_comparison_est_1rm), style = MaterialTheme.typography.labelSmall, color = cs.onPrimaryContainer)
                         Text(
                             formatWeightLb(result.est1RmLb.roundToInt(), unitSystem),
                             style = MaterialTheme.typography.bodySmall,
@@ -666,7 +668,7 @@ private fun PbRow(label: String, value: String) {
 private fun ComparisonCard(comparison: ExerciseComparison, unitSystem: UnitsStore.UnitSystem) {
     val cs = MaterialTheme.colorScheme
     EdsCard {
-        Text("vs Previous", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.exercise_comparison_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(AppDimens.Spacing.md_sm))
         Divider(color = cs.outlineVariant, thickness = 0.5.dp)
         Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -674,11 +676,11 @@ private fun ComparisonCard(comparison: ExerciseComparison, unitSystem: UnitsStor
         // Column headers
         Row(modifier = Modifier.fillMaxWidth()) {
             Spacer(Modifier.weight(1.5f))
-            Text("NOW",  style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
+            Text(stringResource(R.string.exercise_comparison_now),  style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
                 modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            Text("PREV", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
+            Text(stringResource(R.string.exercise_comparison_prev), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant,
                 modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            Spacer(Modifier.width(24.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.lg))
         }
         Spacer(Modifier.height(AppDimens.Spacing.xs))
 
@@ -783,7 +785,7 @@ private fun PolishedLoadChart(
         }
 
         // Bar canvas — equal-width slots so labels below align perfectly
-        Canvas(modifier = Modifier.fillMaxWidth().height(100.dp)) {
+        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
             val slotW   = size.width / sets.size
             val pad     = slotW * 0.17f
             val barW    = (slotW - pad * 2f).coerceAtLeast(4f)
@@ -831,11 +833,11 @@ private fun PolishedLoadChart(
             ) {
                 Canvas(Modifier.size(8.dp)) { drawCircle(accentColor) }
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text("Best set",   style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.65f))
+                Text(stringResource(R.string.pb_best_set),   style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.65f))
                 Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                 Canvas(Modifier.size(8.dp)) { drawCircle(dimColor) }
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text("Other sets", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.65f))
+                Text(stringResource(R.string.exercise_chart_other), style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.65f))
             }
         }
     }
@@ -855,9 +857,9 @@ private fun SetTable(
     val gold = LocalExtendedColors.current.gold
     Column {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs)) {
-            Text("SET",    style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(40.dp))
-            Text("REPS",   style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-            Text("WEIGHT", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            Text(stringResource(R.string.exercise_table_set),    style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(40.dp))
+            Text(stringResource(R.string.session_stat_reps),   style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text(stringResource(R.string.player_weight), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
         }
         Divider(color = cs.outlineVariant, thickness = 0.5.dp)
 
@@ -876,7 +878,7 @@ private fun SetTable(
                     )
                     if (isBest) {
                         Icon(Icons.Default.Star, "Best set", tint = gold,
-                            modifier = Modifier.padding(start = 2.dp).size(10.dp))
+                            modifier = Modifier.padding(start = AppDimens.Spacing.xxs).size(10.dp))
                     }
                 }
                 Text(
@@ -937,7 +939,7 @@ private fun EdsSection(title: String) {
             Modifier
                 .width(3.dp)
                 .height(16.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .clip(RoundedCornerShape(AppDimens.Corner.micro))
                 .background(MaterialTheme.colorScheme.primary)
         )
         Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -945,7 +947,7 @@ private fun EdsSection(title: String) {
             title.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp,
+            letterSpacing = AppDimens.LetterSpacing.wide,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -978,7 +980,7 @@ private fun EdsStatTile(label: String, value: String, modifier: Modifier = Modif
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
         ) {
             Text(label.uppercase(), style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Medium, letterSpacing = 0.8.sp,
+                fontWeight = FontWeight.Medium, letterSpacing = AppDimens.LetterSpacing.normal,
                 color = cs.onSurfaceVariant, textAlign = TextAlign.Center)
             Text(value, style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)

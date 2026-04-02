@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayer
@@ -67,6 +70,7 @@ internal fun SetReadyContent(
     onGo: () -> Unit,
     onSkipSet: () -> Unit,
     onSkipExercise: () -> Unit,
+    onAddSet: () -> Unit = {},
     modifier: Modifier = Modifier,
     isOpenEnded: Boolean = false,
     /** Show the Sets count stepper — true for JustLift and exercise-menu launches. */
@@ -205,9 +209,8 @@ internal fun SetReadyContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
+                        imageVector = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                        modifier = Modifier.size(AppDimens.Icon.hero),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                     )
                 }
@@ -266,7 +269,7 @@ internal fun SetReadyContent(
                             value         = targetReps,
                             onValueChange = { onTargetRepsChange(it) },
                             range         = 1..99,
-                            unitLabel     = "reps",
+                            unitLabel     = stringResource(R.string.session_stat_reps),
                             compact       = true,
                             modifier      = Modifier.fillMaxWidth(),
                         )
@@ -275,7 +278,7 @@ internal fun SetReadyContent(
                             onValueChange = { onTargetDurationChange(it.toInt()) },
                             range         = 5f..300f,
                             step          = 5f,
-                            unitLabel     = "sec",
+                            unitLabel     = stringResource(R.string.unit_sec),
                             formatLabel   = { "%d".format(it.toInt()) },
                             compact       = true,
                             visibleItemCount = 3,
@@ -316,20 +319,19 @@ internal fun SetReadyContent(
 
         // ── PR percentage indicator ──────────────────────────────────────
         if (prLb > 0 && !isEchoMode) {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
             Surface(
                 shape = RoundedCornerShape(50),
                 color = chipBg,
             ) {
                 Row(
-                    modifier              = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    modifier              = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.xs),
                     verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                 ) {
                     if (isNewPr) {
                         Icon(
-                            imageVector        = Icons.Default.Star,
-                            contentDescription = null,
+                            imageVector        = Icons.Default.Star, contentDescription = stringResource(R.string.cd_personal_record),
                             modifier           = Modifier.size(11.dp),
                             tint               = chipFg,
                         )
@@ -349,14 +351,14 @@ internal fun SetReadyContent(
 
         // Warmup reps picker
         SelectorCard(
-            title    = "Warmup",
+            title    = stringResource(R.string.ready_warmup),
             modifier = Modifier.fillMaxWidth(),
         ) {
             ValueStepper(
                 value         = warmupReps,
                 onValueChange = { onWarmupRepsChange(it) },
                 range         = 0..10,
-                unitLabel     = "reps",
+                unitLabel     = stringResource(R.string.session_stat_reps),
                 compact       = true,
             )
         }
@@ -366,14 +368,14 @@ internal fun SetReadyContent(
         if (showSetsStepper) {
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             SelectorCard(
-                title    = "Sets",
+                title    = stringResource(R.string.session_stat_sets),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 ValueStepper(
                     value         = totalSets,
                     onValueChange = { onTotalSetsChange(it) },
                     range         = 1..20,
-                    unitLabel     = "sets",
+                    unitLabel     = stringResource(R.string.session_stat_sets),
                     compact       = true,
                 )
             }
@@ -385,7 +387,7 @@ internal fun SetReadyContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
-            listOf("Old School", "Pump", "TUT", "Echo").forEach { mode ->
+            listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only").forEach { mode ->
                 FilterChip(
                     selected  = selectedMode == mode,
                     onClick   = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onModeSelect(mode) },
@@ -456,7 +458,7 @@ internal fun SetReadyContent(
                     }
                 }
                 // Eccentric %
-                SelectorCard(title = "Eccentric Load", modifier = Modifier.fillMaxWidth()) {
+                SelectorCard(title = stringResource(R.string.justlift_eccentric_title), modifier = Modifier.fillMaxWidth()) {
                     ValueStepper(
                         value         = eccentricPct,
                         onValueChange = { onEccentricPctChange(it.coerceIn(0, 200)) },
@@ -537,12 +539,12 @@ internal fun SetReadyContent(
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             elevation = ButtonDefaults.buttonElevation(
                 defaultElevation  = 6.dp,
-                pressedElevation  = 2.dp,
+                pressedElevation  = AppDimens.Elevation.card,
             ),
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(28.dp))
+            Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.xl))
             Spacer(Modifier.width(AppDimens.Spacing.sm))
-            Text("GO", fontWeight = FontWeight.Black, fontSize = 22.sp, letterSpacing = 2.sp)
+            Text("GO", fontWeight = FontWeight.Black, fontSize = 22.sp, letterSpacing = AppDimens.LetterSpacing.spaced)
         }
 
         // ── Secondary actions — visually subordinate ─────────────────────
@@ -559,7 +561,7 @@ internal fun SetReadyContent(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 ),
             ) {
-                Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next), modifier = Modifier.size(AppDimens.Icon.sm))
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Skip Set", fontWeight = FontWeight.Normal, fontSize = 13.sp)
             }
@@ -571,10 +573,22 @@ internal fun SetReadyContent(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 ),
             ) {
-                Icon(Icons.Default.SkipNext, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next), modifier = Modifier.size(AppDimens.Icon.sm))
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Skip Exercise", fontWeight = FontWeight.Normal, fontSize = 13.sp)
             }
+        }
+
+        TextButton(
+            onClick  = onAddSet,
+            modifier = Modifier.fillMaxWidth(),
+            colors   = ButtonDefaults.textButtonColors(
+                contentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+            ),
+        ) {
+            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.sm))
+            Spacer(Modifier.width(AppDimens.Spacing.xs))
+            Text("Add Set", fontWeight = FontWeight.Medium, fontSize = 13.sp)
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.md))

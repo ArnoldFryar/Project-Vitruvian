@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -31,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import coil.compose.SubcomposeAsyncImage
 import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.model.Exercise
@@ -66,7 +69,7 @@ fun ExercisePickerSheet(
     var showCreateSheet  by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        builtInExercises = try { loadExercises(context) } catch (e: Exception) { emptyList() }
+        builtInExercises = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadExercises(context) } } catch (e: Exception) { emptyList() }
     }
 
     val allGroups = remember(allExercises) {
@@ -94,7 +97,7 @@ fun ExercisePickerSheet(
                 modifier          = Modifier.fillMaxWidth().padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Select Exercises", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.picker_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Button(
                     onClick = {
                         // Return exercises in selection order (not catalog order)
@@ -112,8 +115,8 @@ fun ExercisePickerSheet(
                 value         = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier      = Modifier.fillMaxWidth().padding(horizontal = AppDimens.Spacing.md),
-                placeholder   = { Text("Search exercises") },
-                leadingIcon   = { Icon(Icons.Default.Search, null) },
+                placeholder   = { Text(stringResource(R.string.workout_search_hint)) },
+                leadingIcon   = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
                 trailingIcon  = if (searchQuery.isNotEmpty()) {
                     { IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Close, "Clear") } }
                 } else null,
@@ -133,12 +136,12 @@ fun ExercisePickerSheet(
                             InputChip(
                                 selected     = true,
                                 onClick      = { selectedMuscles = emptySet() },
-                                label        = { Text("Clear") },
-                                trailingIcon = { Icon(Icons.Default.Close, null, modifier = Modifier.size(AppDimens.Icon.sm)) },
+                                label        = { Text(stringResource(R.string.common_clear)) },
+                                trailingIcon = { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), modifier = Modifier.size(AppDimens.Icon.sm)) },
                             )
                         }
                     }
-                    items(allGroups) { group ->
+                    items(allGroups, key = { it }) { group ->
                         val active = group in selectedMuscles
                         FilterChip(
                             selected = active,
@@ -188,11 +191,11 @@ fun ExercisePickerSheet(
                             ) {
                                 Box(
                                     Modifier
-                                        .size(48.dp)
+                                        .size(AppDimens.Icon.xxl)
                                         .clip(RoundedCornerShape(AppDimens.Corner.sm))
                                         .background(shimmerBrush),
                                 )
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                                     Box(
                                         Modifier
                                             .fillMaxWidth(0.6f)
@@ -233,9 +236,8 @@ fun ExercisePickerSheet(
                                 verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                Text(
-                                    text  = "Create Custom Exercise",
+                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), tint = MaterialTheme.colorScheme.primary)
+                                Text(text = stringResource(R.string.picker_create_custom),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.SemiBold,
@@ -301,8 +303,7 @@ fun ExercisePickerSheet(
                                         modifier           = Modifier.fillMaxSize(),
                                         error = {
                                             Icon(
-                                                imageVector        = Icons.Default.FitnessCenter,
-                                                contentDescription = null,
+                                                imageVector        = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                                 tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                                                 modifier           = Modifier.size(36.dp),
                                             )
@@ -325,7 +326,7 @@ fun ExercisePickerSheet(
                                     if (ex.source == ExerciseSource.CUSTOM) {
                                         SuggestionChip(
                                             onClick = {},
-                                            label   = { Text("Custom", style = MaterialTheme.typography.labelSmall) },
+                                            label   = { Text(stringResource(R.string.picker_badge_custom), style = MaterialTheme.typography.labelSmall) },
                                             colors  = SuggestionChipDefaults.suggestionChipColors(
                                                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                                                 labelColor     = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -353,7 +354,7 @@ fun ExercisePickerSheet(
                                             equipmentLabels.forEach { equip ->
                                                 SuggestionChip(
                                                     onClick = {},
-                                                    icon    = { Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(12.dp)) },
+                                                    icon    = { Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link_exercises), modifier = Modifier.size(AppDimens.Icon.xs)) },
                                                     label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
                                                 )
                                             }
@@ -366,7 +367,7 @@ fun ExercisePickerSheet(
                                     imageVector        = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                                     contentDescription = if (isSelected) "Selected" else "Not selected",
                                     tint               = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier           = Modifier.size(28.dp),
+                                    modifier           = Modifier.size(AppDimens.Icon.xl),
                                 )
                             }
                         }

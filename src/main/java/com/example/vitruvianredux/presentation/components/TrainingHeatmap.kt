@@ -1,4 +1,4 @@
-﻿package com.example.vitruvianredux.presentation.components
+package com.example.vitruvianredux.presentation.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -18,6 +18,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import com.vitruvian.trainer.R
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
@@ -30,8 +32,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
-/* â”€â”€ Visual constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-private const val ROWS           = 7           // Mon=0 â€¦ Sun=6
+/* ── Visual constants ───────────────────────────────────────────────────── */
+private const val ROWS           = 7           // Mon=0 … Sun=6
 private val CELL_SIZE            = 11.dp
 private val CELL_GAP             = 2.dp        // tighter gap for density
 private val CELL_CORNER          = 2.dp
@@ -40,15 +42,15 @@ private val MONTH_ROW_HEIGHT     = 14.dp
 private const val MIN_WEEKS      = 16
 private const val MAX_WEEKS      = 52
 
-// â”€â”€ DOW single-char labels on rows 0, 2, 4 (Mon, Wed, Fri) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DOW single-char labels on rows 0, 2, 4 (Mon, Wed, Fri) ──────────────────
 private val DOW_LABELS = listOf(0 to "M", 2 to "W", 4 to "F")
 
 /**
  * GitHub-style training consistency heatmap drawn entirely via [Canvas].
  *
  * Adapts the number of weeks shown based on available card width:
- *  - Phone  (~328 dp): ~26 weeks (â‰ˆ 6 months)
- *  - Tablet (~560 dp): ~46 weeks (â‰ˆ 10â€“11 months)
+ *  - Phone  (~328 dp): ~26 weeks (≈ 6 months)
+ *  - Tablet (~560 dp): ~46 weeks (≈ 10–11 months)
  *
  * This lets tablet layouts fill their wider cards with extra history rather
  * than leaving dead space.  On both form factors cells stay close to the
@@ -68,21 +70,21 @@ fun TrainingHeatmap(
     val cs      = MaterialTheme.colorScheme
     val density = LocalDensity.current
 
-    // â”€â”€ Sessions grouped by local day â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Sessions grouped by local day ────────────────────────────────────────
     val sessionsByDay = remember(allLogs) {
         allLogs.groupBy { log ->
             Instant.ofEpochMilli(log.endTimeMs).atZone(zone).toLocalDate()
         }
     }
 
-    // â”€â”€ Colour scale â€” well-stepped alphas for clear intensity levels â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Colour scale — well-stepped alphas for clear intensity levels ─────────
     val colorEmpty = cs.surfaceVariant.copy(alpha = 0.30f)
     val color1     = cs.primary.copy(alpha = 0.28f)
     val color2     = cs.primary.copy(alpha = 0.52f)
     val color3     = cs.primary.copy(alpha = 0.76f)
     val color4     = cs.primary
 
-    // â”€â”€ Fixed pixel metrics (row geometry) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Fixed pixel metrics (row geometry) ───────────────────────────────────
     val gapPx          = with(density) { CELL_GAP.toPx() }
     val dowW           = with(density) { DOW_LABEL_WIDTH.toPx() }
     val monthH         = with(density) { MONTH_ROW_HEIGHT.toPx() }
@@ -95,18 +97,18 @@ fun TrainingHeatmap(
     val rowStep     = with(density) { (CELL_SIZE + CELL_GAP).toPx() }
     val totalH      = gridOriginY + ROWS * rowStep - gapPx
 
-    // â”€â”€ Text measurer for Canvas text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Text measurer for Canvas text ────────────────────────────────────────
     val textMeasurer = rememberTextMeasurer()
     val labelStyle   = MaterialTheme.typography.labelSmall.copy(
         fontSize = 9.sp,
         color    = cs.onSurfaceVariant.copy(alpha = 0.6f),
     )
 
-    // â”€â”€ Tap state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Tap state ────────────────────────────────────────────────────────────
     var selectedDay by remember { mutableStateOf<LocalDate?>(null) }
     val dateFmt     = remember { DateTimeFormatter.ofPattern("EEE, d MMM yyyy") }
 
-    // â”€â”€ All layout-dependent state lives inside BoxWithConstraints â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── All layout-dependent state lives inside BoxWithConstraints ───────────
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val availWidthPx = with(density) { maxWidth.toPx() }
 
@@ -151,15 +153,15 @@ fun TrainingHeatmap(
         }
 
         Column {
-            // â”€â”€ Subtitle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Subtitle ─────────────────────────────────────────────────────
             Text(
                 "Training frequency over the last $monthsLabel",
                 style    = MaterialTheme.typography.bodySmall,
                 color    = cs.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.padding(bottom = 6.dp),
+                modifier = Modifier.padding(bottom = AppDimens.Spacing.xs_sm),
             )
 
-            // â”€â”€ Canvas grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Canvas grid ──────────────────────────────────────────────────
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -219,7 +221,7 @@ fun TrainingHeatmap(
                             cornerRadius = cr,
                         )
 
-                        // Today highlight â€” primary-coloured border ring
+                        // Today highlight — primary-coloured border ring
                         if (date == today) {
                             drawRoundRect(
                                 color        = color4,
@@ -233,7 +235,7 @@ fun TrainingHeatmap(
                 }
             }
 
-            // â”€â”€ Legend â€” right-aligned, visually tied to grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Legend — right-aligned, visually tied to grid ─────────────────
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Row(
                 modifier              = Modifier.fillMaxWidth(),
@@ -260,13 +262,13 @@ fun TrainingHeatmap(
                 )
             }
 
-            // â”€â”€ Summary line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Summary line ─────────────────────────────────────────────────
             if (totalInPeriod > 0) {
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
                 Text(
                     buildString {
                         append("$totalInPeriod workout${if (totalInPeriod != 1) "s" else ""}")
-                        append(" Â· ")
+                        append(" · ")
                         append("$activeDays active day${if (activeDays != 1) "s" else ""}")
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -276,7 +278,7 @@ fun TrainingHeatmap(
         }
     }
 
-    // â”€â”€ Tap-to-detail dialog (overlay, outside BoxWithConstraints) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Tap-to-detail dialog (overlay, outside BoxWithConstraints) ────────────
     if (selectedDay != null) {
         val d = selectedDay!!
         val tappedSessions = remember(d, allLogs) {
@@ -321,7 +323,7 @@ fun TrainingHeatmap(
                                         Text(
                                             buildString {
                                                 if (session.totalSets > 0) append("${session.totalSets} sets")
-                                                if (session.totalSets > 0 && session.totalReps > 0) append(" Â· ")
+                                                if (session.totalSets > 0 && session.totalReps > 0) append(" · ")
                                                 if (session.totalReps > 0) append("${session.totalReps} reps")
                                             }.ifEmpty { "Session recorded" },
                                             style = MaterialTheme.typography.bodySmall,
@@ -343,7 +345,7 @@ fun TrainingHeatmap(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { selectedDay = null }) { Text("Done") }
+                TextButton(onClick = { selectedDay = null }) { Text(stringResource(R.string.complete_done)) }
             },
         )
     }

@@ -11,7 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.vitruvian.trainer.R
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import java.time.DayOfWeek
@@ -184,8 +186,7 @@ private fun StreakBlock(
             fontWeight = FontWeight.Bold,
             color      = if (streak > 0) cs.primary else cs.onSurfaceVariant,
         )
-        Text(
-            text  = "Day Streak",
+        Text(text = stringResource(R.string.metric_day_streak),
             style = MaterialTheme.typography.titleSmall,
             color = cs.onSurfaceVariant.copy(alpha = 0.7f),
         )
@@ -212,7 +213,7 @@ private fun WeeklyProgressBlock(
                 text     = " / $goal",
                 style    = MaterialTheme.typography.titleMedium,
                 color    = cs.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.padding(bottom = 4.dp),
+                modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
             )
         }
         Text(
@@ -310,7 +311,7 @@ private fun DayStrip(
 
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(12.dp),
+                    modifier = Modifier.size(AppDimens.Icon.xs),
                 ) {
                     Box(
                         modifier = Modifier
@@ -335,7 +336,7 @@ private fun DayStrip(
                                 // missed scheduled = hollow primary ring
                                 isMissed                   -> Modifier.border(1.5.dp, cs.primary.copy(alpha = 0.55f), CircleShape)
                                 // scheduled future = faint ring
-                                isScheduled && isFuture    -> Modifier.border(1.dp, cs.primary.copy(alpha = 0.3f), CircleShape)
+                                isScheduled && isFuture    -> Modifier.border(AppDimens.Stroke.thin, cs.primary.copy(alpha = 0.3f), CircleShape)
                                 else                       -> Modifier
                             }),
                     )

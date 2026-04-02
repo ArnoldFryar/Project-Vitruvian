@@ -138,14 +138,14 @@ object HevyClient {
         "OVERHEAD TRICEP EXTENSION"                  to "Overhead Tricep Extension (Cable)",
         "WIDE GRIP BICEP CURL"                       to "Bicep Curl (Cable)",
         "WIDE GRIP BICEP CURL "                      to "Bicep Curl (Cable)",
-        "STEP DOWNS"                                 to "Step Up",
-        "STEP DOWN"                                  to "Step Up",
+        "STEP DOWNS"                                 to "Dumbbell Step Up",
+        "STEP DOWN"                                  to "Dumbbell Step Up",
     )
 
     // In-memory exercise name → template_id cache (keyed to API key so it
     // resets if the user switches accounts).
     private var cacheKey: String = ""
-    private val templateCache = mutableMapOf<String, String>()
+    private val templateCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     // ── Public API ─────────────────────────────────────────────────────────
 
@@ -157,6 +157,7 @@ object HevyClient {
     suspend fun pushSession(session: AnalyticsStore.SessionLog): Result<Unit> {
         val apiKey = HevyStore.apiKey
         if (!HevyStore.enabled || apiKey.isBlank()) return Result.success(Unit)
+        if (HevySyncStore.isSynced(session.id)) return Result.success(Unit)
 
         return try {
             // Refresh template cache if API key changed

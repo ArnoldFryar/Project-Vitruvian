@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
@@ -22,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.cloud.AuthRepository
 import com.example.vitruvianredux.cloud.CloudSyncRepository
 import com.example.vitruvianredux.cloud.CloudSyncState
@@ -44,8 +47,7 @@ fun AccountScreen(
     // Only render if Supabase is initialised
     if (!SupabaseProvider.isInitialized) {
         AccountShell(onBack) {
-            Text(
-                "Cloud sync is not configured.\nSet your Supabase URL and key in supabase_config.xml.",
+            Text(stringResource(R.string.account_unconfigured),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -87,7 +89,7 @@ private fun AccountShell(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Cloud Account") },
+                title = { Text(stringResource(R.string.settings_cloud_not_signed_in)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -145,15 +147,13 @@ private fun SignedInContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Default.AccountCircle,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
+                Icons.Default.AccountCircle, contentDescription = stringResource(R.string.cd_account_avatar),
+                modifier = Modifier.size(AppDimens.Icon.xxl),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Spacer(Modifier.width(AppDimens.Spacing.md_sm))
             Column {
-                Text(
-                    "Signed in",
+                Text(stringResource(R.string.account_signed_in),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -170,7 +170,7 @@ private fun SignedInContent(
     // Sync card
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
-            Text("Cloud Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.cd_cloud_sync), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             // Status
@@ -180,12 +180,12 @@ private fun SignedInContent(
                         val formatted = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(lastSync))
                         Text("Last synced: $formatted", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Text("Never synced", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.account_never_synced), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 is CloudSyncState.Syncing -> {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.sm), strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.sm), strokeWidth = AppDimens.Stroke.medium)
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text("Syncing...", style = MaterialTheme.typography.bodySmall)
                     }
@@ -213,9 +213,9 @@ private fun SignedInContent(
                 enabled = syncState !is CloudSyncState.Syncing,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+                Icon(Icons.Default.Sync, contentDescription = stringResource(R.string.cd_sync), modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(AppDimens.Spacing.sm))
-                Text("Sync Now")
+                Text(stringResource(R.string.sync_now))
             }
         }
     }
@@ -228,9 +228,9 @@ private fun SignedInContent(
             contentColor = MaterialTheme.colorScheme.error,
         ),
     ) {
-        Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+        Icon(Icons.Default.Logout, contentDescription = stringResource(R.string.cd_sign_out), modifier = Modifier.size(AppDimens.Icon.md))
         Spacer(Modifier.width(AppDimens.Spacing.sm))
-        Text("Sign Out")
+        Text(stringResource(R.string.cd_sign_out))
     }
 
     } // end Column
@@ -262,8 +262,7 @@ private fun SignInContent() {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
-            Text(
-                "Sync your programs, workouts, and settings across devices.",
+            Text(stringResource(R.string.account_form_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -271,7 +270,7 @@ private fun SignInContent() {
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it; errorMessage = null },
-                label = { Text("Email") },
+                label = { Text(stringResource(R.string.account_email_label)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -286,7 +285,7 @@ private fun SignInContent() {
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it; errorMessage = null },
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.account_password_label)) },
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
@@ -318,7 +317,7 @@ private fun SignInContent() {
             Button(
                 onClick = {
                     if (email.isBlank() || password.isBlank()) {
-                        errorMessage = "Email and password are required"
+                        errorMessage = "Please enter email and password."
                         return@Button
                     }
                     isLoading = true
@@ -347,7 +346,7 @@ private fun SignInContent() {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(AppDimens.Icon.md),
-                        strokeWidth = 2.dp,
+                        strokeWidth = AppDimens.Stroke.medium,
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {

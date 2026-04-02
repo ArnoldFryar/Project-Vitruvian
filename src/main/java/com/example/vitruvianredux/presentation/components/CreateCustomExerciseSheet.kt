@@ -20,6 +20,8 @@ import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.model.TrackingType
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import androidx.compose.ui.res.stringResource
+import com.vitruvian.trainer.R
 
 /**
  * ModalBottomSheet form for creating **or editing** a custom exercise.
@@ -72,11 +74,11 @@ fun CreateCustomExerciseSheet(
             OutlinedTextField(
                 value         = name,
                 onValueChange = { name = it; showNameError = false },
-                label         = { Text("Exercise Name *") },
+                label         = { Text(stringResource(R.string.custom_exercise_name_label)) },
                 modifier      = Modifier.fillMaxWidth(),
                 isError       = showNameError,
                 supportingText = if (showNameError) {
-                    { Text("A name is required") }
+                    { Text(stringResource(R.string.custom_exercise_name_error)) }
                 } else null,
                 singleLine = true,
                 shape      = RoundedCornerShape(AppDimens.Corner.md),
@@ -84,7 +86,7 @@ fun CreateCustomExerciseSheet(
 
             // ── Tracking type ────────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-                Text("Tracking Type", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.custom_exercise_tracking_type), style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     TrackingType.entries.forEach { type ->
                         val selected = trackingType == type
@@ -93,7 +95,7 @@ fun CreateCustomExerciseSheet(
                             onClick     = { trackingType = type },
                             label       = { Text(if (type == TrackingType.REPS) "Reps" else "Duration") },
                             leadingIcon = if (selected) {
-                                { Icon(Icons.Default.Check, null, modifier = Modifier.size(AppDimens.Icon.sm)) }
+                                { Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check), modifier = Modifier.size(AppDimens.Icon.sm)) }
                             } else null,
                         )
                     }
@@ -104,9 +106,9 @@ fun CreateCustomExerciseSheet(
             OutlinedTextField(
                 value         = primaryMuscle,
                 onValueChange = { primaryMuscle = it },
-                label         = { Text("Muscle Group") },
+                label         = { Text(stringResource(R.string.custom_exercise_muscle_group)) },
                 modifier      = Modifier.fillMaxWidth(),
-                placeholder   = { Text("e.g. Chest, Back, Arms") },
+                placeholder   = { Text(stringResource(R.string.custom_exercise_muscle_placeholder)) },
                 singleLine    = true,
                 shape         = RoundedCornerShape(AppDimens.Corner.md),
             )
@@ -118,9 +120,8 @@ fun CreateCustomExerciseSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
-                    Text("Per Side", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        text  = "Track each arm / leg independently",
+                    Text(stringResource(R.string.custom_exercise_per_side), style = MaterialTheme.typography.bodyLarge)
+                    Text(text = stringResource(R.string.custom_exercise_per_side_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -132,11 +133,11 @@ fun CreateCustomExerciseSheet(
             OutlinedTextField(
                 value         = notes,
                 onValueChange = { notes = it },
-                label         = { Text("Notes") },
+                label         = { Text(stringResource(R.string.session_notes_header)) },
                 modifier      = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 80.dp),
-                placeholder   = { Text("Optional tips, cues, or description") },
+                placeholder   = { Text(stringResource(R.string.custom_exercise_notes_placeholder)) },
                 maxLines      = 4,
                 shape         = RoundedCornerShape(AppDimens.Corner.md),
             )
@@ -151,7 +152,7 @@ fun CreateCustomExerciseSheet(
                     modifier = Modifier.weight(1f),
                     shape    = RoundedCornerShape(AppDimens.Corner.lg),
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
                 Button(
                     onClick = {

@@ -1,4 +1,6 @@
-﻿package com.example.vitruvianredux.presentation.screen
+package com.example.vitruvianredux.presentation.screen
+
+import com.vitruvian.trainer.R
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -31,6 +33,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
@@ -93,7 +96,7 @@ fun ProfileScreen(
     var showEditNameDialog by remember { mutableStateOf(false) }
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
-    // â”€â”€ Exercise catalog lookup for weighted muscle group distribution â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Exercise catalog lookup for weighted muscle group distribution ────────
     val context = androidx.compose.ui.platform.LocalContext.current
     val exerciseLookup = remember {
         mutableStateOf<Map<String, List<String>>>(emptyMap())
@@ -107,7 +110,7 @@ fun ProfileScreen(
         }
     }
 
-    // â”€â”€ Real 7-day stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Real 7-day stats ─────────────────────────────────────────────────────
     // Prefer AnalyticsStore (richer model); fall back to WorkoutHistoryStore
     // for charts and when AnalyticsStore is empty (migration period).
     val weekVolumeKg = remember(allLogs, history) {
@@ -116,7 +119,7 @@ fun ProfileScreen(
         else WorkoutHistoryStore.recentVolumeKg(7)
     }
     val weekSessions = remember(allLogs, history) {
-        // Calendar-week count matches weeklyVolumesKg semantics (Mon–Sun)
+        // Calendar-week count matches weeklyVolumesKg semantics (Mon�Sun)
         val fromAnalytics = AnalyticsStore.sessionsPerWeek(1).lastOrNull()?.second ?: 0
         if (fromAnalytics > 0 || allLogs.isNotEmpty()) fromAnalytics
         else WorkoutHistoryStore.recentSessions(7)
@@ -141,22 +144,22 @@ fun ProfileScreen(
         )
     }
 
-    // ── Edit display name dialog ──────────────────────────────────────────────
+    // -- Edit display name dialog ----------------------------------------------
     if (showEditNameDialog) {
         var editText by remember { mutableStateOf(displayName) }
         val focusRequester = remember { FocusRequester() }
         AlertDialog(
             onDismissRequest = { showEditNameDialog = false },
-            title = { Text("Edit Name") },
+            title = { Text(stringResource(R.string.profile_edit_name_title)) },
             text = {
                 OutlinedTextField(
                     value = editText,
                     onValueChange = { editText = it },
-                    label = { Text("Display name") },
+                    label = { Text(stringResource(R.string.profile_edit_name_label)) },
                     singleLine = true,
                     isError = editText.isBlank(),
                     supportingText = if (editText.isBlank()) {
-                        { Text("Name cannot be empty") }
+                        { Text(stringResource(R.string.profile_edit_name_error)) }
                     } else null,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -173,10 +176,10 @@ fun ProfileScreen(
                         }
                     },
                     enabled = editText.isNotBlank(),
-                ) { Text("Save") }
+                ) { Text(stringResource(R.string.cd_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { showEditNameDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showEditNameDialog = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -184,11 +187,11 @@ fun ProfileScreen(
 
     val cs = MaterialTheme.colorScheme
 
-    ScreenScaffold(title = "Profile", innerPadding = innerPadding, fillWidth = true) {
+    ScreenScaffold(title = stringResource(R.string.nav_profile), innerPadding = innerPadding, fillWidth = true) {
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════
         //  Profile header
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -224,8 +227,7 @@ fun ProfileScreen(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Star,
-                        contentDescription = null,
+                        Icons.Default.Star, contentDescription = stringResource(R.string.cd_personal_record),
                         tint = LocalExtendedColors.current.gold,
                         modifier = Modifier.size(AppDimens.Icon.sm),
                     )
@@ -248,41 +250,41 @@ fun ProfileScreen(
                     bleVM?.clearAutoReconnect()
                     bleVM?.disconnect()
                 }) {
-                    Icon(Icons.Default.BluetoothConnected, null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Default.BluetoothConnected, contentDescription = stringResource(R.string.cd_bluetooth_connected), tint = MaterialTheme.colorScheme.primary)
                 }
-                isScanning || isConnecting -> CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.lg), strokeWidth = 2.dp)
+                isScanning || isConnecting -> CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.lg), strokeWidth = AppDimens.Stroke.medium)
                 else -> IconButton(onClick = {
                     WiringRegistry.hit(A_PROFILE_CONNECT)
                     WiringRegistry.recordOutcome(A_PROFILE_CONNECT, ActualOutcome.SheetOpened("device_picker"))
                     showDevicePicker = true
                 }) {
-                    Icon(Icons.Default.Bluetooth, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════
         //  This Week stats row
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        Text("This Week", style = MaterialTheme.typography.titleSmall,
+        // ═══════════════════════════════════════════════════════
+        Text(stringResource(R.string.metric_current_week), style = MaterialTheme.typography.titleSmall,
              color = MaterialTheme.colorScheme.onSurfaceVariant,
              modifier = Modifier.padding(bottom = AppDimens.Spacing.sm))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-            ProfileStatCard(modifier = Modifier.weight(1f), value = "$volumeDisplay $unitLabel", label = "Volume",   onClick = { showVolumeDetail = true })
-            ProfileStatCard(modifier = Modifier.weight(1f), value = weekSessions.toString(),     label = "Sessions", onClick = { showSessionsDetail = true })
-            ProfileStatCard(modifier = Modifier.weight(1f), value = "$currentStreak d",          label = "Streak",   onClick = { showStreakDetail = true })
+            ProfileStatCard(modifier = Modifier.weight(1f), value = "$volumeDisplay $unitLabel", label = stringResource(R.string.metric_volume),   onClick = { showVolumeDetail = true })
+            ProfileStatCard(modifier = Modifier.weight(1f), value = weekSessions.toString(),     label = stringResource(R.string.profile_stat_sessions), onClick = { showSessionsDetail = true })
+            ProfileStatCard(modifier = Modifier.weight(1f), value = "$currentStreak d",          label = stringResource(R.string.profile_stat_streak),   onClick = { showStreakDetail = true })
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Volume chart — with week navigation
+        // ═══════════════════════════════════════════════════════
+        //  Volume chart � with week navigation
         //  Real data from WorkoutHistoryStore
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════
 
-        ProfileSection(title = "Volume") {
+        ProfileSection(title = stringResource(R.string.metric_volume)) {
             var selectedTab by remember { mutableIntStateOf(0) }
             val tabs = listOf("Week", "Month", "Year")
 
@@ -312,7 +314,7 @@ fun ProfileScreen(
 
             when (selectedTab) {
                 0 -> {
-                    // â”€â”€ Week view: Monâ€“Sun, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    // ── Week view: Mon–Sun, navigable ────────────────────
                     val monday = today.with(java.time.DayOfWeek.MONDAY).minusWeeks(periodOffset.toLong())
                     val sunday = monday.plusDays(6)
                     val rangeFmt = DateTimeFormatter.ofPattern("d MMMM")
@@ -324,7 +326,7 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(32.dp)) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
                             Icon(Icons.Default.KeyboardArrowLeft, "Previous week", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -339,14 +341,14 @@ fun ProfileScreen(
                         }
                         IconButton(
                             onClick = { if (periodOffset > 0) periodOffset-- },
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
                             enabled = periodOffset > 0,
                         ) {
                             Icon(Icons.Default.KeyboardArrowRight, "Next week",
                                 tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
 
                     // Compute daily volume for that week
                     val weekDays = (0L..6L).map { monday.plusDays(it) }
@@ -370,14 +372,13 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = cs.primary,
-                        modifier = Modifier.padding(vertical = 4.dp),
+                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     val hasAnyActivity = dayVolumes.any { it > 0.0 } || daySessions.any { it > 0 }
                     if (!hasAnyActivity) {
-                        Text(
-                            "No workouts this week",
+                        Text(stringResource(R.string.profile_empty_week),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -389,7 +390,7 @@ fun ProfileScreen(
                         // Minimum stub height for sessions with no tracked volume (4dp in px)
                         val minStubPx = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }
 
-                        Canvas(modifier = Modifier.fillMaxWidth().height(100.dp)) {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
                             val totalBars = 7
                             val barWidth = (size.width / totalBars) * 0.55f
                             val gap = (size.width / totalBars)
@@ -436,7 +437,7 @@ fun ProfileScreen(
                     }
                 }
                 1 -> {
-                    // â”€â”€ Month view: ~30 days, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    // ── Month view: ~30 days, navigable ──────────────────
                     val refMonth = today.minusMonths(periodOffset.toLong())
                     val monthStart = refMonth.withDayOfMonth(1)
                     val monthEnd = refMonth.withDayOfMonth(refMonth.lengthOfMonth())
@@ -447,20 +448,20 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(32.dp)) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
                             Icon(Icons.Default.KeyboardArrowLeft, "Previous month", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Text(monthFmt.format(refMonth), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
                         IconButton(
                             onClick = { if (periodOffset > 0) periodOffset-- },
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
                             enabled = periodOffset > 0,
                         ) {
                             Icon(Icons.Default.KeyboardArrowRight, "Next month",
                                 tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
 
                     val volumeData = remember(history, monthStart) {
                         WorkoutHistoryStore.dailyVolume(monthStart, monthEnd)
@@ -472,9 +473,9 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = cs.primary,
-                        modifier = Modifier.padding(vertical = 4.dp),
+                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     // Aggregate by week
                     val weeklyBuckets = volumeData.groupBy { (d, _) -> d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR) }
@@ -483,11 +484,11 @@ fun ProfileScreen(
                     val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1.0
 
                     if (weeklyBuckets.all { it == 0.0 }) {
-                        Text("No workouts this month", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.profile_empty_month), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         val barColor = cs.primary
                         val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        Canvas(modifier = Modifier.fillMaxWidth().height(100.dp)) {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
                             val totalBars = weeklyBuckets.size
                             val barWidth = (size.width / totalBars.coerceAtLeast(1)) * 0.55f
                             val gap = size.width / totalBars.coerceAtLeast(1)
@@ -506,7 +507,7 @@ fun ProfileScreen(
                     }
                 }
                 2 -> {
-                    // â”€â”€ Year view: 12 months, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    // ── Year view: 12 months, navigable ──────────────────
                     val refYear = today.year - periodOffset
 
                     Row(
@@ -514,20 +515,20 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(32.dp)) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
                             Icon(Icons.Default.KeyboardArrowLeft, "Previous year", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Text("$refYear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
                         IconButton(
                             onClick = { if (periodOffset > 0) periodOffset-- },
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
                             enabled = periodOffset > 0,
                         ) {
                             Icon(Icons.Default.KeyboardArrowRight, "Next year",
                                 tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
 
                     val yearStart = LocalDate.of(refYear, 1, 1)
                     val yearEnd = LocalDate.of(refYear, 12, 31).let { if (it.isAfter(today)) today else it }
@@ -541,9 +542,9 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = cs.primary,
-                        modifier = Modifier.padding(vertical = 4.dp),
+                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     val monthlyBuckets = (1..12).map { m ->
                         volumeData.filter { it.first.monthValue == m }.sumOf { it.second }
@@ -552,11 +553,11 @@ fun ProfileScreen(
                     val monthLabels = listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D")
 
                     if (monthlyBuckets.all { it == 0.0 }) {
-                        Text("No workouts this year", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.profile_empty_year), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
                         val barColor = cs.primary
                         val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        Canvas(modifier = Modifier.fillMaxWidth().height(100.dp)) {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
                             val totalBars = 12
                             val barWidth = (size.width / totalBars) * 0.55f
                             val gap = size.width / totalBars
@@ -579,11 +580,11 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Sessions chart â€” navigable (same style as Volume)
+        // ═══════════════════════════════════════════════════════
+        //  Sessions chart — navigable (same style as Volume)
         //  Real data from WorkoutHistoryStore
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        ProfileSection(title = "Sessions") {
+        // ═══════════════════════════════════════════════════════
+        ProfileSection(title = stringResource(R.string.profile_stat_sessions)) {
             var selectedTab by remember { mutableIntStateOf(0) }
             val tabs = listOf("Week", "Month", "Year")
 
@@ -616,9 +617,9 @@ fun ProfileScreen(
                     val sunday = monday.plusDays(6)
                     val rangeFmt = DateTimeFormatter.ofPattern("d MMMM")
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(Icons.Default.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         Text("${rangeFmt.format(monday)} - ${rangeFmt.format(sunday)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(32.dp), enabled = periodOffset > 0) { Icon(Icons.Default.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
+                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(Icons.Default.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
                     }
 
                     val sessionData = remember(history, monday) { WorkoutHistoryStore.dailySessions(monday, sunday) }
@@ -626,15 +627,15 @@ fun ProfileScreen(
                     val weekDays = (0L..6L).map { monday.plusDays(it) }
                     val dayValues = weekDays.map { sessionMap[it] ?: 0 }
                     val weekTotal = dayValues.sum()
-                    Text("$weekTotal session${if (weekTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = 4.dp))
-                    Spacer(Modifier.height(8.dp))
+                    Text("$weekTotal session${if (weekTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     val maxSessions = dayValues.maxOrNull()?.takeIf { it > 0 } ?: 1
                     val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
                     if (dayValues.all { it == 0 }) {
-                        Text("No sessions this week", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.profile_sessions_empty_week), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Canvas(modifier = Modifier.fillMaxWidth().height(80.dp)) {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
                             val totalBars = 7; val barWidth = (size.width / totalBars) * 0.55f; val gap = size.width / totalBars
                             dayValues.forEachIndexed { i, v ->
                                 val x = i * gap + (gap - barWidth) / 2
@@ -654,22 +655,22 @@ fun ProfileScreen(
                     val refMonth = today.minusMonths(periodOffset.toLong())
                     val monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy")
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(Icons.Default.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         Text(monthFmt.format(refMonth), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(32.dp), enabled = periodOffset > 0) { Icon(Icons.Default.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
+                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(Icons.Default.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
                     }
                     val monthStart = refMonth.withDayOfMonth(1); val monthEnd = refMonth.withDayOfMonth(refMonth.lengthOfMonth())
                     val sessionData = remember(history, monthStart) { WorkoutHistoryStore.dailySessions(monthStart, monthEnd) }
                     val weeklyBuckets = sessionData.groupBy { (d, _) -> d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR) }.entries.sortedBy { it.key }.map { it.value.sumOf { p -> p.second } }
                     val monthTotal = sessionData.sumOf { it.second }
-                    Text("$monthTotal session${if (monthTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = 4.dp))
-                    Spacer(Modifier.height(8.dp))
+                    Text("$monthTotal session${if (monthTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
                     if (weeklyBuckets.all { it == 0 }) {
-                        Text("No sessions this month", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.profile_sessions_empty_month), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Canvas(modifier = Modifier.fillMaxWidth().height(80.dp)) {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
                             val totalBars = weeklyBuckets.size; val barWidth = (size.width / totalBars.coerceAtLeast(1)) * 0.55f; val gap = size.width / totalBars.coerceAtLeast(1)
                             weeklyBuckets.forEachIndexed { i, v ->
                                 val x = i * gap + (gap - barWidth) / 2
@@ -686,22 +687,22 @@ fun ProfileScreen(
                 2 -> {
                     val refYear = today.year - periodOffset
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(32.dp)) { Icon(Icons.Default.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(Icons.Default.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                         Text("$refYear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(32.dp), enabled = periodOffset > 0) { Icon(Icons.Default.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
+                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(Icons.Default.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
                     }
                     val yearStart = LocalDate.of(refYear, 1, 1); val yearEnd = LocalDate.of(refYear, 12, 31).let { if (it.isAfter(today)) today else it }
                     val sessionData = remember(history, refYear) { WorkoutHistoryStore.dailySessions(yearStart, yearEnd) }
                     val monthlyBuckets = (1..12).map { m -> sessionData.filter { it.first.monthValue == m }.sumOf { it.second } }
                     val yearTotal = sessionData.sumOf { it.second }
-                    Text("$yearTotal session${if (yearTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = 4.dp))
-                    Spacer(Modifier.height(8.dp))
+                    Text("$yearTotal session${if (yearTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     val maxVal = monthlyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
                     if (monthlyBuckets.all { it == 0 }) {
-                        Text("No sessions this year", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.profile_sessions_empty_year), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Canvas(modifier = Modifier.fillMaxWidth().height(80.dp)) {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
                             val totalBars = 12; val barWidth = (size.width / totalBars) * 0.55f; val gap = size.width / totalBars
                             monthlyBuckets.forEachIndexed { i, v ->
                                 val x = i * gap + (gap - barWidth) / 2
@@ -720,9 +721,9 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Muscle Groups donut chart â€” real data with date filter
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════
+        //  Muscle Groups donut chart — real data with date filter
+        // ═══════════════════════════════════════════════════════
         ProfileSection(title = "Muscle Groups") {
             val periodOptions = listOf("Last 7 days" to 7, "Last 14 days" to 14, "Last 30 days" to 30, "All time" to null)
             var selectedPeriodIdx by remember { mutableIntStateOf(2) } // default: 30 days
@@ -738,11 +739,11 @@ fun ProfileScreen(
                     modifier = Modifier.clickable { expanded = true },
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.xs_sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(periodOptions[selectedPeriodIdx].first, style = MaterialTheme.typography.labelMedium, color = cs.primary)
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = cs.primary, modifier = Modifier.size(AppDimens.Icon.md))
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = stringResource(R.string.cd_period_dropdown), tint = cs.primary, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                 }
                 DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -826,7 +827,7 @@ fun ProfileScreen(
                         }
                     }
                     Spacer(Modifier.width(AppDimens.Spacing.md))
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm)) {
                         sliceEntries.forEach { (name, count, color) ->
                             val pct = ((count / total) * 100).toInt()
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -843,9 +844,9 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ═══════════════════════════════════════════════════════════
-        //  Consistency heatmap — GitHub-style training calendar
-        // ═══════════════════════════════════════════════════════════
+        // -----------------------------------------------------------
+        //  Consistency heatmap � GitHub-style training calendar
+        // -----------------------------------------------------------
         ProfileSection(title = "Training Momentum") {
             TrainingMomentumCard(allLogs = allLogs, scheduledDays = effectiveScheduledDays)
 
@@ -853,16 +854,14 @@ fun ProfileScreen(
             Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-            // ── Training schedule day picker ───────────────────────────
-            Text(
-                "Training days",
+            // -- Training schedule day picker ---------------------------
+            Text(stringResource(R.string.profile_training_days),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
             )
             if (fromPrograms.isNotEmpty()) {
-                Text(
-                    "Days driven by your programs",
+                Text(stringResource(R.string.profile_training_days_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
@@ -891,7 +890,7 @@ fun ProfileScreen(
                         color = if (selected) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(AppDimens.Icon.xxl_sm)
                             .clickable(
                                 interactionSource = interactionSource,
                                 indication = null,
@@ -916,9 +915,9 @@ fun ProfileScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ═══════════════════════════════════════════════════════════
-        //  Exercise History – date-grouped sessions with PR badges
-        // ═══════════════════════════════════════════════════════════
+        // -----------------------------------------------------------
+        //  Exercise History � date-grouped sessions with PR badges
+        // -----------------------------------------------------------
         var historyExpanded by rememberSaveable { mutableStateOf(true) }
         Row(
             modifier = Modifier
@@ -927,8 +926,7 @@ fun ProfileScreen(
                 .padding(bottom = AppDimens.Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "Exercise History",
+            Text(stringResource(R.string.profile_exercise_history),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f),
@@ -949,7 +947,7 @@ fun ProfileScreen(
         Column {
 
         if (allLogs.isEmpty() && history.isEmpty()) {
-            // ── Empty state ──
+            // -- Empty state --
             AppEmptyState(
                 icon = Icons.Default.FitnessCenter,
                 headline = "No workouts yet",
@@ -968,12 +966,12 @@ fun ProfileScreen(
             }
 
             if (recentLogs.isNotEmpty()) {
-                // ── PR scan via dedicated tracker ──
+                // -- PR scan via dedicated tracker --
                 val prResult = remember(allLogs) {
                     com.example.vitruvianredux.data.PrTracker.scan(allLogs)
                 }
 
-                // ── Group sessions by date bucket ──
+                // -- Group sessions by date bucket --
                 val groupedByDate = remember(recentLogs) {
                     recentLogs.groupBy { session ->
                         java.time.Instant.ofEpochMilli(session.endTimeMs)
@@ -1005,13 +1003,13 @@ fun ProfileScreen(
                 }
 
                 buckets.forEach { bucket ->
-                    // ── Date section header ──
+                    // -- Date section header --
                     Text(
                         text = bucket.label,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = cs.primary,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
+                        modifier = Modifier.padding(top = AppDimens.Spacing.md, bottom = AppDimens.Spacing.xs_sm),
                     )
 
                     bucket.dates.forEach { date ->
@@ -1042,7 +1040,7 @@ fun ProfileScreen(
 
                             val sessionHasPrs = com.example.vitruvianredux.data.PrTracker.sessionHasPrs(prResult, session.id)
 
-                            // ── Session card ──
+                            // -- Session card --
                             ElevatedCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1052,15 +1050,14 @@ fun ProfileScreen(
                             ) {
                                 Column(modifier = Modifier
                                     .animateContentSize(tween(MotionTokens.STANDARD_MS))
-                                    .padding(14.dp)
+                                    .padding(AppDimens.Spacing.md_sm2)
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Icon(
-                                            Icons.Default.FitnessCenter,
-                                            contentDescription = null,
+                                            Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                             tint = cs.primary,
                                             modifier = Modifier.size(AppDimens.Icon.lg),
                                         )
@@ -1074,7 +1071,7 @@ fun ProfileScreen(
                                                 )
                                                 // Session-level PR indicator
                                                 if (sessionHasPrs) {
-                                                    Spacer(Modifier.width(6.dp))
+                                                    Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
                                                     Icon(
                                                         Icons.Default.EmojiEvents,
                                                         contentDescription = "PR",
@@ -1083,7 +1080,7 @@ fun ProfileScreen(
                                                     )
                                                 }
                                             }
-                                            Spacer(Modifier.height(2.dp))
+                                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                             Text(
                                                 summaryParts.joinToString(" \u2022 "),
                                                 style = MaterialTheme.typography.bodySmall,
@@ -1098,11 +1095,11 @@ fun ProfileScreen(
                                         )
                                     }
 
-                                    // ── Expandable per-exercise detail ──
+                                    // -- Expandable per-exercise detail --
                                     if (expanded) {
-                                        Spacer(Modifier.height(10.dp))
+                                        Spacer(Modifier.height(AppDimens.Spacing.sm_md))
                                         Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
-                                        Spacer(Modifier.height(8.dp))
+                                        Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                                         val sessionPrs = prResult.sessionPrs[session.id] ?: emptyMap()
 
@@ -1121,7 +1118,7 @@ fun ProfileScreen(
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(vertical = 4.dp),
+                                                        .padding(vertical = AppDimens.Spacing.xs),
                                                     verticalAlignment = Alignment.Top,
                                                 ) {
                                                     Column(modifier = Modifier.weight(1f)) {
@@ -1142,8 +1139,8 @@ fun ProfileScreen(
                                                         if (exercisePrs.isNotEmpty()) {
                                                             Spacer(Modifier.height(3.dp))
                                                             androidx.compose.foundation.layout.FlowRow(
-                                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                                                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
+                                                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
                                                             ) {
                                                                 exercisePrs.forEach { pr ->
                                                                     Row(
@@ -1154,7 +1151,7 @@ fun ProfileScreen(
                                                                             Icons.Default.EmojiEvents,
                                                                             contentDescription = "PR",
                                                                             tint = LocalExtendedColors.current.gold,
-                                                                            modifier = Modifier.size(12.dp),
+                                                                            modifier = Modifier.size(AppDimens.Icon.xs),
                                                                         )
                                                                         Text(
                                                                             pr.label,
@@ -1175,12 +1172,11 @@ fun ProfileScreen(
                                                     name,
                                                     style = MaterialTheme.typography.bodySmall,
                                                     fontWeight = FontWeight.Medium,
-                                                    modifier = Modifier.padding(start = 4.dp, top = 3.dp, bottom = 2.dp),
+                                                    modifier = Modifier.padding(start = AppDimens.Spacing.xs, top = 3.dp, bottom = AppDimens.Spacing.xxs),
                                                 )
                                             }
                                         } else {
-                                            Text(
-                                                "No exercise details available",
+                                            Text(stringResource(R.string.profile_no_exercise_data),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
@@ -1192,7 +1188,7 @@ fun ProfileScreen(
                     }
                 }
             } else {
-                // ── Fallback to WorkoutHistoryStore — also grouped by date ──
+                // -- Fallback to WorkoutHistoryStore � also grouped by date --
                 val groupedFallback = remember(history) {
                     history.sortedByDescending { it.date }.take(20).groupBy { it.date }
                         .toSortedMap(compareByDescending { it })
@@ -1209,7 +1205,7 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = cs.primary,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
+                        modifier = Modifier.padding(top = AppDimens.Spacing.md, bottom = AppDimens.Spacing.xs_sm),
                     )
                     records.forEach { record ->
                         val durationLabel = when {
@@ -1225,12 +1221,11 @@ fun ProfileScreen(
                             elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md_sm2),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
-                                    Icons.Default.FitnessCenter,
-                                    contentDescription = null,
+                                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                     tint = cs.primary,
                                     modifier = Modifier.size(AppDimens.Icon.lg),
                                 )
@@ -1253,11 +1248,10 @@ fun ProfileScreen(
         } // end AnimatedVisibility
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // ═══════════════════════════════════════════════════════
         //  Settings
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        Text(
-            "Settings",
+        // ═══════════════════════════════════════════════════════
+        Text(stringResource(R.string.cd_settings),
             style    = MaterialTheme.typography.titleSmall,
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
@@ -1268,9 +1262,9 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Units", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.settings_units_label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                    Text("Weight display unit", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.settings_units_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     FilterChip(
@@ -1280,7 +1274,7 @@ fun ProfileScreen(
                             UnitsStore.setUnitSystem(UnitsStore.UnitSystem.IMPERIAL_LB)
                             WiringRegistry.recordOutcome(A_SETTINGS_UNITS_TOGGLE, ActualOutcome.StateChanged("unitSystem"))
                         },
-                        label = { Text("lb") },
+                        label = { Text(stringResource(R.string.unit_lb)) },
                     )
                     FilterChip(
                         selected = unitSystem == UnitsStore.UnitSystem.METRIC_KG,
@@ -1289,14 +1283,14 @@ fun ProfileScreen(
                             UnitsStore.setUnitSystem(UnitsStore.UnitSystem.METRIC_KG)
                             WiringRegistry.recordOutcome(A_SETTINGS_UNITS_TOGGLE, ActualOutcome.StateChanged("unitSystem"))
                         },
-                        label = { Text("kg") },
+                        label = { Text(stringResource(R.string.unit_kg)) },
                     )
                 }
             }
         }
 
 
-        // ── Theme mode ───────────────────────────────────────────────────
+        // -- Theme mode ---------------------------------------------------
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         val themeMode by com.example.vitruvianredux.data.ThemeStore.modeFlow.collectAsState()
         PressScaleCard(modifier = Modifier.fillMaxWidth()) {
@@ -1305,9 +1299,9 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Theme", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.settings_theme_label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                    Text("App appearance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.settings_theme_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     com.example.vitruvianredux.data.ThemeStore.ThemeMode.entries.forEach { mode ->
@@ -1321,7 +1315,7 @@ fun ProfileScreen(
             }
         }
 
-        // ── TTS Voice ────────────────────────────────────────────────────
+        // -- TTS Voice ----------------------------------------------------
         if (workoutVM != null) {
             val availableVoices by workoutVM.availableVoices.collectAsState()
             val selectedVoiceName by workoutVM.selectedVoiceName.collectAsState()
@@ -1334,24 +1328,23 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            Icons.Default.RecordVoiceOver,
-                            contentDescription = null,
+                            Icons.Default.RecordVoiceOver, contentDescription = stringResource(R.string.cd_voice_coaching),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(AppDimens.Icon.lg),
                         )
                         Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Workout Voice", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.settings_voice_label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(AppDimens.Spacing.xxs))
                             Text(
                                 if (selectedVoiceName.isEmpty()) "Default"
                                 else {
                                     val raw = selectedVoiceName.substringAfterLast("-x-").substringBeforeLast("-").uppercase()
                                     when (raw) {
-                                        "IOB" -> "Neural · Voice 1"; "IOG" -> "Neural · Voice 2"
-                                        "IOM" -> "Neural · Voice 3"; "IOL" -> "Neural · Voice 4"
-                                        "TPF" -> "Standard · Voice A"; "TPD" -> "Standard · Voice B"
-                                        "TPC" -> "Standard · Voice C"; "SFG" -> "Standard · Voice D"
+                                        "IOB" -> "Neural � Voice 1"; "IOG" -> "Neural � Voice 2"
+                                        "IOM" -> "Neural � Voice 3"; "IOL" -> "Neural � Voice 4"
+                                        "TPF" -> "Standard � Voice A"; "TPD" -> "Standard � Voice B"
+                                        "TPC" -> "Standard � Voice C"; "SFG" -> "Standard � Voice D"
                                         else  -> raw.ifEmpty { selectedVoiceName }
                                     }
                                 },
@@ -1359,13 +1352,13 @@ fun ProfileScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 if (showVoicePicker) {
                     AlertDialog(
                         onDismissRequest = { showVoicePicker = false },
-                        title = { Text("Workout Voice") },
+                        title = { Text(stringResource(R.string.settings_voice_label)) },
                         text = {
                             Column(
                                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -1407,7 +1400,7 @@ fun ProfileScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Text("Default", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                    Text(stringResource(R.string.settings_voice_default), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                                     IconButton(
                                         onClick = { workoutVM.previewVoice("") },
                                         modifier = Modifier.size(AppDimens.Icon.lg),
@@ -1416,7 +1409,7 @@ fun ProfileScreen(
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(AppDimens.Icon.md))
                                     }
-                                    if (selectedVoiceName.isEmpty()) Icon(Icons.Default.Check, null,
+                                    if (selectedVoiceName.isEmpty()) Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check),
                                         tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
                                     else Spacer(Modifier.size(AppDimens.Icon.md))
                                 }
@@ -1429,14 +1422,14 @@ fun ProfileScreen(
                                         // Map Google's internal codes to friendlier names
                                         val raw = voice.name.substringAfterLast("-x-").substringBeforeLast("-").uppercase()
                                         val friendly = when (raw) {
-                                            "IOB" -> "Neural · Voice 1"
-                                            "IOG" -> "Neural · Voice 2"
-                                            "IOM" -> "Neural · Voice 3"
-                                            "IOL" -> "Neural · Voice 4"
-                                            "TPF" -> "Standard · Voice A"
-                                            "TPD" -> "Standard · Voice B"
-                                            "TPC" -> "Standard · Voice C"
-                                            "SFG" -> "Standard · Voice D"
+                                            "IOB" -> "Neural � Voice 1"
+                                            "IOG" -> "Neural � Voice 2"
+                                            "IOM" -> "Neural � Voice 3"
+                                            "IOL" -> "Neural � Voice 4"
+                                            "TPF" -> "Standard � Voice A"
+                                            "TPD" -> "Standard � Voice B"
+                                            "TPC" -> "Standard � Voice C"
+                                            "SFG" -> "Standard � Voice D"
                                             else  -> raw.ifEmpty { voice.name }
                                         }
                                         append(friendly)
@@ -1452,7 +1445,7 @@ fun ProfileScreen(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(label, style = MaterialTheme.typography.bodyMedium)
                                             if (voice.isNetworkConnectionRequired) {
-                                                Text("Requires internet",
+                                                Text(stringResource(R.string.settings_voice_requires_internet),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                                             }
@@ -1465,7 +1458,7 @@ fun ProfileScreen(
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.size(AppDimens.Icon.md))
                                         }
-                                        if (selectedVoiceName == voice.name) Icon(Icons.Default.Check, null,
+                                        if (selectedVoiceName == voice.name) Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check),
                                             tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
                                         else Spacer(Modifier.size(AppDimens.Icon.md))
                                     }
@@ -1473,15 +1466,15 @@ fun ProfileScreen(
                             }
                         },
                         confirmButton = {
-                            TextButton(onClick = { showVoicePicker = false }) { Text("Done") }
+                            TextButton(onClick = { showVoicePicker = false }) { Text(stringResource(R.string.complete_done)) }
                         },
                     )
                 }
             }
         }
-        // â”€â”€ Samsung Health (Health Connect) sync toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Samsung Health (Health Connect) sync toggle ──────────────────────
         val hcAvailability = HealthConnectManager.availability
-        // ── Body weight ───────────────────────────────────────────────────────
+        // -- Body weight -------------------------------------------------------
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         val manualWeightKg by BodyWeightStore.manualWeightKgFlow.collectAsState()
         var showWeightDialog by remember { mutableStateOf(false) }
@@ -1492,14 +1485,13 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.MonitorWeight,
-                    contentDescription = null,
+                    Icons.Default.MonitorWeight, contentDescription = stringResource(R.string.cd_weight_unit),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(AppDimens.Icon.lg),
                 )
                 Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Body Weight", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.settings_bodyweight_dialog_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
                     Text(
                         if (manualWeightKg != null)
@@ -1509,7 +1501,7 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -1517,14 +1509,14 @@ fun ProfileScreen(
             var weightInput by remember { mutableStateOf(manualWeightKg?.let { "%.1f".format(it) } ?: "") }
             AlertDialog(
                 onDismissRequest = { showWeightDialog = false },
-                title = { Text("Body Weight") },
+                title = { Text(stringResource(R.string.settings_bodyweight_dialog_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-                        Text("Enter your current body weight in kg. Used for relative strength calculations.", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.settings_bodyweight_dialog_help), style = MaterialTheme.typography.bodySmall)
                         OutlinedTextField(
                             value = weightInput,
                             onValueChange = { weightInput = it.filter { c -> c.isDigit() || c == '.' } },
-                            label = { Text("Weight (kg)") },
+                            label = { Text(stringResource(R.string.settings_bodyweight_input_label)) },
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
                             singleLine = true,
                         )
@@ -1534,10 +1526,10 @@ fun ProfileScreen(
                     TextButton(onClick = {
                         weightInput.toDoubleOrNull()?.let { BodyWeightStore.setWeightKg(it) }
                         showWeightDialog = false
-                    }) { Text("Save") }
+                    }) { Text(stringResource(R.string.cd_save)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showWeightDialog = false }) { Text("Cancel") }
+                    TextButton(onClick = { showWeightDialog = false }) { Text(stringResource(R.string.common_cancel)) }
                 },
             )
         }
@@ -1549,7 +1541,7 @@ fun ProfileScreen(
             val hcScope = rememberCoroutineScope()
 
             // Health Connect permission launcher (stable 1.1.0 handles both
-            // APK-based HC on API â‰¤33 and platform HC on API 34+).
+            // APK-based HC on API ≤33 and platform HC on API 34+).
             val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                 contract = androidx.health.connect.client.PermissionController.createRequestPermissionResultContract(),
             ) { granted ->
@@ -1583,10 +1575,9 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Samsung Health Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.settings_health_connect_label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                        Text(
-                            "Export workouts via Health Connect",
+                        Text(stringResource(R.string.settings_health_connect_description),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1595,7 +1586,7 @@ fun ProfileScreen(
                         checked = hcEnabled,
                         onCheckedChange = { wantEnabled ->
                             if (wantEnabled) {
-                                // Request permissions first â€” toggle turns ON only after grant
+                                // Request permissions first — toggle turns ON only after grant
                                 hcScope.launch {
                                     val alreadyGranted = HealthConnectManager.hasPermissions()
                                     if (alreadyGranted) {
@@ -1613,8 +1604,8 @@ fun ProfileScreen(
             }
         }
 
-        // â”€â”€ Debug tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        // ── Cloud Account ────────────────────────────────────────────
+        // ── Debug tools ──────────────────────────────────────────────────────
+        // -- Cloud Account --------------------------------------------
         if (com.example.vitruvianredux.cloud.SupabaseProvider.isInitialized) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             val sessionStatus by com.example.vitruvianredux.cloud.AuthRepository.sessionStatus
@@ -1628,8 +1619,7 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.Cloud,
-                        contentDescription = null,
+                        Icons.Default.Cloud, contentDescription = stringResource(R.string.cd_cloud_sync),
                         tint = if (isSignedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(AppDimens.Icon.lg),
                     )
@@ -1647,12 +1637,12 @@ fun ProfileScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
 
-        // ── Hevy Sync ────────────────────────────────────────────────────────
+        // -- Hevy Sync --------------------------------------------------------
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         val hevyApiKey  by HevyStore.apiKeyFlow.collectAsState()
         val hevyEnabled by HevyStore.enabledFlow.collectAsState()
@@ -1662,18 +1652,18 @@ fun ProfileScreen(
             var keyInput by remember { mutableStateOf(hevyApiKey) }
             AlertDialog(
                 onDismissRequest = { showHevyDialog = false },
-                title = { Text("Hevy API Key") },
+                title = { Text(stringResource(R.string.settings_hevy_api_key_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text(
-                            "Enter your Hevy API key to automatically push workouts after each session.\n\nGet your key at hevy.com → Settings → Developer.",
+                            "Enter your Hevy API key to automatically push workouts after each session.\n\nGet your key at hevy.com ? Settings ? Developer.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         OutlinedTextField(
                             value = keyInput,
                             onValueChange = { keyInput = it },
-                            label = { Text("API key") },
+                            label = { Text(stringResource(R.string.settings_hevy_api_key_input)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -1685,10 +1675,10 @@ fun ProfileScreen(
                         HevyStore.setApiKey(trimmed)
                         HevyStore.setEnabled(trimmed.isNotBlank())
                         showHevyDialog = false
-                    }) { Text("Save") }
+                    }) { Text(stringResource(R.string.cd_save)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showHevyDialog = false }) { Text("Cancel") }
+                    TextButton(onClick = { showHevyDialog = false }) { Text(stringResource(R.string.common_cancel)) }
                 },
             )
         }
@@ -1699,14 +1689,13 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.SyncAlt,
-                    contentDescription = null,
+                    Icons.Default.SyncAlt, contentDescription = stringResource(R.string.cd_hevy_sync),
                     tint = if (hevyEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(AppDimens.Icon.lg),
                 )
                 Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Hevy Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.cd_hevy_sync), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
                     Text(
                         if (hevyEnabled) "Pushing workouts to Hevy" else "Tap to connect Hevy account",
@@ -1714,11 +1703,11 @@ fun ProfileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
-        // ── Hevy manual re-sync ──────────────────────────────────────────────
+        // -- Hevy manual re-sync ----------------------------------------------
         AnimatedVisibility(visible = hevyEnabled) {
             val allLogs by AnalyticsStore.logsFlow.collectAsState()
             val scope = rememberCoroutineScope()
@@ -1738,7 +1727,7 @@ fun ProfileScreen(
                 OutlinedButton(
                     onClick = {
                         if (unsynced.isEmpty()) {
-                            hevySyncMessage = "All workouts are already synced to Hevy."
+                            hevySyncMessage = "All sessions already synced!"
                             return@OutlinedButton
                         }
                         hevySyncing = true
@@ -1770,11 +1759,11 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     if (hevySyncing) {
-                        CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = AppDimens.Stroke.medium)
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text("Syncing\u2026")
                     } else {
-                        Icon(Icons.Default.Sync, null, modifier = Modifier.size(AppDimens.Icon.md))
+                        Icon(Icons.Default.Sync, contentDescription = stringResource(R.string.cd_sync), modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text(
                             if (unsynced.isEmpty()) "All workouts synced \u2713"
@@ -1795,21 +1784,21 @@ fun ProfileScreen(
             }
         }
 
-        // ── Device Management ────────────────────────────────────────────
+        // -- Device Management --------------------------------------------
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDevice) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Bluetooth, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(AppDimens.Icon.lg))
+                Icon(Icons.Default.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(AppDimens.Icon.lg))
                 Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Device", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.settings_device_label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                    Text("Manage your Vitruvian trainer connection", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.settings_device_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -1820,22 +1809,22 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.lg))
+                    Icon(Icons.Default.BugReport, contentDescription = stringResource(R.string.cd_bug_report), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.lg))
                     Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Debug Tools", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.settings_debug_label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                        Text("BLE diagnostics & testing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.settings_debug_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    //  Detail bottom sheets â€“ triggered by tapping stat tiles
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  Detail bottom sheets – triggered by tapping stat tiles
+    // ═══════════════════════════════════════════════════════════════════════════
 
     if (showVolumeDetail) {
         VolumeDetailSheet(

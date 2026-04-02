@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -31,6 +33,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
@@ -80,9 +83,8 @@ fun SessionDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                 ) {
                     Icon(
-                        Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
+                        Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                        modifier = Modifier.size(AppDimens.Icon.xxl),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     )
                     Text(
@@ -126,8 +128,7 @@ fun SessionDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.CalendarToday,
-                        contentDescription = null,
+                        Icons.Default.CalendarToday, contentDescription = stringResource(R.string.cd_session_date),
                         tint = cs.primary,
                         modifier = Modifier.size(AppDimens.Icon.md),
                     )
@@ -179,13 +180,13 @@ fun SessionDetailScreen(
             ) {
                 SdStatTile(
                     icon = Icons.Default.Layers,
-                    label = "SETS",
+                    label = stringResource(R.string.session_stat_sets),
                     value = session.totalSets.toString(),
                     modifier = Modifier.weight(1f),
                 )
                 SdStatTile(
                     icon = Icons.Default.Repeat,
-                    label = "REPS",
+                    label = stringResource(R.string.session_stat_reps),
                     value = session.totalReps.toString(),
                     modifier = Modifier.weight(1f),
                 )
@@ -196,7 +197,7 @@ fun SessionDetailScreen(
             ) {
                 SdStatTile(
                     icon = Icons.Default.FitnessCenter,
-                    label = "VOLUME",
+                    label = stringResource(R.string.metric_volume),
                     value = if (session.volumeAvailable)
                         "${UnitConversions.formatVolumeFromKg(session.totalVolumeKg, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}"
                     else "—",
@@ -204,7 +205,7 @@ fun SessionDetailScreen(
                 )
                 SdStatTile(
                     icon = Icons.Default.Timer,
-                    label = "DURATION",
+                    label = stringResource(R.string.session_stat_duration),
                     value = formatSessionDuration(session.durationSec),
                     modifier = Modifier.weight(1f),
                 )
@@ -218,7 +219,7 @@ fun SessionDetailScreen(
                     if (session.heaviestLiftLb > 0) {
                         SdStatTile(
                             icon = Icons.Default.BarChart,
-                            label = "HEAVIEST",
+                            label = stringResource(R.string.session_stat_heaviest),
                             value = "${session.heaviestLiftLb} lb",
                             modifier = Modifier.weight(1f),
                         )
@@ -231,7 +232,7 @@ fun SessionDetailScreen(
                         }
                         SdStatTile(
                             icon = Icons.Default.Stars,
-                            label = "QUALITY",
+                            label = stringResource(R.string.session_stat_quality),
                             value = "$q",
                             valueSuffix = "/ 100",
                             accentColor = qualColor,
@@ -285,7 +286,7 @@ fun SessionDetailScreen(
                                     Modifier
                                         .width(3.dp)
                                         .height(28.dp)
-                                        .clip(RoundedCornerShape(2.dp))
+                                        .clip(RoundedCornerShape(AppDimens.Corner.micro))
                                         .background(cs.primary.copy(alpha = 0.5f))
                                 )
                                 Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -327,9 +328,8 @@ fun SessionDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
-                                    Icons.Default.FitnessCenter,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
+                                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                    modifier = Modifier.size(AppDimens.Icon.sm),
                                     tint = cs.primary,
                                 )
                                 Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -359,8 +359,7 @@ fun SessionDetailScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Default.LocalFireDepartment,
-                                contentDescription = null,
+                                Icons.Default.LocalFireDepartment, contentDescription = stringResource(R.string.cd_calories),
                                 tint = cs.primary,
                                 modifier = Modifier.size(AppDimens.Icon.md),
                             )
@@ -388,10 +387,9 @@ fun SessionDetailScreen(
                         verticalAlignment = Alignment.Top,
                     ) {
                         Icon(
-                            Icons.Default.Edit,
-                            contentDescription = null,
+                            Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit),
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(AppDimens.Icon.md).padding(top = 2.dp),
+                            modifier = Modifier.size(AppDimens.Icon.md).padding(top = AppDimens.Spacing.xxs),
                         )
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text(
@@ -437,7 +435,7 @@ private fun SdSectionHeader(title: String) {
             Modifier
                 .width(3.dp)
                 .height(16.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .clip(RoundedCornerShape(AppDimens.Corner.micro))
                 .background(MaterialTheme.colorScheme.primary)
         )
         Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -445,7 +443,7 @@ private fun SdSectionHeader(title: String) {
             title.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.sp,
+            letterSpacing = AppDimens.LetterSpacing.wide,
         )
     }
 }
@@ -471,8 +469,7 @@ private fun SdStatTile(
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
             Icon(
-                icon,
-                contentDescription = null,
+                icon, contentDescription = null /* decorative */,
                 tint = accentColor ?: MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),
             )
@@ -491,7 +488,7 @@ private fun SdStatTile(
                         valueSuffix,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 2.dp),
+                        modifier = Modifier.padding(bottom = AppDimens.Spacing.xxs),
                     )
                 }
             }
@@ -499,7 +496,7 @@ private fun SdStatTile(
                 label,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.8.sp,
+                letterSpacing = AppDimens.LetterSpacing.normal,
             )
         }
     }

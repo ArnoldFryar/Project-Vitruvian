@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -11,6 +13,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ClearAll
@@ -22,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleDebugLog
@@ -44,6 +48,7 @@ fun DebugScreen(
     innerPadding: PaddingValues      = PaddingValues(),
     bleVM: BleViewModel,
     workoutVM: WorkoutSessionViewModel,
+    onBack: () -> Unit = {},
 ) {
     val bleState     by bleVM.state.collectAsState()
     val sessionState by workoutVM.state.collectAsState()
@@ -80,8 +85,10 @@ fun DebugScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text       = "BLE Debug",
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                    Text(text = stringResource(R.string.screen_title_ble_debug),
                         style      = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                     )
@@ -121,7 +128,7 @@ fun DebugScreen(
                 ) {
                     DebugButton("INIT",  enabled = isConnected) { workoutVM.initDevice() }
                     DebugButton(
-                        label   = "START",
+                        label   = stringResource(R.string.debug_start),
                         enabled = isConnected,
                         colors  = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -130,7 +137,7 @@ fun DebugScreen(
                         workoutVM.startSet(WorkoutParameters.defaults("Debug Exercise"))
                     }
                     DebugButton(
-                        label   = "STOP",
+                        label   = stringResource(R.string.cd_stop),
                         enabled = isConnected,
                         colors  = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,
@@ -140,7 +147,7 @@ fun DebugScreen(
                         workoutVM.stopSet()
                     }
                     DebugButton(
-                        label   = "RESET",
+                        label   = stringResource(R.string.debug_reset),
                         enabled = isConnected,
                         colors  = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -178,8 +185,7 @@ fun DebugScreen(
                 modifier         = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text  = "No BLE packets yet.\nConnect a device and press START.",
+                Text(text = stringResource(R.string.debug_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -189,7 +195,7 @@ fun DebugScreen(
                 state           = listState,
                 modifier        = Modifier.fillMaxSize(),
                 contentPadding  = PaddingValues(AppDimens.Spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
             ) {
                 items(logEntries, key = { it.id }) { entry ->
                     BleLogRow(entry)
@@ -221,20 +227,20 @@ private fun BleLogRow(entry: BleDebugLog.Entry) {
         modifier = Modifier
             .fillMaxWidth()
             .background(bgColor, RoundedCornerShape(AppDimens.Corner.xs))
-            .padding(horizontal = 8.dp, vertical = 5.dp),
+            .padding(horizontal = AppDimens.Spacing.sm, vertical = 5.dp),
         verticalAlignment     = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
     ) {
         Icon(
             imageVector        = dirIcon,
             contentDescription = if (isTx) "TX" else "RX",
             tint               = dirColor,
-            modifier           = Modifier.size(AppDimens.Icon.sm).padding(top = 2.dp),
+            modifier           = Modifier.size(AppDimens.Icon.sm).padding(top = AppDimens.Spacing.xxs),
         )
 
         Column(modifier = Modifier.weight(1f)) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                 verticalAlignment     = Alignment.CenterVertically,
             ) {
                 Text(
@@ -304,7 +310,7 @@ private fun StatusChip(label: String, containerColor: Color) {
     ) {
         Text(
             text     = label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
             style    = MaterialTheme.typography.labelSmall,
             color    = MaterialTheme.colorScheme.onSurface,
         )
@@ -337,7 +343,7 @@ private fun AnalyticsProvenanceSection() {
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     StatusChip(
                         label = "$sessionCount sessions",
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -354,7 +360,7 @@ private fun AnalyticsProvenanceSection() {
                 }
             }
             if (expanded) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
                 for (m in metrics) {
                     val confidenceColor = when (m.confidence) {
                         AnalyticsProvenance.Confidence.HIGH   -> Success
@@ -372,8 +378,8 @@ private fun AnalyticsProvenanceSection() {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            .padding(vertical = AppDimens.Spacing.xxs),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -396,7 +402,7 @@ private fun AnalyticsProvenanceSection() {
                     }
                 }
                 if (dupes.isNotEmpty()) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
                     Text(
                         text = "Duplicate sessions detected:",
                         style = MaterialTheme.typography.labelSmall,

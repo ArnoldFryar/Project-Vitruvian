@@ -1,6 +1,8 @@
-ï»¿@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 
 package com.example.vitruvianredux.presentation.screen
+
+import com.vitruvian.trainer.R
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -27,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
@@ -86,7 +89,7 @@ fun ProgramsScreen(
         modifier            = Modifier.fillMaxSize().padding(innerPadding),
         topBar              = {
             TopAppBar(
-                title        = { Text("Programs", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) },
+                title        = { Text(stringResource(R.string.nav_programs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) },
                 windowInsets = WindowInsets(0),
             )
         },
@@ -98,8 +101,7 @@ fun ProgramsScreen(
         ) {
 
             item(key = "subtitle") {
-                Text(
-                    "Project Vitruvian",
+                Text(stringResource(R.string.project_tagline),
                     style    = MaterialTheme.typography.bodyMedium,
                     color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = AppDimens.Spacing.lg),
@@ -134,14 +136,14 @@ fun ProgramsScreen(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AddCircleOutline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+                        Icon(Icons.Default.AddCircleOutline, contentDescription = stringResource(R.string.cd_add), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
-                            Text("Create Program", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.programs_create_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                            Text("Build a routine from your exercise library", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.programs_create_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Spacer(Modifier.height(AppDimens.Spacing.md_sm))
@@ -161,14 +163,14 @@ fun ProgramsScreen(
                     shape    = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.FileDownload, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
+                        Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
-                            Text("Import Program", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.programs_import_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                            Text("Paste or share a JSON program export", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.programs_import_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Spacer(Modifier.height(AppDimens.Spacing.lg))
@@ -189,14 +191,14 @@ fun ProgramsScreen(
                         shape    = MaterialTheme.shapes.medium,
                     ) {
                         Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CloudDownload, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+                            Icon(Icons.Default.CloudDownload, contentDescription = stringResource(R.string.cd_cloud_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                             Spacer(Modifier.width(AppDimens.Spacing.md))
                             Column(Modifier.weight(1f)) {
-                                Text("Import from Hevy", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.programs_hevy_import_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                Text("Bring your Hevy routines into Vitruvian", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.programs_hevy_import_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     Spacer(Modifier.height(AppDimens.Spacing.lg))
@@ -204,8 +206,7 @@ fun ProgramsScreen(
             }
 
             item(key = "programs_header") {
-                Text(
-                    "Your Programs",
+                Text(stringResource(R.string.programs_your_programs),
                     style    = MaterialTheme.typography.titleSmall,
                     color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
@@ -301,15 +302,15 @@ fun ProgramsScreen(
                                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.FitnessCenter, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(AppDimens.Icon.xl))
+                            Icon(Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness), tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(AppDimens.Icon.xl))
                             Spacer(Modifier.width(AppDimens.Spacing.md))
                             Column(Modifier.weight(1f)) {
                                 Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                 val daysLabel = formatScheduledDays(p.scheduledDays)
                                 Text(
-                                    "${p.exerciseCount} exercise Â· Custom program" +
-                                        if (daysLabel.isNotEmpty()) " Â· $daysLabel" else "",
+                                    "${p.exerciseCount} exercise · Custom program" +
+                                        if (daysLabel.isNotEmpty()) " · $daysLabel" else "",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -331,8 +332,7 @@ fun ProgramsScreen(
             item(key = "spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
 
             item(key = "templates_header") {
-                Text(
-                    "Templates",
+                Text(stringResource(R.string.programs_templates),
                     style    = MaterialTheme.typography.titleSmall,
                     color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
@@ -349,14 +349,14 @@ fun ProgramsScreen(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.GridView, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(AppDimens.Icon.xl))
+                        Icon(Icons.Default.GridView, contentDescription = stringResource(R.string.cd_grid_view), tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(AppDimens.Icon.xl))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
-                            Text("Browse Templates", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.programs_browse_templates), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                            Text("Browse workout template library", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.programs_browse_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

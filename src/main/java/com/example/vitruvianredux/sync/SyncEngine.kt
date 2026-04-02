@@ -48,6 +48,11 @@ object SyncEngine {
         }
 
         // Both exist — compare timestamps
+        // Warn about potential clock skew (>1hr difference is suspicious)
+        val drift = kotlin.math.abs(remote.updatedAt - local.updatedAt)
+        if (drift > 3_600_000L && remote.deviceId != local.deviceId) {
+            Timber.tag(TAG).w("MERGE id=${remote.id}: large timestamp drift (${drift / 1000}s) between devices — possible clock skew")
+        }
         return when {
             remote.updatedAt > local.updatedAt -> {
                 Timber.tag(TAG).d(

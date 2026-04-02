@@ -156,7 +156,13 @@ class AndroidBleClient(context: Context) {
             }
         }
 
-        scanner?.startScan(activeScanCallback)
+        try {
+            scanner?.startScan(activeScanCallback)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "startScan: BLE permission revoked: ${e.message}")
+            _state.value = BleConnectionState.Error("Bluetooth permission denied. Please grant permission and try again.")
+            return
+        }
 
         val runnable = Runnable {
             Log.d(TAG, "startScan: auto-stopping after ${durationMs}ms, ${_devices.value.size} Vitruvian device(s) found")
@@ -196,7 +202,8 @@ class AndroidBleClient(context: Context) {
 
         val knownDevice = _devices.value.firstOrNull { it.address == address }
         val device = knownDevice ?: BleDevice(
-            name    = btDevice.name?.takeIf { it.isNotBlank() } ?: "Unknown (${address.takeLast(5)})",
+            name    = try { btDevice.name?.takeIf { it.isNotBlank() } } catch (_: SecurityException) { null }
+                        ?: "Unknown (${address.takeLast(5)})",
             address = address,
             rssi    = 0,
         )
@@ -220,14 +227,24 @@ class AndroidBleClient(context: Context) {
         mainHandler.postDelayed(ctRunnable, CONNECT_TIMEOUT_MS)
 
         gatt?.close()
-        gatt = btDevice.connectGatt(appContext, false, gattCallback(device), BluetoothDevice.TRANSPORT_LE)
+        try {
+            gatt = btDevice.connectGatt(appContext, false, gattCallback(device), BluetoothDevice.TRANSPORT_LE)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "connect: BLE permission revoked: ${e.message}")
+            _state.value = BleConnectionState.Error("Bluetooth permission denied. Please grant permission and try again.")
+            gatt = null
+        }
     }
 
     fun disconnect() {
         Log.d(TAG, "disconnect: requested")
         cancelAllTimeouts()
-        gatt?.disconnect()
-        gatt?.close()
+        try {
+            gatt?.disconnect()
+            gatt?.close()
+        } catch (e: SecurityException) {
+            Log.w(TAG, "disconnect: permission issue: ${e.message}")
+        }
         gatt = null
         pendingNotifyQueue.clear()
         writeQueue.clear()
@@ -405,6 +422,7 @@ class AndroidBleClient(context: Context) {
     private fun gattCallback(device: BleDevice) = object : BluetoothGattCallback() {
 
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            try {
             _lastGattEventAt.value = System.currentTimeMillis()
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
@@ -447,6 +465,13 @@ class AndroidBleClient(context: Context) {
                     updateDiagnostics()
                 }
                 else -> Log.d(TAG, "onConnectionStateChange: newState=$newState  status=$status")
+            }
+            } catch (e: android.os.DeadObjectException) {
+                Log.e(TAG, "onConnectionStateChange: Bluetooth process died", e)
+                _state.value = BleConnectionState.Error("Bluetooth service died — please restart Bluetooth")
+            } catch (e: SecurityException) {
+                Log.e(TAG, "onConnectionStateChange: permission denied", e)
+                _state.value = BleConnectionState.Error("Bluetooth permission denied")
             }
         }
 

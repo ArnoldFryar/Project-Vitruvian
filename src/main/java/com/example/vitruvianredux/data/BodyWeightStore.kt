@@ -34,11 +34,13 @@ object BodyWeightStore {
     }
 
     fun setWeightKg(kg: Double) {
+        if (!::prefs.isInitialized) return
         _weightKg.value = kg
         prefs.edit().putFloat(KEY_WEIGHT_KG, kg.toFloat()).apply()
     }
 
     fun clear() {
+        if (!::prefs.isInitialized) return
         _weightKg.value = null
         prefs.edit().remove(KEY_WEIGHT_KG).apply()
     }

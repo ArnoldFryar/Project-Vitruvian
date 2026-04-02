@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
@@ -33,6 +35,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import kotlin.math.sin
 import kotlin.random.Random
@@ -121,7 +124,7 @@ fun WorkoutCompleteContent(
         }
         Icon(
             imageVector        = Icons.Default.EmojiEvents,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.cd_trophy),
             modifier           = Modifier
                 .size(AppDimens.Icon.hero)
                 .graphicsLayer {
@@ -161,8 +164,8 @@ fun WorkoutCompleteContent(
                         alpha  = prReveal.value
                     },
                 shape     = RoundedCornerShape(AppDimens.Corner.pill),
-                color     = Color(0xFFFFD740).copy(alpha = 0.15f),
-                border    = BorderStroke(1.dp, Color(0xFFFFD740).copy(alpha = 0.5f)),
+                color     = ext.accentAmber.copy(alpha = 0.15f),
+                border    = BorderStroke(1.dp, ext.accentAmber.copy(alpha = 0.5f)),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
@@ -170,16 +173,15 @@ fun WorkoutCompleteContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.Star,
-                        contentDescription = null,
+                        Icons.Default.Star, contentDescription = stringResource(R.string.cd_personal_record),
                         modifier = Modifier.size(AppDimens.Icon.md),
-                        tint = Color(0xFFFFD740),
+                        tint = ext.accentAmber,
                     )
                     Text(
                         text  = if (prCount == 1) "1 Personal Record!" else "$prCount Personal Records!",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFD740),
+                        color = ext.accentAmber,
                     )
                 }
             }
@@ -196,7 +198,7 @@ fun WorkoutCompleteContent(
             ) {
                 StatTile(
                     icon  = Icons.Default.Repeat,
-                    label = "Total Reps",
+                    label = stringResource(R.string.complete_total_reps),
                     value = "${stats.totalReps}",
                     unit  = "reps",
                     modifier = Modifier.weight(1f),
@@ -204,7 +206,7 @@ fun WorkoutCompleteContent(
                 )
                 StatTile(
                     icon  = Icons.Default.FitnessCenter,
-                    label = "Total Volume",
+                    label = stringResource(R.string.complete_total_volume),
                     value = UnitConversions.formatVolumeFromKg(stats.totalVolumeKg.toDouble(), unitSystem),
                     unit  = UnitConversions.unitLabel(unitSystem),
                     modifier = Modifier.weight(1f),
@@ -217,7 +219,7 @@ fun WorkoutCompleteContent(
             ) {
                 StatTile(
                     icon  = Icons.Default.Timer,
-                    label = "Duration",
+                    label = stringResource(R.string.session_stat_duration),
                     value = formatDuration(stats.durationSec),
                     unit  = "min:sec",
                     modifier = Modifier.weight(1f),
@@ -225,7 +227,7 @@ fun WorkoutCompleteContent(
                 )
                 StatTile(
                     icon  = Icons.Default.Layers,
-                    label = "Total Sets",
+                    label = stringResource(R.string.complete_total_sets),
                     value = "${stats.totalSets}",
                     unit  = "sets",
                     modifier = Modifier.weight(1f),
@@ -238,7 +240,7 @@ fun WorkoutCompleteContent(
             ) {
                 StatTile(
                     icon  = Icons.Default.BarChart,
-                    label = "Heaviest Lift",
+                    label = stringResource(R.string.complete_heaviest),
                     value = "${stats.heaviestLiftLb}",
                     unit  = "lb/cable",
                     modifier = Modifier.weight(1f),
@@ -246,7 +248,7 @@ fun WorkoutCompleteContent(
                 )
                 StatTile(
                     icon  = Icons.Default.Stars,
-                    label = "Lift Quality",
+                    label = stringResource(R.string.complete_quality),
                     value = avgQualityScore?.toString() ?: "—",
                     unit  = when {
                         avgQualityScore == null -> ""
@@ -265,7 +267,7 @@ fun WorkoutCompleteContent(
         Surface(
             modifier  = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
+                .height(AppDimens.Component.chartLarge),
             shape     = RoundedCornerShape(AppDimens.Corner.md),
             color     = MaterialTheme.colorScheme.surfaceVariant,
         ) {
@@ -276,7 +278,7 @@ fun WorkoutCompleteContent(
                 ) {
                     Icon(
                         Icons.Default.ShowChart,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_performance_chart),
                         modifier = Modifier.size(AppDimens.Icon.xl),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
                     )
@@ -306,14 +308,14 @@ fun WorkoutCompleteContent(
             onClick   = onSaveAndExit,
             modifier  = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(AppDimens.Component.buttonHeightLg),
             shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
             colors    = ButtonDefaults.buttonColors(
                 containerColor = cs.primary,
                 contentColor   = cs.onPrimary,
             ),
         ) {
-            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+            Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save), modifier = Modifier.size(AppDimens.Icon.md))
             Spacer(Modifier.width(AppDimens.Spacing.sm))
             Text(
                 text       = "Done",
@@ -326,7 +328,7 @@ fun WorkoutCompleteContent(
             onClick   = onDismiss,
             modifier  = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(AppDimens.Component.buttonHeightLg),
             shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
         ) {
             Text(
@@ -380,8 +382,7 @@ private fun StatTile(
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
             Icon(
-                imageVector        = icon,
-                contentDescription = null,
+                imageVector        = icon, contentDescription = null /* decorative */,
                 modifier           = Modifier.size(AppDimens.Icon.md),
                 tint               = MaterialTheme.colorScheme.primary,
             )

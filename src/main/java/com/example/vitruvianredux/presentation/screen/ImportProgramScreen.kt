@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.*
 import com.example.vitruvianredux.model.Exercise
@@ -85,7 +88,7 @@ fun ImportProgramScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Import Program", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.programs_import_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -162,7 +165,7 @@ fun ImportProgramScreen(
     disambiguating?.let { state ->
         AlertDialog(
             onDismissRequest = { disambiguating = null },
-            title = { Text("Select Exercise") },
+            title = { Text(stringResource(R.string.import_select_exercise)) },
             text = {
                 LazyColumn {
                     itemsIndexed(state.candidates) { _, candidate ->
@@ -180,15 +183,15 @@ fun ImportProgramScreen(
                                     resolvedPrograms = updated
                                     disambiguating = null
                                 }
-                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                                .padding(vertical = AppDimens.Spacing.md_sm, horizontal = AppDimens.Spacing.sm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                Icons.Default.FitnessCenter, null,
+                                Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(AppDimens.Icon.lg),
                             )
-                            Spacer(Modifier.width(12.dp))
+                            Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                             Column {
                                 Text(candidate.name, fontWeight = FontWeight.SemiBold)
                                 if (candidate.muscleGroups.isNotEmpty()) {
@@ -204,7 +207,7 @@ fun ImportProgramScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { disambiguating = null }) { Text("Cancel") }
+                TextButton(onClick = { disambiguating = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -213,7 +216,7 @@ fun ImportProgramScreen(
     showOverwriteDialog?.let { prompt ->
         AlertDialog(
             onDismissRequest = { showOverwriteDialog = null },
-            title = { Text("Program Already Exists") },
+            title = { Text(stringResource(R.string.import_already_exists_title)) },
             text = {
                 Text("A program named \"${prompt.existing.name}\" already exists. " +
                         "Import as a new copy or replace it?")
@@ -235,7 +238,7 @@ fun ImportProgramScreen(
                         importedCount++
                     }
                     importDone = true
-                }) { Text("Replace", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.common_replace), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
                 Row {
@@ -253,9 +256,9 @@ fun ImportProgramScreen(
                             importedCount++
                         }
                         importDone = true
-                    }) { Text("New Copy") }
-                    Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = { showOverwriteDialog = null }) { Text("Cancel") }
+                    }) { Text(stringResource(R.string.import_new_copy)) }
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    TextButton(onClick = { showOverwriteDialog = null }) { Text(stringResource(R.string.common_cancel)) }
                 }
             },
         )
@@ -290,7 +293,7 @@ private fun PasteInputContent(
             .fillMaxSize()
             .padding(horizontal = AppDimens.Spacing.md),
     ) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md))
 
         // Instruction card
         ElevatedCard(
@@ -298,7 +301,7 @@ private fun PasteInputContent(
             shape = MaterialTheme.shapes.medium,
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(AppDimens.Spacing.md),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
@@ -308,14 +311,13 @@ private fun PasteInputContent(
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.FileDownload, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
                 }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                 Column {
-                    Text("Import from JSON", fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        "Paste a program export JSON below, or tap Paste to grab from clipboard.",
+                    Text(stringResource(R.string.import_json_title), fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                    Text(stringResource(R.string.import_json_help),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -323,13 +325,13 @@ private fun PasteInputContent(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md))
 
         // JSON text field
         OutlinedTextField(
             value = rawJson,
             onValueChange = onJsonChange,
-            label = { Text("JSON") },
+            label = { Text(stringResource(R.string.import_json_label)) },
             placeholder = { Text("{\"schemaVersion\":1, \"programs\":[...]}") },
             modifier = Modifier
                 .fillMaxWidth()
@@ -338,18 +340,18 @@ private fun PasteInputContent(
             shape = MaterialTheme.shapes.medium,
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
         // Action buttons
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
             OutlinedButton(
                 onClick = onPaste,
                 modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.medium,
             ) {
-                Icon(Icons.Default.ContentPaste, null, modifier = Modifier.size(AppDimens.Icon.md))
-                Spacer(Modifier.width(6.dp))
-                Text("Paste")
+                Icon(Icons.Default.ContentPaste, contentDescription = stringResource(R.string.cd_import), modifier = Modifier.size(AppDimens.Icon.md))
+                Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
+                Text(stringResource(R.string.common_paste))
             }
             Button(
                 onClick = onParse,
@@ -358,9 +360,9 @@ private fun PasteInputContent(
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
-                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(AppDimens.Icon.md))
-                Spacer(Modifier.width(6.dp))
-                Text("Preview")
+                Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.md))
+                Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
+                Text(stringResource(R.string.common_preview))
             }
         }
     }
@@ -386,11 +388,11 @@ private fun PreviewContent(
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = AppDimens.Spacing.md),
                 shape = MaterialTheme.shapes.medium,
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(AppDimens.Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
@@ -400,9 +402,9 @@ private fun PreviewContent(
                             .background(Success.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Default.CheckCircle, null, tint = Success, modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.cd_check), tint = Success, modifier = Modifier.size(AppDimens.Icon.lg))
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                     Column {
                         Text(
                             "${resolvedPrograms.size} program${if (resolvedPrograms.size > 1) "s" else ""} found",
@@ -429,30 +431,29 @@ private fun PreviewContent(
                     onToggle = { onExpandToggle(if (pIdx == expandedIndex) -1 else pIdx) },
                     onDisambiguate = { exIdx -> onDisambiguate(pIdx, exIdx) },
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
             }
         }
 
         // Import button
         item {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             if (!allResolved) {
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.md_sm),
                     colors = CardDefaults.elevatedCardColors(
                         containerColor = Warning.copy(alpha = 0.08f),
                     ),
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(AppDimens.Spacing.md_sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.Warning, null, tint = Warning, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "Some exercises need confirmation. Tap them to choose from matching catalog entries.",
+                        Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.cd_warning), tint = Warning, modifier = Modifier.size(AppDimens.Icon.md))
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Text(stringResource(R.string.import_ambiguous_warning),
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -463,20 +464,20 @@ private fun PreviewContent(
                 onClick = onImport,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .height(AppDimens.Component.buttonHeightLg),
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 enabled = allResolved,
             ) {
-                Icon(Icons.Default.Download, null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Default.Download, contentDescription = stringResource(R.string.cd_download), modifier = Modifier.size(AppDimens.Icon.md))
+                Spacer(Modifier.width(AppDimens.Spacing.sm))
                 Text(
                     "Import ${resolvedPrograms.size} Program${if (resolvedPrograms.size > 1) "s" else ""}",
                     fontWeight = FontWeight.Bold,
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xl))
         }
     }
 }
@@ -497,15 +498,15 @@ private fun ProgramPreviewCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { onToggle() }
-                .padding(16.dp),
+                .padding(AppDimens.Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Default.FitnessCenter, null,
+                Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp),
+                modifier = Modifier.size(AppDimens.Icon.xl),
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(AppDimens.Spacing.md_sm))
             Column(Modifier.weight(1f)) {
                 Text(program.name, fontWeight = FontWeight.Bold)
                 Text(
@@ -523,7 +524,7 @@ private fun ProgramPreviewCard(
 
         // Exercise list (when expanded)
         if (expanded) {
-            Divider(modifier = Modifier.padding(horizontal = 16.dp))
+            Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md))
             program.exercises.forEachIndexed { idx, re ->
                 ExercisePreviewRow(
                     resolved = re,
@@ -535,7 +536,7 @@ private fun ProgramPreviewCard(
                 )
                 if (idx < program.exercises.lastIndex) {
                     Divider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     )
                 }
@@ -572,7 +573,7 @@ private fun ExercisePreviewRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -581,7 +582,7 @@ private fun ExercisePreviewRow(
                 .clip(CircleShape)
                 .background(matchColor),
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
         Column(Modifier.weight(1f)) {
             Text(
                 resolved.resolvedName,
@@ -605,17 +606,17 @@ private fun ExercisePreviewRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(AppDimens.Spacing.sm))
         Surface(
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
             color = matchColor.copy(alpha = 0.12f),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(matchIcon, null, tint = matchColor, modifier = Modifier.size(AppDimens.Icon.sm))
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text(
                     matchLabel,
                     fontSize = 11.sp,
@@ -642,30 +643,30 @@ private fun ErrorContent(
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(AppDimens.Icon.hero)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.error.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.ErrorOutline, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(AppDimens.Icon.xl))
+            Icon(Icons.Default.ErrorOutline, contentDescription = stringResource(R.string.cd_warning), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(AppDimens.Icon.xl))
         }
-        Spacer(Modifier.height(16.dp))
-        Text("Import Failed", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+        Text(stringResource(R.string.import_failed_headline), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
         Text(
             message,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
         OutlinedButton(
             onClick = onRetry,
             shape = MaterialTheme.shapes.medium,
         ) {
-            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(AppDimens.Icon.md))
-            Spacer(Modifier.width(6.dp))
-            Text("Try Again")
+            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh), modifier = Modifier.size(AppDimens.Icon.md))
+            Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
+            Text(stringResource(R.string.common_try_again))
         }
     }
 }
@@ -690,24 +691,24 @@ private fun ImportSuccessContent(
                 .background(Success.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.CheckCircle, null, tint = Success, modifier = Modifier.size(40.dp))
+            Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.cd_check), tint = Success, modifier = Modifier.size(40.dp))
         }
-        Spacer(Modifier.height(16.dp))
-        Text("Import Complete!", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+        Text(stringResource(R.string.import_complete_headline), fontWeight = FontWeight.Bold, fontSize = 20.sp)
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
         Text(
             "$count program${if (count > 1) "s" else ""} imported successfully.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
         Button(
             onClick = onDone,
             shape = MaterialTheme.shapes.medium,
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            modifier = Modifier.height(48.dp),
+            modifier = Modifier.height(AppDimens.Component.buttonHeight),
         ) {
-            Text("Done", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.complete_done), fontWeight = FontWeight.Bold)
         }
     }
 }

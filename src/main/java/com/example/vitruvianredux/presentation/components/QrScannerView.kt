@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Size
@@ -46,6 +48,7 @@ import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.NotFoundException
 import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.Executors
+import androidx.compose.ui.res.stringResource
 
 /**
  * Full-screen QR scanner composable.
@@ -95,14 +98,14 @@ fun QrScannerView(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(
                     modifier = Modifier
-                        .padding(32.dp)
+                        .padding(AppDimens.Spacing.xl)
                         .background(
                             MaterialTheme.colorScheme.surface,
                             RoundedCornerShape(AppDimens.Corner.md),
                         )
-                        .padding(24.dp),
+                        .padding(AppDimens.Spacing.lg),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                 ) {
                     Text(
                         "Camera Permission Required",
@@ -128,14 +131,13 @@ fun QrScannerView(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+                .padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Default.Close, contentDescription = "Close scanner", tint = Color.White)
             }
-            Text(
-                "Scan Hub QR Code",
+            Text(stringResource(R.string.sync_scan_qr),
                 color = Color.White,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,

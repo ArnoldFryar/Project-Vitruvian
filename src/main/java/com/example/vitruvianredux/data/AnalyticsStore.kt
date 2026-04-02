@@ -6,6 +6,7 @@ import timber.log.Timber
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -41,6 +42,7 @@ object AnalyticsStore {
         val weightLb: Int,
         val volumeKg: Float,
         val avgQualityScore: Int? = null,
+        val numCables: Int = 2,
     )
 
     data class SessionLog(
@@ -92,7 +94,7 @@ object AnalyticsStore {
             Timber.tag("analytics").w("Duplicate session blocked: ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")
             return
         }
-        _logs.value = _logs.value + log
+        _logs.update { it + log }
         persist()
         Timber.tag("analytics").d("recorded session ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")
     }
@@ -287,6 +289,7 @@ object AnalyticsStore {
     // ── Persistence ──────────────────────────────────────────────────────────
 
     private fun persist() {
+        if (!::prefs.isInitialized) return
         try {
             val arr = JSONArray()
             for (log in _logs.value) {
@@ -312,6 +315,7 @@ object AnalyticsStore {
                                 put("setIndex", s.setIndex)
                                 put("reps", s.reps)
                                 put("weightLb", s.weightLb)
+                                put("numCables", s.numCables)
                                 put("volumeKg", s.volumeKg.toDouble())
                                 if (s.avgQualityScore != null) put("avgQualityScore", s.avgQualityScore)
                             })
@@ -321,7 +325,7 @@ object AnalyticsStore {
                     if (log.notes.isNotEmpty()) put("notes", log.notes)
                 })
             }
-            prefs.edit().putString(KEY_LOGS, arr.toString()).apply()
+            prefs.edit().putString(KEY_LOGS, arr.toString()).commit()
         } catch (e: Exception) {
             Timber.tag("analytics").e(e, "persist failed: ${e.message}")
         }
@@ -360,6 +364,7 @@ object AnalyticsStore {
                                 weightLb        = so.getInt("weightLb"),
                                 volumeKg        = so.getDouble("volumeKg").toFloat(),
                                 avgQualityScore = if (so.has("avgQualityScore")) so.getInt("avgQualityScore") else null,
+                                numCables       = so.optInt("numCables", 2),
                             )
                         }
                     } ?: emptyList(),

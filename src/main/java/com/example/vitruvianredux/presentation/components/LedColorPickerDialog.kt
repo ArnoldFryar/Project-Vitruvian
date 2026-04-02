@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.components
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -33,6 +35,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import androidx.compose.ui.res.stringResource
 
 /**
  * Premium LED Control Panel dialog.
@@ -142,7 +145,7 @@ fun LedColorPickerDialog(
                         contentColor   = cs.onSurfaceVariant,
                     ),
                 ) {
-                    Text("Done", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.complete_done), fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -213,7 +216,7 @@ private fun LedPresetCard(
                 Box(
                     modifier         = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(AppDimens.Component.buttonHeightLg)
                         .clip(RoundedCornerShape(AppDimens.Corner.sm)),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -267,7 +270,7 @@ private fun LedPresetCard(
                         shape    = CircleShape,
                         color    = Color.White.copy(alpha = 0.90f),
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(AppDimens.Icon.lg)
                             .graphicsLayer {
                                 alpha  = checkAlpha
                                 scaleX = checkScale

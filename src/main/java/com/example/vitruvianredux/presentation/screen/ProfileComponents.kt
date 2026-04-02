@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -18,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
@@ -192,7 +195,7 @@ internal fun SessionsDetailSheet(
             Spacer(Modifier.height(AppDimens.Spacing.md))
 
             if (recentWorkouts.isEmpty()) {
-                Text("No workouts recorded this week",
+                Text(stringResource(R.string.profile_sessions_7day_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = AppDimens.Spacing.lg))
@@ -272,7 +275,7 @@ internal fun StreakDetailSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
-            Text("Day Streak", style = MaterialTheme.typography.titleMedium,
+            Text(stringResource(R.string.metric_day_streak), style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(AppDimens.Spacing.md))
 
@@ -281,19 +284,19 @@ internal fun StreakDetailSheet(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$currentStreak", style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("Current", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.profile_streak_current), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("$bestStreak", style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("Best", style = MaterialTheme.typography.bodySmall,
+                    Text(stringResource(R.string.profile_streak_best), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
             Spacer(Modifier.height(AppDimens.Spacing.lg))
-            Text("Last 4 Weeks", style = MaterialTheme.typography.labelMedium,
+            Text(stringResource(R.string.profile_streak_last_4_weeks), style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
@@ -316,11 +319,11 @@ internal fun StreakDetailSheet(
                         val hasWorkout = day in workoutDays
                         val isToday = day == today
                         Box(
-                            modifier = Modifier.size(32.dp),
+                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
                             contentAlignment = Alignment.Center,
                         ) {
                             Surface(
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(AppDimens.Icon.lg),
                                 shape = CircleShape,
                                 color = when {
                                     hasWorkout -> MaterialTheme.colorScheme.primary

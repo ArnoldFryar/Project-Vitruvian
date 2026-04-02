@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -33,6 +35,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.ble.SessionPhase
@@ -70,7 +73,7 @@ import com.example.vitruvianredux.util.ResistanceStepPolicy
 import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
 
-private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo")
+private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only")
 
 @Composable
 internal fun ActivePlayerContent(
@@ -240,7 +243,7 @@ internal fun ActivePlayerContent(
         BottomSheetScaffold(
             scaffoldState       = scaffoldState,
             sheetPeekHeight     = sheetPeek,
-            sheetShape          = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            sheetShape          = RoundedCornerShape(topStart = 24.dp, topEnd = AppDimens.Corner.lg),
             sheetContainerColor = MaterialTheme.colorScheme.surface,
             sheetTonalElevation = AppDimens.Elevation.card,
             sheetContent        = {
@@ -274,11 +277,11 @@ internal fun ActivePlayerContent(
                             val coachingCue by CoachingCueEngine.currentCue.collectAsState()
                             CoachingCueBanner(
                                 cue      = coachingCue,
-                                modifier = Modifier.padding(bottom = 2.dp),
+                                modifier = Modifier.padding(bottom = AppDimens.Spacing.xxs),
                             )
                             RepQualityBadge(
                                 quality  = lastRepQuality,
-                                modifier = Modifier.padding(bottom = 2.dp),
+                                modifier = Modifier.padding(bottom = AppDimens.Spacing.xxs),
                             )
 
                             if (isActive && machineHeuristic != null) {
@@ -289,7 +292,7 @@ internal fun ActivePlayerContent(
                                 val balR = 100 - balL
                                 Row(
                                     modifier = Modifier
-                                        .padding(bottom = 2.dp)
+                                        .padding(bottom = AppDimens.Spacing.xxs)
                                         .fillMaxWidth(0.8f),
                                     horizontalArrangement = Arrangement.SpaceEvenly,
                                 ) {
@@ -334,11 +337,11 @@ internal fun ActivePlayerContent(
                             ) {
                                 Text(
                                     text = phaseLabel,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
+                                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm2, vertical = AppDimens.Spacing.xs),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = hudColor,
-                                    letterSpacing = 1.4.sp,
+                                    letterSpacing = AppDimens.LetterSpacing.wider,
                                 )
                             }
 
@@ -353,11 +356,10 @@ internal fun ActivePlayerContent(
                                     verticalAlignment = Alignment.Bottom,
                                     horizontalArrangement = Arrangement.Center,
                                 ) {
-                                    Text(
-                                        text = "Time",
+                                    Text(text = stringResource(R.string.player_time),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(bottom = 10.dp, end = 8.dp),
+                                        modifier = Modifier.padding(bottom = AppDimens.Spacing.sm_md, end = AppDimens.Spacing.sm),
                                     )
                                     AnimatedContent(
                                         targetState = timerText,
@@ -384,11 +386,10 @@ internal fun ActivePlayerContent(
                                     verticalAlignment = Alignment.Bottom,
                                     horizontalArrangement = Arrangement.Center,
                                 ) {
-                                    Text(
-                                        text = "Reps",
+                                    Text(text = stringResource(R.string.session_stat_reps),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(bottom = 10.dp, end = 8.dp),
+                                        modifier = Modifier.padding(bottom = AppDimens.Spacing.sm_md, end = AppDimens.Spacing.sm),
                                     )
                                     AnimatedContent(
                                         targetState = displayReps,
@@ -414,7 +415,7 @@ internal fun ActivePlayerContent(
                                             text = " of $displayTarget",
                                             style = MaterialTheme.typography.labelLarge,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(bottom = 10.dp, start = 4.dp),
+                                            modifier = Modifier.padding(bottom = AppDimens.Spacing.sm_md, start = AppDimens.Spacing.xs),
                                         )
                                     }
                                 }
@@ -423,7 +424,7 @@ internal fun ActivePlayerContent(
                             // Progress bar
                             if (isDurationMode && durationCountdown != null) {
                                 val totalDuration = activePhase?.targetDurationSec ?: 1
-                                Spacer(Modifier.height(4.dp))
+                                Spacer(Modifier.height(AppDimens.Spacing.xs))
                                 val progress by animateFloatAsState(
                                     targetValue = (1f - durationCountdown.toFloat() / totalDuration).coerceIn(0f, 1f),
                                     animationSpec = spring(stiffness = Spring.StiffnessLow),
@@ -434,12 +435,12 @@ internal fun ActivePlayerContent(
                                     modifier = Modifier
                                         .fillMaxWidth(0.7f)
                                         .height(4.dp)
-                                        .clip(RoundedCornerShape(2.dp)),
+                                        .clip(RoundedCornerShape(AppDimens.Corner.micro)),
                                     color = hudColor,
                                     trackColor = hudColor.copy(alpha = 0.12f),
                                 )
                             } else if (isActive && displayTarget != null && displayTarget > 0) {
-                                Spacer(Modifier.height(4.dp))
+                                Spacer(Modifier.height(AppDimens.Spacing.xs))
                                 val progress by animateFloatAsState(
                                     targetValue = (displayReps.toFloat() / displayTarget).coerceIn(0f, 1f),
                                     animationSpec = spring(stiffness = Spring.StiffnessLow),
@@ -450,7 +451,7 @@ internal fun ActivePlayerContent(
                                     modifier = Modifier
                                         .fillMaxWidth(0.7f)
                                         .height(4.dp)
-                                        .clip(RoundedCornerShape(2.dp)),
+                                        .clip(RoundedCornerShape(AppDimens.Corner.micro)),
                                     color = hudColor,
                                     trackColor = hudColor.copy(alpha = 0.12f),
                                 )
@@ -485,11 +486,10 @@ internal fun ActivePlayerContent(
                                 .padding(vertical = AppDimens.Spacing.sm),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text(
-                                text = "Set Point",
+                            Text(text = stringResource(R.string.player_set_point),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 0.8.sp,
+                                letterSpacing = AppDimens.LetterSpacing.normal,
                                 modifier = Modifier.graphicsLayer { alpha = setPointAlpha },
                             )
                             Text(
@@ -512,14 +512,13 @@ internal fun ActivePlayerContent(
                             )
                             Spacer(Modifier.height(AppDimens.Spacing.sm))
                             val pulseEngaged = isActive && hasLiveData && liveResistanceRaw > 5
-                            Text(
-                                text = "Live Resistance",
+                            Text(text = stringResource(R.string.player_live_resistance),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = if (pulseEngaged)
                                     MaterialTheme.colorScheme.primary.copy(alpha = 0.90f)
                                 else
                                     MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 0.8.sp,
+                                letterSpacing = AppDimens.LetterSpacing.normal,
                             )
                             Box(
                                 contentAlignment = Alignment.Center,
@@ -563,17 +562,16 @@ internal fun ActivePlayerContent(
                                     .fillMaxWidth()
                                     .menuAnchor()
                                     .clickable(enabled = !isActive) { onModeExpandChange(!modeExpanded) }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                                 ) {
                                     Icon(
-                                        Icons.Default.Tune,
-                                        contentDescription = null,
+                                        Icons.Default.Tune, contentDescription = stringResource(R.string.cd_mode_settings),
                                         modifier = Modifier.size(AppDimens.Icon.md),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -593,8 +591,7 @@ internal fun ActivePlayerContent(
                                     )
                                 }
                                 Icon(
-                                    Icons.Default.ExpandMore,
-                                    contentDescription = null,
+                                    Icons.Default.ExpandMore, contentDescription = stringResource(R.string.cd_expand_mode),
                                     modifier = Modifier.size(AppDimens.Icon.md),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -621,13 +618,13 @@ internal fun ActivePlayerContent(
                         FilterChip(
                             selected  = isRepsMode,
                             onClick   = { if (!isActive) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); WiringRegistry.hit(A_PLAYER_MODE_REPS); WiringRegistry.recordOutcome(A_PLAYER_MODE_REPS, ActualOutcome.StateChanged("modeReps")); onToggleMode(true) } },
-                            label     = { Text("Reps") },
+                            label     = { Text(stringResource(R.string.session_stat_reps)) },
                             modifier  = Modifier.weight(1f),
                         )
                         FilterChip(
                             selected  = !isRepsMode,
                             onClick   = { if (!isActive) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); WiringRegistry.hit(A_PLAYER_MODE_DURATION); WiringRegistry.recordOutcome(A_PLAYER_MODE_DURATION, ActualOutcome.StateChanged("modeDuration")); onToggleMode(false) } },
-                            label     = { Text("Duration") },
+                            label     = { Text(stringResource(R.string.session_stat_duration)) },
                             modifier  = Modifier.weight(1f),
                         )
                     }
@@ -648,7 +645,7 @@ internal fun ActivePlayerContent(
                                         value         = targetReps,
                                         onValueChange = { WiringRegistry.hit(A_PLAYER_REPS_PLUS); WiringRegistry.recordOutcome(A_PLAYER_REPS_PLUS, ActualOutcome.StateChanged("repsChanged")); onTargetRepsChange(it) },
                                         range         = 1..99,
-                                        unitLabel     = "reps",
+                                        unitLabel     = stringResource(R.string.session_stat_reps),
                                         compact       = true,
                                         enabled       = !isActive,
                                         modifier      = Modifier.fillMaxWidth(),
@@ -659,7 +656,7 @@ internal fun ActivePlayerContent(
                                         onValueChange = { WiringRegistry.hit(A_PLAYER_DURATION_PLUS); WiringRegistry.recordOutcome(A_PLAYER_DURATION_PLUS, ActualOutcome.StateChanged("durationChanged")); onTargetDurationChange(it.toInt()) },
                                         range         = 5f..300f,
                                         step          = 5f,
-                                        unitLabel     = "sec",
+                                        unitLabel     = stringResource(R.string.unit_sec),
                                         formatLabel   = { "%d".format(it.toInt()) },
                                         compact       = true,
                                         visibleItemCount = 3,
@@ -728,16 +725,16 @@ internal fun ActivePlayerContent(
                                 onClick  = onPanicStop,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(56.dp),
+                                    .height(AppDimens.Component.buttonHeightXl),
                                 shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.onSurface,
                                 ),
                             ) {
-                                Icon(Icons.Default.Pause, contentDescription = null,
+                                Icon(Icons.Default.Pause, contentDescription = stringResource(R.string.cd_pause),
                                     modifier = Modifier.size(AppDimens.Icon.lg))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Pause Set", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                                Spacer(Modifier.width(AppDimens.Spacing.sm))
+                                Text(stringResource(R.string.player_pause_set), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                             }
                         }
 
@@ -745,7 +742,7 @@ internal fun ActivePlayerContent(
                             onClick  = onPlayStop,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(56.dp),
+                                .height(AppDimens.Component.buttonHeightXl),
                             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isActive) AccentRed else MaterialTheme.colorScheme.primary,
@@ -753,11 +750,10 @@ internal fun ActivePlayerContent(
                             ),
                         ) {
                             Icon(
-                                imageVector = if (isActive) Icons.Default.Stop else Icons.Default.PlayArrow,
-                                contentDescription = null,
+                                imageVector = if (isActive) Icons.Default.Stop else Icons.Default.PlayArrow, contentDescription = stringResource(R.string.cd_play),
                                 modifier = Modifier.size(AppDimens.Icon.lg),
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(AppDimens.Spacing.sm))
                             Text(
                                 text       = if (isActive) "Stop Set" else "Start Set",
                                 fontWeight = FontWeight.Bold,
@@ -779,14 +775,14 @@ internal fun ActivePlayerContent(
                         modifier = Modifier.graphicsLayer { alpha = dimAlpha },
                     ) {
                         SelectorCard(
-                            title    = "Warmup Reps",
+                            title    = stringResource(R.string.player_warmup_reps),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             ValueStepper(
                                 value         = warmupReps,
                                 onValueChange = onWarmupRepsChange,
                                 range         = 0..10,
-                                unitLabel     = "reps",
+                                unitLabel     = stringResource(R.string.session_stat_reps),
                                 compact       = true,
                                 enabled       = !isActive,
                             )
@@ -804,7 +800,7 @@ internal fun ActivePlayerContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("Stop at Top", style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.player_stop_at_top), style = MaterialTheme.typography.bodyMedium)
                             Switch(
                                 checked         = stopAtTop,
                                 onCheckedChange = onStopAtTopChange,
@@ -824,7 +820,7 @@ internal fun ActivePlayerContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("Beast Mode (Faster Loading)", style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.player_beast_mode), style = MaterialTheme.typography.bodyMedium)
                             Switch(
                                 checked = isBeastMode,
                                 onCheckedChange = onBeastModeChange,
@@ -840,8 +836,7 @@ internal fun ActivePlayerContent(
                         modifier = Modifier.graphicsLayer { alpha = dimAlpha },
                     ) {
                         Column {
-                        Text(
-                            text = "Echo Level",
+                        Text(text = stringResource(R.string.player_echo_level),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -876,8 +871,7 @@ internal fun ActivePlayerContent(
 
                     if (!isActive) {
                         Spacer(Modifier.height(AppDimens.Spacing.xs))
-                        Text(
-                            text  = "Long-press the rep counter to log a rep manually",
+                        Text(text = stringResource(R.string.player_manual_rep_help),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         )
@@ -925,8 +919,7 @@ internal fun ActivePlayerContent(
                             .weight(1f),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            text  = "Exercise overview not yet available",
+                        Text(text = stringResource(R.string.player_overview_unavailable),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -961,9 +954,8 @@ internal fun ActivePlayerContent(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.FitnessCenter,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(64.dp),
+                                        imageVector = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                        modifier = Modifier.size(AppDimens.Icon.hero),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                                     )
                                 }
@@ -974,7 +966,7 @@ internal fun ActivePlayerContent(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(80.dp)
+                                        .height(AppDimens.Component.cardMinHeight)
                                         .align(Alignment.BottomCenter)
                                         .background(
                                             Brush.verticalGradient(
@@ -994,7 +986,7 @@ internal fun ActivePlayerContent(
                                     .align(Alignment.CenterStart)
                                     .width(32.dp)
                                     .fillMaxHeight(0.65f)
-                                    .padding(start = 6.dp),
+                                    .padding(start = AppDimens.Spacing.xs_sm),
                             )
                         }
                         if (isActive && sessionState.rightCable != null) {
@@ -1006,7 +998,7 @@ internal fun ActivePlayerContent(
                                     .align(Alignment.CenterEnd)
                                     .width(32.dp)
                                     .fillMaxHeight(0.65f)
-                                    .padding(end = 6.dp),
+                                    .padding(end = AppDimens.Spacing.xs_sm),
                             )
                         }
 
@@ -1024,7 +1016,7 @@ internal fun ActivePlayerContent(
                                 modifier = Modifier
                                     .fillMaxWidth(0.9f)
                                     .align(Alignment.BottomCenter)
-                                    .padding(bottom = 16.dp),
+                                    .padding(bottom = AppDimens.Spacing.md),
                                 colors = CardDefaults.elevatedCardColors(
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 ),
@@ -1036,12 +1028,11 @@ internal fun ActivePlayerContent(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                                 ) {
-                                    Icon(Icons.Default.CheckCircle,
-                                        contentDescription = null,
+                                    Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.cd_check),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(28.dp))
+                                        modifier = Modifier.size(AppDimens.Icon.xl))
                                     Column {
-                                        Text("Set Complete!", fontWeight = FontWeight.Bold,
+                                        Text(stringResource(R.string.player_set_complete), fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onSecondaryContainer)
                                         Text(buildString {
                                             append("${cp.stats.repsCompleted} working reps")

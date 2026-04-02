@@ -106,6 +106,7 @@ data class ModeProfile(
 
         /** Look up profile by the mode label string from MODE_OPTIONS / selectedMode. */
         fun forMode(mode: String): ModeProfile = when (mode) {
+            "Old School"               -> OldSchool
             "Pump"                     -> Pump
             "TUT", "TUT Beast"         -> TUT
             "Eccentric", "Eccentric Only" -> Eccentric

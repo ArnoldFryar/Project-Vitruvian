@@ -1,4 +1,740 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Vitruvian Trainer</string>
+    <string name="project_tagline">Project Vitruvian</string>
+
+    <!-- ── Common / shared ─────────────────────────────────────────────── -->
+    <string name="common_save">Save</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_done">Done</string>
+    <string name="common_close">Close</string>
+    <string name="common_back">Back</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_discard">Discard</string>
+    <string name="common_ok">OK</string>
+    <string name="common_preview">Preview</string>
+    <string name="common_paste">Paste</string>
+    <string name="common_clear">Clear</string>
+    <string name="common_try_again">Try Again</string>
+    <string name="common_go_back">Go Back</string>
+    <string name="common_next">Next</string>
+    <string name="common_skip">Skip</string>
+    <string name="common_create">Create</string>
+    <string name="common_replace">Replace</string>
+    <string name="common_reset">Reset</string>
+    <string name="common_search">Search</string>
+    <string name="common_start">Start</string>
+    <string name="common_stop">Stop</string>
+    <string name="common_expand">Expand</string>
+    <string name="common_collapse">Collapse</string>
+    <string name="common_off">Off</string>
+    <string name="empty_value_dash">–</string>
+    <string name="stat_empty_value">—</string>
+
+    <!-- ── Units ───────────────────────────────────────────────────────── -->
+    <string name="unit_lb">lb</string>
+    <string name="unit_kg">kg</string>
+    <string name="unit_lb_per_cable">lb/cable</string>
+    <string name="unit_reps">reps</string>
+    <string name="unit_sets">sets</string>
+    <string name="unit_sec">sec</string>
+    <string name="unit_kcal">kcal</string>
+    <string name="unit_pts">pts</string>
+    <string name="unit_min_sec">min:sec</string>
+    <string name="quality_scale_suffix">/ 100</string>
+
+    <!-- ── Screen titles ───────────────────────────────────────────────── -->
+    <string name="screen_title_home">Activity</string>
+    <string name="screen_title_workout">Workout</string>
+    <string name="screen_title_programs">Programs</string>
+    <string name="screen_title_device">Device</string>
+    <string name="screen_title_profile">Profile</string>
+    <string name="screen_title_debug">Debug</string>
+    <string name="screen_title_repair">Check &amp; Repair</string>
+    <string name="screen_title_audit">Audit</string>
+    <string name="screen_title_history">History</string>
+    <string name="screen_title_sync">Sync</string>
+    <string name="screen_title_account">Cloud Account</string>
+    <string name="screen_title_import">Import</string>
+    <string name="screen_title_exercise_data">Exercise Data</string>
+    <string name="screen_title_import_program">Import Program</string>
+    <string name="screen_title_import_hevy">Import from Hevy</string>
+    <string name="screen_title_edit_program">Edit Program</string>
+    <string name="screen_title_new_program">New Program</string>
+    <string name="screen_title_session_detail">Session Detail</string>
+    <string name="screen_title_template_library">Template Library</string>
+    <string name="screen_title_wifi_sync">Wi-Fi Sync</string>
+    <string name="screen_title_ble_debug">BLE Debug</string>
+    <string name="screen_title_wiring_audit">Wiring Audit</string>
+    <string name="screen_title_connection_repair">Connection Repair</string>
+
+    <!-- ── Bottom nav ──────────────────────────────────────────────────── -->
+    <string name="nav_home">Home</string>
+    <string name="nav_workout">Workout</string>
+    <string name="nav_programs">Programs</string>
+    <string name="nav_device">Device</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- ── Quality labels ──────────────────────────────────────────────── -->
+    <string name="quality_perfect">Perfect</string>
+    <string name="quality_great">Great</string>
+    <string name="quality_good">Good</string>
+    <string name="quality_fair">Fair</string>
+
+    <!-- ── Workout modes ───────────────────────────────────────────────── -->
+    <string name="mode_old_school">Old School</string>
+    <string name="mode_pump">Pump</string>
+    <string name="mode_tut">TUT</string>
+    <string name="mode_echo">Echo</string>
+    <string name="mode_eccentric_only">Eccentric Only</string>
+    <string name="mode_reps">Reps</string>
+    <string name="mode_duration">Duration</string>
+    <string name="mode_adaptive">Adaptive</string>
+
+    <!-- ── Splash / Onboarding ─────────────────────────────────────────── -->
+    <string name="splash_logo_letter">V</string>
+    <string name="splash_brand_name">VITRUVIAN</string>
+    <string name="splash_tagline">TRAIN SMARTER</string>
+    <string name="onboarding_page_1_title">Connect Your Trainer</string>
+    <string name="onboarding_page_1_subtitle">Pair your Vitruvian via Bluetooth for real-time rep tracking, force feedback, and intelligent load control.</string>
+    <string name="onboarding_page_1_tag">HARDWARE</string>
+    <string name="onboarding_page_2_title">Sync Across Devices</string>
+    <string name="onboarding_page_2_subtitle">Mirror your session to a hub display over Wi-Fi Direct — no internet, no latency, no limits.</string>
+    <string name="onboarding_page_2_tag">CONNECTIVITY</string>
+    <string name="onboarding_page_3_title">Train Smarter</string>
+    <string name="onboarding_page_3_subtitle">Choose Old School, Pump, TUT, or Echo modes. Track PRs, quality scores, and volume history automatically.</string>
+    <string name="onboarding_page_3_tag">PERFORMANCE</string>
+    <string name="onboarding_get_started">Get Started</string>
+    <string name="onboarding_page_indicator">%1$d / %2$d</string>
+
+    <!-- ── Home screen ─────────────────────────────────────────────────── -->
+    <string name="home_last_7_days">Last 7 days</string>
+    <string name="home_action_history">History</string>
+    <string name="home_action_reset_stats">Reset Stats</string>
+    <string name="home_metric_volume">Volume (%1$s)</string>
+    <string name="home_metric_sessions">Sessions</string>
+    <string name="home_metric_streak">Day streak</string>
+    <string name="home_up_next">Up Next</string>
+    <string name="home_no_program">No program scheduled</string>
+    <string name="home_no_program_message">Go to Programs to create or choose a routine.</string>
+    <string name="home_exercise_count_singular">%1$d exercise</string>
+    <string name="home_exercise_count_plural">%1$d exercises</string>
+    <string name="home_workout_calendar">Workout Calendar</string>
+    <string name="home_prev_month">Previous month</string>
+    <string name="home_next_month">Next month</string>
+
+    <!-- ── Day-of-week abbreviations ───────────────────────────────────── -->
+    <string name="dow_m">M</string>
+    <string name="dow_t">T</string>
+    <string name="dow_w">W</string>
+    <string name="dow_th">T</string>
+    <string name="dow_f">F</string>
+    <string name="dow_s">S</string>
+    <string name="dow_su">S</string>
+    <string name="dow_mon">Mon</string>
+    <string name="dow_tue">Tue</string>
+    <string name="dow_wed">Wed</string>
+    <string name="dow_thu">Thu</string>
+    <string name="dow_fri">Fri</string>
+    <string name="dow_sat">Sat</string>
+    <string name="dow_sun">Sun</string>
+
+    <!-- ── Profile screen ──────────────────────────────────────────────── -->
+    <string name="profile_edit_name_title">Edit Name</string>
+    <string name="profile_edit_name_label">Display name</string>
+    <string name="profile_edit_name_error">Name cannot be empty</string>
+    <string name="profile_stat_volume">Volume</string>
+    <string name="profile_stat_sessions">Sessions</string>
+    <string name="profile_stat_streak">Streak</string>
+    <string name="profile_this_week">This Week</string>
+    <string name="profile_chart_week">Week</string>
+    <string name="profile_chart_month">Month</string>
+    <string name="profile_chart_year">Year</string>
+    <string name="profile_empty_week">No workouts this week</string>
+    <string name="profile_empty_month">No workouts this month</string>
+    <string name="profile_empty_year">No workouts this year</string>
+    <string name="profile_sessions_count">%1$d session%2$s</string>
+    <string name="profile_sessions_empty_week">No sessions this week</string>
+    <string name="profile_sessions_empty_month">No sessions this month</string>
+    <string name="profile_sessions_empty_year">No sessions this year</string>
+    <string name="profile_training_days">Training days</string>
+    <string name="profile_training_days_subtitle">Days driven by your programs</string>
+    <string name="profile_exercise_history">Exercise History</string>
+    <string name="profile_history_empty_headline">No workouts yet</string>
+    <string name="profile_history_empty_message">Complete a session to start seeing your history and personal records.</string>
+    <string name="profile_no_exercise_data">No exercise details available</string>
+    <string name="profile_date_today">Today</string>
+    <string name="profile_date_yesterday">Yesterday</string>
+    <string name="profile_date_this_week">This Week</string>
+
+    <!-- ── Profile settings ────────────────────────────────────────────── -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_units_label">Units</string>
+    <string name="settings_units_description">Weight display unit</string>
+    <string name="settings_theme_label">Theme</string>
+    <string name="settings_theme_description">App appearance</string>
+    <string name="settings_voice_label">Workout Voice</string>
+    <string name="settings_voice_default">Default</string>
+    <string name="settings_voice_neural_1">Neural · Voice 1</string>
+    <string name="settings_voice_neural_2">Neural · Voice 2</string>
+    <string name="settings_voice_neural_3">Neural · Voice 3</string>
+    <string name="settings_voice_neural_4">Neural · Voice 4</string>
+    <string name="settings_voice_standard_a">Standard · Voice A</string>
+    <string name="settings_voice_standard_b">Standard · Voice B</string>
+    <string name="settings_voice_standard_c">Standard · Voice C</string>
+    <string name="settings_voice_standard_d">Standard · Voice D</string>
+    <string name="settings_voice_requires_internet">Requires internet</string>
+    <string name="settings_voice_wavenet_tip">WaveNet/neural voices sound more natural. Download them offline in your device\'s Text-to-Speech settings.</string>
+    <string name="settings_bodyweight_label">Body Weight</string>
+    <string name="settings_bodyweight_hint">Tap to enter your body weight</string>
+    <string name="settings_bodyweight_dialog_title">Body Weight</string>
+    <string name="settings_bodyweight_dialog_help">Enter your current body weight in kg. Used for relative strength calculations.</string>
+    <string name="settings_bodyweight_input_label">Weight (kg)</string>
+    <string name="settings_health_connect_label">Samsung Health Sync</string>
+    <string name="settings_health_connect_description">Export workouts via Health Connect</string>
+    <string name="settings_health_connect_permission_toast">Health Connect permissions required to sync workouts</string>
+    <string name="settings_cloud_signed_in">Cloud Sync</string>
+    <string name="settings_cloud_not_signed_in">Cloud Account</string>
+    <string name="settings_cloud_sign_in_hint">Sign in to sync across devices</string>
+    <string name="settings_hevy_label">Hevy Sync</string>
+    <string name="settings_hevy_enabled">Pushing workouts to Hevy</string>
+    <string name="settings_hevy_disabled">Tap to connect Hevy account</string>
+    <string name="settings_hevy_api_key_title">Hevy API Key</string>
+    <string name="settings_hevy_api_key_help">Enter your Hevy API key to automatically push workouts after each session.\n\nGet your key at hevy.com → Settings → Developer.</string>
+    <string name="settings_hevy_api_key_input">API key</string>
+    <string name="settings_hevy_all_synced_message">All workouts are already synced to Hevy.</string>
+    <string name="settings_hevy_all_synced_button">All workouts synced ✓</string>
+    <string name="settings_hevy_syncing">Syncing…</string>
+    <string name="settings_hevy_sync_count">Sync %1$d Unsynced Workout%2$s</string>
+    <string name="settings_hevy_sync_success">Synced %1$d workout%2$s to Hevy.</string>
+    <string name="settings_hevy_sync_all_failed">All failed. Error: %1$s</string>
+    <string name="settings_hevy_sync_partial">Synced %1$d, failed %2$d. Error: %3$s</string>
+    <string name="settings_device_label">Device</string>
+    <string name="settings_device_description">Manage your Vitruvian trainer connection</string>
+    <string name="settings_debug_label">Debug Tools</string>
+    <string name="settings_debug_description">BLE diagnostics &amp; testing</string>
+
+    <!-- ── Profile components ──────────────────────────────────────────── -->
+    <string name="profile_volume_7day_title">Volume — Last 7 Days</string>
+    <string name="profile_volume_total">Total: %1$s</string>
+    <string name="profile_sessions_7day_title">Sessions — Last 7 Days</string>
+    <string name="profile_sessions_7day_count">%1$d workout%2$s</string>
+    <string name="profile_sessions_7day_empty">No workouts recorded this week</string>
+    <string name="profile_streak_title">Day Streak</string>
+    <string name="profile_streak_current">Current</string>
+    <string name="profile_streak_best">Best</string>
+    <string name="profile_streak_last_4_weeks">Last 4 Weeks</string>
+
+    <!-- ── Exercise data screen ────────────────────────────────────────── -->
+    <string name="exercise_data_not_found">Exercise data not found.</string>
+    <string name="exercise_data_pb_title">Personal Bests</string>
+    <string name="exercise_data_stats_title">Exercise Stats</string>
+    <string name="exercise_stat_reps">REPS</string>
+    <string name="exercise_stat_sets">SETS</string>
+    <string name="exercise_stat_peak">PEAK</string>
+    <string name="exercise_stat_avg_load">AVG LOAD</string>
+    <string name="exercise_stat_volume">VOLUME</string>
+    <string name="exercise_stat_quality">LIFT QUALITY</string>
+    <string name="exercise_stat_best_set">BEST SET</string>
+    <string name="exercise_stat_est_1rm">EST. 1RM</string>
+    <string name="exercise_stat_relative_strength">RELATIVE STRENGTH</string>
+    <string name="exercise_stat_relative_help">Est. 1RM ÷ bodyweight</string>
+    <string name="exercise_comparison_title">vs Previous</string>
+    <string name="exercise_comparison_now">NOW</string>
+    <string name="exercise_comparison_prev">PREV</string>
+    <string name="exercise_comparison_weight">Weight</string>
+    <string name="exercise_comparison_reps">Reps</string>
+    <string name="exercise_comparison_volume">Volume</string>
+    <string name="exercise_comparison_est_1rm">Est. 1RM</string>
+    <string name="exercise_chart_title">Load by Set</string>
+    <string name="exercise_sets_title">Sets</string>
+    <string name="exercise_table_set">SET</string>
+    <string name="exercise_table_reps">REPS</string>
+    <string name="exercise_table_weight">WEIGHT</string>
+    <string name="exercise_chart_best">Best set</string>
+    <string name="exercise_chart_other">Other sets</string>
+    <string name="exercise_no_sets">No detailed set data is available for this exercise instance.</string>
+    <string name="exercise_set_format">Set %1$d</string>
+    <string name="pb_best_weight">Best Weight</string>
+    <string name="pb_best_1rm">Best Est. 1RM</string>
+    <string name="pb_best_set">Best Set</string>
+    <string name="pb_best_volume">Best Volume / Session</string>
+    <string name="pb_best_reps">Best Reps / Session</string>
+    <string name="pb_last_achieved">Last PB: %1$s</string>
+    <string name="pr_badge_weight">Weight PR</string>
+    <string name="pr_badge_rep">Rep PR</string>
+    <string name="pr_badge_volume">Volume PR</string>
+    <string name="pr_badge_1rm">Est. 1RM PR</string>
+
+    <!-- ── Import program ──────────────────────────────────────────────── -->
+    <string name="import_json_title">Import from JSON</string>
+    <string name="import_json_help">Paste a program export JSON below, or tap Paste to grab from clipboard.</string>
+    <string name="import_json_label">JSON</string>
+    <string name="import_json_placeholder">{\"schemaVersion\":1, \"programs\":[…]}</string>
+    <string name="import_programs_found">%1$d program%2$s found</string>
+    <string name="import_exercises_total">%1$d exercises total</string>
+    <string name="import_exercise_count">%1$d exercise%2$s</string>
+    <string name="import_ambiguous_warning">Some exercises need confirmation. Tap them to choose from matching catalog entries.</string>
+    <string name="import_button_label">Import %1$d Program%2$s</string>
+    <string name="import_select_exercise">Select Exercise</string>
+    <string name="import_already_exists_title">Program Already Exists</string>
+    <string name="import_already_exists_message">A program named \"%1$s\" already exists. Import as a new copy or replace it?</string>
+    <string name="import_new_copy">New Copy</string>
+    <string name="import_complete_headline">Import Complete!</string>
+    <string name="import_complete_message">%1$d program%2$s imported successfully.</string>
+    <string name="import_failed_headline">Import Failed</string>
+    <string name="import_matched">Matched</string>
+    <string name="import_review">Review</string>
+    <string name="import_new">New</string>
+
+    <!-- ── Hevy import ─────────────────────────────────────────────────── -->
+    <string name="hevy_fetching">Fetching your Hevy routines…</string>
+    <string name="hevy_select_routines">Select routines to import</string>
+    <string name="hevy_already_in_library">Already in library — will be skipped</string>
+    <string name="hevy_import_singular">Import %1$d Routine</string>
+    <string name="hevy_import_plural">Import %1$d Routines</string>
+    <string name="hevy_all_duplicates">All selected routines are already in your library.</string>
+
+    <!-- ── Programs screen ─────────────────────────────────────────────── -->
+    <string name="programs_create_title">Create Program</string>
+    <string name="programs_create_subtitle">Build a routine from your exercise library</string>
+    <string name="programs_import_title">Import Program</string>
+    <string name="programs_import_subtitle">Paste or share a JSON program export</string>
+    <string name="programs_hevy_import_title">Import from Hevy</string>
+    <string name="programs_hevy_import_subtitle">Bring your Hevy routines into Vitruvian</string>
+    <string name="programs_your_programs">Your Programs</string>
+    <string name="programs_empty_headline">No programs yet</string>
+    <string name="programs_empty_message">Create your first program to structure your training journey.</string>
+    <string name="programs_templates">Templates</string>
+    <string name="programs_browse_templates">Browse Templates</string>
+    <string name="programs_browse_subtitle">Browse workout template library</string>
+
+    <!-- ── Program builder / editor ────────────────────────────────────── -->
+    <string name="program_name_label">Program name</string>
+    <string name="program_char_count">%1$d/40</string>
+    <string name="program_discard_title">Discard changes?</string>
+    <string name="program_discard_message">Your program has unsaved changes that will be lost.</string>
+    <string name="program_keep_editing">Keep editing</string>
+    <string name="program_exercises_header">EXERCISES</string>
+    <string name="program_add_empty_message">Add exercises to build your program</string>
+    <string name="program_add_exercises">Add Exercises</string>
+    <string name="program_add_edit_exercises">Add / Edit Exercises (%1$d)</string>
+    <string name="program_start_now">Start Now</string>
+    <string name="program_summary">%1$d exercise%2$s · %3$d total sets</string>
+    <string name="program_type_custom">Custom program</string>
+
+    <!-- ── Program detail ──────────────────────────────────────────────── -->
+    <string name="program_delete_title">Delete program?</string>
+    <string name="program_delete_message">This cannot be undone.</string>
+    <string name="program_start_workout">Start Workout</string>
+    <string name="program_loading_exercises">Loading exercise data…</string>
+    <string name="program_save_as_template">Save as Template</string>
+    <string name="program_saved_as_template">Saved as Template ✓</string>
+
+    <!-- ── Template library / preview ──────────────────────────────────── -->
+    <string name="template_empty_headline">No templates available</string>
+    <string name="template_empty_message">Import a program and save it as a template to see it here.</string>
+    <string name="template_custom_badge">Custom</string>
+    <string name="template_use_title">Use Template</string>
+    <string name="template_create_single">This will create a new program \"%1$s\" in your library.</string>
+    <string name="template_create_multiple">This will create %1$d programs in your library — one for each day of the template.</string>
+    <string name="template_day">Day</string>
+    <string name="template_days">Days</string>
+    <string name="template_exercises">Exercises</string>
+    <string name="template_total_sets">Total Sets</string>
+
+    <!-- ── Exercise picker ─────────────────────────────────────────────── -->
+    <string name="picker_title">Select Exercises</string>
+    <string name="picker_done_count">Done (%1$d)</string>
+    <string name="picker_search_hint">Search exercises</string>
+    <string name="picker_create_custom">Create Custom Exercise</string>
+    <string name="picker_no_results">No matches for \"%1$s\"</string>
+    <string name="picker_badge_custom">Custom</string>
+
+    <!-- ── Custom exercise sheet ───────────────────────────────────────── -->
+    <string name="custom_exercise_edit_title">Edit Exercise</string>
+    <string name="custom_exercise_new_title">New Custom Exercise</string>
+    <string name="custom_exercise_name_label">Exercise Name *</string>
+    <string name="custom_exercise_name_error">A name is required</string>
+    <string name="custom_exercise_tracking_type">Tracking Type</string>
+    <string name="custom_exercise_muscle_group">Muscle Group</string>
+    <string name="custom_exercise_muscle_placeholder">e.g. Chest, Back, Arms</string>
+    <string name="custom_exercise_per_side">Per Side</string>
+    <string name="custom_exercise_per_side_desc">Track each arm / leg independently</string>
+    <string name="custom_exercise_notes">Notes</string>
+    <string name="custom_exercise_notes_placeholder">Optional tips, cues, or description</string>
+    <string name="custom_exercise_save">Save Changes</string>
+
+    <!-- ── Edit exercise sheet ─────────────────────────────────────────── -->
+    <string name="edit_exercise_subtitle">Quick Edit</string>
+    <string name="edit_resistance_mode">Resistance Mode</string>
+    <string name="edit_beast_mode">Beast Mode</string>
+    <string name="edit_beast_mode_desc">Faster loading phase</string>
+    <string name="edit_target">Target</string>
+    <string name="edit_sets_label">Sets</string>
+    <string name="edit_reps_label">Reps</string>
+    <string name="edit_duration_label">Duration</string>
+    <string name="edit_resistance_label">Resistance</string>
+    <string name="edit_suggested_weight">Population median: %1$d lb</string>
+    <string name="edit_new_pr">New PR weight!</string>
+    <string name="edit_pr_percent">%1$d%% of PR</string>
+    <string name="edit_progression">Prog / Reg (lb)</string>
+    <string name="edit_superset_label">Superset</string>
+    <string name="edit_superset_toggle">Link as Superset</string>
+    <string name="edit_superset_group">Superset Group #</string>
+    <string name="edit_superset_group_num">Group %1$d</string>
+    <string name="edit_recovery">Recovery</string>
+    <string name="edit_rest_timer">Rest Timer</string>
+    <string name="edit_save_changes">Save changes</string>
+
+    <!-- ── Workout screen ──────────────────────────────────────────────── -->
+    <string name="workout_library">Workout Library</string>
+    <string name="workout_search_hint">Search exercises</string>
+    <string name="workout_clear_search">Clear search</string>
+
+    <!-- ── Active player ───────────────────────────────────────────────── -->
+    <string name="player_warmup">WARMUP</string>
+    <string name="player_working">WORKING</string>
+    <string name="player_ready">READY</string>
+    <string name="player_time">Time</string>
+    <string name="player_reps">Reps</string>
+    <string name="player_of_target"> of %1$d</string>
+    <string name="player_set_point">Set Point</string>
+    <string name="player_live_resistance">Live Resistance</string>
+    <string name="player_resume_workout">Resume Workout</string>
+    <string name="player_stop_set">Stop Set</string>
+    <string name="player_start_set">Start Set</string>
+    <string name="player_pause_set">Pause Set</string>
+    <string name="player_stop_at_top">Stop at Top</string>
+    <string name="player_beast_mode">Beast Mode (Faster Loading)</string>
+    <string name="player_echo_level">Echo Level</string>
+    <string name="player_eccentric_load">Eccentric Load</string>
+    <string name="player_warmup_reps">Warmup Reps</string>
+    <string name="player_manual_rep_help">Long-press the rep counter to log a rep manually</string>
+    <string name="player_tab_workout">Workout</string>
+    <string name="player_tab_overview">Overview</string>
+    <string name="player_overview_unavailable">Exercise overview not yet available</string>
+    <string name="player_set_complete">Set Complete!</string>
+    <string name="player_autoplay">Autoplay</string>
+    <string name="player_autoplay_desc">Skip this screen after rest</string>
+
+    <!-- ── Player dialogs ──────────────────────────────────────────────── -->
+    <string name="player_paused">Paused</string>
+    <string name="player_set_of">Set %1$d of %2$d</string>
+    <string name="player_end_title">End Workout?</string>
+    <string name="player_end_message">Your progress for completed exercises will be saved, but the current set will not count.</string>
+    <string name="player_end_confirm">End Workout</string>
+    <string name="player_end_cancel">Keep Going</string>
+    <string name="player_ble_diagnostics">BLE Diagnostics</string>
+    <string name="player_edit_sets_title">Edit Upcoming Sets</string>
+    <string name="player_no_upcoming">No upcoming sets.</string>
+    <string name="player_target_reps">Target Reps</string>
+    <string name="player_weight">Weight</string>
+
+    <!-- ── Set ready content ───────────────────────────────────────────── -->
+    <string name="ready_progression_title">Ready to level up!</string>
+    <string name="ready_progression_message">You\'ve hit all reps 2 sessions in a row. Try %1$d lb.</string>
+    <string name="ready_progression_accept">Try %1$d lb</string>
+    <string name="ready_set_info">Set %1$d of %2$d</string>
+    <string name="ready_warmup">Warmup</string>
+
+    <!-- ── Rest screen ─────────────────────────────────────────────────── -->
+    <string name="rest_title">REST</string>
+    <string name="rest_up_next">UP NEXT</string>
+    <string name="rest_set_of">Set %1$d of %2$d</string>
+    <string name="rest_last_warning">Last rest — workout complete after this!</string>
+    <string name="rest_skip">Skip Rest</string>
+    <string name="rest_skip_exercise">Skip Exercise</string>
+    <string name="rest_edit_sets">Edit Sets</string>
+
+    <!-- ── Workout complete ────────────────────────────────────────────── -->
+    <string name="complete_headline">Great Workout!</string>
+    <string name="complete_subheadline">You crushed it. Here\'s your summary.</string>
+    <string name="complete_pr_singular">1 Personal Record!</string>
+    <string name="complete_pr_plural">%1$d Personal Records!</string>
+    <string name="complete_total_reps">Total Reps</string>
+    <string name="complete_total_volume">Total Volume</string>
+    <string name="complete_duration">Duration</string>
+    <string name="complete_total_sets">Total Sets</string>
+    <string name="complete_heaviest">Heaviest Lift</string>
+    <string name="complete_quality">Lift Quality</string>
+    <string name="complete_chart_placeholder">Performance insights — coming soon</string>
+    <string name="complete_notes_label">Workout notes (optional)</string>
+    <string name="complete_notes_placeholder">How did it go? Any PRs?</string>
+    <string name="complete_done">Done</string>
+    <string name="complete_exit_no_save">Exit Without Saving</string>
+
+    <!-- ── Session detail ──────────────────────────────────────────────── -->
+    <string name="session_not_found">Session not found</string>
+    <string name="session_deleted_message">This session may have been deleted.</string>
+    <string name="session_stat_sets">SETS</string>
+    <string name="session_stat_reps">REPS</string>
+    <string name="session_stat_volume">VOLUME</string>
+    <string name="session_stat_duration">DURATION</string>
+    <string name="session_stat_heaviest">HEAVIEST</string>
+    <string name="session_stat_quality">QUALITY</string>
+    <string name="session_exercises_header">Exercises</string>
+    <string name="session_est_calories">Est. Calories</string>
+    <string name="session_notes_header">Notes</string>
+
+    <!-- ── Activity history ────────────────────────────────────────────── -->
+    <string name="history_empty_headline">No workouts yet</string>
+    <string name="history_empty_message">Complete your first session to start building your training history.</string>
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
+    <string name="history_days_ago">%1$dd ago</string>
+    <string name="history_view_full">View Full Session</string>
+
+    <!-- ── Activity metric detail ──────────────────────────────────────── -->
+    <string name="metric_volume">Volume</string>
+    <string name="metric_sessions_per_week">Sessions per Week</string>
+    <string name="metric_day_streak">Day Streak</string>
+    <string name="metric_this_week">This Week</string>
+    <string name="metric_volume_empty">Volume insights will appear once enough data is recorded</string>
+    <string name="metric_volume_empty_with_sessions">You have %1$d session(s) logged. Volume will be tracked from your next workout.</string>
+    <string name="metric_volume_empty_no_sessions">Complete a workout to start tracking volume.</string>
+    <string name="metric_6_week_trend">6-Week Trend</string>
+    <string name="metric_current_week">This week</string>
+    <string name="metric_streak_current">Current Streak</string>
+    <string name="metric_streak_longest">Longest Streak</string>
+    <string name="metric_day_singular">%1$d day</string>
+    <string name="metric_day_plural">%1$d days</string>
+    <string name="metric_last_30_days">Last 30 Days</string>
+    <string name="metric_streak_empty">No sessions recorded yet</string>
+    <string name="metric_streak_empty_message">Complete workouts on consecutive days to build your streak.</string>
+
+    <!-- ── Trainer screen ──────────────────────────────────────────────── -->
+    <string name="trainer_section">Your Trainer</string>
+    <string name="trainer_disconnected_headline">No trainer connected</string>
+    <string name="trainer_disconnected_message">Turn on your Vitruvian trainer and tap Connect below.</string>
+    <string name="trainer_section_general">GENERAL</string>
+    <string name="trainer_connection">Connection</string>
+    <string name="trainer_status_connected">Connected</string>
+    <string name="trainer_status_connecting">Connecting…</string>
+    <string name="trainer_status_scanning">Scanning…</string>
+    <string name="trainer_status_error">Error</string>
+    <string name="trainer_status_disconnected">Disconnected</string>
+    <string name="trainer_machine_id">Machine ID</string>
+    <string name="trainer_status">Status</string>
+    <string name="trainer_status_ready">Ready</string>
+    <string name="trainer_status_busy">Busy</string>
+    <string name="trainer_colour">Colour</string>
+    <string name="trainer_section_versions">VERSIONS</string>
+    <string name="trainer_firmware">Firmware</string>
+    <string name="trainer_hardware">Hardware</string>
+    <string name="trainer_app">App</string>
+    <string name="trainer_disconnect">Disconnect</string>
+    <string name="trainer_connect">Connect</string>
+    <string name="trainer_check_repair">Check &amp; Repair</string>
+
+    <!-- ── Connection repair ───────────────────────────────────────────── -->
+    <string name="repair_bt_enabled">Bluetooth Enabled</string>
+    <string name="repair_bt_on">Adapter is on</string>
+    <string name="repair_bt_off">Bluetooth is off</string>
+    <string name="repair_open_settings">Open Settings</string>
+    <string name="repair_permissions">Permissions Granted</string>
+    <string name="repair_permissions_ok">All BLE permissions present</string>
+    <string name="repair_permissions_request">Request</string>
+    <string name="repair_device_connected">Device Connected</string>
+    <string name="repair_connecting">Connecting…</string>
+    <string name="repair_no_device">No device — scan first</string>
+    <string name="repair_reconnect">Reconnect</string>
+    <string name="repair_scan">Scan</string>
+    <string name="repair_services">Services Discovered</string>
+    <string name="repair_services_ok">NUS write characteristic cached</string>
+    <string name="repair_services_not_found">Services not found — try reconnecting</string>
+    <string name="repair_services_waiting">Waiting for service discovery…</string>
+    <string name="repair_notifications">Notifications Enabled</string>
+    <string name="repair_notifications_ok">All CCCD descriptors written</string>
+    <string name="repair_notifications_fixing">Write char ready — re-subscribing…</string>
+    <string name="repair_notifications_missing">Connected but notifications missing</string>
+    <string name="repair_resubscribe">Re-subscribe</string>
+    <string name="repair_telemetry">Telemetry Alive</string>
+    <string name="repair_telemetry_ready">Ready — start an exercise or ping below</string>
+    <string name="repair_telemetry_not_receiving">Not receiving notifications</string>
+    <string name="repair_ping">Ping</string>
+    <string name="repair_recent_events">Recent Events</string>
+    <string name="repair_no_events">No events yet</string>
+    <string name="repair_auto_repair">Auto Repair</string>
+    <string name="repair_auto_disconnect">Disconnect, reconnect, re-discover services…</string>
+    <string name="repair_repairing">Repairing…</string>
+    <string name="repair_repair_now">Repair Now</string>
+    <string name="repair_dismiss">Dismiss</string>
+
+    <!-- ── Account screen ──────────────────────────────────────────────── -->
+    <string name="account_unconfigured">Cloud sync is not configured.\nSet your Supabase URL and key in supabase_config.xml.</string>
+    <string name="account_signed_in">Signed in</string>
+    <string name="account_sync_section">Cloud Sync</string>
+    <string name="account_last_synced">Last synced: %1$s</string>
+    <string name="account_never_synced">Never synced</string>
+    <string name="account_syncing">Syncing…</string>
+    <string name="account_sync_complete">Sync complete: %1$s</string>
+    <string name="account_sync_failed">Sync failed: %1$s</string>
+    <string name="account_sync_now">Sync Now</string>
+    <string name="account_sign_out">Sign Out</string>
+    <string name="account_create_title">Create Account</string>
+    <string name="account_sign_in_title">Sign In</string>
+    <string name="account_form_description">Sync your programs, workouts, and settings across devices.</string>
+    <string name="account_email_label">Email</string>
+    <string name="account_password_label">Password</string>
+    <string name="account_password_show">Show</string>
+    <string name="account_password_hide">Hide</string>
+    <string name="account_validation_required">Email and password are required</string>
+    <string name="account_create_button">Create Account</string>
+    <string name="account_toggle_to_signin">Already have an account? Sign in</string>
+    <string name="account_toggle_to_signup">Don\'t have an account? Create one</string>
+
+    <!-- ── Just Lift screen ────────────────────────────────────────────── -->
+    <string name="justlift_title">Just Lift</string>
+    <string name="justlift_safety_warning">For safety, only use the handle accessories</string>
+    <string name="justlift_weight_per_cable">Weight (%1$s/cable)</string>
+    <string name="justlift_weight_total_hint">Total weight for 2 cables: %1$s</string>
+    <string name="justlift_applies_when_connected">Applies when connected</string>
+    <string name="justlift_mode">Mode</string>
+    <string name="justlift_beta_badge">Beta</string>
+    <string name="justlift_level">Level</string>
+    <string name="justlift_progression">Progression/Regression</string>
+    <string name="justlift_rest">Rest</string>
+    <string name="justlift_echo_hint">The stronger you lift up, the heavier you\'ll lower down</string>
+
+    <!-- ── Just Lift dialogs ───────────────────────────────────────────── -->
+    <string name="justlift_modes_title">Modes</string>
+    <string name="justlift_levels_title">Levels</string>
+    <string name="justlift_eccentric_title">Eccentric Load</string>
+    <string name="justlift_progression_title">Progression / Regression</string>
+    <string name="justlift_rest_title">Rest Timer</string>
+    <string name="justlift_rep_timing_title">Rep Count Timing</string>
+    <string name="justlift_rep_timing_top">Top (concentric peak)</string>
+    <string name="justlift_rep_timing_bottom">Bottom (after eccentric)</string>
+
+    <!-- ── Sync screen ─────────────────────────────────────────────────── -->
+    <string name="sync_choose_role">Choose Role</string>
+    <string name="sync_wifi_requirement">Both devices must be on the same Wi-Fi network.</string>
+    <string name="sync_start_hub">Start Hub</string>
+    <string name="sync_stop_hub">Stop Hub</string>
+    <string name="sync_find_hub">Find Hub</string>
+    <string name="sync_hub_active">Hub Active</string>
+    <string name="sync_hub_listening">Listening on %1$s</string>
+    <string name="sync_hub_scan_instruction">Scan from the other device to pair:</string>
+    <string name="sync_generating_qr">Generating QR code…</string>
+    <string name="sync_searching_hub">Searching for Hub…</string>
+    <string name="sync_hub_discovery_help">Make sure the Hub device is on the same Wi-Fi and has tapped \"Start Hub\"</string>
+    <string name="sync_ready">Ready to Sync</string>
+    <string name="sync_pairing_required">Pair with this Hub first — scan the QR code shown on the Hub device</string>
+    <string name="sync_scan_qr">Scan Hub QR Code</string>
+    <string name="sync_pairing">Pairing with hub…</string>
+    <string name="sync_pairing_failed">Pairing Failed</string>
+    <string name="sync_qr_invalid">Not a Vitruvian Hub QR code.\nMake sure the Hub device is showing the pairing QR.</string>
+    <string name="sync_pairing_rejected">Pairing rejected — ensure Hub is running</string>
+    <string name="sync_pairing_error">Pairing failed: %1$s</string>
+    <string name="sync_pairing_help">First make sure the Hub device has tapped \"Start Hub\", then tap \"Find Hub\" on this device and wait for it to appear.</string>
+    <string name="sync_scan_again">Scan Again</string>
+    <string name="sync_syncing">Syncing…</string>
+    <string name="sync_now">Sync Now</string>
+    <string name="sync_complete">Sync Complete</string>
+    <string name="sync_pull_summary">Pulled: %1$d programs, %2$d sessions</string>
+    <string name="sync_push_summary">Pushed: %1$d programs, %2$d sessions</string>
+    <string name="sync_rejected_summary">Rejected: %1$d programs, %2$d sessions</string>
+    <string name="sync_failed">Sync Failed</string>
+    <string name="sync_network_error">Network Error</string>
+
+    <!-- ── Debug screen ────────────────────────────────────────────────── -->
+    <string name="debug_clear_log">Clear log</string>
+    <string name="debug_connecting">◌ Connecting…</string>
+    <string name="debug_scanning">◌ Scanning…</string>
+    <string name="debug_disconnected">○ Disconnected</string>
+    <string name="debug_init">INIT</string>
+    <string name="debug_start">START</string>
+    <string name="debug_stop">STOP</string>
+    <string name="debug_reset">RESET</string>
+    <string name="debug_scroll_down">SCROLL↓</string>
+    <string name="debug_empty">No BLE packets yet.\nConnect a device and press START.</string>
+
+    <!-- ── Audit screen ────────────────────────────────────────────────── -->
+    <string name="audit_visibility">Visibility</string>
+    <string name="audit_coverage">Operational Coverage</string>
+    <string name="audit_validated">Contract-validated</string>
+    <string name="audit_total">Total</string>
+    <string name="audit_tapped">Tapped</string>
+    <string name="audit_operational">Operational</string>
+    <string name="audit_gap">Gap</string>
+    <string name="audit_highlight_on">Highlight Mode ON – action IDs overlaid on instrumented controls</string>
+
+    <!-- ── Content descriptions (accessibility) ────────────────────────── -->
+    <string name="cd_back">Navigate back</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_clear_search">Clear search</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_edit">Edit</string>
+    <string name="cd_delete">Delete</string>
+    <string name="cd_add">Add</string>
+    <string name="cd_add_exercise">Add exercise</string>
+    <string name="cd_add_set">Add set</string>
+    <string name="cd_expand">Expand</string>
+    <string name="cd_collapse">Collapse</string>
+    <string name="cd_bluetooth_connected">Bluetooth connected</string>
+    <string name="cd_bluetooth_connecting">Bluetooth connecting</string>
+    <string name="cd_bluetooth_disconnected">Bluetooth disconnected</string>
+    <string name="cd_bluetooth_error">Bluetooth error</string>
+    <string name="cd_play">Start workout</string>
+    <string name="cd_stop">Stop</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_skip_next">Skip to next</string>
+    <string name="cd_skip_rest">Skip rest</string>
+    <string name="cd_sync">Sync data</string>
+    <string name="cd_download">Download</string>
+    <string name="cd_scan_qr">Scan QR code</string>
+    <string name="cd_check">Confirm</string>
+    <string name="cd_selected">Selected</string>
+    <string name="cd_drag_handle">Drag to reorder</string>
+    <string name="cd_chevron_right">View details</string>
+    <string name="cd_dropdown">Show options</string>
+    <string name="cd_previous_week">Previous week</string>
+    <string name="cd_next_week">Next week</string>
+    <string name="cd_previous_month">Previous month</string>
+    <string name="cd_next_month">Next month</string>
+    <string name="cd_previous_year">Previous year</string>
+    <string name="cd_next_year">Next year</string>
+    <string name="cd_preview_voice">Preview voice</string>
+    <string name="cd_clear_log">Clear log</string>
+    <string name="cd_info">Information</string>
+    <string name="cd_warning">Warning</string>
+    <string name="cd_refresh">Refresh</string>
+    <string name="cd_hub">Hub</string>
+    <string name="cd_sign_out">Sign out</string>
+    <string name="cd_bug_report">Bug report</string>
+    <string name="cd_device_repair">Device repair</string>
+    <string name="cd_connected_indicator">Connected device: %1$s</string>
+    <string name="cd_link_exercises">Link exercises</string>
+    <string name="cd_import">Import</string>
+    <string name="cd_cloud_download">Cloud download</string>
+    <string name="cd_fitness">Fitness</string>
+    <string name="cd_grid_view">Grid view</string>
+    <string name="cd_sort_up">Sort ascending</string>
+    <string name="cd_sort_down">Sort descending</string>
+    <string name="cd_clear_all">Clear all</string>
+    <string name="cd_video_unavailable">Video unavailable</string>
+    <string name="cd_mirror_settings">Mirror settings</string>
+    <string name="cd_account_avatar">Account</string>
+    <string name="cd_mode_settings">Mode settings</string>
+    <string name="cd_expand_mode">Expand mode menu</string>
+    <string name="cd_voice_coaching">Voice coaching</string>
+    <string name="cd_weight_unit">Weight unit</string>
+    <string name="cd_cloud_sync">Cloud sync</string>
+    <string name="cd_hevy_sync">Hevy sync</string>
+    <string name="cd_period_dropdown">Change time period</string>
+    <string name="cd_next_exercise">Next exercise preview</string>
+    <string name="cd_session_date">Session date</string>
+    <string name="cd_calories">Calories</string>
+    <string name="cd_trophy">Workout complete</string>
+    <string name="cd_performance_chart">Performance insights</string>
+    <string name="cd_save">Save</string>
+    <string name="cd_empty_state">No data available</string>
+    <string name="cd_error">Error</string>
+    <string name="cd_audit_status">Audit status</string>
+    <string name="cd_repair_step">Repair step</string>
+    <string name="cd_repair_status">Repair status</string>
+    <string name="cd_personal_record">Personal record</string>
 </resources>

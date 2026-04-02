@@ -127,7 +127,7 @@ fun AppNavHost(
             AccountScreen(onBack = { nav.popBackStack() })
         }
         if (BuildConfig.IS_DEBUG_BUILD) {
-            composable(Route.Debug.path) { DebugScreen(innerPadding, bleVM, workoutVM) }
+            composable(Route.Debug.path) { DebugScreen(innerPadding, bleVM, workoutVM, onBack = { nav.popBackStack() }) }
         }
         composable(Route.Repair.path) {
             DeviceRepairScreen(
@@ -246,13 +246,16 @@ fun AppNavHost(
             )
         }
 
-        if (lanSyncManager != null) {
-            composable(Route.Sync.path) {
+        composable(Route.Sync.path) {
+            if (lanSyncManager != null) {
                 SyncScreen(
                     lanSyncManager = lanSyncManager,
                     innerPadding   = innerPadding,
                     onBack         = { nav.popBackStack() },
                 )
+            } else {
+                // Fallback: lanSyncManager unavailable — pop back
+                LaunchedEffect(Unit) { nav.popBackStack() }
             }
         }
     }

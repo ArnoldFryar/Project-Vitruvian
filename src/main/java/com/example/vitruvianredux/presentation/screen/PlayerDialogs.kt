@@ -2,6 +2,8 @@
 
 package com.example.vitruvianredux.presentation.screen
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import com.example.vitruvianredux.ble.BleDiagnostics
@@ -37,7 +40,7 @@ import kotlin.math.roundToInt
 
 // ─── Paused screen ───────────────────────────────────────────────────────────
 
-private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo")
+private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only")
 
 @Composable
 internal fun PausedContent(
@@ -58,12 +61,12 @@ internal fun PausedContent(
         AlertDialog(
             onDismissRequest = { showEndConfirm = false },
             icon = {
-                Icon(Icons.Default.Warning, contentDescription = null,
+                Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.cd_warning),
                     tint = MaterialTheme.colorScheme.error)
             },
-            title = { Text("End Workout?") },
+            title = { Text(stringResource(R.string.player_end_title)) },
             text  = {
-                Text("Your progress for completed exercises will be saved, but the current set will not count.")
+                Text(stringResource(R.string.player_end_message))
             },
             confirmButton = {
                 Button(
@@ -72,10 +75,10 @@ internal fun PausedContent(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor   = MaterialTheme.colorScheme.onError,
                     ),
-                ) { Text("End Workout") }
+                ) { Text(stringResource(R.string.player_end_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { showEndConfirm = false }) { Text("Keep Going") }
+                TextButton(onClick = { showEndConfirm = false }) { Text(stringResource(R.string.player_end_cancel)) }
             },
         )
     }
@@ -87,14 +90,12 @@ internal fun PausedContent(
         verticalArrangement = Arrangement.Center,
     ) {
         Icon(
-            Icons.Default.Pause,
-            contentDescription = null,
-            modifier = Modifier.size(64.dp),
+            Icons.Default.Pause, contentDescription = stringResource(R.string.cd_pause),
+            modifier = Modifier.size(AppDimens.Icon.hero),
             tint = MaterialTheme.colorScheme.primary,
         )
         Spacer(Modifier.height(AppDimens.Spacing.sm))
-        Text(
-            text = "Paused",
+        Text(text = stringResource(R.string.player_paused),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
         )
@@ -104,7 +105,7 @@ internal fun PausedContent(
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(AppDimens.Spacing.xxs))
         Text(
             text = "Set ${setIndex + 1} of $totalSets",
             style = MaterialTheme.typography.bodyMedium,
@@ -127,17 +128,16 @@ internal fun PausedContent(
                         .fillMaxWidth()
                         .menuAnchor()
                         .clickable { onModeExpandChange(!modeExpanded) }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
                         Icon(
-                            Icons.Default.Tune,
-                            contentDescription = null,
+                            Icons.Default.Tune, contentDescription = stringResource(R.string.cd_mode_settings),
                             modifier = Modifier.size(AppDimens.Icon.md),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -148,8 +148,7 @@ internal fun PausedContent(
                         )
                     }
                     Icon(
-                        Icons.Default.ExpandMore,
-                        contentDescription = null,
+                        Icons.Default.ExpandMore, contentDescription = stringResource(R.string.cd_expand_mode),
                         modifier = Modifier.size(AppDimens.Icon.md),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -173,24 +172,24 @@ internal fun PausedContent(
             onClick = onResume,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(AppDimens.Component.buttonHeightXl),
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.lg))
+            Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.lg))
             Spacer(Modifier.width(AppDimens.Spacing.sm))
-            Text("Resume Workout", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(stringResource(R.string.player_resume_workout), fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
         Spacer(Modifier.height(AppDimens.Spacing.md_sm))
         OutlinedButton(
             onClick = { showEndConfirm = true },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(AppDimens.Component.buttonHeightLg),
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         ) {
-            Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.lg))
+            Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.cd_stop), modifier = Modifier.size(AppDimens.Icon.lg))
             Spacer(Modifier.width(AppDimens.Spacing.sm))
-            Text("End Workout", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(stringResource(R.string.player_end_confirm), fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }
@@ -220,38 +219,38 @@ internal fun BleDiagnosticsDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("BLE Diagnostics", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.player_ble_diagnostics), fontWeight = FontWeight.Bold) },
         text  = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                 DiagRow("State",        stateLabel)
                 DiagRow("isReady",      diagnostics.isReady.toString())
                 DiagRow("writeChar",    diagnostics.writeCharCached.toString())
                 DiagRow("notifyEnabled",diagnostics.notifyEnabled.toString())
-                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                 DiagRow("lastTx",       fmtTime(diagnostics.lastTxAt))
                 DiagRow("lastRx",       fmtTime(diagnostics.lastRxAt))
                 DiagRow("lastGattEvt",  fmtTime(diagnostics.lastGattEventAt))
                 if (diagnostics.lastError != null) {
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                     DiagRow("lastError", diagnostics.lastError, isError = true)
                 }
                 if (machineWifi != null) {
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                     DiagRow("WiFi SSID",     machineWifi.ssid.ifEmpty { "—" })
                     DiagRow("WiFi Password", machineWifi.password.ifEmpty { "—" })
                 }
                 if (machineRawDiagnostic != null) {
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                     DiagRow("Diag (hex)",
                         machineRawDiagnostic.joinToString(" ") { "%02x".format(it) }
                             .ifEmpty { "—" })
                 }
                 if (machineMode != null) {
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                     DiagRow("Machine Mode", machineMode.name)
                 }
                 if (machineVersion != null) {
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                     DiagRow("HW",        machineVersion.hardware.ifEmpty { "—" })
                     DiagRow("FW",        machineVersion.firmware.ifEmpty { "—" })
                     DiagRow("Max Force", "${ "%.1f".format(machineVersion.maxForceKg) } kg")
@@ -260,7 +259,7 @@ internal fun BleDiagnosticsDialog(
                     val l = machineHeuristic.left.concentric
                     val r = machineHeuristic.right.concentric
                     val total = (l.kgAvg + r.kgAvg).coerceAtLeast(0.001f)
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                     DiagRow("Last Rep Peak L", "${ "%.1f".format(l.kgMax) }kg / ${ "%.0f".format(l.wattMax) }W")
                     DiagRow("Last Rep Peak R", "${ "%.1f".format(r.kgMax) }kg / ${ "%.0f".format(r.wattMax) }W")
                     DiagRow("L/R Balance",     "${ "%.0f".format(l.kgAvg / total * 100) }% / ${ "%.0f".format(r.kgAvg / total * 100) }%")
@@ -268,7 +267,7 @@ internal fun BleDiagnosticsDialog(
                 if (machineUpdateState != null && machineUpdateState.statusCode != 0) {
                     val statusName = listOf("Idle", "Pending", "In Progress", "Complete")
                         .getOrElse(machineUpdateState.statusCode) { "Unknown (${machineUpdateState.statusCode})" }
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                     DiagRow("OTA Status",   statusName)
                     DiagRow("OTA Progress", "${machineUpdateState.progressPct}%")
                     if (machineUpdateState.errorCode != 0) {
@@ -278,7 +277,7 @@ internal fun BleDiagnosticsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cd_close)) }
         },
     )
 }
@@ -301,7 +300,7 @@ private fun DiagRow(label: String, value: String, isError: Boolean = false) {
             color = if (isError) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.End,
-            modifier = Modifier.padding(start = 8.dp),
+            modifier = Modifier.padding(start = AppDimens.Spacing.sm),
         )
     }
 }
@@ -327,16 +326,14 @@ internal fun UpcomingSetsSheet(
                 .fillMaxWidth()
                 .padding(AppDimens.Spacing.md)
         ) {
-            Text(
-                text = "Edit Upcoming Sets",
+            Text(text = stringResource(R.string.player_edit_sets_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.md)
             )
 
             if (draftSets.isEmpty()) {
-                Text(
-                    text = "No upcoming sets.",
+                Text(text = stringResource(R.string.player_no_upcoming),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = AppDimens.Spacing.md)
@@ -359,7 +356,7 @@ internal fun UpcomingSetsSheet(
                                 )
                                 Spacer(Modifier.height(AppDimens.Spacing.sm))
                                 SelectorCard(
-                                    title    = "Target Reps",
+                                    title    = stringResource(R.string.player_target_reps),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     ValueStepper(
@@ -370,13 +367,13 @@ internal fun UpcomingSetsSheet(
                                             draftSets = newSets
                                         },
                                         range         = 1..99,
-                                        unitLabel     = "reps",
+                                        unitLabel     = stringResource(R.string.session_stat_reps),
                                         compact       = true,
                                     )
                                 }
                                 Spacer(Modifier.height(AppDimens.Spacing.sm))
                                 SelectorCard(
-                                    title    = "Weight",
+                                    title    = stringResource(R.string.player_weight),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     ResistanceTumbler(
@@ -409,7 +406,7 @@ internal fun UpcomingSetsSheet(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
                 Button(
                     onClick = {
@@ -418,7 +415,7 @@ internal fun UpcomingSetsSheet(
                     },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.cd_save))
                 }
             }
         }

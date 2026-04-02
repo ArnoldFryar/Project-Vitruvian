@@ -80,6 +80,7 @@ data class WorkoutParameters(
             repCountTiming: RepCountTiming = RepCountTiming.BOTTOM,
         ): WorkoutParameters {
             val mode = when (programMode) {
+                "Old School" -> ProgramMode.OldSchool
                 "Pump" -> ProgramMode.Pump
                 "TUT" -> ProgramMode.TUT
                 "TUT Beast" -> ProgramMode.TUTBeast

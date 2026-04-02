@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 // ── Light scheme ───────────────────────────────────────────────────────
 private val LightColors = lightColorScheme(
@@ -80,8 +81,8 @@ private val DarkColors = darkColorScheme(
 // ── Shapes — disciplined 4/8/16 system ─────────────────────────────────
 val VitruvianShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
-    small      = RoundedCornerShape(8.dp),
-    medium     = RoundedCornerShape(16.dp),
+    small      = RoundedCornerShape(AppDimens.Corner.sm),
+    medium     = RoundedCornerShape(AppDimens.Corner.md),
     large      = RoundedCornerShape(20.dp),
     extraLarge = RoundedCornerShape(28.dp),
 )

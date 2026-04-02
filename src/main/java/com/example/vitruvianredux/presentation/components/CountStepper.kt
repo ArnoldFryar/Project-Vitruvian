@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlin.math.abs
 import kotlin.math.pow
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 /**
  * Vertical drum-style integer count picker.
@@ -224,7 +225,7 @@ fun CountStepper(
                 color      = (if (enabled) cs.primary else cs.onSurface).copy(alpha = 0.85f),
                 modifier   = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 20.dp),
+                    .padding(end = AppDimens.Spacing.md_lg),
             )
         }
     }

@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.presentation.mirror
 
+import com.vitruvian.trainer.R
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -55,8 +58,7 @@ fun MirrorSettingsSheet(onDismiss: () -> Unit) {
                 .navigationBarsPadding()
                 .padding(bottom = AppDimens.Spacing.xl),
         ) {
-            Text(
-                text       = "Mirror Settings",
+            Text(text = stringResource(R.string.cd_mirror_settings),
                 style      = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier   = Modifier.padding(bottom = AppDimens.Spacing.md),
@@ -69,7 +71,7 @@ fun MirrorSettingsSheet(onDismiss: () -> Unit) {
             ) {
                 Icon(
                     imageVector        = Icons.Default.AutoFixHigh,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_mirror_settings),
                     modifier           = Modifier
                         .padding(end = AppDimens.Spacing.sm)
                         .size(AppDimens.Icon.md),

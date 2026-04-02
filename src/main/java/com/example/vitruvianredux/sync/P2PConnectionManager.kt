@@ -160,8 +160,7 @@ class P2PConnectionManager(
         register()
         _state.value = P2pState.GroupCreating
         Timber.tag(TAG).i("HUB: creating Wi-Fi Direct group …")
-
-        manager?.createGroup(channel, object : WifiP2pManager.ActionListener {
+        try {        manager?.createGroup(channel, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
                 Timber.tag(TAG).i("HUB: createGroup() succeeded — waiting for connection info")
                 // State will be updated when CONNECTION_CHANGED fires
@@ -173,12 +172,17 @@ class P2PConnectionManager(
                 _state.value = P2pState.Error("createGroup failed: $msg")
             }
         })
+        } catch (e: SecurityException) {
+            Timber.tag(TAG).e(e, "HUB: createGroup permission denied")
+            _state.value = P2pState.Error("Wi-Fi Direct permission denied")
+        }
     }
 
     /** Remove the Wi-Fi Direct group (hub stops being GO). */
     @SuppressLint("MissingPermission")
     fun removeGroup() {
         Timber.tag(TAG).i("HUB: removing group")
+        try {
         manager?.removeGroup(channel, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
                 Timber.tag(TAG).i("HUB: group removed")
@@ -190,6 +194,10 @@ class P2PConnectionManager(
                 _state.value = P2pState.Idle
             }
         })
+        } catch (e: SecurityException) {
+            Timber.tag(TAG).e(e, "HUB: removeGroup permission denied")
+            _state.value = P2pState.Idle
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -205,6 +213,7 @@ class P2PConnectionManager(
         _state.value = P2pState.Discovering
         Timber.tag(TAG).i("CLIENT: starting peer discovery …")
 
+        try {
         manager?.discoverPeers(channel, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
                 Timber.tag(TAG).d("CLIENT: discoverPeers() initiated")
@@ -216,6 +225,10 @@ class P2PConnectionManager(
                 _state.value = P2pState.Error("Discovery failed: $msg")
             }
         })
+        } catch (e: SecurityException) {
+            Timber.tag(TAG).e(e, "CLIENT: discoverPeers permission denied")
+            _state.value = P2pState.Error("Wi-Fi Direct permission denied")
+        }
     }
 
     /** Stop peer discovery. */
@@ -240,9 +253,10 @@ class P2PConnectionManager(
             groupOwnerIntent = 0
         }
 
+        try {
         manager?.connect(channel, config, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
-                Timber.tag(TAG).d("CLIENT: connect() initiated — waiting for connection info")
+                Timber.tag(TAG).d("CLIENT: connect() initiated \u2014 waiting for connection info")
             }
 
             override fun onFailure(reason: Int) {
@@ -251,12 +265,17 @@ class P2PConnectionManager(
                 _state.value = P2pState.Error("Connect failed: $msg")
             }
         })
+        } catch (e: SecurityException) {
+            Timber.tag(TAG).e(e, "CLIENT: connect permission denied")
+            _state.value = P2pState.Error("Wi-Fi Direct permission denied")
+        }
     }
 
     /** Disconnect from the current Wi-Fi Direct group. */
     @SuppressLint("MissingPermission")
     fun disconnect() {
         Timber.tag(TAG).i("CLIENT: disconnecting")
+        try {
         manager?.removeGroup(channel, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
                 Timber.tag(TAG).i("CLIENT: disconnected")
@@ -268,6 +287,10 @@ class P2PConnectionManager(
                 _state.value = P2pState.Idle
             }
         })
+        } catch (e: SecurityException) {
+            Timber.tag(TAG).e(e, "CLIENT: disconnect permission denied")
+            _state.value = P2pState.Idle
+        }
     }
 
     // ── Connection info callback ──────────────────────────────────────────────
