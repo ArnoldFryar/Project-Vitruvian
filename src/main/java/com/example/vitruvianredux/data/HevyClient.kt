@@ -163,8 +163,8 @@ object HevyClient {
             // Refresh template cache if API key changed
             if (apiKey != cacheKey) {
                 templateCache.clear()
-                cacheKey = apiKey
-                fetchAllTemplates(apiKey)
+                cacheKey = apiKey.trim()
+                fetchAllTemplates(apiKey.trim())
             }
 
             val exercises = buildExercises(session)
@@ -365,10 +365,13 @@ object HevyClient {
             val all = mutableListOf<ImportedProgram>()
             while (true) {
                 val resp: HttpResponse = http.get("$BASE_URL/v1/routines") {
-                    header("api-key", apiKey)
+                    header("api-key", apiKey.trim())
                     parameter("page", page)
                     parameter("pageSize", ROUTINES_PAGE_SIZE)
                 }
+                // Hevy returns 404 "Page not found" when the account has 0 routines
+                // (their server doesn't return an empty list for page 1).
+                if (resp.status.value == 404) break
                 if (!resp.status.isSuccess()) {
                     return Result.failure(Exception("HTTP ${resp.status.value}: ${resp.bodyAsText().take(120)}"))
                 }

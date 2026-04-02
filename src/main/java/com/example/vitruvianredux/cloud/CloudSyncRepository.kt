@@ -648,6 +648,12 @@ object CloudSyncRepository {
                 put("weightLb", s.weightLb)
                 put("numCables", s.numCables)
                 put("volumeKg", s.volumeKg.toDouble())
+                if (s.avgQualityScore != null) put("avgQualityScore", s.avgQualityScore)
+                if (s.avgRom        != null) put("avgRom",        s.avgRom)
+                if (s.avgTempo      != null) put("avgTempo",      s.avgTempo)
+                if (s.avgSymmetry   != null) put("avgSymmetry",   s.avgSymmetry)
+                if (s.avgSmoothness != null) put("avgSmoothness", s.avgSmoothness)
+                if (s.skipped) put("skipped", true)
             })
         }
         return arr.toString()
@@ -665,6 +671,12 @@ object CloudSyncRepository {
                     weightLb = obj.optInt("weightLb", 0),
                     volumeKg = obj.optDouble("volumeKg", 0.0).toFloat(),
                     numCables = obj.optInt("numCables", 2),
+                    avgQualityScore = if (obj.has("avgQualityScore")) obj.getInt("avgQualityScore") else null,
+                    avgRom          = if (obj.has("avgRom"))        obj.getInt("avgRom")        else null,
+                    avgTempo        = if (obj.has("avgTempo"))      obj.getInt("avgTempo")      else null,
+                    avgSymmetry     = if (obj.has("avgSymmetry"))   obj.getInt("avgSymmetry")   else null,
+                    avgSmoothness   = if (obj.has("avgSmoothness")) obj.getInt("avgSmoothness") else null,
+                    skipped         = obj.optBoolean("skipped", false),
                 )
             }
         } catch (_: Exception) { emptyList() }

@@ -855,47 +855,89 @@ private fun SetTable(
 ) {
     val cs   = MaterialTheme.colorScheme
     val gold = LocalExtendedColors.current.gold
+    val hasQuality = sets.any { it.avgQualityScore != null }
     Column {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs)) {
             Text(stringResource(R.string.exercise_table_set),    style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(40.dp))
             Text(stringResource(R.string.session_stat_reps),   style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             Text(stringResource(R.string.player_weight), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+            if (hasQuality) {
+                Text("Qlty", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
+            }
         }
         Divider(color = cs.outlineVariant, thickness = 0.5.dp)
 
         sets.forEachIndexed { idx, set ->
             val isBest = idx == bestSetIndex
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(modifier = Modifier.width(40.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (set.skipped) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
                         "${idx + 1}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.width(40.dp),
+                    )
+                    Text(
+                        "skipped",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(modifier = Modifier.width(40.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "${idx + 1}",
+                            style      = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (isBest) FontWeight.Bold else FontWeight.Normal,
+                            color      = if (isBest) cs.primary else cs.onSurface,
+                        )
+                        if (isBest) {
+                            Icon(Icons.Default.Star, "Best set", tint = gold,
+                                modifier = Modifier.padding(start = AppDimens.Spacing.xxs).size(10.dp))
+                        }
+                    }
+                    Text(
+                        "${set.reps}",
+                        style      = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isBest) FontWeight.SemiBold else FontWeight.Normal,
+                        modifier   = Modifier.weight(1f),
+                        textAlign  = TextAlign.Center,
+                    )
+                    Text(
+                        formatWeightLb(set.weightLb, unitSystem),
                         style      = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (isBest) FontWeight.Bold else FontWeight.Normal,
                         color      = if (isBest) cs.primary else cs.onSurface,
+                        modifier   = Modifier.weight(1f),
+                        textAlign  = TextAlign.End,
                     )
-                    if (isBest) {
-                        Icon(Icons.Default.Star, "Best set", tint = gold,
-                            modifier = Modifier.padding(start = AppDimens.Spacing.xxs).size(10.dp))
+                    if (hasQuality) {
+                        val q = set.avgQualityScore
+                        val qColor = when {
+                            q == null -> cs.onSurfaceVariant.copy(alpha = 0.35f)
+                            q >= 80 -> cs.primary
+                            q >= 60 -> Warning
+                            else -> cs.error
+                        }
+                        Text(
+                            if (q != null) "$q" else "—",
+                            style     = MaterialTheme.typography.bodySmall,
+                            fontWeight = if (q != null && q >= 80) FontWeight.SemiBold else FontWeight.Normal,
+                            color     = qColor,
+                            modifier  = Modifier.width(44.dp),
+                            textAlign = TextAlign.End,
+                        )
                     }
                 }
-                Text(
-                    "${set.reps}",
-                    style      = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isBest) FontWeight.SemiBold else FontWeight.Normal,
-                    modifier   = Modifier.weight(1f),
-                    textAlign  = TextAlign.Center,
-                )
-                Text(
-                    formatWeightLb(set.weightLb, unitSystem),
-                    style      = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isBest) FontWeight.Bold else FontWeight.Normal,
-                    color      = if (isBest) cs.primary else cs.onSurface,
-                    modifier   = Modifier.weight(1f),
-                    textAlign  = TextAlign.End,
-                )
             }
             if (idx < sets.size - 1) {
                 Divider(color = cs.outlineVariant.copy(alpha = 0.35f), thickness = 0.5.dp)

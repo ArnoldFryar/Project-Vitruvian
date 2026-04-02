@@ -82,10 +82,9 @@ fun HevyImportScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
-                windowInsets = WindowInsets(0),
             )
         },
-        contentWindowInsets = WindowInsets(0),
+        contentWindowInsets = WindowInsets.statusBars,
     ) { pad ->
         Box(
             modifier = Modifier

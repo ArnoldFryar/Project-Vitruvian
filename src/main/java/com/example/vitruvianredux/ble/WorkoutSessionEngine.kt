@@ -334,6 +334,9 @@ class WorkoutSessionEngine(
     @Volatile private var setStartTimeMs = 0L
     @Volatile private var workoutStartTimeMs = 0L
     private val completedStats = mutableListOf<ExerciseStats>()
+    private val skippedStatsList = mutableListOf<ExerciseStats>()
+    /** Sets skipped (not completed) during this workout — merged into final stats. */
+    val skippedStats: List<ExerciseStats> get() = skippedStatsList.toList()
     /** Reducer's canonical session state — single source of truth for phase/rep tracking. */
     private var engineState = EngineState()
     /**
@@ -936,6 +939,7 @@ class WorkoutSessionEngine(
             )
         )
         completedStats.clear()
+        skippedStatsList.clear()
         engineState = EngineState()
         repDetector.reset()
         repCountPolicy.reset()
@@ -1071,6 +1075,16 @@ class WorkoutSessionEngine(
         }
 
         val nextIndex = currentPlayerIndex + 1
+        // Record a skipped-set marker before advancing
+        playerSets.getOrNull(currentPlayerIndex)?.let { s ->
+            skippedStatsList.add(ExerciseStats(
+                exerciseName     = s.exerciseName,
+                setIndex         = currentPlayerIndex,
+                weightPerCableLb = s.weightPerCableLb,
+                numCables        = s.numCables,
+                skipped          = true,
+            ))
+        }
         currentPlayerIndex = nextIndex
         Log.i(TAG, "skipSet: advancing to index $nextIndex (total=${playerSets.size})")
         if (nextIndex < playerSets.size) {
@@ -1125,6 +1139,18 @@ class WorkoutSessionEngine(
             nextIndex++
         }
         Log.i(TAG, "skipExercise: advancing from $currentPlayerIndex to $nextIndex (total=${playerSets.size})")
+        // Record skipped-set markers for every bypassed set
+        for (i in currentPlayerIndex until nextIndex) {
+            playerSets.getOrNull(i)?.let { s ->
+                skippedStatsList.add(ExerciseStats(
+                    exerciseName     = s.exerciseName,
+                    setIndex         = i,
+                    weightPerCableLb = s.weightPerCableLb,
+                    numCables        = s.numCables,
+                    skipped          = true,
+                ))
+            }
+        }
         currentPlayerIndex = nextIndex
 
         if (nextIndex < playerSets.size) {
@@ -1191,6 +1217,7 @@ class WorkoutSessionEngine(
         lastDeloadTimeMs = 0L
         playerSets = emptyList()
         completedStats.clear()
+        skippedStatsList.clear()
         engineState = EngineState()
         repDetector.reset()
         repCountPolicy.reset()

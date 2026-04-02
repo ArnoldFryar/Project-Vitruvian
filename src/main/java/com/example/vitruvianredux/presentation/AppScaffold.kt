@@ -237,7 +237,12 @@ fun AppScaffold() {
                                 weightLb        = es.weightPerCableLb * es.numCables,
                                 volumeKg        = es.volumeKg,
                                 avgQualityScore = es.avgQualityScore,
+                                avgRom          = es.avgRom,
+                                avgTempo        = es.avgTempo,
+                                avgSymmetry     = es.avgSymmetry,
+                                avgSmoothness   = es.avgSmoothness,
                                 numCables       = es.numCables,
+                                skipped         = es.skipped,
                             )
                         }
 

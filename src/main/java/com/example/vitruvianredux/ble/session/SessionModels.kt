@@ -27,6 +27,8 @@ data class ExerciseStats(
     val avgSymmetry: Int? = null,
     /** Average smoothness sub-score for this set (0–100). */
     val avgSmoothness: Int? = null,
+    /** True when this set was skipped (not completed) during the workout. */
+    val skipped: Boolean = false,
 )
 
 /** Aggregate stats for a completed workout. */

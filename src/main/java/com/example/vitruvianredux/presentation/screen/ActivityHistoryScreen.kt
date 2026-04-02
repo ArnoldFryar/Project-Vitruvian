@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
@@ -37,6 +38,7 @@ import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
 import java.time.LocalDate
@@ -146,7 +148,6 @@ private fun WorkoutHistoryCard(
     val timeFmt = DateTimeFormatter.ofPattern("h:mm a")
     val timeStr = timeFmt.format(Instant.ofEpochMilli(session.endTimeMs).atZone(zone))
     val durationLabel = formatSessionDuration(session.durationSec)
-    val points = session.totalSets * 10 + session.totalReps * 2
     val volumeDisplay = UnitConversions.formatVolumeFromKg(session.totalVolumeKg, unitSystem)
     val unitLabel = UnitConversions.unitLabel(unitSystem)
     val cs = MaterialTheme.colorScheme
@@ -245,13 +246,33 @@ private fun WorkoutHistoryCard(
                     value = "${session.totalSets}s × ${session.totalReps}r",
                     modifier = Modifier.weight(1f),
                 )
-                // Points
+                // Calories
+                val calLabel = if (session.calories > 0) "${session.calories} kcal" else "— kcal"
                 MiniStat(
-                    icon = Icons.Default.Star,
-                    value = "$points pts",
-                    iconTint = gold,
+                    icon = Icons.Default.LocalFireDepartment,
+                    value = calLabel,
                     modifier = Modifier.weight(1f),
                 )
+            }
+            // Quality score row — only when quality data is available
+            if (session.avgQualityScore != null) {
+                Spacer(Modifier.height(AppDimens.Spacing.xs))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                ) {
+                    val qualColor = when {
+                        session.avgQualityScore >= 80 -> cs.primary
+                        session.avgQualityScore >= 60 -> Warning
+                        else -> MaterialTheme.colorScheme.error
+                    }
+                    MiniStat(
+                        icon = Icons.Default.Star,
+                        value = "Quality ${session.avgQualityScore}/100",
+                        iconTint = qualColor,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
 
             // ── Time label ───────────────────────────────────────────

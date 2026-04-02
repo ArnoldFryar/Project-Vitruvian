@@ -30,14 +30,14 @@ object HevyStore {
 
     fun init(context: Context) {
         prefs    = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        _apiKey.value  = prefs.getString(KEY_API_KEY, "") ?: ""
+        _apiKey.value  = (prefs.getString(KEY_API_KEY, "") ?: "").trim()
         _enabled.value = prefs.getBoolean(KEY_ENABLED, false)
     }
 
     fun setApiKey(key: String) {
         if (!::prefs.isInitialized) return
-        _apiKey.value = key
-        prefs.edit().putString(KEY_API_KEY, key).apply()
+        _apiKey.value = key.trim()
+        prefs.edit().putString(KEY_API_KEY, key.trim()).apply()
     }
 
     fun setEnabled(enabled: Boolean) {

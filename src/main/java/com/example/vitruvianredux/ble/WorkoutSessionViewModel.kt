@@ -131,7 +131,8 @@ class WorkoutSessionViewModel(
 
     /** Per-set stats captured as each set completes during the workout. */
     private val _completedExerciseStats = mutableListOf<ExerciseStats>()
-    val completedExerciseStats: List<ExerciseStats> get() = _completedExerciseStats.toList()
+    val completedExerciseStats: List<ExerciseStats>
+        get() = (_completedExerciseStats + engine.skippedStats).sortedBy { it.setIndex }
 
     /**
      * Per-rep quality scores accumulated during the current set.

@@ -42,7 +42,12 @@ object AnalyticsStore {
         val weightLb: Int,
         val volumeKg: Float,
         val avgQualityScore: Int? = null,
+        val avgRom: Int? = null,
+        val avgTempo: Int? = null,
+        val avgSymmetry: Int? = null,
+        val avgSmoothness: Int? = null,
         val numCables: Int = 2,
+        val skipped: Boolean = false,
     )
 
     data class SessionLog(
@@ -318,6 +323,11 @@ object AnalyticsStore {
                                 put("numCables", s.numCables)
                                 put("volumeKg", s.volumeKg.toDouble())
                                 if (s.avgQualityScore != null) put("avgQualityScore", s.avgQualityScore)
+                                if (s.avgRom        != null) put("avgRom",        s.avgRom)
+                                if (s.avgTempo      != null) put("avgTempo",      s.avgTempo)
+                                if (s.avgSymmetry   != null) put("avgSymmetry",   s.avgSymmetry)
+                                if (s.avgSmoothness != null) put("avgSmoothness", s.avgSmoothness)
+                                if (s.skipped) put("skipped", true)
                             })
                         }
                     })
@@ -364,7 +374,12 @@ object AnalyticsStore {
                                 weightLb        = so.getInt("weightLb"),
                                 volumeKg        = so.getDouble("volumeKg").toFloat(),
                                 avgQualityScore = if (so.has("avgQualityScore")) so.getInt("avgQualityScore") else null,
+                                avgRom          = if (so.has("avgRom"))        so.getInt("avgRom")        else null,
+                                avgTempo        = if (so.has("avgTempo"))      so.getInt("avgTempo")      else null,
+                                avgSymmetry     = if (so.has("avgSymmetry"))   so.getInt("avgSymmetry")   else null,
+                                avgSmoothness   = if (so.has("avgSmoothness")) so.getInt("avgSmoothness") else null,
                                 numCables       = so.optInt("numCables", 2),
+                                skipped         = so.optBoolean("skipped", false),
                             )
                         }
                     } ?: emptyList(),
