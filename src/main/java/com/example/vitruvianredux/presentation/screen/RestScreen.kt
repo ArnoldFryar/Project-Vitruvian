@@ -142,43 +142,43 @@ fun RestScreenContent(
                 }
             }
 
-            // ── Skip button ───────────────────────────────────────────────────
-            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm)) {
-                FilledTonalButton(
-                    onClick  = onSkip,
-                    modifier = Modifier
-                        .defaultMinSize(minWidth = 120.dp)
-                        .height(AppDimens.Component.buttonHeight),
-                    shape = RoundedCornerShape(AppDimens.Corner.sm),
-                ) {
-                    Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next),
-                        modifier = Modifier.size(AppDimens.Icon.md))
-                    Spacer(Modifier.width(AppDimens.Spacing.xs))
-                    Text(stringResource(R.string.cd_skip_rest), fontWeight = FontWeight.SemiBold)
-                }
-
-                OutlinedButton(
-                    onClick = onSkipExercise,
-                    modifier = Modifier
-                        .defaultMinSize(minWidth = 120.dp)
-                        .height(AppDimens.Component.buttonHeight),
-                    shape = RoundedCornerShape(AppDimens.Corner.sm),
-                ) {
-                    Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next),
-                        modifier = Modifier.size(AppDimens.Icon.md))
-                    Spacer(Modifier.width(AppDimens.Spacing.xs))
-                    Text(stringResource(R.string.rest_skip_exercise), fontWeight = FontWeight.SemiBold)
-                }
-            }
-
-            OutlinedButton(
-                onClick = onEditUpcomingSets,
+            // ── Skip rest (primary action) ────────────────────────────────────
+            Button(
+                onClick  = onSkip,
                 modifier = Modifier
-                    .defaultMinSize(minWidth = 160.dp)
+                    .fillMaxWidth(0.72f)
                     .height(AppDimens.Component.buttonHeight),
                 shape = RoundedCornerShape(AppDimens.Corner.sm),
             ) {
-                Text(stringResource(R.string.rest_edit_sets), fontWeight = FontWeight.SemiBold)
+                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next),
+                    modifier = Modifier.size(AppDimens.Icon.md))
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
+                Text(stringResource(R.string.cd_skip_rest), fontWeight = FontWeight.SemiBold)
+            }
+
+            // ── Secondary actions row ─────────────────────────────────────────
+            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                TextButton(
+                    onClick = onSkipExercise,
+                    colors  = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    ),
+                ) {
+                    Text(stringResource(R.string.rest_skip_exercise), fontWeight = FontWeight.Medium)
+                }
+                Text(
+                    "·",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                )
+                TextButton(
+                    onClick = onEditUpcomingSets,
+                    colors  = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    ),
+                ) {
+                    Text(stringResource(R.string.rest_edit_sets), fontWeight = FontWeight.Medium)
+                }
             }
         }
     }

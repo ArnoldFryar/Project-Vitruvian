@@ -174,7 +174,7 @@ fun ExercisePlayerScreen(
                         if (phase is SessionPhase.ExerciseActive) workoutVM.panicStop()
                         onBack()
                     }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.Close, contentDescription = "Back")
                     }
                 },
                 actions = {

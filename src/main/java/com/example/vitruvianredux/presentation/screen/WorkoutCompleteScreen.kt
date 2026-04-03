@@ -271,34 +271,6 @@ fun WorkoutCompleteContent(
             }
         }
 
-        // ── Chart placeholder ─────────────────────────────────────────────────
-        Surface(
-            modifier  = Modifier
-                .fillMaxWidth()
-                .height(AppDimens.Component.chartLarge),
-            shape     = RoundedCornerShape(AppDimens.Corner.md),
-            color     = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-                ) {
-                    Icon(
-                        Icons.Default.ShowChart,
-                        contentDescription = stringResource(R.string.cd_performance_chart),
-                        modifier = Modifier.size(AppDimens.Icon.xl),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
-                    )
-                    Text(
-                        text  = "Performance insights — coming soon",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    )
-                }
-            }
-        }
-
         // ── Muscle-group tags (just-lift sessions only) ──────────────────────
         if (isJustLift) {
             val muscleGroups = listOf("Chest", "Back", "Shoulders", "Arms", "Legs", "Core", "Full Body")

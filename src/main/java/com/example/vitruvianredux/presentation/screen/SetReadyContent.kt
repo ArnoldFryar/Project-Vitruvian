@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 
 package com.example.vitruvianredux.presentation.screen
 
@@ -13,6 +13,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -385,16 +387,16 @@ internal fun SetReadyContent(
 
         // ── Mode selector ─────────────────────────────────────────────
         Spacer(Modifier.height(AppDimens.Spacing.sm))
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+            verticalArrangement   = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
             listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only").forEach { mode ->
                 FilterChip(
-                    selected  = selectedMode == mode,
-                    onClick   = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onModeSelect(mode) },
-                    label     = { Text(mode, maxLines = 1) },
-                    modifier  = Modifier.weight(1f),
+                    selected = selectedMode == mode,
+                    onClick  = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onModeSelect(mode) },
+                    label    = { Text(mode) },
                 )
             }
         }
