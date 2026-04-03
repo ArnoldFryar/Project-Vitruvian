@@ -921,13 +921,15 @@ private fun SessionProgressionChart(
     val dateFmt = DateTimeFormatter.ofPattern("MMM d")
 
     Column(modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("${formatChartValue(minW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.45f))
-            Text("${formatChartValue(maxW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.70f))
-        }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Y-axis labels overlaid on left edge
+            Column(
+                modifier = Modifier.matchParentSize().padding(end = AppDimens.Spacing.xs),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("${formatChartValue(maxW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.70f))
+                Text("${formatChartValue(minW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.45f))
+            }
 
         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
             val w = size.width
@@ -955,6 +957,7 @@ private fun SessionProgressionChart(
                 )
             }
         }
+        } // end Box
 
         // X-axis: first, mid, last date labels
         Row(modifier = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs)) {
