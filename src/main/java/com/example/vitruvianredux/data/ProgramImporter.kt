@@ -13,6 +13,61 @@ import java.util.UUID
  */
 object ProgramImporter {
 
+    // ── Reverse Hevy → Vitruvian name map (built from HevyClient push overrides) ──
+    // Hevy exercise titles (lowercased) → list of Vitruvian catalog names that map there.
+    // Used during import so that "Bench Press (Smith Machine)" resolves to "Bench Press".
+    private val HEVY_TO_VITRUVIAN: Map<String, List<String>> = buildMap<String, MutableList<String>> {
+        // Hevy name → Vitruvian name(s) — reverse of HevyClient.STATIC_NAME_OVERRIDES
+        val pairs = listOf(
+            "behind the back curl (cable)"                  to "Bayesian Curl",
+            "bench press (smith machine)"                   to "Bench Press",
+            "bicep curl (cable)"                            to "Bicep Curl (SC)",
+            "bicep curl (machine)"                          to "Bicep Curl",
+            "cable core palloff press"                      to "Pallof Press",
+            "cable fly crossovers"                          to "Cable Fly",
+            "cable pull through"                            to "Pull Through",
+            "decline bench press (smith machine)"           to "Decline Bench Press",
+            "face pull"                                     to "Face Pull",
+            "front raise (cable)"                           to "Front Raise",
+            "hammer curl (cable)"                           to "Hammer Curl",
+            "hip adduction (machine)"                       to "Side Lying Hip Adduction",
+            "hip thrust (machine)"                          to "Hip Thrust",
+            "incline bench press (smith machine)"           to "Incline Bench Press",
+            "lat pulldown - close grip (cable)"             to "Close Grip Pulldown",
+            "lateral raise (cable)"                         to "Lateral Raise",
+            "leg extension (machine)"                       to "Seated Leg Extension",
+            "lying leg curl (machine)"                      to "Lying Hamstring Curl",
+            "preacher curl (machine)"                       to "Preacher Curl",
+            "pullover (machine)"                            to "Pullover",
+            "rear delt reverse fly (cable)"                 to "Rear Delt Fly",
+            "reverse curl (cable)"                          to "Close Grip Pronated Bicep Curl",
+            "reverse fly single arm (cable)"                to "SA Rear Delt Fly Bench Supported",
+            "seated calf raise"                             to "Seated Calf Raise",
+            "shrug (cable)"                                 to "Shrug",
+            "single arm curl (cable)"                       to "Concentration Curl",
+            "single arm lateral raise (cable)"              to "Seated SA Lateral Raise",
+            "single leg standing calf raise (machine)"      to "SL Calf Raise",
+            "standing cable glute kickbacks"                to "Glute Kickbacks",
+            "standing calf raise (machine)"                 to "Calf Raise",
+            "standing leg curls"                            to "Standing Hamstring Curl",
+            "upright row (cable)"                           to "Upright Row",
+            "dumbbell row"                                  to "Lawnmower SA Row",
+            "dead bug"                                      to "Dead Bug SA Press",
+            "incline chest fly (dumbbell)"                  to "Incline Fly",
+            "overhead tricep extension (cable)"             to "Overhead Tricep Extension",
+            "dumbbell step up"                              to "Step Downs",
+        )
+        for ((hevy, vit) in pairs) {
+            getOrPut(hevy) { mutableListOf() }.add(vit)
+        }
+    }
+
+    /** Common equipment/machine suffixes Hevy appends — stripped for fuzzy matching. */
+    private val HEVY_SUFFIX_RE = Regex(
+        """\s*\((smith machine|cable|machine|dumbbell|barbell|ez bar|band|bodyweight|plate loaded|smith)\)\s*$""",
+        RegexOption.IGNORE_CASE,
+    )
+
     // ── Exercise name resolution ────────────────────────────────────────────
 
     sealed class ExerciseMatch {
@@ -44,9 +99,29 @@ object ProgramImporter {
         if (exactName.size == 1) return ExerciseMatch.Exact(exactName.first())
         if (exactName.size > 1) return ExerciseMatch.Ambiguous(exactName)
 
-        // 3. Substring / fuzzy match — find catalog entries whose name *contains*
-        //    every word of the imported name (or vice-versa)
-        val words = nameNorm.split("\\s+".toRegex()).filter { it.length > 2 }
+        // 2b. Reverse Hevy→Vitruvian map: translate known Hevy titles back to
+        //     their Vitruvian catalog names before the fuzzy search.
+        HEVY_TO_VITRUVIAN[nameNorm]?.let { vitNames ->
+            val mapped = vitNames.flatMap { vn ->
+                catalog.filter { it.name.lowercase(Locale.ROOT).trim() == vn.lowercase(Locale.ROOT).trim() }
+            }.distinctBy { it.id }
+            if (mapped.size == 1) return ExerciseMatch.Exact(mapped.first())
+            if (mapped.size > 1) return ExerciseMatch.Ambiguous(mapped)
+        }
+
+        // 2c. Strip common Hevy equipment suffix and retry exact match.
+        //     e.g. "Lat Pulldown (Cable)" → "Lat Pulldown"
+        val stripped = HEVY_SUFFIX_RE.replace(nameNorm, "").trim()
+        if (stripped != nameNorm) {
+            val strippedMatch = catalog.filter { it.name.lowercase(Locale.ROOT).trim() == stripped }
+            if (strippedMatch.size == 1) return ExerciseMatch.Exact(strippedMatch.first())
+            if (strippedMatch.size > 1) return ExerciseMatch.Ambiguous(strippedMatch)
+        }
+
+        // 3. Substring / fuzzy match — use suffix-stripped name so equipment
+        //    qualifiers like "(Cable)" or "(Smith Machine)" don't pollute the word list.
+        val fuzzyBase = if (stripped != nameNorm) stripped else nameNorm
+        val words = fuzzyBase.split("\\s+".toRegex()).filter { it.length > 2 }
         if (words.isNotEmpty()) {
             val candidates = catalog.filter { ex ->
                 val exNorm = ex.name.lowercase(Locale.ROOT)
