@@ -14,8 +14,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,6 +44,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private val jsonParser = Json { ignoreUnknownKeys = true }
 
@@ -60,7 +59,7 @@ fun WorkoutScreen(
     val sessionState by workoutVM.state.collectAsState()
     val isReady      by workoutVM.bleIsReady.collectAsState()
 
-    // ── Load state ────────────────────────────────────────────────────
+    // â”€â”€ Load state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var allExercises by remember { mutableStateOf<List<Exercise>?>(null) }
     var loadError    by remember { mutableStateOf<String?>(null) }
     var retryKey     by remember { mutableIntStateOf(0) }
@@ -79,7 +78,7 @@ fun WorkoutScreen(
         }
     }
 
-    // ── Filter / search / sort state ──────────────────────────────────
+    // â”€â”€ Filter / search / sort state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var searchQuery      by rememberSaveable { mutableStateOf("") }
     var selectedMuscles  by remember { mutableStateOf(setOf<String>()) }
     var sortOrder        by remember { mutableStateOf(ExerciseSortOrder.NAME_ASC) }
@@ -88,7 +87,7 @@ fun WorkoutScreen(
     var showJustLift     by remember { mutableStateOf(false) }
     var videoPreviewExercise by remember { mutableStateOf<Exercise?>(null) }
 
-    // Use capitalised group labels ("Arms", "Back", …) for chips
+    // Use capitalised group labels ("Arms", "Back", â€¦) for chips
     val allGroups = remember(allExercises) {
         allExercises?.flatMap { it.groupLabels }?.distinct()?.sorted() ?: emptyList()
     }
@@ -112,7 +111,7 @@ fun WorkoutScreen(
         onDismiss = { showJustLift = false },
     )
 
-    // ── Bottom sheet ──────────────────────────────────────────────────
+    // â”€â”€ Bottom sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             selectedExercise?.let { ex ->
         ExerciseDetailSheet(
             exercise  = ex,
@@ -121,7 +120,7 @@ fun WorkoutScreen(
         )
     }
 
-    // ── Video preview dialog (long-press) ─────────────────────────
+    // â”€â”€ Video preview dialog (long-press) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     videoPreviewExercise?.let { ex ->
         ExerciseVideoPreviewDialog(
             exerciseName = ex.name,
@@ -159,7 +158,7 @@ fun WorkoutScreen(
                 )
             }
 
-            // ── Active session banner ─────────────────────────────────
+            // â”€â”€ Active session banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 ActiveSessionBanner(
                     state     = sessionState,
@@ -168,7 +167,7 @@ fun WorkoutScreen(
                 )
             }
 
-            // ── Search · Chips · Sort — grouped control block ─────────
+            // â”€â”€ Search Â· Chips Â· Sort â€” grouped control block â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
                     // Search field
@@ -177,10 +176,10 @@ fun WorkoutScreen(
                         onValueChange = { WiringRegistry.hit(A_WORKOUT_SEARCH_CHANGE); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CHANGE, ActualOutcome.StateChanged("searchQuery")); searchQuery = it },
                         modifier      = Modifier.fillMaxWidth(),
                         placeholder   = { Text("Search exercises") },
-                        leadingIcon   = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
+                        leadingIcon   = { Icon(AppIcons.Search, contentDescription = stringResource(R.string.cd_search)) },
                         trailingIcon  = if (searchQuery.isNotEmpty()) {
                             { IconButton(onClick = { WiringRegistry.hit(A_WORKOUT_SEARCH_CLEAR); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CLEAR, ActualOutcome.StateChanged("searchCleared")); searchQuery = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear search")
+                                Icon(AppIcons.Close, contentDescription = "Clear search")
                             } }
                         } else null,
                         singleLine = true,
@@ -197,7 +196,7 @@ fun WorkoutScreen(
                                         onClick      = { WiringRegistry.hit(A_WORKOUT_FILTER_CLEAR); WiringRegistry.recordOutcome(A_WORKOUT_FILTER_CLEAR, ActualOutcome.StateChanged("filterCleared")); selectedMuscles = emptySet() },
                                         label        = { Text("Clear") },
                                         trailingIcon = {
-                                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close),
+                                            Icon(AppIcons.Close, contentDescription = stringResource(R.string.cd_close),
                                                 modifier = Modifier.size(AppDimens.Icon.sm))
                                         },
                                     )
@@ -258,7 +257,7 @@ fun WorkoutScreen(
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
             }
 
-            // ── Content ───────────────────────────────────────────────
+            // â”€â”€ Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             when {
                 loadError != null -> item {
                     ExerciseEmptyState(
@@ -285,7 +284,7 @@ fun WorkoutScreen(
             }
         }
 
-        // ── JustLift FAB ──────────────────────────────────────────────
+        // â”€â”€ JustLift FAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -299,7 +298,7 @@ fun WorkoutScreen(
     }
 }
 
-// ─── Exercise card ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Exercise card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -310,7 +309,7 @@ private fun ExerciseCard(
     onLongPress: () -> Unit = {},
 ) {
     // Use group labels ("Arms", "Legs") as concise tags on the card
-    // Limit to 1 visible tag + overflow count — the content column is narrow
+    // Limit to 1 visible tag + overflow count â€” the content column is narrow
     val tags        = exercise.groupLabels
     val visibleTags = tags.take(1)
     val overflow    = tags.size - visibleTags.size
@@ -333,7 +332,7 @@ private fun ExerciseCard(
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
-            // ── Thumbnail ─────────────────────────────────────────────
+            // â”€â”€ Thumbnail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Box(
                 modifier         = Modifier
                     .size(120.dp)
@@ -348,7 +347,7 @@ private fun ExerciseCard(
                     modifier           = Modifier.fillMaxSize(),
                     error = {
                         Icon(
-                            imageVector        = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                            imageVector        = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                             tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                             modifier           = Modifier.size(36.dp),
                         )
@@ -357,7 +356,7 @@ private fun ExerciseCard(
                 )
             }
 
-            // ── Name + muscle-group tags ──────────────────────────────
+            // â”€â”€ Name + muscle-group tags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Column(
                 modifier            = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
@@ -413,7 +412,7 @@ private fun ExerciseCard(
                 }
             }
 
-            // ── Actions ───────────────────────────────────────────────
+            // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Button(
                 onClick        = onStart,
                 shape          = RoundedCornerShape(AppDimens.Corner.sm),
@@ -428,7 +427,7 @@ private fun ExerciseCard(
     }
 }
 
-// ─── Detail bottom sheet ──────────────────────────────────────────────────────
+// â”€â”€â”€ Detail bottom sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ExerciseDetailSheet(
@@ -466,7 +465,7 @@ private fun ExerciseDetailSheet(
                     modifier           = Modifier.fillMaxSize(),
                     error = {
                         Icon(
-                            imageVector        = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                            imageVector        = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                             tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                             modifier           = Modifier.size(56.dp),
                         )
@@ -493,7 +492,7 @@ private fun ExerciseDetailSheet(
             }
             if (exercise.muscles.isNotEmpty()) {
                 Text(
-                    text  = exercise.muscles.joinToString(" · ") { it.replace('_', ' ').replaceFirstChar { c -> c.uppercase() } },
+                    text  = exercise.muscles.joinToString(" Â· ") { it.replace('_', ' ').replaceFirstChar { c -> c.uppercase() } },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -513,7 +512,7 @@ private fun ExerciseDetailSheet(
     }
 }
 
-// ─── Skeleton / empty state ───────────────────────────────────────────────────
+// â”€â”€â”€ Skeleton / empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ExerciseSkeletonCard() {
@@ -538,7 +537,7 @@ private fun ExerciseEmptyState(message: String, onRetry: (() -> Unit)? = null) {
         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
     ) {
         Icon(
-            imageVector        = Icons.Default.SentimentDissatisfied, contentDescription = stringResource(R.string.cd_empty_state),
+            imageVector        = AppIcons.SentimentDissatisfied, contentDescription = stringResource(R.string.cd_empty_state),
             modifier           = Modifier.size(AppDimens.Icon.xxl),
             tint               = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
         )
@@ -555,7 +554,7 @@ private fun ExerciseEmptyState(message: String, onRetry: (() -> Unit)? = null) {
     }
 }
 
-// ─── Active session banner ────────────────────────────────────────────────────
+// â”€â”€â”€ Active session banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Shows a live rep-count card while a set is [SessionPhase.InSet], a success card on
@@ -617,7 +616,7 @@ private fun ActiveSessionBanner(
                             ),
                         ) {
                             Icon(
-                                imageVector        = Icons.Default.Stop,
+                                imageVector        = AppIcons.Stop,
                                 contentDescription = "Stop set",
                                 modifier           = Modifier.size(AppDimens.Icon.sm),
                             )
@@ -681,11 +680,11 @@ private fun ActiveSessionBanner(
                         modifier              = Modifier.weight(1f),
                     ) {
                         Icon(
-                            imageVector        = Icons.Default.CheckCircle, contentDescription = stringResource(R.string.cd_check),
+                            imageVector        = AppIcons.CheckCircle, contentDescription = stringResource(R.string.cd_check),
                             tint               = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                         Text(
-                            text  = "Set complete · ${state.currentExerciseName}",
+                            text  = "Set complete Â· ${state.currentExerciseName}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
@@ -717,7 +716,7 @@ private fun ActiveSessionBanner(
                         modifier              = Modifier.weight(1f),
                     ) {
                         Icon(
-                            imageVector        = Icons.Default.Error, contentDescription = stringResource(R.string.cd_error),
+                            imageVector        = AppIcons.Error, contentDescription = stringResource(R.string.cd_error),
                             tint               = MaterialTheme.colorScheme.onErrorContainer,
                         )
                         Text(
@@ -731,6 +730,6 @@ private fun ActiveSessionBanner(
             }
         }
 
-        else -> { /* Idle / Ready — nothing to show */ }
+        else -> { /* Idle / Ready â€” nothing to show */ }
     }
 }

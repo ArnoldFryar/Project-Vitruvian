@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,10 +22,11 @@ import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  Template Preview — shows days, exercises, focus; "Use Template" button
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Template Preview â€” shows days, exercises, focus; "Use Template" button
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 fun TemplatePreviewScreen(
@@ -44,18 +43,18 @@ fun TemplatePreviewScreen(
         return
     }
 
-    // ── Use Template confirmation dialog ────────────────────────────────────
+    // â”€â”€ Use Template confirmation dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
-            icon = { Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add)) },
+            icon = { Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add)) },
             title = { Text("Use Template") },
             text = {
                 Text(
                     if (template.days.size == 1) {
                         "This will create a new program \"${template.name}\" in your library."
                     } else {
-                        "This will create ${template.days.size} programs in your library — one for each day of the template."
+                        "This will create ${template.days.size} programs in your library â€” one for each day of the template."
                     }
                 )
             },
@@ -83,7 +82,7 @@ fun TemplatePreviewScreen(
                 title = { Text(template.name, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
@@ -100,7 +99,7 @@ fun TemplatePreviewScreen(
                         onClick = { showConfirmDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
+                        Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text("Use Template", fontWeight = FontWeight.SemiBold)
                     }
@@ -116,12 +115,12 @@ fun TemplatePreviewScreen(
             contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
-            // ── Template overview card ──────────────────────────────────────
+            // â”€â”€ Template overview card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item(key = "overview") {
                 TemplateOverviewCard(template)
             }
 
-            // ── Per-day detail cards ────────────────────────────────────────
+            // â”€â”€ Per-day detail cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             template.days.forEachIndexed { dayIndex, day ->
                 item(key = "day_header_$dayIndex") {
                     DayHeader(
@@ -140,8 +139,8 @@ fun TemplatePreviewScreen(
                         index = index + 1,
                         name = exercise.exerciseName,
                         detail = when (exercise.mode) {
-                            ExerciseMode.REPS -> "${exercise.sets} × ${exercise.reps ?: "-"} reps · ${exercise.targetWeightLb} lb"
-                            ExerciseMode.TIME -> "${exercise.sets} × ${exercise.durationSec ?: "-"}s · ${exercise.targetWeightLb} lb"
+                            ExerciseMode.REPS -> "${exercise.sets} Ã— ${exercise.reps ?: "-"} reps Â· ${exercise.targetWeightLb} lb"
+                            ExerciseMode.TIME -> "${exercise.sets} Ã— ${exercise.durationSec ?: "-"}s Â· ${exercise.targetWeightLb} lb"
                         },
                         restSec = exercise.restTimerSec,
                     )
@@ -163,7 +162,7 @@ fun TemplatePreviewScreen(
     }
 }
 
-// ── Overview card ──────────────────────────────────────────────────────────────
+// â”€â”€ Overview card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun TemplateOverviewCard(template: WorkoutTemplate) {
@@ -212,17 +211,17 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 OverviewStat(
-                    icon = Icons.Default.CalendarMonth,
+                    icon = AppIcons.CalendarMonth,
                     value = "${template.days.size}",
                     label = if (template.days.size == 1) "Day" else "Days",
                 )
                 OverviewStat(
-                    icon = Icons.Default.FitnessCenter,
+                    icon = AppIcons.FitnessCenter,
                     value = "${template.totalExercises}",
                     label = stringResource(R.string.session_exercises_header),
                 )
                 OverviewStat(
-                    icon = Icons.Default.Repeat,
+                    icon = AppIcons.Repeat,
                     value = "${template.days.sumOf { d -> d.exercises.sumOf { it.sets } }}",
                     label = stringResource(R.string.complete_total_sets),
                 )
@@ -242,7 +241,7 @@ private fun OverviewStat(icon: ImageVector, value: String, label: String) {
     }
 }
 
-// ── Day header ─────────────────────────────────────────────────────────────────
+// â”€â”€ Day header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun DayHeader(dayNumber: Int, dayName: String, focus: String, exerciseCount: Int) {
@@ -301,7 +300,7 @@ private fun DayHeader(dayNumber: Int, dayName: String, focus: String, exerciseCo
     }
 }
 
-// ── Exercise row ───────────────────────────────────────────────────────────────
+// â”€â”€ Exercise row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ExerciseRow(index: Int, name: String, detail: String, restSec: Int) {

@@ -5,9 +5,6 @@ import com.vitruvian.trainer.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -19,6 +16,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import androidx.compose.ui.res.stringResource
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
  * Full-screen-style dialog that plays a looping exercise demo video.
@@ -46,7 +44,7 @@ fun ExerciseVideoPreviewDialog(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
 
-                // ── Header ───────────────────────────────────────────────
+                // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Row(
                     modifier          = Modifier
                         .fillMaxWidth()
@@ -66,11 +64,11 @@ fun ExerciseVideoPreviewDialog(
                         maxLines   = 2,
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(AppIcons.Close, contentDescription = "Close")
                     }
                 }
 
-                // ── Video area ───────────────────────────────────────────
+                // â”€â”€ Video area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -88,7 +86,7 @@ fun ExerciseVideoPreviewDialog(
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                Icons.Default.VideocamOff, contentDescription = stringResource(R.string.cd_video_unavailable),
+                                AppIcons.VideocamOff, contentDescription = stringResource(R.string.cd_video_unavailable),
                                 tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                                 modifier = Modifier.size(AppDimens.Icon.xxl),
                             )

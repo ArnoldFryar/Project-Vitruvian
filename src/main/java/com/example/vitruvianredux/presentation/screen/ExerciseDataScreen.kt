@@ -14,13 +14,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,10 +51,11 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  UI MODELS — private, read-only, no BLE/engine references
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  UI MODELS â€” private, read-only, no BLE/engine references
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /** A personal record achieved in this exercise instance vs prior history. */
 private data class PrBadge(val label: String)
@@ -86,9 +80,9 @@ private data class ExerciseComparison(
     val currBestE1RmLb: Double,
 )
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  ANALYTICS HELPER — pure functions, read-only, no BLE/engine side-effects
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  ANALYTICS HELPER â€” pure functions, read-only, no BLE/engine side-effects
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 private object ExerciseAnalytics {
 
@@ -142,7 +136,7 @@ private object ExerciseAnalytics {
                 s.exerciseSets.filter { it.exerciseName.equals(exerciseName, ignoreCase = true) }
             }
 
-        if (priorSets.isEmpty()) return emptyList()   // no history → no badge
+        if (priorSets.isEmpty()) return emptyList()   // no history â†’ no badge
 
         val result = mutableListOf<PrBadge>()
 
@@ -235,14 +229,14 @@ private object ExerciseAnalytics {
         .filter { (_, w) -> w > 0 }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  SCREEN
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
- * Exercise Data detail screen — Pass 2 (analytics refinement).
+ * Exercise Data detail screen â€” Pass 2 (analytics refinement).
  *
- * Data source: [AnalyticsStore] only — no BLE, no live session state, no cloud.
+ * Data source: [AnalyticsStore] only â€” no BLE, no live session state, no cloud.
  * All sections are omitted gracefully when data is missing or insufficient.
  */
 @Composable
@@ -275,11 +269,11 @@ fun ExerciseDataScreen(
                     .firstOrNull { it.name.equals(exerciseName, ignoreCase = true) }
                     ?.muscleGroups?.firstOrNull()
                     ?.lowercase()?.replaceFirstChar { c -> c.uppercaseChar() }
-            } catch (_: Exception) { /* catalog unavailable — omit pill */ }
+            } catch (_: Exception) { /* catalog unavailable â€” omit pill */ }
         }
     }
 
-    // ── Aggregates ───────────────────────────────────────────────────────────
+    // â”€â”€ Aggregates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val totalReps   = sets.sumOf { it.reps }
     val setCount    = sets.size
     val topWeightLb = sets.maxOfOrNull { it.weightLb } ?: 0
@@ -291,7 +285,7 @@ fun ExerciseDataScreen(
 
     val sessionEndMs = session?.endTimeMs ?: 0L
 
-    // ── Derived analytics ────────────────────────────────────────────────────
+    // â”€â”€ Derived analytics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val bestSetResult = remember(sets) { ExerciseAnalytics.bestSet(sets) }
 
     val prBadges = remember(sets, sessionEndMs, allSessions) {
@@ -311,13 +305,13 @@ fun ExerciseDataScreen(
             ?.let { prev -> ExerciseAnalytics.buildComparison(sets, prev) }
     }
 
-    // ── All-time personal bests (reactive, from PersonalBestStore) ───────────
+    // â”€â”€ All-time personal bests (reactive, from PersonalBestStore) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
     val allTimePbs = remember(pbSummaries, exerciseName) {
         pbSummaries[exerciseName.lowercase().trim()]
     }
 
-    // ── Multi-session progression (for line chart) ────────────────────────────
+    // â”€â”€ Multi-session progression (for line chart) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val progressionPoints = remember(allSessions, exerciseName) {
         ExerciseAnalytics.exerciseProgression(exerciseName, allSessions)
     }
@@ -336,7 +330,7 @@ fun ExerciseDataScreen(
                 title = { Text(stringResource(R.string.screen_title_exercise_data), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
@@ -352,7 +346,7 @@ fun ExerciseDataScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                 ) {
-                    Icon(Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                    Icon(AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         Modifier.size(AppDimens.Icon.xxl), tint = cs.onSurfaceVariant.copy(alpha = 0.4f))
                     Text(stringResource(R.string.exercise_data_not_found),
                         style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
@@ -371,10 +365,10 @@ fun ExerciseDataScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
 
-            // ── HEADER ───────────────────────────────────────────────────────
+            // â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             EdsCard {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                    Icon(Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                    Icon(AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         tint = cs.primary, modifier = Modifier.size(AppDimens.Icon.xl))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Column(modifier = Modifier.weight(1f)) {
@@ -421,23 +415,23 @@ fun ExerciseDataScreen(
                 }
             }
 
-            // ── PR BADGES — only when prior history supports them ─────────
+            // â”€â”€ PR BADGES â€” only when prior history supports them â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (prBadges.isNotEmpty()) {
                 PrBadgesRow(badges = prBadges, gold = gold)
             }
 
-            // ── ALL-TIME PERSONAL BESTS ────────────────────────────────────
+            // â”€â”€ ALL-TIME PERSONAL BESTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (allTimePbs != null) {
                 EdsSection("Personal Bests")
                 AllTimePbsCard(pbs = allTimePbs, unitSystem = unitSystem)
             }
 
-            // ── STATS + ANALYTICS — only when set data is available ────────
+            // â”€â”€ STATS + ANALYTICS â€” only when set data is available â”€â”€â”€â”€â”€â”€â”€â”€
             if (setCount > 0) {
 
                 EdsSection("Exercise Stats")
 
-                // 2 × 2 stat grid
+                // 2 Ã— 2 stat grid
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     EdsStatTile("REPS", totalReps.toString(), Modifier.weight(1f))
                     EdsStatTile("SETS", setCount.toString(),  Modifier.weight(1f))
@@ -447,7 +441,7 @@ fun ExerciseDataScreen(
                     EdsStatTile("AVG LOAD", formatWeightLb(avgWeightLb, unitSystem), Modifier.weight(1f))
                 }
 
-                // Volume — only when non-zero
+                // Volume â€” only when non-zero
                 if (totalVolKg > 0.0) {
                     EdsCard {
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
@@ -460,7 +454,7 @@ fun ExerciseDataScreen(
                     }
                 }
 
-                // Lift quality — only when quality scoring was active
+                // Lift quality â€” only when quality scoring was active
                 if (avgQuality != null) {
                     EdsCard {
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
@@ -486,7 +480,7 @@ fun ExerciseDataScreen(
                     ComparisonCard(comparison = comparison, unitSystem = unitSystem)
                 }
 
-                // Relative Strength — est1RM / bodyweight
+                // Relative Strength â€” est1RM / bodyweight
                 val bwKg = bodyWeightKg
                 if (bestSetResult != null && bestSetResult.est1RmLb > 0.0 && bwKg != null && bwKg > 0.0) {
                     val relStrength = bestSetResult.est1RmLb / (bwKg * 2.20462)
@@ -502,7 +496,7 @@ fun ExerciseDataScreen(
                                 else               -> cs.onSurface
                             }
                             Text(
-                                "${"%.2f".format(relStrength)}×",
+                                "${"%.2f".format(relStrength)}Ã—",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = rsColor,
@@ -562,9 +556,9 @@ fun ExerciseDataScreen(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  SECTION COMPOSABLES
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun PrBadgesRow(badges: List<PrBadge>, gold: Color) {
@@ -594,7 +588,7 @@ private fun PrBadgesRow(badges: List<PrBadge>, gold: Color) {
                             vertical   = AppDimens.Spacing.xs,
                         ),
                     ) {
-                        Icon(Icons.Default.Star, null, tint = gold, modifier = Modifier.size(AppDimens.Icon.sm))
+                        Icon(AppIcons.Star, null, tint = gold, modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
                         Text(badge.label, style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold, color = gold)
@@ -614,7 +608,7 @@ private fun BestSetCard(result: BestSetResult, unitSystem: UnitsStore.UnitSystem
                 Text(stringResource(R.string.pb_best_set), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
                 Text(
-                    "Set ${result.setIndex + 1}  ·  ${result.reps} reps  ·  ${formatWeightLb(result.weightLb, unitSystem)}",
+                    "Set ${result.setIndex + 1}  Â·  ${result.reps} reps  Â·  ${formatWeightLb(result.weightLb, unitSystem)}",
                     style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -638,7 +632,7 @@ private fun BestSetCard(result: BestSetResult, unitSystem: UnitsStore.UnitSystem
     }
 }
 
-// ── ALL-TIME PERSONAL BESTS CARD ─────────────────────────────────────────────
+// â”€â”€ ALL-TIME PERSONAL BESTS CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Compact card showing all-time bests for this exercise from completed history.
@@ -661,7 +655,7 @@ private fun AllTimePbsCard(
             if (pbs.bestSetWeightLb > 0 && pbs.bestSetReps > 0) {
                 PbRow(
                     "Best Set",
-                    "${pbs.bestSetReps} × ${formatWeightLb(pbs.bestSetWeightLb, unitSystem)}",
+                    "${pbs.bestSetReps} Ã— ${formatWeightLb(pbs.bestSetWeightLb, unitSystem)}",
                 )
             }
             if (pbs.bestVolumeKg > 0.0) {
@@ -780,24 +774,24 @@ private fun CompareRow(label: String, current: String, previous: String, directi
         Text(previous, style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant,
             modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
         val (icon, tint) = when (direction) {
-            TrendDir.UP   -> Icons.Default.ArrowDropUp   to Success
-            TrendDir.DOWN -> Icons.Default.ArrowDropDown to Error
-            TrendDir.FLAT -> Icons.Default.Remove        to cs.onSurfaceVariant.copy(alpha = 0.5f)
+            TrendDir.UP   -> AppIcons.ArrowDropUp   to Success
+            TrendDir.DOWN -> AppIcons.ArrowDropDown to Error
+            TrendDir.FLAT -> AppIcons.Remove        to cs.onSurfaceVariant.copy(alpha = 0.5f)
         }
         Icon(icon, contentDescription = direction.name, tint = tint, modifier = Modifier.size(AppDimens.Icon.lg))
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  POLISHED CHART
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
- * Bar chart — one bar per set, best set highlighted with [accentColor].
+ * Bar chart â€” one bar per set, best set highlighted with [accentColor].
  *
  * Equal-width slots ensure the Row of X-axis labels below aligns exactly with
  * the bars drawn on Canvas. Y-axis range labels bracket the chart vertically.
- * A two-item legend appears only when there are ≥2 bars with distinct colors.
+ * A two-item legend appears only when there are â‰¥2 bars with distinct colors.
  */
 @Composable
 private fun PolishedLoadChart(
@@ -831,7 +825,7 @@ private fun PolishedLoadChart(
                 color = labelColor.copy(alpha = 0.70f))
         }
 
-        // Bar canvas — equal-width slots so labels below align perfectly
+        // Bar canvas â€” equal-width slots so labels below align perfectly
         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
             val slotW   = size.width / sets.size
             val pad     = slotW * 0.17f
@@ -856,7 +850,7 @@ private fun PolishedLoadChart(
             }
         }
 
-        // X-axis set number labels — same slot layout as canvas
+        // X-axis set number labels â€” same slot layout as canvas
         Row(modifier = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs)) {
             sets.forEachIndexed { idx, _ ->
                 Text(
@@ -870,7 +864,7 @@ private fun PolishedLoadChart(
             }
         }
 
-        // Legend — shown only when best-set distinction is meaningful
+        // Legend â€” shown only when best-set distinction is meaningful
         if (sets.size > 1 && bestSetIndex != null) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             Row(
@@ -890,9 +884,9 @@ private fun PolishedLoadChart(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  MULTI-SESSION PROGRESSION LINE CHART
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Line chart showing the best weight per session across up to 14 historical
@@ -900,7 +894,7 @@ private fun PolishedLoadChart(
  */
 @Composable
 private fun SessionProgressionChart(
-    points: List<Pair<Long, Int>>,   // endTimeMs → best weight lb
+    points: List<Pair<Long, Int>>,   // endTimeMs â†’ best weight lb
     unitSystem: UnitsStore.UnitSystem,
     modifier: Modifier = Modifier,
 ) {
@@ -1006,9 +1000,9 @@ private fun SessionProgressionChart(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  SET TABLE
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun SetTable(
@@ -1064,7 +1058,7 @@ private fun SetTable(
                             color      = if (isBest) cs.primary else cs.onSurface,
                         )
                         if (isBest) {
-                            Icon(Icons.Default.Star, "Best set", tint = gold,
+                            Icon(AppIcons.Star, "Best set", tint = gold,
                                 modifier = Modifier.padding(start = AppDimens.Spacing.xxs).size(10.dp))
                         }
                     }
@@ -1092,7 +1086,7 @@ private fun SetTable(
                             else -> cs.error
                         }
                         Text(
-                            if (q != null) "$q" else "—",
+                            if (q != null) "$q" else "â€”",
                             style     = MaterialTheme.typography.bodySmall,
                             fontWeight = if (q != null && q >= 80) FontWeight.SemiBold else FontWeight.Normal,
                             color     = qColor,
@@ -1109,9 +1103,9 @@ private fun SetTable(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  QUALITY BREAKDOWN CARD
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Grid showing per-set ROM / Tempo / Symmetry / Smoothness subscores.
@@ -1158,7 +1152,7 @@ private fun QualityScoreCell(score: Int?, modifier: Modifier = Modifier) {
         else          -> Error
     }
     Text(
-        text       = score?.toString() ?: "—",
+        text       = score?.toString() ?: "â€”",
         style      = MaterialTheme.typography.bodySmall,
         fontWeight = if (score != null && score >= 80) FontWeight.SemiBold else FontWeight.Normal,
         color      = color,
@@ -1167,9 +1161,9 @@ private fun QualityScoreCell(score: Int?, modifier: Modifier = Modifier) {
     )
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  LAYOUT PRIMITIVES
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun EdsCard(content: @Composable ColumnScope.() -> Unit) {
@@ -1251,9 +1245,9 @@ private fun EdsStatTile(label: String, value: String, modifier: Modifier = Modif
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  PURE HELPERS
-// ══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 private fun formatWeightLb(lb: Int, unitSystem: UnitsStore.UnitSystem): String =
     if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) "$lb lb"

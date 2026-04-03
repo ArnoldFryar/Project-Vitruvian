@@ -7,10 +7,6 @@ import com.vitruvian.trainer.R
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,6 +31,7 @@ import com.example.vitruvianredux.presentation.util.loadExercises
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
 fun ProgramDetailScreen(
@@ -69,7 +66,7 @@ fun ProgramDetailScreen(
         return
     }
 
-    // ── Delete confirmation dialog ──────────────────────────────────────────
+    // â”€â”€ Delete confirmation dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -97,14 +94,14 @@ fun ProgramDetailScreen(
         )
     }
 
-    // ── Screen ──────────────────────────────────────────────────────────────
+    // â”€â”€ Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(program.name, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
@@ -117,14 +114,14 @@ fun ProgramDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
         ) {
-            // ── Summary card ────────────────────────────────────────────────
+            // â”€â”€ Summary card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium) {
                 Row(
                     modifier          = Modifier.padding(AppDimens.Spacing.md),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                        AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         tint     = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.size(36.dp),
                     )
@@ -140,8 +137,8 @@ fun ProgramDetailScreen(
                         Spacer(Modifier.height(AppDimens.Spacing.xs))
                         val daysLabel = formatScheduledDays(program.scheduledDays)
                         Text(
-                            "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}  ·  Custom program" +
-                                if (daysLabel.isNotEmpty()) "  ·  $daysLabel" else "",
+                            "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}  Â·  Custom program" +
+                                if (daysLabel.isNotEmpty()) "  Â·  $daysLabel" else "",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -151,10 +148,10 @@ fun ProgramDetailScreen(
 
             Spacer(Modifier.height(AppDimens.Spacing.xl))
 
-            // ── Start ───────────────────────────────────────────────────────
+            // â”€â”€ Start â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             GradientButton(
-                text     = if (isLoadingCatalog) "Loading exercise data…" else "Start Workout",
-                icon     = if (isLoadingCatalog) null else Icons.Default.PlayArrow,
+                text     = if (isLoadingCatalog) "Loading exercise dataâ€¦" else "Start Workout",
+                icon     = if (isLoadingCatalog) null else AppIcons.PlayArrow,
                 enabled  = !isLoadingCatalog,
                 modifier = Modifier.fillMaxWidth(),
                 onClick  = {
@@ -170,7 +167,7 @@ fun ProgramDetailScreen(
 
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-            // ── Edit ───────────────────────────────────────────────────
+            // â”€â”€ Edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             OutlinedButton(
                 onClick = {
                     WiringRegistry.hit(A_PROGRAMS_ITEM_EDIT)
@@ -187,7 +184,7 @@ fun ProgramDetailScreen(
 
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-            // ── Save as Template ────────────────────────────────────────
+            // â”€â”€ Save as Template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             OutlinedButton(
                 onClick = {
                     TemplateRepository.saveAsTemplate(program)
@@ -196,12 +193,12 @@ fun ProgramDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !savedAsTemplate,
             ) {
-                Text(if (savedAsTemplate) "Saved as Template ✓" else "Save as Template")
+                Text(if (savedAsTemplate) "Saved as Template âœ“" else "Save as Template")
             }
 
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-            // ── Delete ───────────────────────────────────────────────────────
+            // â”€â”€ Delete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             OutlinedButton(
                 onClick  = { showDeleteDialog = true },
                 modifier = Modifier.fillMaxWidth(),

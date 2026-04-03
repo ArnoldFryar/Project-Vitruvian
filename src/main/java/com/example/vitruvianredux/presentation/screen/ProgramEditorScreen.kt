@@ -11,9 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +33,7 @@ import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import java.time.DayOfWeek
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
 fun ProgramEditorScreen(
@@ -115,7 +113,7 @@ fun ProgramEditorScreen(
                         )
                         AnimatedVisibility(visible = draftItems.isNotEmpty()) {
                             Text(
-                                "${draftItems.size} exercise${if (draftItems.size != 1) "s" else ""} � ${draftItems.sumOf { it.sets }} total sets",
+                                "${draftItems.size} exercise${if (draftItems.size != 1) "s" else ""} ï¿½ ${draftItems.sumOf { it.sets }} total sets",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -124,7 +122,7 @@ fun ProgramEditorScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -260,7 +258,7 @@ fun ProgramEditorScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape    = RoundedCornerShape(AppDimens.Corner.md),
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text(
                         if (draftItems.isEmpty()) "Add Exercises" else "Add / Edit Exercises (${draftItems.size})",

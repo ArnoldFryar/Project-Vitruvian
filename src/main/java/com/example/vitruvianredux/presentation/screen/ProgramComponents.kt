@@ -10,8 +10,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,8 +25,9 @@ import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ── Premium program item card ──────────────────────────────────────────────────
+// â”€â”€ Premium program item card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 fun ProgramItemCard(
@@ -57,7 +56,7 @@ fun ProgramItemCard(
         ) {
             // Drag handle
             Icon(
-                Icons.Default.DragHandle,
+                AppIcons.DragHandle,
                 contentDescription = "Drag to reorder",
                 modifier = Modifier
                     .size(AppDimens.Icon.lg)
@@ -75,7 +74,7 @@ fun ProgramItemCard(
                 )
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
 
-                // ── Metadata badges ──────────────────────────────────────
+                // â”€â”€ Metadata badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -112,7 +111,7 @@ fun ProgramItemCard(
                 modifier = Modifier.size(AppDimens.Icon.xxl_sm),
             ) {
                 Icon(
-                    Icons.Default.Close,
+                    AppIcons.Close,
                     contentDescription = "Remove",
                     modifier = Modifier.size(AppDimens.Icon.sm),
                     tint     = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -122,7 +121,7 @@ fun ProgramItemCard(
     }
 }
 
-// ── Metadata badge chip ────────────────────────────────────────────────────────
+// â”€â”€ Metadata badge chip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun MetadataBadge(

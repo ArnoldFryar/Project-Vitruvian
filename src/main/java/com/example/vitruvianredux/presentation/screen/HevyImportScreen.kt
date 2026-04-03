@@ -7,11 +7,6 @@ import com.vitruvian.trainer.R
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +23,7 @@ import com.example.vitruvianredux.presentation.util.loadExercises
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
  * Fetches Hevy routines via the API, lets the user pick which ones to import,
@@ -79,7 +75,7 @@ fun HevyImportScreen(
                 title = { Text(stringResource(R.string.programs_hevy_import_title), fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
@@ -159,7 +155,7 @@ fun HevyImportScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Icon(
-                                        imageVector = if (isSelected) Icons.Default.Check else Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                        imageVector = if (isSelected) AppIcons.Check else AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                         tint = if (isSelected) MaterialTheme.colorScheme.secondary
                                                else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(AppDimens.Icon.lg),
@@ -203,9 +199,9 @@ fun HevyImportScreen(
 
                     // Sticky bottom import button
                     GradientButton(
-                        text    = if (importing) "Importing…"
+                        text    = if (importing) "Importingâ€¦"
                                   else "Import ${selected.size} Routine${if (selected.size != 1) "s" else ""}",
-                        icon    = Icons.Default.CloudDownload,
+                        icon    = AppIcons.CloudDownload,
                         enabled = selected.isNotEmpty() && !importing,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -242,7 +238,7 @@ fun HevyImportScreen(
                                     if (savedCount > 0) {
                                         onImportComplete()
                                     } else {
-                                        importMessage = "All routines already imported — no new programs."
+                                        importMessage = "All routines already imported â€” no new programs."
                                     }
                                 }
                             }

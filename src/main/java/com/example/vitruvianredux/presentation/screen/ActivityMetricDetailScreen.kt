@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +29,7 @@ import com.example.vitruvianredux.presentation.ui.theme.Success
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
  * Router screen for the three metric detail views.
@@ -52,9 +51,9 @@ fun ActivityMetricDetailScreen(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  VOLUME SCREEN
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun VolumeContent(onBack: () -> Unit) {
@@ -74,7 +73,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                 title = { Text(stringResource(R.string.metric_volume), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
@@ -89,12 +88,12 @@ private fun VolumeContent(onBack: () -> Unit) {
             contentPadding = PaddingValues(vertical = AppDimens.Spacing.md),
         ) {
             if (!hasVolume) {
-                // ── Volume not yet available ─────────────────────────
+                // â”€â”€ Volume not yet available â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     VolumeEmptyState(logs.size)
                 }
             } else {
-                // ── Weekly total + change ────────────────────────────
+                // â”€â”€ Weekly total + change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Surface(
                         shape = MaterialTheme.shapes.medium,
@@ -137,7 +136,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                     }
                 }
 
-                // ── 6-week trend ─────────────────────────────────────
+                // â”€â”€ 6-week trend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Text(stringResource(R.string.metric_6_week_trend),
                         style = MaterialTheme.typography.titleSmall,
@@ -194,7 +193,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Per-week breakdown ───────────────────────────────
+                // â”€â”€ Per-week breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 items(weeklyData.reversed()) { (weekStart, vol) ->
                     val weekEnd = weekStart.plusDays(6)
                     val isCurrentWeek = weekStart == weeklyData.lastOrNull()?.first
@@ -211,7 +210,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    "${weekFmt.format(weekStart)} – ${weekFmt.format(weekEnd)}",
+                                    "${weekFmt.format(weekStart)} â€“ ${weekFmt.format(weekEnd)}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = if (isCurrentWeek) FontWeight.Bold else FontWeight.Normal,
                                 )
@@ -249,7 +248,7 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
             Icon(
-                Icons.Default.ShowChart,
+                AppIcons.ShowChart,
                     contentDescription = stringResource(R.string.cd_performance_chart),
                 modifier = Modifier.size(AppDimens.Icon.xxl),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
@@ -273,9 +272,9 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  SESSIONS SCREEN (via metric detail route)
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun SessionsContent(
@@ -291,9 +290,9 @@ private fun SessionsContent(
     )
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  STREAK SCREEN
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun StreakContent(onBack: () -> Unit) {
@@ -314,14 +313,14 @@ private fun StreakContent(onBack: () -> Unit) {
                 title = { Text(stringResource(R.string.metric_day_streak), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
         },
     ) { innerPadding ->
         if (logs.isEmpty()) {
-            // ── Empty state ──────────────────────────────────────────
+            // â”€â”€ Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Box(
                 Modifier.fillMaxSize().padding(innerPadding),
                 contentAlignment = Alignment.Center,
@@ -338,7 +337,7 @@ private fun StreakContent(onBack: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                     ) {
                         Icon(
-                            Icons.Default.LocalFireDepartment,
+                            AppIcons.LocalFireDepartment,
                             contentDescription = stringResource(R.string.cd_calories),
                             modifier = Modifier.size(AppDimens.Icon.xxl),
                             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
@@ -366,7 +365,7 @@ private fun StreakContent(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             contentPadding = PaddingValues(vertical = AppDimens.Spacing.md),
         ) {
-            // ── Streak hero cards ────────────────────────────────────
+            // â”€â”€ Streak hero cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -387,7 +386,7 @@ private fun StreakContent(onBack: () -> Unit) {
                 }
             }
 
-            // ── 30-day activity grid ─────────────────────────────────
+            // â”€â”€ 30-day activity grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 Text(stringResource(R.string.metric_last_30_days),
                     style = MaterialTheme.typography.titleSmall,
@@ -471,7 +470,7 @@ private fun StreakContent(onBack: () -> Unit) {
                 }
             }
 
-            // ── Sessions per week (4-week history) ───────────────────
+            // â”€â”€ Sessions per week (4-week history) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 Text(stringResource(R.string.metric_sessions_per_week),
                     style = MaterialTheme.typography.titleSmall,
@@ -497,7 +496,7 @@ private fun StreakContent(onBack: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    "${weekFmt.format(weekStart)} – ${weekFmt.format(weekEnd)}",
+                                    "${weekFmt.format(weekStart)} â€“ ${weekFmt.format(weekEnd)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.weight(1f),

@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -29,13 +27,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * A bottom sheet exposing Mirror Mode settings that are purely UI-level —
+ * A bottom sheet exposing Mirror Mode settings that are purely UI-level â€”
  * no BLE, rep-detection, or session-engine code is referenced here.
  *
  * Currently offers:
- *  • Form guides toggle  — shows/hides [FormGuideOverlay] on the camera preview
+ *  â€¢ Form guides toggle  â€” shows/hides [FormGuideOverlay] on the camera preview
  *
  * Driven entirely by [MirrorModeController] StateFlows; safe to recompose
  * at any frequency.
@@ -64,13 +63,13 @@ fun MirrorSettingsSheet(onDismiss: () -> Unit) {
                 modifier   = Modifier.padding(bottom = AppDimens.Spacing.md),
             )
 
-            // ── Form guides row ───────────────────────────────────────────
+            // â”€â”€ Form guides row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier          = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector        = Icons.Default.AutoFixHigh,
+                    imageVector        = AppIcons.AutoFixHigh,
                     contentDescription = stringResource(R.string.cd_mirror_settings),
                     modifier           = Modifier
                         .padding(end = AppDimens.Spacing.sm)

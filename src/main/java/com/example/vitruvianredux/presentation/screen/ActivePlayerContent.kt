@@ -17,8 +17,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -73,6 +71,7 @@ import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.ResistanceStepPolicy
 import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only")
 
@@ -119,7 +118,7 @@ internal fun ActivePlayerContent(
     val isComplete = phase is SessionPhase.ExerciseComplete
     val haptic     = LocalHapticFeedback.current
 
-    // ── Unit-aware weight helpers ─────────────────────────────────────────
+    // â”€â”€ Unit-aware weight helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val isLb = UnitsStore.current == UnitsStore.UnitSystem.IMPERIAL_LB
     val unitSystem = UnitsStore.current
     fun lbToDisplay(lb: Float): Float =
@@ -130,7 +129,7 @@ internal fun ActivePlayerContent(
     val rawWeightLb: Float = if (isActive || isComplete) sessionState.targetWeightLb.toFloat() else resistanceLb
     val displayWeight: Float = lbToDisplay(rawWeightLb)
 
-    // ── Rep counter state (CRITICAL — same logic as before) ──────────────────
+    // â”€â”€ Rep counter state (CRITICAL â€” same logic as before) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val activePhase   = phase as? SessionPhase.ExerciseActive
     val activeWarmup  = activePhase?.warmupReps ?: warmupReps
     val isWarmupPhase = isActive && sessionState.setPhase == SetPhase.WARMUP
@@ -168,7 +167,7 @@ internal fun ActivePlayerContent(
         label = "repScale",
     )
 
-    // ── Micro-animation: rep completion flash ────────────────────────────
+    // â”€â”€ Micro-animation: rep completion flash â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val repFlashAlpha = remember { Animatable(0f) }
     LaunchedEffect(sessionState.workingRepsCompleted) {
         if (sessionState.workingRepsCompleted > 0) {
@@ -177,10 +176,10 @@ internal fun ActivePlayerContent(
         }
     }
 
-    // ── Micro-animation: resistance change colour shift ──────────────────
+    // â”€â”€ Micro-animation: resistance change colour shift â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val resistanceFlashAlpha = remember { Animatable(0f) }
 
-    // ── Set Point alpha — recedes while a set is active so Live Resistance
+    // â”€â”€ Set Point alpha â€” recedes while a set is active so Live Resistance
     // becomes the clear primary readout during lifting.
     val setPointAlpha by animateFloatAsState(
         targetValue   = if (isActive) 0.42f else 1f,
@@ -188,7 +187,7 @@ internal fun ActivePlayerContent(
         label         = "SetPointFade",
     )
 
-    // ── Personal Best indicator ───────────────────────────────────────────────────
+    // â”€â”€ Personal Best indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
     val exerciseNameForPb = exercise?.name
         ?: (phase as? SessionPhase.ExerciseActive)?.exerciseName ?: ""
@@ -207,7 +206,7 @@ internal fun ActivePlayerContent(
         label         = "pbChipFg",
     )
 
-    // ── Rep quality scoring (presentation-only) ──────────────────────────
+    // â”€â”€ Rep quality scoring (presentation-only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val repFrames = remember { mutableListOf<TelemetryFrame>() }
     var lastRepQuality by remember { mutableStateOf<RepQuality?>(null) }
     var lastScoredRep by remember { mutableIntStateOf(-1) }
@@ -246,7 +245,7 @@ internal fun ActivePlayerContent(
 
     val scaffoldState = rememberBottomSheetScaffoldState()
 
-    // ── Lift Focus Mode ──────────────────────────────────────────────────────
+    // â”€â”€ Lift Focus Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     LaunchedEffect(isActive) { LiftFocusController.notifySetActive(isActive) }
     val isFocused by LiftFocusController.isFocused.collectAsState()
     val dimAlpha by animateFloatAsState(
@@ -275,7 +274,7 @@ internal fun ActivePlayerContent(
                     horizontalAlignment = if (isTablet) Alignment.CenterHorizontally else Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                 ) {
-                    // ── Compact rep counter + force per cable row ─────────────
+                    // â”€â”€ Compact rep counter + force per cable row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -324,7 +323,7 @@ internal fun ActivePlayerContent(
                                             color = MaterialTheme.colorScheme.primary,
                                         )
                                         Text(
-                                            text  = "${ "%.0f".format(l.wattMax) }W ◄",
+                                            text  = "${ "%.0f".format(l.wattMax) }W â—„",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -343,7 +342,7 @@ internal fun ActivePlayerContent(
                                             color = MaterialTheme.colorScheme.primary,
                                         )
                                         Text(
-                                            text  = "► ${ "%.0f".format(r.wattMax) }W",
+                                            text  = "â–º ${ "%.0f".format(r.wattMax) }W",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -554,7 +553,7 @@ internal fun ActivePlayerContent(
                                     color    = MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
-                                    text = if (hasLiveData) "%.1f ${if (isLb) "lb" else "kg"}".format(liveResistanceDisplay) else "— ${if (isLb) "lb" else "kg"}",
+                                    text = if (hasLiveData) "%.1f ${if (isLb) "lb" else "kg"}".format(liveResistanceDisplay) else "â€” ${if (isLb) "lb" else "kg"}",
                                     style = MaterialTheme.typography.headlineLarge,
                                     fontWeight = FontWeight.Black,
                                     color = if (hasLiveData && isActive)
@@ -567,7 +566,7 @@ internal fun ActivePlayerContent(
                         }
                     }
 
-                    // ── Mode dropdown (compact row) ──────────────────────────
+                    // â”€â”€ Mode dropdown (compact row) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     Surface(
                         modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = dimAlpha },
                         shape = RoundedCornerShape(AppDimens.Corner.sm),
@@ -591,7 +590,7 @@ internal fun ActivePlayerContent(
                                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                                 ) {
                                     Icon(
-                                        Icons.Default.Tune, contentDescription = stringResource(R.string.cd_mode_settings),
+                                        AppIcons.Tune, contentDescription = stringResource(R.string.cd_mode_settings),
                                         modifier = Modifier.size(AppDimens.Icon.md),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -601,7 +600,7 @@ internal fun ActivePlayerContent(
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        text = "│",
+                                        text = "â”‚",
                                         color = MaterialTheme.colorScheme.outlineVariant,
                                     )
                                     Text(
@@ -611,7 +610,7 @@ internal fun ActivePlayerContent(
                                     )
                                 }
                                 Icon(
-                                    Icons.Default.ExpandMore, contentDescription = stringResource(R.string.cd_expand_mode),
+                                    AppIcons.ExpandMore, contentDescription = stringResource(R.string.cd_expand_mode),
                                     modifier = Modifier.size(AppDimens.Icon.md),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -630,7 +629,7 @@ internal fun ActivePlayerContent(
                         }
                     }
 
-                    // ── Reps / Duration toggle ───────────────────────────────
+                    // â”€â”€ Reps / Duration toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     Row(
                         modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = dimAlpha },
                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
@@ -649,7 +648,7 @@ internal fun ActivePlayerContent(
                         )
                     }
 
-                    // ── Compact target row (side-by-side) ────────────────────
+                    // â”€â”€ Compact target row (side-by-side) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     Row(
                         modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = dimAlpha },
                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
@@ -734,7 +733,7 @@ internal fun ActivePlayerContent(
                         }
                     }
 
-                    // ── PB percentage indicator ─────────────────────────────
+                    // â”€â”€ PB percentage indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     if (prLb > 0 && selectedMode != "Echo") {
                         Surface(
                             shape    = RoundedCornerShape(50),
@@ -748,7 +747,7 @@ internal fun ActivePlayerContent(
                             ) {
                                 if (isNewPb) {
                                     Icon(
-                                        imageVector        = Icons.Default.Star,
+                                        imageVector        = AppIcons.Star,
                                         contentDescription = null,
                                         modifier           = Modifier.size(11.dp),
                                         tint               = pbChipFg,
@@ -765,7 +764,7 @@ internal fun ActivePlayerContent(
                         }
                     }
 
-                    // ── Action buttons ───────────────────────────────────────
+                    // â”€â”€ Action buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
@@ -782,7 +781,7 @@ internal fun ActivePlayerContent(
                                     contentColor = MaterialTheme.colorScheme.onSurface,
                                 ),
                             ) {
-                                Icon(Icons.Default.Pause, contentDescription = stringResource(R.string.cd_pause),
+                                Icon(AppIcons.Pause, contentDescription = stringResource(R.string.cd_pause),
                                     modifier = Modifier.size(AppDimens.Icon.lg))
                                 Spacer(Modifier.width(AppDimens.Spacing.sm))
                                 Text(stringResource(R.string.player_pause_set), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
@@ -801,7 +800,7 @@ internal fun ActivePlayerContent(
                             ),
                         ) {
                             Icon(
-                                imageVector = if (isActive) Icons.Default.Stop else Icons.Default.PlayArrow, contentDescription = stringResource(R.string.cd_play),
+                                imageVector = if (isActive) AppIcons.Stop else AppIcons.PlayArrow, contentDescription = stringResource(R.string.cd_play),
                                 modifier = Modifier.size(AppDimens.Icon.lg),
                             )
                             Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -813,7 +812,7 @@ internal fun ActivePlayerContent(
                         }
                     }
 
-                    // ═══════ EXPANDED SETTINGS (visible when sheet pulled up) ═
+                    // â•â•â•â•â•â•â• EXPANDED SETTINGS (visible when sheet pulled up) â•
                     Divider(
                         modifier = Modifier.padding(vertical = AppDimens.Spacing.sm).graphicsLayer { alpha = dimAlpha },
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
@@ -1005,7 +1004,7 @@ internal fun ActivePlayerContent(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                        imageVector = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                         modifier = Modifier.size(AppDimens.Icon.hero),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                                     )
@@ -1079,7 +1078,7 @@ internal fun ActivePlayerContent(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                                 ) {
-                                    Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.cd_check),
+                                    Icon(AppIcons.CheckCircle, contentDescription = stringResource(R.string.cd_check),
                                         tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                         modifier = Modifier.size(AppDimens.Icon.xl))
                                     Column {
@@ -1088,7 +1087,7 @@ internal fun ActivePlayerContent(
                                         Text(buildString {
                                             append("${cp.stats.repsCompleted} working reps")
                                             if (cp.stats.warmupRepsCompleted > 0) append(" + ${cp.stats.warmupRepsCompleted} warmup")
-                                            append(" · ${cp.stats.durationSec}s · ${cp.stats.weightPerCableLb} lb/cable")
+                                            append(" Â· ${cp.stats.durationSec}s Â· ${cp.stats.weightPerCableLb} lb/cable")
                                         },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSecondaryContainer)

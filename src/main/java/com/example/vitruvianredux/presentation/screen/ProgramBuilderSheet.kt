@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,10 +43,11 @@ import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.util.loadExercises
 import java.time.DayOfWeek
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Program Builder sheet  — premium redesign
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Program Builder sheet  â€” premium redesign
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onDismiss: () -> Unit) {
@@ -74,7 +73,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
 
     val hasUnsavedChanges = programName.isNotBlank() || draftItems.isNotEmpty()
 
-    // Picker – returns List<Exercise>; new exercises get default ProgramItemDraft, existing preserved
+    // Picker â€“ returns List<Exercise>; new exercises get default ProgramItemDraft, existing preserved
     if (showPicker) {
         val alreadyExercises = remember(draftItems) {
             draftItems.map { di -> Exercise(id = di.exerciseId, name = di.exerciseName) }
@@ -104,7 +103,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
         )
     }
 
-    // ── Discard confirmation ─────────────────────────────────────────────────
+    // â”€â”€ Discard confirmation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
@@ -143,7 +142,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
 
-            // ── Premium Header ───────────────────────────────────────────────
+            // â”€â”€ Premium Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier          = Modifier
                     .fillMaxWidth()
@@ -167,13 +166,13 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                 IconButton(onClick = {
                     if (hasUnsavedChanges) showDiscardDialog = true else onDismiss()
                 }) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
+                    Icon(AppIcons.Close, contentDescription = "Close")
                 }
             }
 
             Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            // ── Scrollable Content ───────────────────────────────────────────
+            // â”€â”€ Scrollable Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             LazyColumn(
                 state    = reorderState.listState,
                 modifier = Modifier
@@ -184,7 +183,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                 contentPadding      = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
             ) {
-                // ── Program name with character counter ──────────────────────
+                // â”€â”€ Program name with character counter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item(key = "__name__") {
                     OutlinedTextField(
                         value         = programName,
@@ -206,7 +205,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     )
                 }
 
-                // ── Workout days selector ─────────────────────────────────────
+                // â”€â”€ Workout days selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item(key = "__days__") {
                     DayOfWeekSelector(
                         selected = scheduledDays,
@@ -216,7 +215,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     )
                 }
 
-                // ── Section header with count badge ──────────────────────────
+                // â”€â”€ Section header with count badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if (draftItems.isNotEmpty()) {
                     item(key = "__section__") {
                         Row(
@@ -247,7 +246,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     }
                 }
 
-                // ── Reorderable exercise cards ───────────────────────────────
+                // â”€â”€ Reorderable exercise cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 items(draftItems, key = { it.exerciseId }) { item ->
                     ReorderableItem(reorderState, key = item.exerciseId) { isDragging ->
                         val elevation by animateDpAsState(
@@ -263,7 +262,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     }
                 }
 
-                // ── Empty state illustration ─────────────────────────────────
+                // â”€â”€ Empty state illustration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if (draftItems.isEmpty()) {
                     item(key = "__empty__") {
                         Box(
@@ -279,7 +278,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                             ) {
                                 Icon(
-                                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                    AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                     tint     = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                                     modifier = Modifier.size(AppDimens.Icon.xxl),
                                 )
@@ -294,7 +293,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                 }
             }
 
-            // ── Sticky Bottom Bar ────────────────────────────────────────────
+            // â”€â”€ Sticky Bottom Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             Column(
@@ -317,7 +316,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     modifier = Modifier.fillMaxWidth(),
                     shape    = RoundedCornerShape(AppDimens.Corner.md),
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text(
                         if (draftItems.isEmpty()) "Add Exercises" else "Add / Edit Exercises (${draftItems.size})",
@@ -380,7 +379,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                         }
                         GradientButton(
                             text    = "Start Now",
-                            icon    = Icons.Default.PlayArrow,
+                            icon    = AppIcons.PlayArrow,
                             onClick = {
                                 WiringRegistry.hit(A_PROGRAMS_START_NOW)
                                 WiringRegistry.recordOutcome(A_PROGRAMS_START_NOW, ActualOutcome.Navigated("player"))

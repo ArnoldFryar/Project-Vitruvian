@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,6 +41,7 @@ import com.example.vitruvianredux.presentation.ui.theme.WarningOnContainer
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import kotlin.math.abs
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 enum class JustLiftMode(val label: String) {
     OldSchool("Old School"),
@@ -61,7 +60,7 @@ internal fun formatSignedUnitValue(value: Float, unitLabel: String): String {
 }
 
 // ---------------------------------------------
-// FAB � gradient pill button
+// FAB ï¿½ gradient pill button
 // ---------------------------------------------
 @Composable
 fun JustLiftFab(onClick: () -> Unit) {
@@ -84,7 +83,7 @@ fun JustLiftFab(onClick: () -> Unit) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                imageVector = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                 tint = cs.onPrimary,
                 modifier = Modifier.size(AppDimens.Icon.lg)
             )
@@ -228,7 +227,7 @@ fun JustLiftDialog(
                         modifier = Modifier.align(Alignment.Center)
                     )
                     IconButton(onClick = { showInfoDialog = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
-                        Icon(Icons.Default.Info, contentDescription = "Info", tint = cs.onSurfaceVariant)
+                        Icon(AppIcons.Info, contentDescription = "Info", tint = cs.onSurfaceVariant)
                     }
                 }
 
@@ -240,9 +239,9 @@ fun JustLiftDialog(
                         text = {
                             Text(
                                 "Quick-start a workout without a program.\n\n" +
-                                "� Old School � constant load\n" +
-                                "� Pump � lighter, higher rep\n" +
-                                "� Echo � isokinetic: adapts to your force. " +
+                                "ï¿½ Old School ï¿½ constant load\n" +
+                                "ï¿½ Pump ï¿½ lighter, higher rep\n" +
+                                "ï¿½ Echo ï¿½ isokinetic: adapts to your force. " +
                                 "Set Level and Eccentric Load instead of weight."
                             )
                         },
@@ -261,7 +260,7 @@ fun JustLiftDialog(
                         .padding(AppDimens.Spacing.md_sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.cd_warning), tint = WarningOnContainer, modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.Warning, contentDescription = stringResource(R.string.cd_warning), tint = WarningOnContainer, modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text(stringResource(R.string.justlift_safety_warning),
                         color = WarningOnContainer,
@@ -288,7 +287,7 @@ fun JustLiftDialog(
                     Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     if (isEcho) {
-                        // Echo mode: isokinetic � no user-set weight
+                        // Echo mode: isokinetic ï¿½ no user-set weight
                         Text(stringResource(R.string.mode_adaptive),
                             color = cs.secondary,
                             style = MaterialTheme.typography.displaySmall,
@@ -302,7 +301,7 @@ fun JustLiftDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Info, contentDescription = stringResource(R.string.cd_info), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.sm))
+                                Icon(AppIcons.Info, contentDescription = stringResource(R.string.cd_info), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.sm))
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text(
                                     "The stronger you lift up, the heavier you'll lower down",
@@ -333,7 +332,7 @@ fun JustLiftDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Info, contentDescription = stringResource(R.string.cd_info), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.sm))
+                                Icon(AppIcons.Info, contentDescription = stringResource(R.string.cd_info), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.sm))
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 val totalDisplay = "%.1f $unitLabel".format(weightDisplay * 2)
                                 Text(
@@ -367,7 +366,7 @@ fun JustLiftDialog(
                 ) {
                     // Mode row (always shown)
                     SettingsRow(
-                        icon = Icons.Default.GridView, label = stringResource(R.string.justlift_mode),
+                        icon = AppIcons.GridView, label = stringResource(R.string.justlift_mode),
                         valueContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(selectedMode.label, color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
@@ -380,7 +379,7 @@ fun JustLiftDialog(
                                     }
                                 }
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
+                                Icon(AppIcons.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                             }
                         },
                         onClick = { showModeMenu = true }
@@ -396,12 +395,12 @@ fun JustLiftDialog(
                     if (isEcho) {
                         // -- Echo-specific: Eccentric Load --
                         SettingsRow(
-                            icon = Icons.Default.SwapVert, label = stringResource(R.string.justlift_eccentric_title),
+                            icon = AppIcons.SwapVert, label = stringResource(R.string.justlift_eccentric_title),
                             valueContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("$eccentricPct%", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                                     Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
+                                    Icon(AppIcons.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                                 }
                             },
                             onClick = { showEccentricMenu = true }
@@ -416,12 +415,12 @@ fun JustLiftDialog(
 
                         // -- Echo-specific: Level --
                         SettingsRow(
-                            icon = Icons.Default.Tune, label = stringResource(R.string.justlift_level),
+                            icon = AppIcons.Tune, label = stringResource(R.string.justlift_level),
                             valueContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(echoLevel.displayName, color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                                     Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
+                                    Icon(AppIcons.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                                 }
                             },
                             onClick = { showLevelMenu = true }
@@ -434,14 +433,14 @@ fun JustLiftDialog(
                     } else {
                         // -- Regular modes: Progression/Regression --
                         SettingsRow(
-                            icon = Icons.Default.SwapVert, label = stringResource(R.string.justlift_progression),
+                            icon = AppIcons.SwapVert, label = stringResource(R.string.justlift_progression),
                             valueContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     val progDisplay = kgToDisplay(progressionKg)
                                     val progText = formatSignedUnitValue(progDisplay, unitLabel)
                                     Text(progText, color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                                     Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
+                                    Icon(AppIcons.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                                 }
                             },
                             onClick = { showProgressionMenu = true }
@@ -455,7 +454,7 @@ fun JustLiftDialog(
                         if (selectedMode == JustLiftMode.TUT) {
                             Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
                             SettingsRow(
-                                icon = Icons.Default.Speed, label = stringResource(R.string.player_beast_mode),
+                                icon = AppIcons.Speed, label = stringResource(R.string.player_beast_mode),
                                 valueContent = {
                                     Switch(
                                         checked = isBeastMode,
@@ -488,12 +487,12 @@ fun JustLiftDialog(
                     .background(cs.surface, RoundedCornerShape(AppDimens.Corner.md))
                 ) {
                     SettingsRow(
-                        icon = Icons.Default.Bedtime, label = stringResource(R.string.justlift_rest),
+                        icon = AppIcons.Bedtime, label = stringResource(R.string.justlift_rest),
                         valueContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("%d:%02d".format(restSeconds / 60, restSeconds % 60), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
+                                Icon(AppIcons.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                             }
                         },
                         onClick = { showRestMenu = true }
@@ -505,7 +504,7 @@ fun JustLiftDialog(
                     )
                     Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
                     SettingsRow(
-                        icon = Icons.Default.VolumeDown, label = "Sound",
+                        icon = AppIcons.VolumeDown, label = "Sound",
                         valueContent = {
                             Switch(
                                 checked = soundEnabled, onCheckedChange = { soundEnabled = it },
@@ -519,7 +518,7 @@ fun JustLiftDialog(
                     )
                     Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
                     SettingsRow(
-                        icon = Icons.Default.Speed, label = "Stall Detection",
+                        icon = AppIcons.Speed, label = "Stall Detection",
                         valueContent = {
                             Switch(
                                 checked = stallDetection, onCheckedChange = { stallDetection = it },
@@ -533,7 +532,7 @@ fun JustLiftDialog(
                     )
                     Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = cs.outlineVariant)
                     SettingsRow(
-                        icon = Icons.Default.Timer, label = "Rep Timing",
+                        icon = AppIcons.Timer, label = "Rep Timing",
                         valueContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
@@ -542,7 +541,7 @@ fun JustLiftDialog(
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
+                                Icon(AppIcons.KeyboardArrowDown, contentDescription = stringResource(R.string.cd_dropdown), tint = cs.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.md))
                             }
                         },
                         onClick = { showTimingMenu = true }
@@ -583,4 +582,3 @@ fun JustLiftDialog(
         }
     }
 }
-

@@ -7,15 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,6 +45,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
 fun HomeScreen(
@@ -65,7 +57,7 @@ fun HomeScreen(
 ) {
     val cs = MaterialTheme.colorScheme
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
-    // Up Next: resolved via UpNextResolver — accounts for active program and history.
+    // Up Next: resolved via UpNextResolver â€” accounts for active program and history.
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
     val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
     val activeProgramId = workoutVM?.activeProgramId
@@ -86,7 +78,7 @@ fun HomeScreen(
         } catch (_: Exception) { emptyMap() }
     }
 
-    // Real stats from AnalyticsStore — rolling 7-day window matches the "Last 7 days" label.
+    // Real stats from AnalyticsStore â€” rolling 7-day window matches the "Last 7 days" label.
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val weekVolumeKg  = remember(allLogs) { AnalyticsStore.rollingVolumeKg(7) }
     val weekSessions  = remember(allLogs) { AnalyticsStore.rollingSessionCount(7) }
@@ -100,12 +92,12 @@ fun HomeScreen(
         fillWidth = true,
         actions = {
             IconButton(onClick = { AnalyticsStore.clear() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Reset Stats")
+                Icon(AppIcons.Refresh, contentDescription = "Reset Stats")
             }
         }
     ) {
 
-        // ── Last 7 days ──────────────────────────────────────────────
+        // â”€â”€ Last 7 days â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SectionHeader(title = stringResource(R.string.home_last_7_days), actionLabel = stringResource(R.string.home_action_history)) {
             WiringRegistry.hit(A_ACTIVITY_HISTORY)
             WiringRegistry.recordOutcome(
@@ -120,7 +112,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
         ) {
             StatCard(
-                icon     = Icons.Default.Bolt,
+                icon     = AppIcons.Bolt,
                 value    = volumeValue,
                 label    = volumeLabel,
                 modifier = Modifier.weight(1f),
@@ -134,7 +126,7 @@ fun HomeScreen(
                 },
             )
             StatCard(
-                icon     = Icons.Default.FitnessCenter,
+                icon     = AppIcons.FitnessCenter,
                 value    = weekSessions.toString(),
                 label    = stringResource(R.string.profile_stat_sessions),
                 modifier = Modifier.weight(1f),
@@ -148,7 +140,7 @@ fun HomeScreen(
                 },
             )
             StatCard(
-                icon     = Icons.Default.LocalFireDepartment,
+                icon     = AppIcons.LocalFireDepartment,
                 value    = currentStreak.toString(),
                 label    = stringResource(R.string.metric_day_streak),
                 modifier = Modifier.weight(1f),
@@ -165,8 +157,8 @@ fun HomeScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ── Up Next ───────────────────────────────────────────────────
-        // Reads from ProgramStore — the single repository source of truth.
+        // â”€â”€ Up Next â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // Reads from ProgramStore â€” the single repository source of truth.
         // Deleted programs and an empty list are handled gracefully.
         SectionHeader(title = stringResource(R.string.rest_up_next))
         Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -201,7 +193,7 @@ fun HomeScreen(
                             ) {
                                 GradientButton(
                                     text     = "Start",
-                                    icon     = Icons.Default.PlayArrow,
+                                    icon     = AppIcons.PlayArrow,
                                     modifier = Modifier.weight(1f),
                                     onClick  = {
                                         val sets = CircuitSetBuilder.build(program.items, exerciseCatalog)
@@ -212,7 +204,7 @@ fun HomeScreen(
                                     onClick  = { onNavigateToProgramDetail(program.id) },
                                     modifier = Modifier.weight(1f).height(AppDimens.Component.buttonHeight),
                                 ) {
-                                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit), modifier = Modifier.size(AppDimens.Icon.sm))
+                                    Icon(AppIcons.Edit, contentDescription = stringResource(R.string.cd_edit), modifier = Modifier.size(AppDimens.Icon.sm))
                                     Spacer(Modifier.width(AppDimens.Spacing.xs))
                                     Text(stringResource(R.string.cd_edit))
                                 }
@@ -237,10 +229,10 @@ fun HomeScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ── Workout Calendar ──────────────────────────────────────────
+        // â”€â”€ Workout Calendar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SectionHeader(title = stringResource(R.string.home_workout_calendar))
         Spacer(Modifier.height(AppDimens.Spacing.sm))
-        // Real workout history — dates come from WorkoutHistoryStore
+        // Real workout history â€” dates come from WorkoutHistoryStore
         val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
         val workoutDays = remember(workoutHistory) {
             workoutHistory.map { it.date }.toSet()
@@ -249,9 +241,9 @@ fun HomeScreen(
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  Workout calendar composable — monthly grid with navigable month header
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Workout calendar composable â€” monthly grid with navigable month header
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun WorkoutCalendar(
@@ -269,7 +261,7 @@ private fun WorkoutCalendar(
         tonalElevation = AppDimens.Elevation.selector,
     ) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.sm)) {
-            // ── Month navigation header ────────────────────────────────
+            // â”€â”€ Month navigation header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -279,7 +271,7 @@ private fun WorkoutCalendar(
                     onClick = { displayMonth = displayMonth.minusMonths(1) },
                     modifier = Modifier.size(AppDimens.Spacing.xl),
                 ) {
-                    Icon(Icons.Default.ChevronLeft, "Previous month", modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.ChevronLeft, "Previous month", modifier = Modifier.size(AppDimens.Icon.md))
                 }
                 Text(
                     text = "${displayMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${displayMonth.year}",
@@ -290,13 +282,13 @@ private fun WorkoutCalendar(
                     onClick = { displayMonth = displayMonth.plusMonths(1) },
                     modifier = Modifier.size(AppDimens.Spacing.xl),
                 ) {
-                    Icon(Icons.Default.ChevronRight, "Next month", modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.ChevronRight, "Next month", modifier = Modifier.size(AppDimens.Icon.md))
                 }
             }
 
             Spacer(Modifier.height(AppDimens.Spacing.xs))
 
-            // ── Day-of-week header ─────────────────────────────────────
+            // â”€â”€ Day-of-week header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
             Row(modifier = Modifier.fillMaxWidth()) {
                 dayLabels.forEach { d ->
@@ -312,9 +304,9 @@ private fun WorkoutCalendar(
 
             Spacer(Modifier.height(AppDimens.Spacing.xxs))
 
-            // ── Calendar grid ──────────────────────────────────────────
+            // â”€â”€ Calendar grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             val firstOfMonth = displayMonth.atDay(1)
-            // Monday = 1 … Sunday = 7; we want Monday-start grid
+            // Monday = 1 â€¦ Sunday = 7; we want Monday-start grid
             val startOffset = (firstOfMonth.dayOfWeek.value - 1)   // blanks before day 1
             val daysInMonth = displayMonth.lengthOfMonth()
             val totalCells = startOffset + daysInMonth
@@ -368,7 +360,7 @@ private fun WorkoutCalendar(
 
             Spacer(Modifier.height(AppDimens.Spacing.xs))
 
-            // ── Legend ──────────────────────────────────────────────────
+            // â”€â”€ Legend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,

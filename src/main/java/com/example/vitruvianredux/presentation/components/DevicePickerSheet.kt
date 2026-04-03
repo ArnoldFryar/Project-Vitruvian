@@ -14,11 +14,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.material.icons.filled.BluetoothSearching
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +34,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private val blePermissions
     get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -49,9 +45,9 @@ private val blePermissions
 
 /**
  * Centered overlay dialog that automatically scans for and connects to the
- * nearest Vitruvian trainer — no manual device selection required.
+ * nearest Vitruvian trainer â€” no manual device selection required.
  *
- * Flow: Permissions → Scanning → Auto-connect first device → Connected → dismiss.
+ * Flow: Permissions â†’ Scanning â†’ Auto-connect first device â†’ Connected â†’ dismiss.
  *
  * Kept as [DevicePickerSheet] name for backward compatibility with call sites.
  */
@@ -121,10 +117,10 @@ fun DevicePickerSheet(
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
                 when {
-                    // ── Permission denied ──────────────────────────────────
+                    // â”€â”€ Permission denied â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     !permState.allPermissionsGranted -> {
                         Icon(
-                            imageVector = Icons.Default.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected),
+                            imageVector = AppIcons.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(AppDimens.Icon.xxl),
                         )
@@ -149,11 +145,11 @@ fun DevicePickerSheet(
                         }
                     }
 
-                    // ── Connected (brief success) ─────────────────────────
+                    // â”€â”€ Connected (brief success) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     connectionState is BleConnectionState.Connected -> {
                         val device = (connectionState as BleConnectionState.Connected).device
                         Icon(
-                            imageVector = Icons.Default.Check, contentDescription = stringResource(R.string.cd_check),
+                            imageVector = AppIcons.Check, contentDescription = stringResource(R.string.cd_check),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(AppDimens.Icon.xxl),
                         )
@@ -168,11 +164,11 @@ fun DevicePickerSheet(
                         )
                     }
 
-                    // ── Error state ────────────────────────────────────────
+                    // â”€â”€ Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     connectionState is BleConnectionState.Error -> {
                         val msg = (connectionState as BleConnectionState.Error).message
                         Icon(
-                            imageVector = Icons.Default.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected),
+                            imageVector = AppIcons.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected),
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(AppDimens.Icon.xxl),
                         )
@@ -206,7 +202,7 @@ fun DevicePickerSheet(
                         }
                     }
 
-                    // ── Scanning / Connecting ──────────────────────────────
+                    // â”€â”€ Scanning / Connecting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     else -> {
                         val isConnecting = connectionState is BleConnectionState.Connecting
 
@@ -222,8 +218,8 @@ fun DevicePickerSheet(
                         )
 
                         Icon(
-                            imageVector = if (isConnecting) Icons.Default.Bluetooth
-                                          else Icons.Default.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting),
+                            imageVector = if (isConnecting) AppIcons.Bluetooth
+                                          else AppIcons.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .size(AppDimens.Icon.xxl)
@@ -233,9 +229,9 @@ fun DevicePickerSheet(
                         Text(
                             text = if (isConnecting) {
                                 val d = (connectionState as BleConnectionState.Connecting).device
-                                "Connecting to ${d.name}…"
+                                "Connecting to ${d.name}â€¦"
                             } else {
-                                "Searching for trainer…"
+                                "Searching for trainerâ€¦"
                             },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,

@@ -14,8 +14,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +34,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import androidx.compose.ui.res.stringResource
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
  * Premium LED Control Panel dialog.
@@ -81,7 +80,7 @@ fun LedColorPickerDialog(
                 modifier              = Modifier.padding(AppDimens.Spacing.lg),
                 horizontalAlignment   = Alignment.CenterHorizontally,
             ) {
-                // ── Title ─────────────────────────────────────────────────
+                // â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Text(
                     text       = "LED Control Panel",
                     style      = MaterialTheme.typography.headlineSmall,
@@ -97,7 +96,7 @@ fun LedColorPickerDialog(
                 )
                 Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-                // ── Preset grid with ambient glow ──────────────────────────
+                // â”€â”€ Preset grid with ambient glow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -135,7 +134,7 @@ fun LedColorPickerDialog(
 
                 Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-                // ── Close button ───────────────────────────────────────────
+                // â”€â”€ Close button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Button(
                     onClick  = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
@@ -160,7 +159,7 @@ private fun LedPresetCard(
 ) {
     val cs = MaterialTheme.colorScheme
 
-    // Scale spring — subtle pop on selection
+    // Scale spring â€” subtle pop on selection
     val scale by animateFloatAsState(
         targetValue   = if (isSelected) 1.04f else 1f,
         animationSpec = spring(
@@ -212,7 +211,7 @@ private fun LedPresetCard(
                 ),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // ── LED gradient preview strip ─────────────────────────────
+                // â”€â”€ LED gradient preview strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Box(
                     modifier         = Modifier
                         .fillMaxWidth()
@@ -230,7 +229,7 @@ private fun LedPresetCard(
                                 )
                             )
                     )
-                    // Top-edge lighting pass — simulates light source from above
+                    // Top-edge lighting pass â€” simulates light source from above
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -241,7 +240,7 @@ private fun LedPresetCard(
                                 )
                             )
                     )
-                    // Radial inner glow — visible only when selected
+                    // Radial inner glow â€” visible only when selected
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -255,7 +254,7 @@ private fun LedPresetCard(
                                 )
                             )
                     )
-                    // Check icon — fades and scales in when selected
+                    // Check icon â€” fades and scales in when selected
                     val checkAlpha by animateFloatAsState(
                         targetValue   = if (isSelected) 1f else 0f,
                         animationSpec = tween(140),
@@ -278,7 +277,7 @@ private fun LedPresetCard(
                             },
                     ) {
                         Icon(
-                            Icons.Default.Check,
+                            AppIcons.Check,
                             contentDescription = "Selected",
                             modifier = Modifier.padding(3.dp),
                             tint     = Color.Black,
@@ -288,7 +287,7 @@ private fun LedPresetCard(
 
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-                // ── Preset label ───────────────────────────────────────────
+                // â”€â”€ Preset label â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Text(
                     text       = scheme.name,
                     style      = MaterialTheme.typography.labelMedium,

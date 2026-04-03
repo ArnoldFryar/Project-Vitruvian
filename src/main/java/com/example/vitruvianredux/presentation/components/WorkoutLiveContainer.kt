@@ -23,9 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FlipCameraAndroid
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,25 +37,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.mirror.MirrorModeController
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * A full-size container that layers the front-camera mirror overlay — with
- * optional form guides — on top of the live workout content (video, telemetry)
+ * A full-size container that layers the front-camera mirror overlay â€” with
+ * optional form guides â€” on top of the live workout content (video, telemetry)
  * without touching any BLE or rep-detection code.
  *
- * Layout z-order (bottom → top):
- *   1. [content] slot       — exercise video / thumbnail / telemetry overlays
- *   2. Dim scrim            — Black @ 0→55 % alpha, animated with the mirror;
+ * Layout z-order (bottom â†’ top):
+ *   1. [content] slot       â€” exercise video / thumbnail / telemetry overlays
+ *   2. Dim scrim            â€” Black @ 0â†’55 % alpha, animated with the mirror;
  *                             suppresses the background so the user becomes the
  *                             visual focus without hiding it entirely
- *   3. [FrontCameraOverlay] — fills the central training zone; horizontally
+ *   3. [FrontCameraOverlay] â€” fills the central training zone; horizontally
  *                             inset 40 dp on each side so cable position bars
  *                             (32 dp + 6 dp padding) stay fully visible
- *   4. [FormGuideOverlay]   — centre line, shoulder markers, hip line;
+ *   4. [FormGuideOverlay]   â€” centre line, shoulder markers, hip line;
  *                             fills the same inset zone as the camera preview
- *   5. Mirror control pill  — labeled pill anchored bottom-start; Mirror
+ *   5. Mirror control pill  â€” labeled pill anchored bottom-start; Mirror
  *                             segment always visible, Guides segment slides
- *                             in inline when mirror is active — no sheet hop
+ *                             in inline when mirror is active â€” no sheet hop
  *
  * Cable position bars, the top app bar, and the Ready/phase pill all live in
  * outer Boxes drawn *after* this container, so they are never dimmed.
@@ -73,7 +71,7 @@ fun WorkoutLiveContainer(
 
     Box(modifier = modifier) {
 
-        // ── Layer 1: workout content (video + status overlays) ────────────
+        // â”€â”€ Layer 1: workout content (video + status overlays) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
@@ -81,7 +79,7 @@ fun WorkoutLiveContainer(
             content()
         }
 
-        // ── Layer 2: background dim scrim ─────────────────────────────────
+        // â”€â”€ Layer 2: background dim scrim â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Fades in when mirror activates so the exercise background recedes
         // and the user's reflection becomes the clear focal point.  The scrim
         // covers the full container but sits below the mirror and the cable
@@ -99,7 +97,7 @@ fun WorkoutLiveContainer(
             )
         }
 
-        // ── Layer 3+4: camera preview + optional form guides ─────────────
+        // â”€â”€ Layer 3+4: camera preview + optional form guides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Fill the training zone, inset 40 dp on each side to keep the 32 dp
         // cable-position bars (+ 6 dp edge padding) visible above the preview.
         AnimatedVisibility(
@@ -118,7 +116,7 @@ fun WorkoutLiveContainer(
             }
         }
 
-        // ── Layer 5: mirror control pill ─────────────────────────────────
+        // â”€â”€ Layer 5: mirror control pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Anchored bottom-start, well clear of the workout header above.
         // Text labels make each action self-explanatory at a glance.
         // The Guides segment expands horizontally only while mirror is on,
@@ -136,7 +134,7 @@ fun WorkoutLiveContainer(
             verticalAlignment = Alignment.CenterVertically,
         ) {
 
-            // ── Mirror toggle segment ─────────────────────────────────────
+            // â”€â”€ Mirror toggle segment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             val mirrorTint = if (mirrorEnabled)
                 MaterialTheme.colorScheme.primary
             else
@@ -149,7 +147,7 @@ fun WorkoutLiveContainer(
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
             ) {
                 Icon(
-                    imageVector        = Icons.Default.FlipCameraAndroid,
+                    imageVector        = AppIcons.FlipCameraAndroid,
                     contentDescription = if (mirrorEnabled) "Disable mirror" else "Enable mirror",
                     tint               = mirrorTint,
                     modifier           = Modifier.size(AppDimens.Icon.sm),
@@ -162,9 +160,9 @@ fun WorkoutLiveContainer(
                 )
             }
 
-            // ── Form guides segment ───────────────────────────────────────
+            // â”€â”€ Form guides segment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // Slides in horizontally the moment mirror activates.
-            // Toggles guides inline — no navigation to a settings sheet.
+            // Toggles guides inline â€” no navigation to a settings sheet.
             AnimatedVisibility(
                 visible = mirrorEnabled,
                 enter   = fadeIn(tween(200)) + expandHorizontally(tween(220)),
@@ -190,7 +188,7 @@ fun WorkoutLiveContainer(
                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                     ) {
                         Icon(
-                            imageVector        = Icons.Default.GridView,
+                            imageVector        = AppIcons.GridView,
                             contentDescription = if (showFormGuides) "Hide guides" else "Show guides",
                             tint               = guidesTint,
                             modifier           = Modifier.size(AppDimens.Icon.sm),

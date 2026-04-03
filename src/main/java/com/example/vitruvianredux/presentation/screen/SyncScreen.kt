@@ -8,8 +8,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
 fun SyncScreen(
@@ -89,12 +88,12 @@ fun SyncScreen(
                                     .payloadFromJson(qrJson).hubAddress
                                 clientIsPaired = true
                             } else {
-                                pairingError = "Pairing rejected — ensure Hub is running"
+                                pairingError = "Pairing rejected â€” ensure Hub is running"
                             }
                         } catch (e: kotlinx.serialization.SerializationException) {
                             // The camera scanned something that isn't a Hub QR code.
                             // Show the first 60 chars of what was scanned to help the user diagnose.
-                            val preview = qrJson.take(60).let { if (qrJson.length > 60) "$it…" else it }
+                            val preview = qrJson.take(60).let { if (qrJson.length > 60) "$itâ€¦" else it }
                             pairingError = "Not a Vitruvian Hub QR code.\nScanned: \"$preview\"\n\nMake sure the Hub device is showing the pairing QR (tap Start Hub on the other device first)."
                         } catch (e: Exception) {
                             pairingError = "Pairing failed: ${e.message?.take(120)}"
@@ -114,7 +113,7 @@ fun SyncScreen(
                 title = { Text("Wi-Fi Sync") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
@@ -161,7 +160,7 @@ fun SyncScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                     ) else ButtonDefaults.filledTonalButtonColors(),
                 ) {
-                    Icon(Icons.Default.Hub, contentDescription = stringResource(R.string.cd_hub), modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.Hub, contentDescription = stringResource(R.string.cd_hub), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text(if (isHub) "Stop Hub" else "Start Hub")
                 }
@@ -184,7 +183,7 @@ fun SyncScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                     ) else ButtonDefaults.filledTonalButtonColors(),
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search), modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.Search, contentDescription = stringResource(R.string.cd_search), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text(if (isClient) "Stop" else "Find Hub")
                 }
@@ -200,7 +199,7 @@ fun SyncScreen(
                 var qrGenError by remember(reg.address) { mutableStateOf<String?>(null) }
                 LaunchedEffect(reg.address) {
                     if (!SyncServiceLocator.isInitialized) {
-                        qrGenError = "SyncServiceLocator not ready yet — wait a moment and re-open this screen"
+                        qrGenError = "SyncServiceLocator not ready yet â€” wait a moment and re-open this screen"
                         return@LaunchedEffect
                     }
                     try {
@@ -235,7 +234,7 @@ fun SyncScreen(
                             }
                             else -> {
                                 CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.lg), strokeWidth = AppDimens.Stroke.medium)
-                                Text("Generating QR code…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Generating QR codeâ€¦", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -290,7 +289,7 @@ fun SyncScreen(
                                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                                     Text("Syncing\u2026")
                                 } else {
-                                    Icon(Icons.Default.Sync, contentDescription = stringResource(R.string.cd_sync), modifier = Modifier.size(AppDimens.Icon.md))
+                                    Icon(AppIcons.Sync, contentDescription = stringResource(R.string.cd_sync), modifier = Modifier.size(AppDimens.Icon.md))
                                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                                     Text("Sync Now")
                                 }
@@ -302,7 +301,7 @@ fun SyncScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             OutlinedButton(onClick = { showQrScanner = true }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Default.QrCodeScanner, contentDescription = stringResource(R.string.cd_scan_qr), modifier = Modifier.size(AppDimens.Icon.md))
+                                Icon(AppIcons.QrCodeScanner, contentDescription = stringResource(R.string.cd_scan_qr), modifier = Modifier.size(AppDimens.Icon.md))
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text("Scan Hub QR Code")
                             }
@@ -324,11 +323,11 @@ fun SyncScreen(
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Pairing Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(pairingError!!, style = MaterialTheme.typography.bodySmall)
-                        // Only allow re-scanning once the hub has been found — avoids scanning
+                        // Only allow re-scanning once the hub has been found â€” avoids scanning
                         // random QR codes from the environment when no pairing QR is on screen.
                         if (hubUrl != null) {
                             OutlinedButton(onClick = { showQrScanner = true; pairingError = null }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Default.QrCodeScanner, contentDescription = stringResource(R.string.cd_scan_qr), modifier = Modifier.size(AppDimens.Icon.sm))
+                                Icon(AppIcons.QrCodeScanner, contentDescription = stringResource(R.string.cd_scan_qr), modifier = Modifier.size(AppDimens.Icon.sm))
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text("Scan Again")
                             }

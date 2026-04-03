@@ -7,8 +7,6 @@ import com.vitruvian.trainer.R
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +26,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private val SCREEN_ORDER = listOf(
     SCR_GLOBAL, SCR_DEVICE, SCR_WORKOUT, SCR_PLAYER, SCR_PROGRAMS, SCR_PROFILE,
@@ -57,7 +56,7 @@ fun AuditScreen(onBack: () -> Unit) {
                     Column {
                         Text(stringResource(R.string.screen_title_wiring_audit), fontWeight = FontWeight.Bold)
                         Text(
-                            "$opCount / $totalActions operational Â· ${(opCoverage * 100).toInt()}%",
+                            "$opCount / $totalActions operational Ã‚Â· ${(opCoverage * 100).toInt()}%",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -65,13 +64,13 @@ fun AuditScreen(onBack: () -> Unit) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(AppIcons.ArrowBack, "Back")
                     }
                 },
                 actions = {
                     IconButton(onClick = { WiringRegistry.toggleHighlightMode() }) {
                         Icon(
-                            imageVector        = if (highlight) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            imageVector        = if (highlight) AppIcons.VisibilityOff else AppIcons.Visibility,
                             contentDescription = "Highlight Mode",
                             tint               = if (highlight) MaterialTheme.colorScheme.primary
                                                   else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -90,7 +89,7 @@ fun AuditScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
 
-            // â”€â”€ Summary card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // Ã¢â€â‚¬Ã¢â€â‚¬ Summary card Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
             item {
                 SummaryCard(
                     totalActions = totalActions,
@@ -103,7 +102,7 @@ fun AuditScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(AppDimens.Spacing.md_sm))
             }
 
-            // â”€â”€ Per-screen groups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // Ã¢â€â‚¬Ã¢â€â‚¬ Per-screen groups Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
             grouped.forEach { (screen, actions) ->
                 item(key = "header_$screen") {
                     ScreenSectionHeader(screen = screen, actions = actions)
@@ -119,7 +118,7 @@ fun AuditScreen(onBack: () -> Unit) {
     }
 }
 
-// â”€â”€ Sub-composables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Sub-composables Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 @Composable
 private fun SummaryCard(
@@ -190,11 +189,11 @@ private fun SummaryCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                 ) {
-                    Icon(Icons.Default.Visibility, null,
+                    Icon(AppIcons.Visibility, null,
                         tint     = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(AppDimens.Icon.sm))
                     Text(
-                        "Highlight Mode ON â€” action IDs overlaid on instrumented controls",
+                        "Highlight Mode ON Ã¢â‚¬â€ action IDs overlaid on instrumented controls",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -232,7 +231,7 @@ private fun ScreenSectionHeader(screen: String, actions: List<ActionStat>) {
             color      = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text  = "$op / $total âœ“",
+            text  = "$op / $total Ã¢Å“â€œ",
             style = MaterialTheme.typography.labelSmall,
             color = if (op == total) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -269,9 +268,9 @@ private fun ActionStatRow(stat: ActionStat) {
                 // Operational / Hit / Not-hit icon
                 Icon(
                     imageVector = when {
-                        isOp   -> Icons.Default.CheckCircle
-                        wasHit -> Icons.Default.Warning
-                        else   -> Icons.Default.RadioButtonUnchecked
+                        isOp   -> AppIcons.CheckCircle
+                        wasHit -> AppIcons.Warning
+                        else   -> AppIcons.RadioButtonUnchecked
                     },
                     contentDescription = stringResource(R.string.cd_audit_status),
                     tint = when {
@@ -305,7 +304,7 @@ private fun ActionStatRow(stat: ActionStat) {
                         color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Text(
-                            text       = "Ã—${stat.count}",
+                            text       = "Ãƒâ€”${stat.count}",
                             style      = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             modifier   = Modifier.padding(horizontal = AppDimens.Spacing.xs_sm, vertical = AppDimens.Spacing.xxs),
@@ -316,7 +315,7 @@ private fun ActionStatRow(stat: ActionStat) {
 
                 // Last hit timestamp
                 Text(
-                    text       = stat.lastHitAt?.let { fmt.format(Date(it)) } ?: "â€”",
+                    text       = stat.lastHitAt?.let { fmt.format(Date(it)) } ?: "Ã¢â‚¬â€",
                     style      = MaterialTheme.typography.labelSmall,
                     color      = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
@@ -324,7 +323,7 @@ private fun ActionStatRow(stat: ActionStat) {
                 )
             }
 
-            // â”€â”€ Contract row (only if a contract is defined) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // Ã¢â€â‚¬Ã¢â€â‚¬ Contract row (only if a contract is defined) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
             if (hasContract) {
                 Row(
                     modifier              = Modifier.fillMaxWidth().padding(start = 26.dp),
@@ -338,7 +337,7 @@ private fun ActionStatRow(stat: ActionStat) {
                         onColor  = MaterialTheme.colorScheme.onTertiaryContainer,
                     )
 
-                    // Actual outcome tag â€” green if matched, amber if not
+                    // Actual outcome tag Ã¢â‚¬â€ green if matched, amber if not
                     val actualLabel = stat.lastOutcome?.shortLabel() ?: "none"
                     ContractChip(
                         label   = "got: $actualLabel",

@@ -12,9 +12,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
@@ -30,13 +27,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * Button-style +/− stepper for integer values.
+ * Button-style +/âˆ’ stepper for integer values.
  *
  * Layout:
  * ```
- * [ − ]   VALUE
+ * [ âˆ’ ]   VALUE
  *           label
  * [ + ]
  * ```
@@ -45,11 +43,11 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
  * label are centred vertically on the right.  Each button sits inside a
  * 48 dp touch-target zone while the visual surface stays at [buttonSize].
  *
- * In compact mode the overall height is **96 dp**, matching a 3 × 32 dp
+ * In compact mode the overall height is **96 dp**, matching a 3 Ã— 32 dp
  * compact tumbler.
  *
  * @param value          Current integer value.
- * @param onValueChange  Called with the new value when +/− is pressed.
+ * @param onValueChange  Called with the new value when +/âˆ’ is pressed.
  * @param range          Closed range of valid values; buttons disable at bounds.
  * @param step           Increment per tap (default 1).
  * @param unitLabel      Short label shown below the value (e.g. "reps", "sets").
@@ -76,7 +74,7 @@ fun ValueStepper(
     val buttonSize = if (compact) 36.dp else 40.dp
     val iconSize   = if (compact) 18.dp else 20.dp
     val touchTarget = 48.dp
-    // Compact: matches 3×32 dp tumbler; default: taller for full-size layouts
+    // Compact: matches 3Ã—32 dp tumbler; default: taller for full-size layouts
     val totalHeight = if (compact) (touchTarget * 2) else (touchTarget * 2 + AppDimens.Spacing.sm)
 
     Row(
@@ -85,13 +83,13 @@ fun ValueStepper(
             .alpha(if (enabled) 1f else 0.45f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // ── Left: buttons stacked vertically ─────────────────────────────
+        // â”€â”€ Left: buttons stacked vertically â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Column(
             modifier = Modifier.fillMaxHeight(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Minus — 48 dp touch target, smaller visual button
+            // Minus â€” 48 dp touch target, smaller visual button
             Box(
                 modifier = Modifier.size(touchTarget),
                 contentAlignment = Alignment.Center,
@@ -106,7 +104,7 @@ fun ValueStepper(
                     shape    = RoundedCornerShape(AppDimens.Corner.sm),
                 ) {
                     Icon(
-                        Icons.Default.Remove,
+                        AppIcons.Remove,
                         contentDescription = "Decrease",
                         modifier = Modifier.size(iconSize),
                     )
@@ -128,7 +126,7 @@ fun ValueStepper(
                     shape    = RoundedCornerShape(AppDimens.Corner.sm),
                 ) {
                     Icon(
-                        Icons.Default.Add,
+                        AppIcons.Add,
                         contentDescription = "Increase",
                         modifier = Modifier.size(iconSize),
                     )
@@ -138,7 +136,7 @@ fun ValueStepper(
 
         Spacer(Modifier.width(AppDimens.Spacing.md))
 
-        // ── Right: value + unit label, centred vertically ────────────────
+        // â”€â”€ Right: value + unit label, centred vertically â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             // Track previous value to determine slide direction
             var prevValue by remember { mutableIntStateOf(value) }

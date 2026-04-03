@@ -8,9 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,8 +29,9 @@ import com.example.vitruvianredux.presentation.repquality.RepQuality
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.AccentCyan
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-/** Full-screen rest countdown — embedded into ExercisePlayerScreen via AnimatedContent. */
+/** Full-screen rest countdown â€” embedded into ExercisePlayerScreen via AnimatedContent. */
 @Composable
 fun RestScreenContent(
     secondsRemaining: Int,
@@ -62,7 +60,7 @@ fun RestScreenContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
         ) {
-            // ── Title ─────────────────────────────────────────────────────────
+            // â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Text(text = stringResource(R.string.justlift_rest),
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
@@ -70,7 +68,7 @@ fun RestScreenContent(
                 color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
             )
 
-            // ── Circular countdown ────────────────────────────────────────────
+            // â”€â”€ Circular countdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Box(
                 modifier         = Modifier.size(220.dp),
                 contentAlignment = Alignment.Center,
@@ -119,12 +117,12 @@ fun RestScreenContent(
                 }
             }
 
-            // ── Fatigue trend graph (shown when ≥ 2 reps scored) ──────────
+            // â”€â”€ Fatigue trend graph (shown when â‰¥ 2 reps scored) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (repScores.size >= 2) {
                 FatigueTrendGraph(scores = repScores)
             }
 
-            // ── Next step card ────────────────────────────────────────────────
+            // â”€â”€ Next step card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             when (next) {
                 is NextStep.NextSet -> NextExerciseCard(next = next, accentColor = ext.accentCyan)
                 is NextStep.WorkoutDone -> Surface(
@@ -142,7 +140,7 @@ fun RestScreenContent(
                 }
             }
 
-            // ── Skip rest (primary action) ────────────────────────────────────
+            // â”€â”€ Skip rest (primary action) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Button(
                 onClick  = onSkip,
                 modifier = Modifier
@@ -150,13 +148,13 @@ fun RestScreenContent(
                     .height(AppDimens.Component.buttonHeight),
                 shape = RoundedCornerShape(AppDimens.Corner.sm),
             ) {
-                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next),
+                Icon(AppIcons.SkipNext, contentDescription = stringResource(R.string.cd_skip_next),
                     modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text(stringResource(R.string.cd_skip_rest), fontWeight = FontWeight.SemiBold)
             }
 
-            // ── Secondary actions row ─────────────────────────────────────────
+            // â”€â”€ Secondary actions row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                 TextButton(
                     onClick = onSkipExercise,
@@ -167,7 +165,7 @@ fun RestScreenContent(
                     Text(stringResource(R.string.rest_skip_exercise), fontWeight = FontWeight.Medium)
                 }
                 Text(
-                    "·",
+                    "Â·",
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     modifier = Modifier.align(Alignment.CenterVertically),
                 )
@@ -217,7 +215,7 @@ private fun NextExerciseCard(
                     )
                 } else {
                     Icon(
-                        Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                        AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         tint     = accentColor,
                         modifier = Modifier.size(AppDimens.Icon.xl),
                     )

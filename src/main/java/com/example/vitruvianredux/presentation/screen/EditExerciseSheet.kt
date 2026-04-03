@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,10 +35,11 @@ import com.example.vitruvianredux.presentation.components.ValueStepper
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Quick Edit sheet  — premium redesign
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Quick Edit sheet  â€” premium redesign
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 fun EditExerciseSheet(
@@ -82,7 +81,7 @@ fun EditExerciseSheet(
                 .padding(bottom = AppDimens.Spacing.xl)
                 .navigationBarsPadding(),
         ) {
-            // ── Header with close ────────────────────────────────────────────
+            // â”€â”€ Header with close â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -106,7 +105,7 @@ fun EditExerciseSheet(
                     WiringRegistry.recordOutcome(A_PROGRAMS_EDIT_CANCEL, ActualOutcome.StateChanged("editCancelled"))
                     onDismiss()
                 }) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
+                    Icon(AppIcons.Close, contentDescription = "Close")
                 }
             }
 
@@ -122,7 +121,7 @@ fun EditExerciseSheet(
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
 
-                // ── Section: Resistance Mode ─────────────────────────────────
+                // â”€â”€ Section: Resistance Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Resistance Mode")
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -157,7 +156,7 @@ fun EditExerciseSheet(
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                // ── Section: Target ──────────────────────────────────────────
+                // â”€â”€ Section: Target â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Target")
                 Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     ExerciseMode.entries.forEach { m ->
@@ -229,7 +228,7 @@ fun EditExerciseSheet(
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                // ── Section: Resistance ──────────────────────────────────────
+                // â”€â”€ Section: Resistance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Resistance")
                 SelectorCard(modifier = Modifier.fillMaxWidth()) {
                     ResistanceTumbler(
@@ -264,7 +263,7 @@ fun EditExerciseSheet(
                         ) {
                             if (isNewPr) {
                                 Icon(
-                                    imageVector        = Icons.Default.Star, contentDescription = stringResource(R.string.cd_personal_record),
+                                    imageVector        = AppIcons.Star, contentDescription = stringResource(R.string.cd_personal_record),
                                     modifier           = Modifier.size(11.dp),
                                     tint               = MaterialTheme.colorScheme.secondary,
                                 )
@@ -302,7 +301,7 @@ fun EditExerciseSheet(
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                // ── Section: Superset ────────────────────────────────────────
+                // â”€â”€ Section: Superset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Superset")
                 SelectorCard(
                     title    = stringResource(R.string.edit_superset_toggle),
@@ -336,7 +335,7 @@ fun EditExerciseSheet(
 
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
-                // ── Section: Recovery ────────────────────────────────────────
+                // â”€â”€ Section: Recovery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Recovery")
                 SelectorCard(
                     title    = stringResource(R.string.justlift_rest_title),
@@ -359,7 +358,7 @@ fun EditExerciseSheet(
 
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-                // ── Action Buttons ───────────────────────────────────────────
+                // â”€â”€ Action Buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm)) {
                     OutlinedButton(
                         onClick  = {
@@ -397,7 +396,7 @@ fun EditExerciseSheet(
     }
 }
 
-// ── Section header helper ─────────────────────────────────────────────────────
+// â”€â”€ Section header helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun SectionHeader(title: String) {

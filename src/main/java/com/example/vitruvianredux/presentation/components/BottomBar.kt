@@ -2,9 +2,6 @@ package com.example.vitruvianredux.presentation.components
 
 import com.vitruvian.trainer.R
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,6 +15,7 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.navigation.Route
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private data class NavItem(
     val route: Route,
@@ -29,13 +27,13 @@ private data class NavItem(
 @Composable
 fun BottomBar(nav: NavController) {
     val items = listOf(
-        NavItem(Route.Activity,        Icons.Default.Home,          Icons.Outlined.Home,          "Home"),
-        NavItem(Route.Workout,         Icons.Default.FitnessCenter, Icons.Outlined.FitnessCenter, "Workout"),
-        NavItem(Route.Coaching,        Icons.Default.Assignment,    Icons.Outlined.Assignment,    "Programs"),
-        NavItem(Route.ActivityHistory, Icons.Default.BarChart,      Icons.Outlined.BarChart,      "History"),
-        NavItem(Route.Profile,         Icons.Default.Person,        Icons.Outlined.Person,        "Profile"),
+        NavItem(Route.Activity,        AppIcons.Home,          AppIcons.Home,          "Home"),
+        NavItem(Route.Workout,         AppIcons.FitnessCenter, AppIcons.FitnessCenter, "Workout"),
+        NavItem(Route.Coaching,        AppIcons.Assignment,    AppIcons.Assignment,    "Programs"),
+        NavItem(Route.ActivityHistory, AppIcons.BarChart,      AppIcons.BarChart,      "History"),
+        NavItem(Route.Profile,         AppIcons.Person,        AppIcons.Person,        "Profile"),
     )
-    // Map route → wiring ID
+    // Map route â†’ wiring ID
     val navHitIds = mapOf(
         Route.Activity        to A_NAV_ACTIVITY,
         Route.Workout         to A_NAV_WORKOUT,

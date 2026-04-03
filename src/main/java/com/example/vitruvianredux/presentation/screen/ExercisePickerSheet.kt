@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -43,10 +41,11 @@ import com.example.vitruvianredux.presentation.components.ExerciseVideoPreviewDi
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.util.loadExercises
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Exercise Picker sheet  — matches Workout Library card style
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Exercise Picker sheet  â€” matches Workout Library card style
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 fun ExercisePickerSheet(
@@ -92,7 +91,7 @@ fun ExercisePickerSheet(
         windowInsets     = WindowInsets(0),
     ) {
         Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
-            // ── Header ────────────────────────────────────────────────
+            // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier          = Modifier.fillMaxWidth().padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                 verticalAlignment = Alignment.CenterVertically,
@@ -110,21 +109,21 @@ fun ExercisePickerSheet(
                 }
             }
 
-            // ── Search ────────────────────────────────────────────────
+            // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             OutlinedTextField(
                 value         = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier      = Modifier.fillMaxWidth().padding(horizontal = AppDimens.Spacing.md),
                 placeholder   = { Text(stringResource(R.string.workout_search_hint)) },
-                leadingIcon   = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
+                leadingIcon   = { Icon(AppIcons.Search, contentDescription = stringResource(R.string.cd_search)) },
                 trailingIcon  = if (searchQuery.isNotEmpty()) {
-                    { IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Close, "Clear") } }
+                    { IconButton(onClick = { searchQuery = "" }) { Icon(AppIcons.Close, "Clear") } }
                 } else null,
                 singleLine = true,
                 shape      = RoundedCornerShape(AppDimens.Corner.lg),
             )
 
-            // ── Filter chips ──────────────────────────────────────────
+            // â”€â”€ Filter chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (allGroups.isNotEmpty()) {
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
                 LazyRow(
@@ -137,7 +136,7 @@ fun ExercisePickerSheet(
                                 selected     = true,
                                 onClick      = { selectedMuscles = emptySet() },
                                 label        = { Text(stringResource(R.string.common_clear)) },
-                                trailingIcon = { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), modifier = Modifier.size(AppDimens.Icon.sm)) },
+                                trailingIcon = { Icon(AppIcons.Close, contentDescription = stringResource(R.string.cd_close), modifier = Modifier.size(AppDimens.Icon.sm)) },
                             )
                         }
                     }
@@ -154,7 +153,7 @@ fun ExercisePickerSheet(
 
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-            // ── Exercise list ─────────────────────────────────────────
+            // â”€â”€ Exercise list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Crossfade(
                 targetState = allExercises.isEmpty(),
                 animationSpec = MotionTokens.ContentCrossfade,
@@ -220,7 +219,7 @@ fun ExercisePickerSheet(
                     contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
-                    // ── Create custom exercise action ─────────────────
+                    // â”€â”€ Create custom exercise action â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     item(key = "__create_custom__") {
                         OutlinedCard(
                             onClick   = { showCreateSheet = true },
@@ -236,7 +235,7 @@ fun ExercisePickerSheet(
                                 verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), tint = MaterialTheme.colorScheme.primary)
+                                Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), tint = MaterialTheme.colorScheme.primary)
                                 Text(text = stringResource(R.string.picker_create_custom),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.primary,
@@ -288,7 +287,7 @@ fun ExercisePickerSheet(
                                 verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                             ) {
-                                // ── Thumbnail (120dp — matches official app) ──
+                                // â”€â”€ Thumbnail (120dp â€” matches official app) â”€â”€
                                 Box(
                                     modifier         = Modifier
                                         .size(120.dp)
@@ -303,7 +302,7 @@ fun ExercisePickerSheet(
                                         modifier           = Modifier.fillMaxSize(),
                                         error = {
                                             Icon(
-                                                imageVector        = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                                imageVector        = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                                 tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
                                                 modifier           = Modifier.size(36.dp),
                                             )
@@ -312,7 +311,7 @@ fun ExercisePickerSheet(
                                     )
                                 }
 
-                                // ── Name + muscle-group chips + equipment ──
+                                // â”€â”€ Name + muscle-group chips + equipment â”€â”€
                                 Column(
                                     modifier            = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
@@ -354,7 +353,7 @@ fun ExercisePickerSheet(
                                             equipmentLabels.forEach { equip ->
                                                 SuggestionChip(
                                                     onClick = {},
-                                                    icon    = { Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link_exercises), modifier = Modifier.size(AppDimens.Icon.xs)) },
+                                                    icon    = { Icon(AppIcons.Link, contentDescription = stringResource(R.string.cd_link_exercises), modifier = Modifier.size(AppDimens.Icon.xs)) },
                                                     label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
                                                 )
                                             }
@@ -362,9 +361,9 @@ fun ExercisePickerSheet(
                                     }
                                 }
 
-                                // ── Selection indicator ──
+                                // â”€â”€ Selection indicator â”€â”€
                                 Icon(
-                                    imageVector        = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                    imageVector        = if (isSelected) AppIcons.CheckCircle else AppIcons.RadioButtonUnchecked,
                                     contentDescription = if (isSelected) "Selected" else "Not selected",
                                     tint               = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier           = Modifier.size(AppDimens.Icon.xl),
@@ -379,7 +378,7 @@ fun ExercisePickerSheet(
         }
     }
 
-    // ── Video preview dialog (long-press) ─────────────────────────
+    // â”€â”€ Video preview dialog (long-press) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     videoPreviewExercise?.let { ex ->
         ExerciseVideoPreviewDialog(
             exerciseName = ex.name,
@@ -388,7 +387,7 @@ fun ExercisePickerSheet(
         )
     }
 
-    // ── Create custom exercise sheet ──────────────────────────────
+    // â”€â”€ Create custom exercise sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (showCreateSheet) {
         CreateCustomExerciseSheet(
             onDismiss = { showCreateSheet = false },

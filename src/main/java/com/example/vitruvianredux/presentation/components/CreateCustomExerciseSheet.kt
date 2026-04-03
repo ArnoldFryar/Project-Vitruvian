@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -22,6 +20,7 @@ import com.example.vitruvianredux.model.TrackingType
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import androidx.compose.ui.res.stringResource
 import com.vitruvian.trainer.R
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
  * ModalBottomSheet form for creating **or editing** a custom exercise.
@@ -63,14 +62,14 @@ fun CreateCustomExerciseSheet(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
-            // ── Header ──────────────────────────────────────────────────
+            // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Text(
                 text       = if (isEdit) "Edit Exercise" else "New Custom Exercise",
                 style      = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
 
-            // ── Name ─────────────────────────────────────────────────────
+            // â”€â”€ Name â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             OutlinedTextField(
                 value         = name,
                 onValueChange = { name = it; showNameError = false },
@@ -84,7 +83,7 @@ fun CreateCustomExerciseSheet(
                 shape      = RoundedCornerShape(AppDimens.Corner.md),
             )
 
-            // ── Tracking type ────────────────────────────────────────────
+            // â”€â”€ Tracking type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                 Text(stringResource(R.string.custom_exercise_tracking_type), style = MaterialTheme.typography.labelLarge)
                 Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
@@ -95,14 +94,14 @@ fun CreateCustomExerciseSheet(
                             onClick     = { trackingType = type },
                             label       = { Text(if (type == TrackingType.REPS) "Reps" else "Duration") },
                             leadingIcon = if (selected) {
-                                { Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check), modifier = Modifier.size(AppDimens.Icon.sm)) }
+                                { Icon(AppIcons.Check, contentDescription = stringResource(R.string.cd_check), modifier = Modifier.size(AppDimens.Icon.sm)) }
                             } else null,
                         )
                     }
                 }
             }
 
-            // ── Muscle group ─────────────────────────────────────────────
+            // â”€â”€ Muscle group â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             OutlinedTextField(
                 value         = primaryMuscle,
                 onValueChange = { primaryMuscle = it },
@@ -113,7 +112,7 @@ fun CreateCustomExerciseSheet(
                 shape         = RoundedCornerShape(AppDimens.Corner.md),
             )
 
-            // ── Per side ─────────────────────────────────────────────────
+            // â”€â”€ Per side â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier              = Modifier.fillMaxWidth(),
                 verticalAlignment     = Alignment.CenterVertically,
@@ -129,7 +128,7 @@ fun CreateCustomExerciseSheet(
                 Switch(checked = perSide, onCheckedChange = { perSide = it })
             }
 
-            // ── Notes ────────────────────────────────────────────────────
+            // â”€â”€ Notes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             OutlinedTextField(
                 value         = notes,
                 onValueChange = { notes = it },
@@ -142,7 +141,7 @@ fun CreateCustomExerciseSheet(
                 shape         = RoundedCornerShape(AppDimens.Corner.md),
             )
 
-            // ── Actions ──────────────────────────────────────────────────
+            // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),

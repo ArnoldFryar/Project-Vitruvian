@@ -10,18 +10,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Stars
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,9 +33,10 @@ import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * Premium Session Detail screen — shows a single completed workout session.
+ * Premium Session Detail screen â€” shows a single completed workout session.
  * Navigated to from the sessions list or the activity history.
  */
 @Composable
@@ -67,7 +56,7 @@ fun SessionDetailScreen(
                 title = { Text("Session Detail", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
@@ -83,7 +72,7 @@ fun SessionDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                 ) {
                     Icon(
-                        Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                        AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         modifier = Modifier.size(AppDimens.Icon.xxl),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     )
@@ -121,14 +110,14 @@ fun SessionDetailScreen(
                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
-            // ── Header card: date + program context ──────────────────
+            // â”€â”€ Header card: date + program context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             SdCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.CalendarToday, contentDescription = stringResource(R.string.cd_session_date),
+                        AppIcons.CalendarToday, contentDescription = stringResource(R.string.cd_session_date),
                         tint = cs.primary,
                         modifier = Modifier.size(AppDimens.Icon.md),
                     )
@@ -140,7 +129,7 @@ fun SessionDetailScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            "${timeFmt.format(startInstant)} – ${timeFmt.format(endInstant)}  ·  ${formatSessionDuration(session.durationSec)}",
+                            "${timeFmt.format(startInstant)} â€“ ${timeFmt.format(endInstant)}  Â·  ${formatSessionDuration(session.durationSec)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = cs.onSurfaceVariant,
                         )
@@ -156,7 +145,7 @@ fun SessionDetailScreen(
                         Text(
                             buildString {
                                 session.programName?.let { append(it) }
-                                if (session.programName != null && session.dayName != null) append(" · ")
+                                if (session.programName != null && session.dayName != null) append(" Â· ")
                                 session.dayName?.let { append(it) }
                             },
                             style = MaterialTheme.typography.labelSmall,
@@ -171,7 +160,7 @@ fun SessionDetailScreen(
                 }
             }
 
-            // ── Performance stats grid ───────────────────────────────
+            // â”€â”€ Performance stats grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             SdSectionHeader("Performance")
 
             Row(
@@ -179,13 +168,13 @@ fun SessionDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 SdStatTile(
-                    icon = Icons.Default.Layers,
+                    icon = AppIcons.Layers,
                     label = stringResource(R.string.session_stat_sets),
                     value = session.totalSets.toString(),
                     modifier = Modifier.weight(1f),
                 )
                 SdStatTile(
-                    icon = Icons.Default.Repeat,
+                    icon = AppIcons.Repeat,
                     label = stringResource(R.string.session_stat_reps),
                     value = session.totalReps.toString(),
                     modifier = Modifier.weight(1f),
@@ -196,15 +185,15 @@ fun SessionDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 SdStatTile(
-                    icon = Icons.Default.FitnessCenter,
+                    icon = AppIcons.FitnessCenter,
                     label = stringResource(R.string.metric_volume),
                     value = if (session.volumeAvailable)
                         "${UnitConversions.formatVolumeFromKg(session.totalVolumeKg, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}"
-                    else "—",
+                    else "â€”",
                     modifier = Modifier.weight(1f),
                 )
                 SdStatTile(
-                    icon = Icons.Default.Timer,
+                    icon = AppIcons.Timer,
                     label = stringResource(R.string.session_stat_duration),
                     value = formatSessionDuration(session.durationSec),
                     modifier = Modifier.weight(1f),
@@ -218,7 +207,7 @@ fun SessionDetailScreen(
                 ) {
                     if (session.heaviestLiftLb > 0) {
                         SdStatTile(
-                            icon = Icons.Default.BarChart,
+                            icon = AppIcons.BarChart,
                             label = stringResource(R.string.session_stat_heaviest),
                             value = "${session.heaviestLiftLb} lb",
                             modifier = Modifier.weight(1f),
@@ -231,7 +220,7 @@ fun SessionDetailScreen(
                             else    -> cs.onSurfaceVariant
                         }
                         SdStatTile(
-                            icon = Icons.Default.Stars,
+                            icon = AppIcons.Stars,
                             label = stringResource(R.string.session_stat_quality),
                             value = "$q",
                             valueSuffix = "/ 100",
@@ -246,7 +235,7 @@ fun SessionDetailScreen(
                 }
             }
 
-            // ── Exercises breakdown ──────────────────────────────────
+            // â”€â”€ Exercises breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (session.exerciseNames.isNotEmpty()) {
                 SdSectionHeader("Exercises")
 
@@ -297,13 +286,13 @@ fun SessionDetailScreen(
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        "$setCount sets · $totalReps reps · $weightDisplay",
+                                        "$setCount sets Â· $totalReps reps Â· $weightDisplay",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = cs.onSurfaceVariant,
                                     )
                                 }
                                 Icon(
-                                    Icons.Default.ChevronRight,
+                                    AppIcons.ChevronRight,
                                     contentDescription = "View exercise data",
                                     tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
                                     modifier = Modifier.size(AppDimens.Icon.sm),
@@ -328,7 +317,7 @@ fun SessionDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
-                                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                    AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                     modifier = Modifier.size(AppDimens.Icon.sm),
                                     tint = cs.primary,
                                 )
@@ -339,7 +328,7 @@ fun SessionDetailScreen(
                                     modifier = Modifier.weight(1f),
                                 )
                                 Icon(
-                                    Icons.Default.ChevronRight,
+                                    AppIcons.ChevronRight,
                                     contentDescription = "View exercise data",
                                     tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
                                     modifier = Modifier.size(AppDimens.Icon.sm),
@@ -359,7 +348,7 @@ fun SessionDetailScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Default.LocalFireDepartment, contentDescription = stringResource(R.string.cd_calories),
+                                AppIcons.LocalFireDepartment, contentDescription = stringResource(R.string.cd_calories),
                                 tint = cs.primary,
                                 modifier = Modifier.size(AppDimens.Icon.md),
                             )
@@ -378,7 +367,7 @@ fun SessionDetailScreen(
 
             Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-            // ── Workout notes ─────────────────────────────────────────────────────
+            // â”€â”€ Workout notes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (session.notes.isNotBlank()) {
                 SdSectionHeader("Notes")
                 SdCard {
@@ -387,7 +376,7 @@ fun SessionDetailScreen(
                         verticalAlignment = Alignment.Top,
                     ) {
                         Icon(
-                            Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit),
+                            AppIcons.Edit, contentDescription = stringResource(R.string.cd_edit),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(AppDimens.Icon.md).padding(top = AppDimens.Spacing.xxs),
                         )
@@ -405,7 +394,7 @@ fun SessionDetailScreen(
     }
 }
 
-// ─── Private helpers ────────────────────────────────────────────────────────
+// â”€â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private val GlassBorder = BorderStroke(
     0.5.dp,

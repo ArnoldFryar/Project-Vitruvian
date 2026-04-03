@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -33,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import kotlinx.coroutines.delay
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
  * Brief pop-in badge showing the quality score of the last completed rep.
@@ -40,7 +39,7 @@ import kotlinx.coroutines.delay
  * Appears for [displayDurationMs] then auto-hides via [AnimatedVisibility].
  * Positioned by the caller (typically above the phase pill in the rep counter).
  *
- * Purely visual — no BLE, session, or rep-detection code involved.
+ * Purely visual â€” no BLE, session, or rep-detection code involved.
  */
 @Composable
 fun RepQualityBadge(
@@ -83,7 +82,7 @@ fun RepQualityBadge(
                 verticalAlignment     = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector        = Icons.Default.Star,
+                    imageVector        = AppIcons.Star,
                     contentDescription = stringResource(R.string.cd_personal_record),
                     modifier           = Modifier.size(AppDimens.Icon.xs),
                     tint               = fgColor,

@@ -7,10 +7,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothConnected
-import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,10 +56,11 @@ import com.example.vitruvianredux.presentation.screen.SplashScreen
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.stringResource
 import com.vitruvian.trainer.R
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
 fun AppScaffold() {
-    // ── One-time registration of all expected actions ─────────────────────────
+    // â”€â”€ One-time registration of all expected actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     LaunchedEffect(Unit) {
         WiringRegistry.registerActions(ALL_ACTION_DEFINITIONS)
     }
@@ -71,14 +68,14 @@ fun AppScaffold() {
     val themeMode by com.example.vitruvianredux.data.ThemeStore.modeFlow.collectAsState()
 
     VitruvianTheme(themeMode = themeMode) {
-        // ── Splash overlay ── shows once on cold start ──────────────────────
+        // â”€â”€ Splash overlay â”€â”€ shows once on cold start â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var showSplash by rememberSaveable { mutableStateOf(true) }
         if (showSplash) {
             SplashScreen(onFinished = { showSplash = false })
             return@VitruvianTheme
         }
 
-        // ── First-run onboarding gate ───────────────────────────────────────
+        // â”€â”€ First-run onboarding gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         val context = LocalContext.current
         val onboardingPrefs = remember {
             context.getSharedPreferences("vitruvian_onboarding", android.content.Context.MODE_PRIVATE)
@@ -205,8 +202,8 @@ fun AppScaffold() {
                 val phase = sessionState.sessionPhase
                 val playerExercise by workoutVM.playerExercise.collectAsState()
 
-                // ── Health Connect: export workout summary when a session completes ──
-                // ── Analytics: passively record completed session ──
+                // â”€â”€ Health Connect: export workout summary when a session completes â”€â”€
+                // â”€â”€ Analytics: passively record completed session â”€â”€
                 // Guard: only record once per WorkoutComplete event even if
                 // Compose recomposes and re-fires the LaunchedEffect.
                 var analyticsRecorded by rememberSaveable { mutableStateOf(false) }
@@ -220,7 +217,7 @@ fun AppScaffold() {
                         // Shared stable session ID for linking records
                         val sessionId = java.util.UUID.randomUUID().toString()
 
-                        // ── Analytics capture (always) ──
+                        // â”€â”€ Analytics capture (always) â”€â”€
                         val exerciseNames = WorkoutHistoryStore.historyFlow.value
                             .lastOrNull()?.exerciseNames ?: emptyList()
 
@@ -267,14 +264,14 @@ fun AppScaffold() {
                         // than the in-memory increments from the engine.
                         com.example.vitruvianredux.data.ActivityStatsStore.seedFromAnalytics()
 
-                        // ── Durable exercise/set history (Room, pending sync) ──
+                        // â”€â”€ Durable exercise/set history (Room, pending sync) â”€â”€
                         ExerciseHistoryRecorder.record(
                             sessionId      = sessionId,
                             completedStats = completedStats,
                             completedAtMs  = endMs,
                         )
 
-                        // ── Sync-ready session record ──
+                        // â”€â”€ Sync-ready session record â”€â”€
                         if (SyncServiceLocator.isInitialized) {
                             val programName = workoutVM.activeProgramId?.let { pid ->
                                 com.example.vitruvianredux.data.ProgramStore.savedProgramsFlow.value
@@ -295,7 +292,7 @@ fun AppScaffold() {
                             )
                         }
 
-                        // ── Health Connect export (when enabled) ──
+                        // â”€â”€ Health Connect export (when enabled) â”€â”€
                         if (HealthConnectStore.isEnabled) {
                             val title = workoutVM.activeProgramName
                                 ?: playerExercise?.name
@@ -362,7 +359,7 @@ private fun AppTopBar(
     onDisconnectClick: () -> Unit,
     onNavigateToAudit: () -> Unit,
 ) {
-    // Hidden dev entry — long-press "Project Vitruvian" 5× to open Audit screen
+    // Hidden dev entry â€” long-press "Project Vitruvian" 5Ã— to open Audit screen
     var longPressCount by remember { mutableIntStateOf(0) }
 
     Surface(
@@ -401,7 +398,7 @@ private fun AppTopBar(
                 )
             }
 
-            // LAN sync status indicator — tap to open Sync screen
+            // LAN sync status indicator â€” tap to open Sync screen
             SyncStatusPill(lanState = lanSyncState, onClick = onSyncPillClick)
 
             when (bleState) {
@@ -414,7 +411,7 @@ private fun AppTopBar(
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.BluetoothConnected, contentDescription = stringResource(R.string.cd_bluetooth_connected), modifier = Modifier.size(AppDimens.Icon.sm))
+                        Icon(AppIcons.BluetoothConnected, contentDescription = stringResource(R.string.cd_bluetooth_connected), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
                         Text(bleState.device.name, style = MaterialTheme.typography.labelMedium)
                     }
@@ -425,9 +422,9 @@ private fun AppTopBar(
                         enabled = false,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting), modifier = Modifier.size(AppDimens.Icon.sm))
+                        Icon(AppIcons.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
-                        val label = if (bleState is BleConnectionState.Scanning) "Scanning…" else "Connecting…"
+                        val label = if (bleState is BleConnectionState.Scanning) "Scanningâ€¦" else "Connectingâ€¦"
                         Text(label, style = MaterialTheme.typography.labelMedium)
                     }
                 }
@@ -436,7 +433,7 @@ private fun AppTopBar(
                         onClick        = onConnectClick,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     ) {
-                        Icon(Icons.Default.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.sm))
+                        Icon(AppIcons.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
                         Text(stringResource(R.string.trainer_connect), style = MaterialTheme.typography.labelLarge)
                     }
@@ -446,14 +443,14 @@ private fun AppTopBar(
     }
 }
 
-// ── Intent JSON extraction (used by AppScaffold on launch) ──────────────────
+// â”€â”€ Intent JSON extraction (used by AppScaffold on launch) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Extract program-import JSON from an incoming [android.content.Intent].
  *
  * Supports:
  * - `ACTION_SEND` with `text/plain` or `application/json` extra text
- * - `ACTION_VIEW` with `vitruvian://import?json=…` URI
+ * - `ACTION_VIEW` with `vitruvian://import?json=â€¦` URI
  * - `ACTION_VIEW` with `content://` or `file://` URI pointing to a `.json` file
  */
 private fun extractImportJson(intent: android.content.Intent?): String? {
@@ -467,12 +464,12 @@ private fun extractImportJson(intent: android.content.Intent?): String? {
         }
         android.content.Intent.ACTION_VIEW -> {
             val uri = intent.data ?: return null
-            // vitruvian://import?json=…
+            // vitruvian://import?json=â€¦
             if (uri.scheme == "vitruvian" && uri.host == "import") {
                 val json = uri.getQueryParameter("json")
                 if (!json.isNullOrBlank()) return json
             }
-            // content:// or file:// — try to read the URI
+            // content:// or file:// â€” try to read the URI
             // (handled below)
         }
     }

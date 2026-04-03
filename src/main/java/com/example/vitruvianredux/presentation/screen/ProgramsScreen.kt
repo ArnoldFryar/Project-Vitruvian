@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,6 +47,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.style.TextAlign
 import java.time.DayOfWeek
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 data class ProgramDraft(val name: String, val items: List<ProgramItemDraft>)
 
@@ -140,14 +139,14 @@ fun ProgramsScreen(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AddCircleOutline, contentDescription = stringResource(R.string.cd_add), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+                        Icon(AppIcons.AddCircleOutline, contentDescription = stringResource(R.string.cd_add), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.programs_create_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(AppDimens.Spacing.xxs))
                             Text(stringResource(R.string.programs_create_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Spacer(Modifier.height(AppDimens.Spacing.md_sm))
@@ -172,14 +171,14 @@ fun ProgramsScreen(
                             .padding(AppDimens.Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
+                        Icon(AppIcons.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.programs_import_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(AppDimens.Spacing.xxs))
                             Text(stringResource(R.string.programs_import_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (hevyEnabled) {
                         Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant)
@@ -197,14 +196,14 @@ fun ProgramsScreen(
                                 .padding(AppDimens.Spacing.md),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.CloudDownload, contentDescription = stringResource(R.string.cd_cloud_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
+                            Icon(AppIcons.CloudDownload, contentDescription = stringResource(R.string.cd_cloud_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                             Spacer(Modifier.width(AppDimens.Spacing.md))
                             Column(Modifier.weight(1f)) {
                                 Text(stringResource(R.string.programs_hevy_import_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                 Text(stringResource(R.string.programs_hevy_import_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -223,7 +222,7 @@ fun ProgramsScreen(
             if (orderedPrograms.isEmpty()) {
                 item(key = "empty") {
                     AppEmptyState(
-                        icon = Icons.Default.Assignment,
+                        icon = AppIcons.Assignment,
                         headline = "No programs yet",
                         description = "Create your first program to structure your training journey.",
                         modifier = Modifier.padding(vertical = AppDimens.Spacing.xl),
@@ -309,7 +308,7 @@ fun ProgramsScreen(
                                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // Lettered avatar — color cycles through primary/secondary/tertiary
+                            // Lettered avatar â€” color cycles through primary/secondary/tertiary
                             val avatarPalette = listOf(
                                 MaterialTheme.colorScheme.primary,
                                 MaterialTheme.colorScheme.secondary,
@@ -338,7 +337,7 @@ fun ProgramsScreen(
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                 // Exercise name preview (up to 3, with overflow count)
                                 val exercisePreview = if (p.items.isNotEmpty())
-                                    p.items.take(3).joinToString(" · ") { it.exerciseName } +
+                                    p.items.take(3).joinToString(" Â· ") { it.exerciseName } +
                                         if (p.items.size > 3) "  +${p.items.size - 3} more" else ""
                                 else "${p.exerciseCount} exercise${if (p.exerciseCount != 1) "s" else ""}"
                                 Text(
@@ -348,7 +347,7 @@ fun ProgramsScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                // Scheduled day dots (Mon–Sun, 7 circles)
+                                // Scheduled day dots (Monâ€“Sun, 7 circles)
                                 if (p.scheduledDays.isNotEmpty()) {
                                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                     Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -371,7 +370,7 @@ fun ProgramsScreen(
                                 }
                             }
                             Icon(
-                                Icons.Default.DragHandle,
+                                AppIcons.DragHandle,
                                 contentDescription = "Long press to reorder",
                                 tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.35f),
                                 modifier = Modifier.size(AppDimens.Icon.lg),
@@ -405,14 +404,14 @@ fun ProgramsScreen(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.GridView, contentDescription = stringResource(R.string.cd_grid_view), tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(AppDimens.Icon.xl))
+                        Icon(AppIcons.GridView, contentDescription = stringResource(R.string.cd_grid_view), tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(AppDimens.Icon.xl))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.programs_browse_templates), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(AppDimens.Spacing.xxs))
                             Text(stringResource(R.string.programs_browse_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

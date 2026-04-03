@@ -20,8 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,10 +37,11 @@ import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  Template Library — categorized list of built-in + user templates
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+//  Template Library â€” categorized list of built-in + user templates
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 fun TemplateLibraryScreen(
@@ -69,14 +68,14 @@ fun TemplateLibraryScreen(
                 title = { Text("Template Library", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
         },
     ) { innerPadding ->
 
-        // Content state: loading → empty → populated, with crossfade transition
+        // Content state: loading â†’ empty â†’ populated, with crossfade transition
         val contentState = when {
             allTemplates.isEmpty() && isLoading -> "loading"
             allTemplates.isEmpty()              -> "empty"
@@ -153,7 +152,7 @@ fun TemplateLibraryScreen(
                             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                         ) {
                             Icon(
-                                Icons.Default.GridView, contentDescription = stringResource(R.string.cd_grid_view),
+                                AppIcons.GridView, contentDescription = stringResource(R.string.cd_grid_view),
                                 modifier = Modifier.size(AppDimens.Icon.hero),
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                             )
@@ -214,7 +213,7 @@ fun TemplateLibraryScreen(
     }
 }
 
-// ── Category header ────────────────────────────────────────────────────────────
+// â”€â”€ Category header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun CategoryHeader(category: String, icon: ImageVector) {
@@ -256,7 +255,7 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
     }
 }
 
-// ── Template card ──────────────────────────────────────────────────────────────
+// â”€â”€ Template card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun TemplateCard(
@@ -314,7 +313,7 @@ private fun TemplateCard(
                     )
                 }
                 Icon(
-                    Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
+                    AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
                     tint = cs.onSurfaceVariant,
                 )
             }
@@ -341,7 +340,7 @@ private fun TemplateCard(
                             shape = MaterialTheme.shapes.small,
                         ) {
                             Text(
-                                "${day.name} · ${day.exercises.size} ex",
+                                "${day.name} Â· ${day.exercises.size} ex",
                                 modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = cs.onSecondaryContainer,
@@ -354,15 +353,15 @@ private fun TemplateCard(
     }
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private fun categoryIcon(category: String): ImageVector = when (category.lowercase()) {
-    "strength" -> Icons.Default.FitnessCenter
-    "hypertrophy" -> Icons.Default.TrendingUp
-    "conditioning" -> Icons.Default.LocalFireDepartment
-    "beginner" -> Icons.Default.School
-    "rehab & recovery", "rehabilitation", "recovery" -> Icons.Default.Healing
-    "flexibility", "mobility" -> Icons.Default.SelfImprovement
-    "my templates" -> Icons.Default.Person
-    else -> Icons.Default.GridView
+    "strength" -> AppIcons.FitnessCenter
+    "hypertrophy" -> AppIcons.TrendingUp
+    "conditioning" -> AppIcons.LocalFireDepartment
+    "beginner" -> AppIcons.School
+    "rehab & recovery", "rehabilitation", "recovery" -> AppIcons.Healing
+    "flexibility", "mobility" -> AppIcons.SelfImprovement
+    "my templates" -> AppIcons.Person
+    else -> AppIcons.GridView
 }

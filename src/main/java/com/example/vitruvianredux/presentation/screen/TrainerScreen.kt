@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +34,7 @@ import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.components.LedColorPickerDialog
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.vitruvian.trainer.BuildConfig
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
 fun TrainerScreen(
@@ -48,7 +47,7 @@ fun TrainerScreen(
     var showDevicePicker by remember { mutableStateOf(false) }
     var showColorPicker  by remember { mutableStateOf(false) }
 
-    // ── LED colour store ──────────────────────────────────────────────────
+    // â”€â”€ LED colour store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val context = LocalContext.current
     LaunchedEffect(Unit) { LedColorStore.init(context) }
     var ledScheme by remember { mutableStateOf(LedColorStore.current()) }
@@ -89,9 +88,9 @@ fun TrainerScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
     ) {
-        // ═══════════════════════════════════════════════════════
-        //  HEADER — "Your Trainer"
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        //  HEADER â€” "Your Trainer"
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Text(
             text = "Your Trainer",
             style = MaterialTheme.typography.headlineLarge,
@@ -99,9 +98,9 @@ fun TrainerScreen(
         )
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  DISCONNECTED HERO
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         AnimatedVisibility(
             visible = !isConnected && !isScanning && !isConnecting,
             enter = fadeIn(),
@@ -121,7 +120,7 @@ fun TrainerScreen(
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                 ) {
                     Icon(
-                        imageVector = Icons.Default.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting),
+                        imageVector = AppIcons.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting),
                         modifier = Modifier.size(56.dp),
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                     )
@@ -144,9 +143,9 @@ fun TrainerScreen(
             Spacer(Modifier.height(AppDimens.Spacing.lg))
         }
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  GENERAL section
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Text(
             text = "GENERAL",
             style = MaterialTheme.typography.labelMedium,
@@ -214,7 +213,7 @@ fun TrainerScreen(
                 )
                 Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
 
-                // Colour indicator — opens LED colour picker
+                // Colour indicator â€” opens LED colour picker
                 TrainerInfoRow(
                     label = stringResource(R.string.trainer_colour),
                     modifier = Modifier.clickable { showColorPicker = true },
@@ -239,7 +238,7 @@ fun TrainerScreen(
                                     )
                             )
                             Icon(
-                                Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
+                                AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
                                 tint = cs.onSurfaceVariant,
                                 modifier = Modifier.size(AppDimens.Icon.md),
                             )
@@ -251,9 +250,9 @@ fun TrainerScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  VERSIONS section
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Text(
             text = "VERSIONS",
             style = MaterialTheme.typography.labelMedium,
@@ -286,7 +285,7 @@ fun TrainerScreen(
                                 color = cs.onSurfaceVariant,
                             )
                             Icon(
-                                Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
+                                AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right),
                                 tint = cs.onSurfaceVariant,
                                 modifier = Modifier.size(AppDimens.Icon.md),
                             )
@@ -298,9 +297,9 @@ fun TrainerScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  CONNECT / DISCONNECT button (large, full width)
-        // ═══════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         when {
             isConnected -> {
                 Button(
@@ -314,7 +313,7 @@ fun TrainerScreen(
                         contentColor   = cs.onErrorContainer,
                     ),
                 ) {
-                    Icon(Icons.Default.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text("Disconnect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
@@ -353,7 +352,7 @@ fun TrainerScreen(
                         contentColor = cs.onPrimary,
                     ),
                 ) {
-                    Icon(Icons.Default.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.md))
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Text("Connect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
@@ -362,7 +361,7 @@ fun TrainerScreen(
 
         Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
-        // ── Check & Repair button
+        // â”€â”€ Check & Repair button
         OutlinedButton(
             onClick  = { WiringRegistry.hit(A_DEVICE_REPAIR); WiringRegistry.recordOutcome(A_DEVICE_REPAIR, ActualOutcome.Navigated("repair")); onNavigateToRepair() },
             modifier = Modifier
@@ -373,7 +372,7 @@ fun TrainerScreen(
                 contentColor = cs.primary,
             ),
         ) {
-            Icon(Icons.Default.Build, contentDescription = stringResource(R.string.cd_device_repair), modifier = Modifier.size(AppDimens.Icon.md))
+            Icon(AppIcons.Build, contentDescription = stringResource(R.string.cd_device_repair), modifier = Modifier.size(AppDimens.Icon.md))
             Spacer(Modifier.width(AppDimens.Spacing.sm))
             Text("Check & Repair", fontWeight = FontWeight.SemiBold)
         }
@@ -382,7 +381,7 @@ fun TrainerScreen(
     }
 }
 
-// ─── Reusable info row for the "Your Trainer" card ──────────────────────────────
+// â”€â”€â”€ Reusable info row for the "Your Trainer" card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun TrainerInfoRow(

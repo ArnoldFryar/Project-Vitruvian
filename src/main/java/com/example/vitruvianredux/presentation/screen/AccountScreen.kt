@@ -9,8 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,7 +91,7 @@ private fun AccountShell(
                 title = { Text(stringResource(R.string.settings_cloud_not_signed_in)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -116,9 +115,9 @@ private fun AccountShell(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Signed-In view
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun SignedInContent(
@@ -147,7 +146,7 @@ private fun SignedInContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Default.AccountCircle, contentDescription = stringResource(R.string.cd_account_avatar),
+                AppIcons.AccountCircle, contentDescription = stringResource(R.string.cd_account_avatar),
                 modifier = Modifier.size(AppDimens.Icon.xxl),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -213,7 +212,7 @@ private fun SignedInContent(
                 enabled = syncState !is CloudSyncState.Syncing,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Icons.Default.Sync, contentDescription = stringResource(R.string.cd_sync), modifier = Modifier.size(AppDimens.Icon.md))
+                Icon(AppIcons.Sync, contentDescription = stringResource(R.string.cd_sync), modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(AppDimens.Spacing.sm))
                 Text(stringResource(R.string.sync_now))
             }
@@ -228,7 +227,7 @@ private fun SignedInContent(
             contentColor = MaterialTheme.colorScheme.error,
         ),
     ) {
-        Icon(Icons.Default.Logout, contentDescription = stringResource(R.string.cd_sign_out), modifier = Modifier.size(AppDimens.Icon.md))
+        Icon(AppIcons.Logout, contentDescription = stringResource(R.string.cd_sign_out), modifier = Modifier.size(AppDimens.Icon.md))
         Spacer(Modifier.width(AppDimens.Spacing.sm))
         Text(stringResource(R.string.cd_sign_out))
     }
@@ -236,9 +235,9 @@ private fun SignedInContent(
     } // end Column
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  Sign-In / Sign-Up form
-// ═════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
 private fun SignInContent() {
@@ -291,7 +290,7 @@ private fun SignInContent() {
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
-                            if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            if (passwordVisible) AppIcons.VisibilityOff else AppIcons.Visibility,
                             contentDescription = if (passwordVisible) "Hide" else "Show",
                         )
                     }

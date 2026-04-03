@@ -12,17 +12,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import androidx.compose.runtime.*
@@ -45,9 +34,10 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * Workout History screen — date-grouped training log.
+ * Workout History screen â€” date-grouped training log.
  * Shows sessions grouped by date with workout name, duration, and points.
  */
 @Composable
@@ -77,16 +67,16 @@ fun ActivityHistoryScreen(
                 title = { Text(stringResource(R.string.home_action_history), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
         },
     ) { innerPadding ->
         if (allLogs.isEmpty()) {
-            // ── Empty state ──────────────────────────────────────────
+            // â”€â”€ Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             AppEmptyState(
-                icon = Icons.Default.FitnessCenter,
+                icon = AppIcons.FitnessCenter,
                 headline = "No workouts yet",
                 description = "Complete your first session to start building your training history.",
                 modifier = Modifier.padding(innerPadding),
@@ -102,7 +92,7 @@ fun ActivityHistoryScreen(
             contentPadding = PaddingValues(vertical = AppDimens.Spacing.md_sm),
         ) {
             sessionsByDate.forEach { (date, sessions) ->
-                // ── Date header ──────────────────────────────────────
+                // â”€â”€ Date header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item(key = "header_$date") {
                     val dateLabel = formatDateHeader(date, today)
                     Text(
@@ -118,7 +108,7 @@ fun ActivityHistoryScreen(
                     )
                 }
 
-                // ── Session cards for this date ──────────────────────
+                // â”€â”€ Session cards for this date â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 items(sessions, key = { it.id }) { session ->
                     WorkoutHistoryCard(
                         session    = session,
@@ -171,14 +161,14 @@ private fun WorkoutHistoryCard(
         tonalElevation = AppDimens.Elevation.card,
     ) {
         Column(modifier = Modifier.animateContentSize(tween(MotionTokens.STANDARD_MS))) {
-            // ── Tappable header (toggle expand/collapse) ──────────────
+            // â”€â”€ Tappable header (toggle expand/collapse) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { expanded = !expanded }
                     .padding(AppDimens.Spacing.md),
             ) {
-            // ── Program label (when applicable) ──────────────────────
+            // â”€â”€ Program label (when applicable) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (isProgramWorkout) {
                 Text(
                     session.programName?.uppercase() ?: "",
@@ -190,13 +180,13 @@ private fun WorkoutHistoryCard(
                 )
             }
 
-            // ── Title row ────────────────────────────────────────────
+            // â”€â”€ Title row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                    AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                     tint = cs.primary,
                     modifier = Modifier.size(AppDimens.Icon.md),
                 )
@@ -209,7 +199,7 @@ private fun WorkoutHistoryCard(
                     maxLines = 1,
                 )
                 Icon(
-                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    if (expanded) AppIcons.ExpandLess else AppIcons.ExpandMore,
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     tint = cs.onSurfaceVariant,
                     modifier = Modifier.size(AppDimens.Icon.md),
@@ -217,20 +207,20 @@ private fun WorkoutHistoryCard(
             }
             Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
-            // ── Stats grid: 2×2 compact metric pills ─────────────────
+            // â”€â”€ Stats grid: 2Ã—2 compact metric pills â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 // Duration
                 MiniStat(
-                    icon = Icons.Default.Timer,
+                    icon = AppIcons.Timer,
                     value = durationLabel,
                     modifier = Modifier.weight(1f),
                 )
                 // Volume
                 MiniStat(
-                    icon = Icons.Default.FitnessCenter,
+                    icon = AppIcons.FitnessCenter,
                     value = "$volumeDisplay $unitLabel",
                     modifier = Modifier.weight(1f),
                 )
@@ -240,21 +230,21 @@ private fun WorkoutHistoryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
-                // Sets × Reps
+                // Sets Ã— Reps
                 MiniStat(
-                    icon = Icons.Default.Layers,
-                    value = "${session.totalSets}s × ${session.totalReps}r",
+                    icon = AppIcons.Layers,
+                    value = "${session.totalSets}s Ã— ${session.totalReps}r",
                     modifier = Modifier.weight(1f),
                 )
                 // Calories
-                val calLabel = if (session.calories > 0) "${session.calories} kcal" else "— kcal"
+                val calLabel = if (session.calories > 0) "${session.calories} kcal" else "â€” kcal"
                 MiniStat(
-                    icon = Icons.Default.LocalFireDepartment,
+                    icon = AppIcons.LocalFireDepartment,
                     value = calLabel,
                     modifier = Modifier.weight(1f),
                 )
             }
-            // Quality score row — only when quality data is available
+            // Quality score row â€” only when quality data is available
             if (session.avgQualityScore != null) {
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
                 Row(
@@ -267,7 +257,7 @@ private fun WorkoutHistoryCard(
                         else -> MaterialTheme.colorScheme.error
                     }
                     MiniStat(
-                        icon = Icons.Default.Star,
+                        icon = AppIcons.Star,
                         value = "Quality ${session.avgQualityScore}/100",
                         iconTint = qualColor,
                         modifier = Modifier.weight(1f),
@@ -275,7 +265,7 @@ private fun WorkoutHistoryCard(
                 }
             }
 
-            // ── Time label ───────────────────────────────────────────
+            // â”€â”€ Time label â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             Text(
                 timeStr,
@@ -285,7 +275,7 @@ private fun WorkoutHistoryCard(
 
             } // end header column
 
-            // ── Expandable per-exercise breakdown ────────────────────
+            // â”€â”€ Expandable per-exercise breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (expanded) {
                 Column(
                     modifier = Modifier
@@ -350,13 +340,13 @@ private fun WorkoutHistoryCard(
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        "$setCount sets · $totalReps reps · $weightDisplay",
+                                        "$setCount sets Â· $totalReps reps Â· $weightDisplay",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = cs.onSurfaceVariant,
                                     )
                                 }
                                 Icon(
-                                    Icons.Default.ChevronRight,
+                                    AppIcons.ChevronRight,
                                     contentDescription = "View detail",
                                     tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
                                     modifier = Modifier.size(AppDimens.Icon.sm),
@@ -387,7 +377,7 @@ private fun WorkoutHistoryCard(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
-                                    Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                    AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                     modifier = Modifier.size(AppDimens.Icon.sm),
                                     tint = cs.primary.copy(alpha = 0.6f),
                                 )
@@ -400,7 +390,7 @@ private fun WorkoutHistoryCard(
                                     modifier = Modifier.weight(1f),
                                 )
                                 Icon(
-                                    Icons.Default.ChevronRight,
+                                    AppIcons.ChevronRight,
                                     contentDescription = "View detail",
                                     tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
                                     modifier = Modifier.size(AppDimens.Icon.sm),

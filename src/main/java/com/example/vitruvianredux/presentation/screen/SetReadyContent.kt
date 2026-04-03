@@ -18,8 +18,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,6 +45,7 @@ import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
 internal fun SetReadyContent(
@@ -77,20 +76,20 @@ internal fun SetReadyContent(
     onFinishWorkout: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     isOpenEnded: Boolean = false,
-    /** Show the Sets count stepper — true for JustLift and exercise-menu launches. */
+    /** Show the Sets count stepper â€” true for JustLift and exercise-menu launches. */
     showSetsStepper: Boolean = false,
     /** When non-null, show a "level up" suggestion banner above the weight selector. */
     progressionSuggestionLb: Int? = null,
     onAcceptProgression: (Int) -> Unit = {},
-    /** Echo (isokinetic) mode — weight is adaptive so the selector is hidden. */
+    /** Echo (isokinetic) mode â€” weight is adaptive so the selector is hidden. */
     isEchoMode: Boolean = false,
     /** Currently selected training mode (e.g. "Old School", "Pump", "TUT", "Echo"). */
     selectedMode: String = "Old School",
     onModeSelect: (String) -> Unit = {},
-    /** TUT — Beast Mode (faster loading). */
+    /** TUT â€” Beast Mode (faster loading). */
     isBeastMode: Boolean = false,
     onBeastModeChange: (Boolean) -> Unit = {},
-    /** Echo — resistance level. */
+    /** Echo â€” resistance level. */
     echoLevel: EchoLevel = EchoLevel.HARD,
     onEchoLevelChange: (EchoLevel) -> Unit = {},
     /** Eccentric load percentage. */
@@ -126,7 +125,7 @@ internal fun SetReadyContent(
     ) {
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-        // ── Progression suggestion banner ─────────────────────────────
+        // â”€â”€ Progression suggestion banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (progressionSuggestionLb != null) {
             Surface(
                 shape = RoundedCornerShape(AppDimens.Corner.sm),
@@ -165,7 +164,7 @@ internal fun SetReadyContent(
             Spacer(Modifier.height(AppDimens.Spacing.sm))
         }
 
-        // ── Exercise name & set info ─────────────────────────────────────
+        // â”€â”€ Exercise name & set info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Text(
             text       = exerciseName,
             style      = MaterialTheme.typography.headlineMedium,
@@ -184,7 +183,7 @@ internal fun SetReadyContent(
 
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-        // ── Video / thumbnail preview ────────────────────────────────────
+        // â”€â”€ Video / thumbnail preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Box(
             modifier = Modifier
                 .widthIn(max = 720.dp)
@@ -213,7 +212,7 @@ internal fun SetReadyContent(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                        imageVector = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         modifier = Modifier.size(AppDimens.Icon.hero),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                     )
@@ -223,7 +222,7 @@ internal fun SetReadyContent(
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
-        // ── Adjustable settings ──────────────────────────────────────────
+        // â”€â”€ Adjustable settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (!isOpenEnded) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -321,7 +320,7 @@ internal fun SetReadyContent(
             }
         }
 
-        // ── PR percentage indicator ──────────────────────────────────────
+        // â”€â”€ PR percentage indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (prLb > 0 && !isEchoMode) {
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Surface(
@@ -335,7 +334,7 @@ internal fun SetReadyContent(
                 ) {
                     if (isNewPr) {
                         Icon(
-                            imageVector        = Icons.Default.Star, contentDescription = stringResource(R.string.cd_personal_record),
+                            imageVector        = AppIcons.Star, contentDescription = stringResource(R.string.cd_personal_record),
                             modifier           = Modifier.size(11.dp),
                             tint               = chipFg,
                         )
@@ -367,7 +366,7 @@ internal fun SetReadyContent(
             )
         }
 
-        // Sets plan picker — shown for JustLift and exercise-menu launches.
+        // Sets plan picker â€” shown for JustLift and exercise-menu launches.
         // Hidden for program workouts where the engine controls set count.
         if (showSetsStepper) {
             Spacer(Modifier.height(AppDimens.Spacing.xs))
@@ -385,7 +384,7 @@ internal fun SetReadyContent(
             }
         }
 
-        // ── Mode selector ─────────────────────────────────────────────
+        // â”€â”€ Mode selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -400,7 +399,7 @@ internal fun SetReadyContent(
                 )
             }
         }
-        // ── TUT: Beast Mode toggle ────────────────────────────────────
+        // â”€â”€ TUT: Beast Mode toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         AnimatedVisibility(
             visible = selectedMode == "TUT",
             enter   = expandVertically(tween(200)) + fadeIn(tween(170)),
@@ -421,7 +420,7 @@ internal fun SetReadyContent(
             }
         }
 
-        // ── Echo: level chips + eccentric % ──────────────────────────
+        // â”€â”€ Echo: level chips + eccentric % â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         AnimatedVisibility(
             visible = selectedMode == "Echo",
             enter   = expandVertically(tween(200)) + fadeIn(tween(170)),
@@ -482,7 +481,7 @@ internal fun SetReadyContent(
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
-        // ── Autoplay toggle ──────────────────────────────────────────────
+        // â”€â”€ Autoplay toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Surface(
             shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
             color          = MaterialTheme.colorScheme.surfaceVariant,
@@ -511,7 +510,7 @@ internal fun SetReadyContent(
             }
         }
 
-        // ── GO button — primary action, visual center of gravity ────────
+        // â”€â”€ GO button â€” primary action, visual center of gravity â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
         val goHaptic = LocalHapticFeedback.current
@@ -546,12 +545,12 @@ internal fun SetReadyContent(
                 pressedElevation  = AppDimens.Elevation.card,
             ),
         ) {
-            Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.xl))
+            Icon(AppIcons.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.xl))
             Spacer(Modifier.width(AppDimens.Spacing.sm))
             Text("GO", fontWeight = FontWeight.Black, fontSize = 22.sp, letterSpacing = AppDimens.LetterSpacing.spaced)
         }
 
-        // ── Secondary actions — visually subordinate ─────────────────────
+        // â”€â”€ Secondary actions â€” visually subordinate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         Row(
@@ -565,7 +564,7 @@ internal fun SetReadyContent(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 ),
             ) {
-                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next), modifier = Modifier.size(AppDimens.Icon.sm))
+                Icon(AppIcons.SkipNext, contentDescription = stringResource(R.string.cd_skip_next), modifier = Modifier.size(AppDimens.Icon.sm))
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Skip Set", fontWeight = FontWeight.Normal, fontSize = 13.sp)
             }
@@ -577,7 +576,7 @@ internal fun SetReadyContent(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 ),
             ) {
-                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_skip_next), modifier = Modifier.size(AppDimens.Icon.sm))
+                Icon(AppIcons.SkipNext, contentDescription = stringResource(R.string.cd_skip_next), modifier = Modifier.size(AppDimens.Icon.sm))
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Skip Exercise", fontWeight = FontWeight.Normal, fontSize = 13.sp)
             }
@@ -590,7 +589,7 @@ internal fun SetReadyContent(
                 contentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
             ),
         ) {
-            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.sm))
+            Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.sm))
             Spacer(Modifier.width(AppDimens.Spacing.xs))
             Text("Add Set", fontWeight = FontWeight.Medium, fontSize = 13.sp)
         }
@@ -604,7 +603,7 @@ internal fun SetReadyContent(
                     contentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             ) {
-                Icon(Icons.Default.CheckCircle, contentDescription = "Finish", modifier = Modifier.size(AppDimens.Icon.sm))
+                Icon(AppIcons.CheckCircle, contentDescription = "Finish", modifier = Modifier.size(AppDimens.Icon.sm))
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text("Finish Workout", fontWeight = FontWeight.Medium)
             }

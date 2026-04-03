@@ -19,8 +19,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,6 +47,7 @@ import com.google.zxing.NotFoundException
 import com.google.zxing.common.HybridBinarizer
 import java.util.concurrent.Executors
 import androidx.compose.ui.res.stringResource
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
  * Full-screen QR scanner composable.
@@ -135,7 +134,7 @@ fun QrScannerView(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "Close scanner", tint = Color.White)
+                Icon(AppIcons.Close, contentDescription = "Close scanner", tint = Color.White)
             }
             Text(stringResource(R.string.sync_scan_qr),
                 color = Color.White,
@@ -146,7 +145,7 @@ fun QrScannerView(
     }
 }
 
-// ── Camera preview + ZXing image analysis ────────────────────────────────────
+// â”€â”€ Camera preview + ZXing image analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
@@ -198,7 +197,7 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
                         preview,
                         imageAnalysis,
                     )
-                } catch (_: Exception) { /* camera bind failure — surface may be detached */ }
+                } catch (_: Exception) { /* camera bind failure â€” surface may be detached */ }
             }, ContextCompat.getMainExecutor(ctx))
             previewView
         },
@@ -206,7 +205,7 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
     )
 }
 
-// ── Dark-edges scanning overlay ───────────────────────────────────────────────
+// â”€â”€ Dark-edges scanning overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun ScannerOverlay() {
@@ -230,7 +229,7 @@ private fun ScannerOverlay() {
             cornerRadius = CornerRadius(12.dp.toPx()),
         )
 
-        // Accent corners — top-left
+        // Accent corners â€” top-left
         val cornerLen = squareSide * 0.12f
         val strokePx = 4.dp.toPx()
         val r = 12.dp.toPx()
@@ -266,7 +265,7 @@ private fun ScannerOverlay() {
     }
 }
 
-// ── ZXing image analyser ──────────────────────────────────────────────────────
+// â”€â”€ ZXing image analyser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private class ZXingQrAnalyzer(private val onResult: (String) -> Unit) : ImageAnalysis.Analyzer {
 
@@ -296,9 +295,9 @@ private class ZXingQrAnalyzer(private val onResult: (String) -> Unit) : ImageAna
             val result = reader.decodeWithState(bitmap)
             onResult(result.text)
         } catch (_: NotFoundException) {
-            // No QR code in this frame — normal, just keep trying
+            // No QR code in this frame â€” normal, just keep trying
         } catch (_: Exception) {
-            // Other decode errors — swallow, keep scanning
+            // Other decode errors â€” swallow, keep scanning
         } finally {
             image.close()
         }

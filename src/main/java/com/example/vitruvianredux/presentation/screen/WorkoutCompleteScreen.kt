@@ -12,8 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,8 +48,9 @@ import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-/** Workout summary screen — shown inside ExercisePlayerScreen via AnimatedContent. */
+/** Workout summary screen â€” shown inside ExercisePlayerScreen via AnimatedContent. */
 @Composable
 fun WorkoutCompleteContent(
     stats: WorkoutStats,
@@ -70,7 +69,7 @@ fun WorkoutCompleteContent(
     val ext = LocalExtendedColors.current
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
 
-    // ── Confetti animation state ──────────────────────────────────────────
+    // â”€â”€ Confetti animation state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val confettiProgress = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         confettiProgress.animateTo(1f, tween(durationMillis = 2000, easing = LinearEasing))
@@ -96,7 +95,7 @@ fun WorkoutCompleteContent(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // ── Confetti canvas layer ─────────────────────────────────────────
+        // â”€â”€ Confetti canvas layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Canvas(modifier = Modifier.fillMaxSize()) {
             val t = confettiProgress.value
             val fadeOut = if (t > 0.7f) 1f - ((t - 0.7f) / 0.3f) else 1f
@@ -122,7 +121,7 @@ fun WorkoutCompleteContent(
     ) {
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
-        // ── Trophy + headline ─────────────────────────────────────────────────
+        // â”€â”€ Trophy + headline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         val trophyScale = remember { Animatable(0f) }
         LaunchedEffect(Unit) {
             trophyScale.animateTo(
@@ -131,7 +130,7 @@ fun WorkoutCompleteContent(
             )
         }
         Icon(
-            imageVector        = Icons.Default.EmojiEvents,
+            imageVector        = AppIcons.EmojiEvents,
             contentDescription = stringResource(R.string.cd_trophy),
             modifier           = Modifier
                 .size(AppDimens.Icon.hero)
@@ -155,7 +154,7 @@ fun WorkoutCompleteContent(
             )
         }
 
-        // ── PR badge ──────────────────────────────────────────────────────────
+        // â”€â”€ PR badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (prCount > 0) {
             val prReveal = remember { Animatable(0f) }
             LaunchedEffect(Unit) {
@@ -181,7 +180,7 @@ fun WorkoutCompleteContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Default.Star, contentDescription = stringResource(R.string.cd_personal_record),
+                        AppIcons.Star, contentDescription = stringResource(R.string.cd_personal_record),
                         modifier = Modifier.size(AppDimens.Icon.md),
                         tint = ext.accentAmber,
                     )
@@ -195,7 +194,7 @@ fun WorkoutCompleteContent(
             }
         }
 
-        // ── Stats grid ────────────────────────────────────────────────────────
+        // â”€â”€ Stats grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Column(
             modifier            = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
@@ -205,7 +204,7 @@ fun WorkoutCompleteContent(
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 StatTile(
-                    icon  = Icons.Default.Repeat,
+                    icon  = AppIcons.Repeat,
                     label = stringResource(R.string.complete_total_reps),
                     value = "${stats.totalReps}",
                     unit  = "reps",
@@ -213,7 +212,7 @@ fun WorkoutCompleteContent(
                     animDelay = 100,
                 )
                 StatTile(
-                    icon  = Icons.Default.FitnessCenter,
+                    icon  = AppIcons.FitnessCenter,
                     label = stringResource(R.string.complete_total_volume),
                     value = UnitConversions.formatVolumeFromKg(stats.totalVolumeKg.toDouble(), unitSystem),
                     unit  = UnitConversions.unitLabel(unitSystem),
@@ -226,7 +225,7 @@ fun WorkoutCompleteContent(
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 StatTile(
-                    icon  = Icons.Default.Timer,
+                    icon  = AppIcons.Timer,
                     label = stringResource(R.string.session_stat_duration),
                     value = formatDuration(stats.durationSec),
                     unit  = "min:sec",
@@ -234,7 +233,7 @@ fun WorkoutCompleteContent(
                     animDelay = 300,
                 )
                 StatTile(
-                    icon  = Icons.Default.Layers,
+                    icon  = AppIcons.Layers,
                     label = stringResource(R.string.complete_total_sets),
                     value = "${stats.totalSets}",
                     unit  = "sets",
@@ -247,7 +246,7 @@ fun WorkoutCompleteContent(
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 StatTile(
-                    icon  = Icons.Default.BarChart,
+                    icon  = AppIcons.BarChart,
                     label = stringResource(R.string.complete_heaviest),
                     value = "${stats.heaviestLiftLb}",
                     unit  = "lb/cable",
@@ -255,9 +254,9 @@ fun WorkoutCompleteContent(
                     animDelay = 500,
                 )
                 StatTile(
-                    icon  = Icons.Default.Stars,
+                    icon  = AppIcons.Stars,
                     label = stringResource(R.string.complete_quality),
-                    value = avgQualityScore?.toString() ?: "—",
+                    value = avgQualityScore?.toString() ?: "â€”",
                     unit  = when {
                         avgQualityScore == null -> ""
                         avgQualityScore >= 90  -> "Perfect"
@@ -271,7 +270,7 @@ fun WorkoutCompleteContent(
             }
         }
 
-        // ── Muscle-group tags (just-lift sessions only) ──────────────────────
+        // â”€â”€ Muscle-group tags (just-lift sessions only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (isJustLift) {
             val muscleGroups = listOf("Chest", "Back", "Shoulders", "Arms", "Legs", "Core", "Full Body")
             Text(
@@ -299,7 +298,7 @@ fun WorkoutCompleteContent(
             Spacer(Modifier.height(AppDimens.Spacing.sm))
         }
 
-        // ── Workout notes ─────────────────────────────────────────────────────
+        // â”€â”€ Workout notes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         OutlinedTextField(
             value = notes,
             onValueChange = onNotesChange,
@@ -311,7 +310,7 @@ fun WorkoutCompleteContent(
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         )
 
-        // ── Action buttons ──────────────────────────────────────────────────
+        // â”€â”€ Action buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Button(
             onClick   = onSaveAndExit,
             modifier  = Modifier
@@ -323,7 +322,7 @@ fun WorkoutCompleteContent(
                 contentColor   = cs.onPrimary,
             ),
         ) {
-            Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save), modifier = Modifier.size(AppDimens.Icon.md))
+            Icon(AppIcons.Save, contentDescription = stringResource(R.string.cd_save), modifier = Modifier.size(AppDimens.Icon.md))
             Spacer(Modifier.width(AppDimens.Spacing.sm))
             Text(
                 text       = "Done",

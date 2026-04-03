@@ -11,10 +11,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import kotlinx.coroutines.launch
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private data class OnboardingPage(
     val icon: ImageVector,
@@ -44,30 +41,30 @@ private data class OnboardingPage(
 
 private val PAGES = listOf(
     OnboardingPage(
-        icon        = Icons.Default.Bluetooth,
+        icon        = AppIcons.Bluetooth,
         title       = "Connect Your Trainer",
         subtitle    = "Pair your Vitruvian via Bluetooth for real-time rep tracking, force feedback, and intelligent load control.",
         accentColor = BrandCyan,
         tag         = "HARDWARE",
     ),
     OnboardingPage(
-        icon        = Icons.Default.Sync,
+        icon        = AppIcons.Sync,
         title       = "Track Every Rep",
-        subtitle    = "Every set is stored automatically — review history, spot trends, and share progress with your trainer.",
+        subtitle    = "Every set is stored automatically â€” review history, spot trends, and share progress with your trainer.",
         accentColor = AccentCyan,
         tag         = "CONNECTIVITY",
     ),
     OnboardingPage(
-        icon        = Icons.Default.FitnessCenter,
+        icon        = AppIcons.FitnessCenter,
         title       = "Choose Your Style",
-        subtitle    = "From beginner programs to advanced progressive overload — pick your training mode and let the Trainer adapt.",
+        subtitle    = "From beginner programs to advanced progressive overload â€” pick your training mode and let the Trainer adapt.",
         accentColor = AccentAmber,
         tag         = "PERFORMANCE",
     ),
 )
 
 /**
- * Premium first-run onboarding — 3-page pager with per-page entrance animations.
+ * Premium first-run onboarding â€” 3-page pager with per-page entrance animations.
  * Dismissed with [onComplete], which the caller marks as seen in SharedPreferences.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -92,7 +89,7 @@ fun OnboardingScreen(
                 )
             ),
     ) {
-        // ── Subtle accent glow at top ─────────────────────────────────
+        // â”€â”€ Subtle accent glow at top â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         val glowColor = PAGES[currentPage].accentColor
         Box(
             modifier = Modifier
@@ -117,7 +114,7 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // ── Step counter ──────────────────────────────────────────
+            // â”€â”€ Step counter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Spacer(Modifier.height(AppDimens.Spacing.xl))
             Text(
                 text = "${currentPage + 1} / ${PAGES.size}",
@@ -127,7 +124,7 @@ fun OnboardingScreen(
                 letterSpacing = AppDimens.LetterSpacing.spaced,
             )
 
-            // ── Page content ──────────────────────────────────────────
+            // â”€â”€ Page content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -140,7 +137,7 @@ fun OnboardingScreen(
                 )
             }
 
-            // ── Pill indicator ────────────────────────────────────────
+            // â”€â”€ Pill indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.lg),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
@@ -165,7 +162,7 @@ fun OnboardingScreen(
                 }
             }
 
-            // ── Primary CTA ───────────────────────────────────────────
+            // â”€â”€ Primary CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             val isLastPage = currentPage == PAGES.lastIndex
             Button(
                 onClick = {
@@ -190,7 +187,7 @@ fun OnboardingScreen(
                 )
             }
 
-            // ── Skip ──────────────────────────────────────────────────
+            // â”€â”€ Skip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (!isLastPage) {
                 TextButton(
                     onClick = onComplete,
@@ -300,7 +297,7 @@ private fun OnboardingPageContent(
 
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
-        // Title — full opacity, high weight
+        // Title â€” full opacity, high weight
         Text(
             text       = page.title,
             style      = MaterialTheme.typography.headlineMedium,
@@ -311,7 +308,7 @@ private fun OnboardingPageContent(
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
-        // Subtitle — fixed to 0.85f for actual readability in dark mode
+        // Subtitle â€” fixed to 0.85f for actual readability in dark mode
         Text(
             text       = page.subtitle,
             style      = MaterialTheme.typography.bodyLarge,
@@ -321,4 +318,3 @@ private fun OnboardingPageContent(
         )
     }
 }
-

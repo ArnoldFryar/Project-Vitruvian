@@ -10,9 +10,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import com.vitruvian.trainer.BuildConfig
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,6 +33,7 @@ import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.UnitConversions
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE, PAUSED }
 
@@ -57,7 +55,7 @@ fun ExercisePlayerScreen(
     val machineUpdateState by workoutVM.machineUpdateState.collectAsState()
     val phase = sessionState.sessionPhase
 
-    // ── Local player UI state ─────────────────────────────────────────────────
+    // â”€â”€ Local player UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var selectedTab    by rememberSaveable { mutableIntStateOf(0) }
     var isRepsMode     by rememberSaveable { mutableStateOf(true) }
     var targetReps     by rememberSaveable { mutableIntStateOf(10) }
@@ -87,7 +85,7 @@ fun ExercisePlayerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // ── Sync local steppers from program set when a new set launches ─────────
+    // â”€â”€ Sync local steppers from program set when a new set launches â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // This keeps the bottom-sheet controls in sync with the active program values
     // (e.g. the program says 6 reps but the local default was 10).
     LaunchedEffect(phase) {
@@ -174,15 +172,15 @@ fun ExercisePlayerScreen(
                         if (phase is SessionPhase.ExerciseActive) workoutVM.panicStop()
                         onBack()
                     }) {
-                        Icon(Icons.Default.Close, contentDescription = "Back")
+                        Icon(AppIcons.Close, contentDescription = "Back")
                     }
                 },
                 actions = {
                     IconButton(onClick = { isMuted = !isMuted; workoutVM.soundEnabled.value = !isMuted; WiringRegistry.hit(A_PLAYER_MUTE); WiringRegistry.recordOutcome(A_PLAYER_MUTE, ActualOutcome.StateChanged(if (isMuted) "muted" else "unmuted")) }) {
-                        Icon(if (isMuted) Icons.Default.VolumeOff else Icons.Outlined.VolumeUp, contentDescription = if (isMuted) "Unmute" else "Mute")
+                        Icon(if (isMuted) AppIcons.VolumeOff else AppIcons.VolumeUp, contentDescription = if (isMuted) "Unmute" else "Mute")
                     }
                     IconButton(onClick = { isFavourite = !isFavourite; WiringRegistry.hit(A_PLAYER_FAVOURITE); WiringRegistry.recordOutcome(A_PLAYER_FAVOURITE, ActualOutcome.StateChanged(if (isFavourite) "favourited" else "unfavourited")) }) {
-                        Icon(if (isFavourite) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder, contentDescription = if (isFavourite) "Unfavourite" else "Favourite", tint = if (isFavourite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(if (isFavourite) AppIcons.Favorite else AppIcons.FavoriteBorder, contentDescription = if (isFavourite) "Unfavourite" else "Favourite", tint = if (isFavourite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -234,10 +232,10 @@ fun ExercisePlayerScreen(
                 PlayerView.WORKOUT_COMPLETE -> {
                     val completePhase = phase as? SessionPhase.WorkoutComplete
                     if (completePhase != null) {
-                        // ── Passive session recording (fires exactly once per session) ──
+                        // â”€â”€ Passive session recording (fires exactly once per session) â”€â”€
                         // LaunchedEffect is keyed on completePhase so it re-fires only when
                         // a new WorkoutComplete phase object arrives. Never touches BLE or
-                        // rep-detection code — purely reads the final stats and writes to DB.
+                        // rep-detection code â€” purely reads the final stats and writes to DB.
                         LaunchedEffect(completePhase) {
                             WorkoutSessionRecorder.record(
                                 stats       = completePhase.workoutStats,

@@ -12,11 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +37,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
 fun DebugScreen(
@@ -72,7 +68,7 @@ fun DebugScreen(
                 bottom = innerPadding.calculateBottomPadding(),
             ),
     ) {
-        // ── Header ────────────────────────────────────────────────────
+        // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Surface(tonalElevation = AppDimens.Elevation.card) {
             Column(
                 modifier = Modifier
@@ -86,14 +82,14 @@ fun DebugScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                     Text(text = stringResource(R.string.screen_title_ble_debug),
                         style      = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                     )
                     IconButton(onClick = { BleDebugLog.clear() }) {
-                        Icon(Icons.Default.ClearAll, contentDescription = "Clear log")
+                        Icon(AppIcons.ClearAll, contentDescription = "Clear log")
                     }
                 }
 
@@ -104,11 +100,11 @@ fun DebugScreen(
                 ) {
                     StatusChip(
                         label = when (bleState) {
-                            is BleConnectionState.Connected    -> "● ${(bleState as BleConnectionState.Connected).device.name}"
-                            is BleConnectionState.Connecting   -> "◌ Connecting…"
-                            is BleConnectionState.Scanning     -> "◌ Scanning…"
-                            is BleConnectionState.Disconnected -> "○ Disconnected"
-                            is BleConnectionState.Error        -> "✕ ${(bleState as BleConnectionState.Error).message}"
+                            is BleConnectionState.Connected    -> "â— ${(bleState as BleConnectionState.Connected).device.name}"
+                            is BleConnectionState.Connecting   -> "â—Œ Connectingâ€¦"
+                            is BleConnectionState.Scanning     -> "â—Œ Scanningâ€¦"
+                            is BleConnectionState.Disconnected -> "â—‹ Disconnected"
+                            is BleConnectionState.Error        -> "âœ• ${(bleState as BleConnectionState.Error).message}"
                         },
                         containerColor = if (isConnected)
                             MaterialTheme.colorScheme.primaryContainer
@@ -121,7 +117,7 @@ fun DebugScreen(
                     )
                 }
 
-                // ── Action buttons ────────────────────────────────────
+                // â”€â”€ Action buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -156,7 +152,7 @@ fun DebugScreen(
                     ) {
                         workoutVM.resetDevice()
                     }
-                    DebugButton("SCROLL↓") {
+                    DebugButton("SCROLLâ†“") {
                         scope.launch {
                             if (logEntries.isNotEmpty())
                                 listState.animateScrollToItem(logEntries.size - 1)
@@ -174,12 +170,12 @@ fun DebugScreen(
 
         Divider()
 
-        // ── Analytics Provenance ─────────────────────────────────
+        // â”€â”€ Analytics Provenance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         AnalyticsProvenanceSection()
 
         Divider()
 
-        // ── Log list ──────────────────────────────────────────────────
+        // â”€â”€ Log list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (logEntries.isEmpty()) {
             Box(
                 modifier         = Modifier.fillMaxSize(),
@@ -205,7 +201,7 @@ fun DebugScreen(
     }
 }
 
-// ─── Log row ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Log row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun BleLogRow(entry: BleDebugLog.Entry) {
@@ -215,7 +211,7 @@ private fun BleLogRow(entry: BleDebugLog.Entry) {
     else
         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
 
-    val dirIcon  = if (isTx) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward
+    val dirIcon  = if (isTx) AppIcons.ArrowUpward else AppIcons.ArrowDownward
     val dirColor = if (isTx) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
     val timeStr  = remember(entry.timestampMs) {
         DateTimeFormatter.ofPattern("HH:mm:ss.SS")
@@ -281,7 +277,7 @@ private fun BleLogRow(entry: BleDebugLog.Entry) {
     }
 }
 
-// ─── Small helpers ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Small helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun DebugButton(
@@ -317,7 +313,7 @@ private fun StatusChip(label: String, containerColor: Color) {
     }
 }
 
-// ── Analytics Provenance diagnostic section ──────────────────────────────────
+// â”€â”€ Analytics Provenance diagnostic section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun AnalyticsProvenanceSection() {
@@ -383,7 +379,7 @@ private fun AnalyticsProvenanceSection() {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "●",
+                            text = "â—",
                             color = confidenceColor,
                             fontSize = 10.sp,
                         )
@@ -411,7 +407,7 @@ private fun AnalyticsProvenanceSection() {
                     )
                     for ((a, b) in dupes) {
                         Text(
-                            text = "  ${a.id.take(8)}… ↔ ${b.id.take(8)}… (${a.totalReps} reps, ${a.durationSec}s)",
+                            text = "  ${a.id.take(8)}â€¦ â†” ${b.id.take(8)}â€¦ (${a.totalReps} reps, ${a.durationSec}s)",
                             style = MaterialTheme.typography.labelSmall,
                             fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.error,

@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,8 +44,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ── Step model ────────────────────────────────────────────────────────────────
+// â”€â”€ Step model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private enum class StepStatus { OK, WAITING, FAILED, FIXING }
 
@@ -60,7 +59,7 @@ private data class WizardStep(
     val onFix: (() -> Unit)? = null,
 )
 
-// ── Auto-repair state ─────────────────────────────────────────────────────────
+// â”€â”€ Auto-repair state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private sealed class AutoRepairState {
     object Idle : AutoRepairState()
@@ -69,7 +68,7 @@ private sealed class AutoRepairState {
     data class Failure(val reason: String) : AutoRepairState()
 }
 
-// ── Main screen ───────────────────────────────────────────────────────────────
+// â”€â”€ Main screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 fun DeviceRepairScreen(
@@ -128,7 +127,7 @@ fun DeviceRepairScreen(
     var autoRepairState by remember { mutableStateOf<AutoRepairState>(AutoRepairState.Idle) }
     val isRepairing = autoRepairState is AutoRepairState.Running
 
-    // ── Derived step statuses ─────────────────────────────────────────────────
+    // â”€â”€ Derived step statuses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     val btEnabled    = bleVM.isBluetoothEnabled
     val isConnected  = bleState is BleConnectionState.Connected
@@ -177,7 +176,7 @@ fun DeviceRepairScreen(
                 isConnected  -> (bleState as BleConnectionState.Connected).device.let { "${it.name} (${it.address})" }
                 isConnecting -> "Connecting..."
                 capturedLastDevice != null -> "Last: ${capturedLastDevice.name} (${capturedLastDevice.address})"
-                else         -> "No device — scan first"
+                else         -> "No device â€” scan first"
             },
             status   = when {
                 isConnected  -> StepStatus.OK
@@ -210,7 +209,7 @@ fun DeviceRepairScreen(
             title    = stringResource(R.string.repair_services),
             detail   = when {
                 writeChar    -> "NUS write characteristic cached"
-                isConnected  -> "Services not found — try reconnecting"
+                isConnected  -> "Services not found â€” try reconnecting"
                 isConnecting -> "Waiting for service discovery..."
                 else         -> "Not connected"
             },
@@ -241,7 +240,7 @@ fun DeviceRepairScreen(
             title    = stringResource(R.string.repair_notifications),
             detail   = when {
                 notifyOn     -> "All CCCD descriptors written"
-                writeChar    -> "Write char ready — re-subscribing..."
+                writeChar    -> "Write char ready â€” re-subscribing..."
                 isConnected  -> "Connected but notifications missing"
                 else         -> "Not connected"
             },
@@ -268,7 +267,7 @@ fun DeviceRepairScreen(
                 diag.lastRxAt > 0L ->
                     "Last RX ${((nowMs - diag.lastRxAt) / 1_000L)}s ago (stale)"
                 diag.notifyEnabled ->
-                    "Ready — start an exercise or ping below"
+                    "Ready â€” start an exercise or ping below"
                 else ->
                     "Not receiving notifications"
             },
@@ -287,7 +286,7 @@ fun DeviceRepairScreen(
         ),
     )
 
-    // ── UI ────────────────────────────────────────────────────────────────────
+    // â”€â”€ UI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     Scaffold(
         topBar = {
@@ -295,7 +294,7 @@ fun DeviceRepairScreen(
                 title = { Text(stringResource(R.string.screen_title_connection_repair), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
                     }
                 },
             )
@@ -310,18 +309,18 @@ fun DeviceRepairScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
         ) {
 
-            // ── Overall health card ───────────────────────────────────────────
+            // â”€â”€ Overall health card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 val allOk = steps.all { it.status == StepStatus.OK }
                 OverallHealthCard(allOk = allOk, repairing = isRepairing, autoRepairState = autoRepairState)
             }
 
-            // ── Step cards ────────────────────────────────────────────────────
+            // â”€â”€ Step cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             items(steps, key = { it.number }) { step ->
                 RepairStepCard(step = step, enabled = !isRepairing)
             }
 
-            // ── Auto-repair button ────────────────────────────────────────────
+            // â”€â”€ Auto-repair button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 val lastAddr = capturedLastDevice?.address
                     ?: (bleState as? BleConnectionState.Connected)?.device?.address
@@ -346,7 +345,7 @@ fun DeviceRepairScreen(
                 )
             }
 
-            // ── Recent event log ──────────────────────────────────────────────
+            // â”€â”€ Recent event log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 Text(text = stringResource(R.string.repair_recent_events),
                     style    = MaterialTheme.typography.labelMedium,
@@ -374,7 +373,7 @@ fun DeviceRepairScreen(
     }
 }
 
-// ── Auto-repair coroutine ─────────────────────────────────────────────────────
+// â”€â”€ Auto-repair coroutine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private suspend fun runAutoRepair(
     bleVM: BleViewModel,
@@ -390,7 +389,7 @@ private suspend fun runAutoRepair(
 
     // Step 1: Disconnect
     onStep("Disconnecting...")
-    log("start – disconnecting")
+    log("start â€“ disconnecting")
     bleVM.disconnect()
     delay(600L)
 
@@ -435,7 +434,7 @@ private suspend fun runAutoRepair(
         bleVM.diagnostics.value.notifyEnabled
     }
     if (notifyOk != true) {
-        log("notifications not enabled – trying re-subscribe")
+        log("notifications not enabled â€“ trying re-subscribe")
         bleVM.reEnableNotifications()
         delay(3_000L)
         if (!bleVM.diagnostics.value.notifyEnabled) {
@@ -462,15 +461,15 @@ private suspend fun runAutoRepair(
     } == true
 
     if (gotRx) {
-        log("SUCCESS – telemetry received")
+        log("SUCCESS â€“ telemetry received")
         onSuccess("Trainer is ready! Telemetry is live.")
     } else {
-        log("SUCCESS (no telemetry yet – normal when not exercising)")
+        log("SUCCESS (no telemetry yet â€“ normal when not exercising)")
         onSuccess("Connected and ready. Telemetry will start on exercise play.")
     }
 }
 
-// ── Composables ───────────────────────────────────────────────────────────────
+// â”€â”€ Composables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun OverallHealthCard(
@@ -484,9 +483,9 @@ private fun OverallHealthCard(
         else        -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
     }
     val icon = when {
-        repairing  -> Icons.Default.Sync
-        allOk      -> Icons.Default.CheckCircle
-        else       -> Icons.Default.Warning
+        repairing  -> AppIcons.Sync
+        allOk      -> AppIcons.CheckCircle
+        else       -> AppIcons.Warning
     }
     val headline = when {
         repairing                              -> "Repair in progress..."
@@ -531,10 +530,10 @@ private fun OverallHealthCard(
 @Composable
 private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
     val (dotColor, statusLabel, statusIcon) = when (step.status) {
-        StepStatus.OK      -> Triple(StatusReady,        "OK",      Icons.Default.CheckCircle)
-        StepStatus.WAITING -> Triple(StatusConnecting,   "Waiting", Icons.Default.HourglassEmpty)
-        StepStatus.FAILED  -> Triple(StatusError,        "Failed",  Icons.Default.Cancel)
-        StepStatus.FIXING  -> Triple(StatusConnected,    "Fixing",  Icons.Default.Sync)
+        StepStatus.OK      -> Triple(StatusReady,        "OK",      AppIcons.CheckCircle)
+        StepStatus.WAITING -> Triple(StatusConnecting,   "Waiting", AppIcons.HourglassEmpty)
+        StepStatus.FAILED  -> Triple(StatusError,        "Failed",  AppIcons.Cancel)
+        StepStatus.FIXING  -> Triple(StatusConnected,    "Fixing",  AppIcons.Sync)
     }
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -610,7 +609,7 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
                     modifier = Modifier.height(AppDimens.Component.buttonHeightCompact),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
                 ) {
-                    Icon(Icons.Default.Build, contentDescription = stringResource(R.string.cd_device_repair),
+                    Icon(AppIcons.Build, contentDescription = stringResource(R.string.cd_device_repair),
                         modifier = Modifier.size(AppDimens.Icon.sm))
                     Spacer(Modifier.width(AppDimens.Spacing.xs))
                     Text(step.fixLabel, style = MaterialTheme.typography.labelMedium)
@@ -638,7 +637,7 @@ private fun AutoRepairCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-                Icon(Icons.Default.Build, contentDescription = stringResource(R.string.cd_device_repair),
+                Icon(AppIcons.Build, contentDescription = stringResource(R.string.cd_device_repair),
                     tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
                 Text(stringResource(R.string.repair_auto_repair), fontWeight = FontWeight.SemiBold,
                      style = MaterialTheme.typography.titleSmall)
@@ -670,7 +669,7 @@ private fun AutoRepairCard(
                         Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
                         Text("Repairing...")
                     } else {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh), modifier = Modifier.size(AppDimens.Icon.md))
+                        Icon(AppIcons.Refresh, contentDescription = stringResource(R.string.cd_refresh), modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
                         Text(stringResource(R.string.repair_repair_now), fontWeight = FontWeight.Bold)
                     }

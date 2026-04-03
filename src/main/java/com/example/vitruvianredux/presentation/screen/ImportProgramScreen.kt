@@ -11,8 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,13 +31,14 @@ import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.presentation.util.loadExercises
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
  * Full-screen import preview & confirmation UI.
  *
  * Entry points:
  * - `initialJson` from share-sheet / intent
- * - Empty string → shows paste-JSON field
+ * - Empty string â†’ shows paste-JSON field
  *
  * This screen creates **no** BLE objects and modifies **no** session/engine files.
  */
@@ -49,7 +48,7 @@ fun ImportProgramScreen(
     onBack: () -> Unit = {},
     onImportComplete: (programId: String) -> Unit = {},
 ) {
-    // ── State ────────────────────────────────────────────────────────────────
+    // â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var rawJson by remember { mutableStateOf(initialJson) }
     var parseResult by remember { mutableStateOf<ImportParseResult?>(null) }
     var resolvedPrograms by remember { mutableStateOf<List<ProgramImporter.ResolvedProgram>>(emptyList()) }
@@ -91,7 +90,7 @@ fun ImportProgramScreen(
                 title = { Text(stringResource(R.string.programs_import_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(AppIcons.ArrowBack, "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -161,7 +160,7 @@ fun ImportProgramScreen(
         }
     }
 
-    // ── Disambiguation dialog ────────────────────────────────────────────────
+    // â”€â”€ Disambiguation dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     disambiguating?.let { state ->
         AlertDialog(
             onDismissRequest = { disambiguating = null },
@@ -187,7 +186,7 @@ fun ImportProgramScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                                AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(AppDimens.Icon.lg),
                             )
@@ -212,7 +211,7 @@ fun ImportProgramScreen(
         )
     }
 
-    // ── Overwrite confirmation dialog ────────────────────────────────────────
+    // â”€â”€ Overwrite confirmation dialog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     showOverwriteDialog?.let { prompt ->
         AlertDialog(
             onDismissRequest = { showOverwriteDialog = null },
@@ -265,7 +264,7 @@ fun ImportProgramScreen(
     }
 }
 
-// ── Private data classes ────────────────────────────────────────────────────
+// â”€â”€ Private data classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 private data class DisambiguationState(
     val programIndex: Int,
@@ -278,7 +277,7 @@ private data class OverwritePrompt(
     val existing: SavedProgram,
 )
 
-// ── Sub-composables ─────────────────────────────────────────────────────────
+// â”€â”€ Sub-composables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
 private fun PasteInputContent(
@@ -311,7 +310,7 @@ private fun PasteInputContent(
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
+                    Icon(AppIcons.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
                 }
                 Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                 Column {
@@ -349,7 +348,7 @@ private fun PasteInputContent(
                 modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.medium,
             ) {
-                Icon(Icons.Default.ContentPaste, contentDescription = stringResource(R.string.cd_import), modifier = Modifier.size(AppDimens.Icon.md))
+                Icon(AppIcons.ContentPaste, contentDescription = stringResource(R.string.cd_import), modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
                 Text(stringResource(R.string.common_paste))
             }
@@ -360,7 +359,7 @@ private fun PasteInputContent(
                 shape = MaterialTheme.shapes.medium,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.md))
+                Icon(AppIcons.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
                 Text(stringResource(R.string.common_preview))
             }
@@ -402,7 +401,7 @@ private fun PreviewContent(
                             .background(Success.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.cd_check), tint = Success, modifier = Modifier.size(AppDimens.Icon.lg))
+                        Icon(AppIcons.CheckCircle, contentDescription = stringResource(R.string.cd_check), tint = Success, modifier = Modifier.size(AppDimens.Icon.lg))
                     }
                     Spacer(Modifier.width(AppDimens.Spacing.md_sm))
                     Column {
@@ -451,7 +450,7 @@ private fun PreviewContent(
                         modifier = Modifier.padding(AppDimens.Spacing.md_sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.cd_warning), tint = Warning, modifier = Modifier.size(AppDimens.Icon.md))
+                        Icon(AppIcons.Warning, contentDescription = stringResource(R.string.cd_warning), tint = Warning, modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
                         Text(stringResource(R.string.import_ambiguous_warning),
                             style = MaterialTheme.typography.bodySmall,
@@ -469,7 +468,7 @@ private fun PreviewContent(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 enabled = allResolved,
             ) {
-                Icon(Icons.Default.Download, contentDescription = stringResource(R.string.cd_download), modifier = Modifier.size(AppDimens.Icon.md))
+                Icon(AppIcons.Download, contentDescription = stringResource(R.string.cd_download), modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(AppDimens.Spacing.sm))
                 Text(
                     "Import ${resolvedPrograms.size} Program${if (resolvedPrograms.size > 1) "s" else ""}",
@@ -502,7 +501,7 @@ private fun ProgramPreviewCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
+                AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(AppDimens.Icon.xl),
             )
@@ -516,7 +515,7 @@ private fun ProgramPreviewCard(
                 )
             }
             Icon(
-                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                if (expanded) AppIcons.ExpandLess else AppIcons.ExpandMore,
                 null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -563,10 +562,10 @@ private fun ExercisePreviewRow(
         else -> "New"
     }
     val matchIcon = when {
-        resolved.selectedExercise != null -> Icons.Default.CheckCircle
-        resolved.match is ProgramImporter.ExerciseMatch.Exact -> Icons.Default.CheckCircle
-        resolved.match is ProgramImporter.ExerciseMatch.Ambiguous -> Icons.Default.Help
-        else -> Icons.Default.Add
+        resolved.selectedExercise != null -> AppIcons.CheckCircle
+        resolved.match is ProgramImporter.ExerciseMatch.Exact -> AppIcons.CheckCircle
+        resolved.match is ProgramImporter.ExerciseMatch.Ambiguous -> AppIcons.Help
+        else -> AppIcons.Add
     }
 
     Row(
@@ -592,13 +591,13 @@ private fun ExercisePreviewRow(
                 overflow = TextOverflow.Ellipsis,
             )
             val summary = buildString {
-                append("${resolved.imported.sets}×")
+                append("${resolved.imported.sets}Ã—")
                 when (resolved.imported.mode) {
                     ExerciseMode.REPS -> append("${resolved.imported.reps ?: "-"} reps")
                     ExerciseMode.TIME -> append("${resolved.imported.durationSec ?: "-"}s")
                 }
-                append(" · ${resolved.imported.targetWeightLb} lb")
-                append(" · ${resolved.imported.restTimerSec}s rest")
+                append(" Â· ${resolved.imported.targetWeightLb} lb")
+                append(" Â· ${resolved.imported.restTimerSec}s rest")
             }
             Text(
                 summary,
@@ -648,7 +647,7 @@ private fun ErrorContent(
                 .background(MaterialTheme.colorScheme.error.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.ErrorOutline, contentDescription = stringResource(R.string.cd_warning), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(AppDimens.Icon.xl))
+            Icon(AppIcons.ErrorOutline, contentDescription = stringResource(R.string.cd_warning), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(AppDimens.Icon.xl))
         }
         Spacer(Modifier.height(AppDimens.Spacing.md))
         Text(stringResource(R.string.import_failed_headline), fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -664,7 +663,7 @@ private fun ErrorContent(
             onClick = onRetry,
             shape = MaterialTheme.shapes.medium,
         ) {
-            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh), modifier = Modifier.size(AppDimens.Icon.md))
+            Icon(AppIcons.Refresh, contentDescription = stringResource(R.string.cd_refresh), modifier = Modifier.size(AppDimens.Icon.md))
             Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
             Text(stringResource(R.string.common_try_again))
         }
@@ -691,7 +690,7 @@ private fun ImportSuccessContent(
                 .background(Success.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.cd_check), tint = Success, modifier = Modifier.size(40.dp))
+            Icon(AppIcons.CheckCircle, contentDescription = stringResource(R.string.cd_check), tint = Success, modifier = Modifier.size(40.dp))
         }
         Spacer(Modifier.height(AppDimens.Spacing.md))
         Text(stringResource(R.string.import_complete_headline), fontWeight = FontWeight.Bold, fontSize = 20.sp)

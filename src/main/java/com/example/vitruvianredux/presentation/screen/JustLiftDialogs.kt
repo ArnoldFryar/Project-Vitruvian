@@ -7,8 +7,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,10 +22,11 @@ import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.util.UnitConversions
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.components.DialogContainer
+import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Reusable settings row
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @Composable
 internal fun SettingsRow(
     icon: ImageVector,
@@ -66,9 +65,9 @@ internal fun SettingsRow(
     }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Mode picker dialog
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @Composable
 internal fun ModePickerDialog(
     current: JustLiftMode,
@@ -98,16 +97,16 @@ internal fun ModePickerDialog(
                                 }
                             }
                         }
-                        if (mode == current) Icon(Icons.Default.Check, contentDescription = "Selected", tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
+                        if (mode == current) Icon(AppIcons.Check, contentDescription = "Selected", tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (mode != JustLiftMode.entries.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Eccentric Load picker dialog
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @Composable
 internal fun EccentricPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
@@ -124,16 +123,16 @@ internal fun EccentricPickerDialog(current: Int, onSelect: (Int) -> Unit, onDism
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("$pct%", color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (pct == current) Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
+                        if (pct == current) Icon(AppIcons.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (pct != options.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Level picker dialog
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @Composable
 internal fun LevelPickerDialog(current: EchoLevel, onSelect: (EchoLevel) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
@@ -149,22 +148,22 @@ internal fun LevelPickerDialog(current: EchoLevel, onSelect: (EchoLevel) -> Unit
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(level.displayName, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (level == current) Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
+                        if (level == current) Icon(AppIcons.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (level != EchoLevel.entries.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Progression picker dialog (regular modes)
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @Composable
 internal fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
     val isLb = UnitsStore.current == UnitsStore.UnitSystem.IMPERIAL_LB
     val unitLabel = if (isLb) "lb" else "kg"
-    // Options stored in kg — displayed in user's preferred unit
+    // Options stored in kg â€” displayed in user's preferred unit
     val options = listOf(-10f, -5f, -2.5f, -1f, -0.5f, 0f, 0.5f, 1f, 2.5f, 5f, 10f)
     DialogContainer(onDismiss = onDismiss) {
                 Text(stringResource(R.string.justlift_progression_title), color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm))
@@ -180,16 +179,16 @@ internal fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, 
                         val displayVal = if (isLb) UnitConversions.kgToLb(v.toDouble()).toFloat() else v
                         val text = formatSignedUnitValue(displayVal, unitLabel)
                         Text(text, color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (v == current) Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
+                        if (v == current) Icon(AppIcons.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (v != options.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Rest timer picker dialog
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @Composable
 internal fun RestPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
@@ -206,16 +205,16 @@ internal fun RestPickerDialog(current: Int, onSelect: (Int) -> Unit, onDismiss: 
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(if (s == 0) "Off" else "%d:%02d".format(s / 60, s % 60), color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (s == current) Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
+                        if (s == current) Icon(AppIcons.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (s != options.last()) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
     }
 }
 
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Rep-count timing picker dialog
-// ─────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @Composable
 internal fun RepTimingPickerDialog(current: String, onSelect: (String) -> Unit, onDismiss: () -> Unit) {
     val cs = MaterialTheme.colorScheme
@@ -233,7 +232,7 @@ internal fun RepTimingPickerDialog(current: String, onSelect: (String) -> Unit, 
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(labels[idx], color = cs.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        if (opt == current) Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
+                        if (opt == current) Icon(AppIcons.Check, contentDescription = stringResource(R.string.cd_check), tint = cs.onSurface, modifier = Modifier.size(AppDimens.Icon.md))
                     }
                     if (idx < options.lastIndex) Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg), color = cs.outlineVariant)
                 }
