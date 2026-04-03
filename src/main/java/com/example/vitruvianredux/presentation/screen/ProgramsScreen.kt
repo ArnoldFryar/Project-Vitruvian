@@ -45,6 +45,10 @@ import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import kotlinx.coroutines.flow.StateFlow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextAlign
+import java.time.DayOfWeek
 
 data class ProgramDraft(val name: String, val items: List<ProgramItemDraft>)
 
@@ -149,20 +153,25 @@ fun ProgramsScreen(
                 Spacer(Modifier.height(AppDimens.Spacing.md_sm))
             }
 
-            item(key = "import") {
-                val importInteraction = remember { MutableInteractionSource() }
-                val importPressed by importInteraction.collectIsPressedAsState()
-                val importScale by animateFloatAsState(
-                    targetValue = if (importPressed) MotionTokens.PRESS_SCALE else 1f,
-                    animationSpec = MotionTokens.SnapSpring, label = "importScale",
-                )
+            item(key = "import_group") {
                 ElevatedCard(
-                    modifier = Modifier.fillMaxWidth()
-                        .graphicsLayer(scaleX = importScale, scaleY = importScale)
-                        .clickable(interactionSource = importInteraction, indication = null) { onNavigateToImport() },
+                    modifier = Modifier.fillMaxWidth(),
                     shape    = MaterialTheme.shapes.medium,
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                    val importInteraction = remember { MutableInteractionSource() }
+                    val importPressed by importInteraction.collectIsPressedAsState()
+                    val importScale by animateFloatAsState(
+                        targetValue = if (importPressed) MotionTokens.PRESS_SCALE else 1f,
+                        animationSpec = MotionTokens.SnapSpring, label = "importScale",
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer(scaleX = importScale, scaleY = importScale)
+                            .clickable(interactionSource = importInteraction, indication = null) { onNavigateToImport() }
+                            .padding(AppDimens.Spacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Icon(Icons.Default.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
                         Spacer(Modifier.width(AppDimens.Spacing.md))
                         Column(Modifier.weight(1f)) {
@@ -172,25 +181,22 @@ fun ProgramsScreen(
                         }
                         Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                }
-                Spacer(Modifier.height(AppDimens.Spacing.lg))
-            }
-
-            if (hevyEnabled) {
-                item(key = "hevy_import") {
-                    val hevyInteraction = remember { MutableInteractionSource() }
-                    val hevyPressed by hevyInteraction.collectIsPressedAsState()
-                    val hevyScale by animateFloatAsState(
-                        targetValue   = if (hevyPressed) MotionTokens.PRESS_SCALE else 1f,
-                        animationSpec = MotionTokens.SnapSpring, label = "hevyScale",
-                    )
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth()
-                            .graphicsLayer(scaleX = hevyScale, scaleY = hevyScale)
-                            .clickable(interactionSource = hevyInteraction, indication = null) { onNavigateToHevyImport() },
-                        shape    = MaterialTheme.shapes.medium,
-                    ) {
-                        Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                    if (hevyEnabled) {
+                        Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant)
+                        val hevyInteraction = remember { MutableInteractionSource() }
+                        val hevyPressed by hevyInteraction.collectIsPressedAsState()
+                        val hevyScale by animateFloatAsState(
+                            targetValue   = if (hevyPressed) MotionTokens.PRESS_SCALE else 1f,
+                            animationSpec = MotionTokens.SnapSpring, label = "hevyScale",
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer(scaleX = hevyScale, scaleY = hevyScale)
+                                .clickable(interactionSource = hevyInteraction, indication = null) { onNavigateToHevyImport() }
+                                .padding(AppDimens.Spacing.md),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             Icon(Icons.Default.CloudDownload, contentDescription = stringResource(R.string.cd_cloud_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
                             Spacer(Modifier.width(AppDimens.Spacing.md))
                             Column(Modifier.weight(1f)) {
@@ -201,15 +207,16 @@ fun ProgramsScreen(
                             Icon(Icons.Default.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    Spacer(Modifier.height(AppDimens.Spacing.lg))
                 }
+                Spacer(Modifier.height(AppDimens.Spacing.lg))
             }
 
             item(key = "programs_header") {
-                Text(stringResource(R.string.programs_your_programs),
-                    style    = MaterialTheme.typography.titleSmall,
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
+                Text(
+                    stringResource(R.string.programs_your_programs),
+                    style    = MaterialTheme.typography.labelLarge,
+                    color    = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.sm),
                 )
             }
 
@@ -302,18 +309,66 @@ fun ProgramsScreen(
                                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Default.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness), tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(AppDimens.Icon.xl))
+                            // Lettered avatar â€” color cycles through primary/secondary/tertiary
+                            val avatarPalette = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary,
+                                MaterialTheme.colorScheme.tertiary,
+                            )
+                            val avatarColor = avatarPalette[
+                                orderedPrograms.indexOf(p).coerceAtLeast(0) % avatarPalette.size
+                            ]
+                            Box(
+                                modifier = Modifier
+                                    .size(AppDimens.Icon.xl)
+                                    .background(avatarColor.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text       = p.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                    style      = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color      = avatarColor,
+                                    textAlign  = TextAlign.Center,
+                                )
+                            }
                             Spacer(Modifier.width(AppDimens.Spacing.md))
                             Column(Modifier.weight(1f)) {
                                 Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                val daysLabel = formatScheduledDays(p.scheduledDays)
+                                // Exercise name preview (up to 3, with overflow count)
+                                val exercisePreview = if (p.items.isNotEmpty())
+                                    p.items.take(3).joinToString(" Â· ") { it.exerciseName } +
+                                        if (p.items.size > 3) "  +${p.items.size - 3} more" else ""
+                                else "${p.exerciseCount} exercise${if (p.exerciseCount != 1) "s" else ""}"
                                 Text(
-                                    "${p.exerciseCount} exercise · Custom program" +
-                                        if (daysLabel.isNotEmpty()) " · $daysLabel" else "",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    exercisePreview,
+                                    style    = MaterialTheme.typography.bodySmall,
+                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
+                                // Scheduled day dots (Monâ€“Sun, 7 circles)
+                                if (p.scheduledDays.isNotEmpty()) {
+                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        listOf(
+                                            DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                                            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY,
+                                            DayOfWeek.SATURDAY, DayOfWeek.SUNDAY,
+                                        ).forEach { day ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .background(
+                                                        if (day in p.scheduledDays) avatarColor
+                                                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                                        CircleShape,
+                                                    )
+                                            )
+                                        }
+                                    }
+                                }
                             }
                             Icon(
                                 Icons.Default.DragHandle,
@@ -332,10 +387,11 @@ fun ProgramsScreen(
             item(key = "spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
 
             item(key = "templates_header") {
-                Text(stringResource(R.string.programs_templates),
-                    style    = MaterialTheme.typography.titleSmall,
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
+                Text(
+                    stringResource(R.string.programs_templates),
+                    style    = MaterialTheme.typography.labelLarge,
+                    color    = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.sm),
                 )
             }
 
