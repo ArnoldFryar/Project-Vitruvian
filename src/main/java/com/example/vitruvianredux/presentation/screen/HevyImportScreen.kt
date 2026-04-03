@@ -238,7 +238,7 @@ fun HevyImportScreen(
                                     if (savedCount > 0) {
                                         onImportComplete()
                                     } else {
-                                        importMessage = "All routines already imported â€” no new programs."
+                                        importMessage = "All routines already imported — no new programs."
                                     }
                                 }
                             }

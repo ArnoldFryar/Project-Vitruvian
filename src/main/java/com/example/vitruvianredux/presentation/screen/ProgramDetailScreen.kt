@@ -137,8 +137,8 @@ fun ProgramDetailScreen(
                         Spacer(Modifier.height(AppDimens.Spacing.xs))
                         val daysLabel = formatScheduledDays(program.scheduledDays)
                         Text(
-                            "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}  Â·  Custom program" +
-                                if (daysLabel.isNotEmpty()) "  Â·  $daysLabel" else "",
+                            "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}  ·  Custom program" +
+                                if (daysLabel.isNotEmpty()) "  ·  $daysLabel" else "",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

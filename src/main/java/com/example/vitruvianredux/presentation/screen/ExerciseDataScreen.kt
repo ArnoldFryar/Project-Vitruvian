@@ -54,7 +54,7 @@ import kotlin.math.roundToInt
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  UI MODELS â€” private, read-only, no BLE/engine references
+//  UI MODELS — private, read-only, no BLE/engine references
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /** A personal record achieved in this exercise instance vs prior history. */
@@ -81,7 +81,7 @@ private data class ExerciseComparison(
 )
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  ANALYTICS HELPER â€” pure functions, read-only, no BLE/engine side-effects
+//  ANALYTICS HELPER — pure functions, read-only, no BLE/engine side-effects
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 private object ExerciseAnalytics {
@@ -234,9 +234,9 @@ private object ExerciseAnalytics {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
- * Exercise Data detail screen â€” Pass 2 (analytics refinement).
+ * Exercise Data detail screen — Pass 2 (analytics refinement).
  *
- * Data source: [AnalyticsStore] only â€” no BLE, no live session state, no cloud.
+ * Data source: [AnalyticsStore] only — no BLE, no live session state, no cloud.
  * All sections are omitted gracefully when data is missing or insufficient.
  */
 @Composable
@@ -269,7 +269,7 @@ fun ExerciseDataScreen(
                     .firstOrNull { it.name.equals(exerciseName, ignoreCase = true) }
                     ?.muscleGroups?.firstOrNull()
                     ?.lowercase()?.replaceFirstChar { c -> c.uppercaseChar() }
-            } catch (_: Exception) { /* catalog unavailable â€” omit pill */ }
+            } catch (_: Exception) { /* catalog unavailable — omit pill */ }
         }
     }
 
@@ -415,7 +415,7 @@ fun ExerciseDataScreen(
                 }
             }
 
-            // â”€â”€ PR BADGES â€” only when prior history supports them â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // â”€â”€ PR BADGES — only when prior history supports them â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (prBadges.isNotEmpty()) {
                 PrBadgesRow(badges = prBadges, gold = gold)
             }
@@ -426,12 +426,12 @@ fun ExerciseDataScreen(
                 AllTimePbsCard(pbs = allTimePbs, unitSystem = unitSystem)
             }
 
-            // â”€â”€ STATS + ANALYTICS â€” only when set data is available â”€â”€â”€â”€â”€â”€â”€â”€
+            // â”€â”€ STATS + ANALYTICS — only when set data is available â”€â”€â”€â”€â”€â”€â”€â”€
             if (setCount > 0) {
 
                 EdsSection("Exercise Stats")
 
-                // 2 Ã— 2 stat grid
+                // 2 × 2 stat grid
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     EdsStatTile("REPS", totalReps.toString(), Modifier.weight(1f))
                     EdsStatTile("SETS", setCount.toString(),  Modifier.weight(1f))
@@ -441,7 +441,7 @@ fun ExerciseDataScreen(
                     EdsStatTile("AVG LOAD", formatWeightLb(avgWeightLb, unitSystem), Modifier.weight(1f))
                 }
 
-                // Volume â€” only when non-zero
+                // Volume — only when non-zero
                 if (totalVolKg > 0.0) {
                     EdsCard {
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
@@ -454,7 +454,7 @@ fun ExerciseDataScreen(
                     }
                 }
 
-                // Lift quality â€” only when quality scoring was active
+                // Lift quality — only when quality scoring was active
                 if (avgQuality != null) {
                     EdsCard {
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
@@ -480,7 +480,7 @@ fun ExerciseDataScreen(
                     ComparisonCard(comparison = comparison, unitSystem = unitSystem)
                 }
 
-                // Relative Strength â€” est1RM / bodyweight
+                // Relative Strength — est1RM / bodyweight
                 val bwKg = bodyWeightKg
                 if (bestSetResult != null && bestSetResult.est1RmLb > 0.0 && bwKg != null && bwKg > 0.0) {
                     val relStrength = bestSetResult.est1RmLb / (bwKg * 2.20462)
@@ -496,7 +496,7 @@ fun ExerciseDataScreen(
                                 else               -> cs.onSurface
                             }
                             Text(
-                                "${"%.2f".format(relStrength)}Ã—",
+                                "${"%.2f".format(relStrength)}x",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = rsColor,
@@ -608,7 +608,7 @@ private fun BestSetCard(result: BestSetResult, unitSystem: UnitsStore.UnitSystem
                 Text(stringResource(R.string.pb_best_set), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
                 Text(
-                    "Set ${result.setIndex + 1}  Â·  ${result.reps} reps  Â·  ${formatWeightLb(result.weightLb, unitSystem)}",
+                    "Set ${result.setIndex + 1}  ·  ${result.reps} reps  ·  ${formatWeightLb(result.weightLb, unitSystem)}",
                     style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -655,7 +655,7 @@ private fun AllTimePbsCard(
             if (pbs.bestSetWeightLb > 0 && pbs.bestSetReps > 0) {
                 PbRow(
                     "Best Set",
-                    "${pbs.bestSetReps} Ã— ${formatWeightLb(pbs.bestSetWeightLb, unitSystem)}",
+                    "${pbs.bestSetReps} x ${formatWeightLb(pbs.bestSetWeightLb, unitSystem)}",
                 )
             }
             if (pbs.bestVolumeKg > 0.0) {
@@ -787,7 +787,7 @@ private fun CompareRow(label: String, current: String, previous: String, directi
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
- * Bar chart â€” one bar per set, best set highlighted with [accentColor].
+ * Bar chart — one bar per set, best set highlighted with [accentColor].
  *
  * Equal-width slots ensure the Row of X-axis labels below aligns exactly with
  * the bars drawn on Canvas. Y-axis range labels bracket the chart vertically.
@@ -825,7 +825,7 @@ private fun PolishedLoadChart(
                 color = labelColor.copy(alpha = 0.70f))
         }
 
-        // Bar canvas â€” equal-width slots so labels below align perfectly
+        // Bar canvas — equal-width slots so labels below align perfectly
         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
             val slotW   = size.width / sets.size
             val pad     = slotW * 0.17f
@@ -850,7 +850,7 @@ private fun PolishedLoadChart(
             }
         }
 
-        // X-axis set number labels â€” same slot layout as canvas
+        // X-axis set number labels — same slot layout as canvas
         Row(modifier = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs)) {
             sets.forEachIndexed { idx, _ ->
                 Text(
@@ -864,7 +864,7 @@ private fun PolishedLoadChart(
             }
         }
 
-        // Legend â€” shown only when best-set distinction is meaningful
+        // Legend — shown only when best-set distinction is meaningful
         if (sets.size > 1 && bestSetIndex != null) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             Row(
@@ -1086,7 +1086,7 @@ private fun SetTable(
                             else -> cs.error
                         }
                         Text(
-                            if (q != null) "$q" else "â€”",
+                            if (q != null) "$q" else "—",
                             style     = MaterialTheme.typography.bodySmall,
                             fontWeight = if (q != null && q >= 80) FontWeight.SemiBold else FontWeight.Normal,
                             color     = qColor,
@@ -1152,7 +1152,7 @@ private fun QualityScoreCell(score: Int?, modifier: Modifier = Modifier) {
         else          -> Error
     }
     Text(
-        text       = score?.toString() ?: "â€”",
+        text       = score?.toString() ?: "—",
         style      = MaterialTheme.typography.bodySmall,
         fontWeight = if (score != null && score >= 80) FontWeight.SemiBold else FontWeight.Normal,
         color      = color,

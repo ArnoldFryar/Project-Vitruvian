@@ -40,7 +40,7 @@ import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  Template Library â€” categorized list of built-in + user templates
+//  Template Library — categorized list of built-in + user templates
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
@@ -340,7 +340,7 @@ private fun TemplateCard(
                             shape = MaterialTheme.shapes.small,
                         ) {
                             Text(
-                                "${day.name} Â· ${day.exercises.size} ex",
+                                "${day.name} · ${day.exercises.size} ex",
                                 modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = cs.onSecondaryContainer,

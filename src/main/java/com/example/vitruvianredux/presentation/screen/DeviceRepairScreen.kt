@@ -176,7 +176,7 @@ fun DeviceRepairScreen(
                 isConnected  -> (bleState as BleConnectionState.Connected).device.let { "${it.name} (${it.address})" }
                 isConnecting -> "Connecting..."
                 capturedLastDevice != null -> "Last: ${capturedLastDevice.name} (${capturedLastDevice.address})"
-                else         -> "No device â€” scan first"
+                else         -> "No device — scan first"
             },
             status   = when {
                 isConnected  -> StepStatus.OK
@@ -209,7 +209,7 @@ fun DeviceRepairScreen(
             title    = stringResource(R.string.repair_services),
             detail   = when {
                 writeChar    -> "NUS write characteristic cached"
-                isConnected  -> "Services not found â€” try reconnecting"
+                isConnected  -> "Services not found — try reconnecting"
                 isConnecting -> "Waiting for service discovery..."
                 else         -> "Not connected"
             },
@@ -240,7 +240,7 @@ fun DeviceRepairScreen(
             title    = stringResource(R.string.repair_notifications),
             detail   = when {
                 notifyOn     -> "All CCCD descriptors written"
-                writeChar    -> "Write char ready â€” re-subscribing..."
+                writeChar    -> "Write char ready — re-subscribing..."
                 isConnected  -> "Connected but notifications missing"
                 else         -> "Not connected"
             },
@@ -267,7 +267,7 @@ fun DeviceRepairScreen(
                 diag.lastRxAt > 0L ->
                     "Last RX ${((nowMs - diag.lastRxAt) / 1_000L)}s ago (stale)"
                 diag.notifyEnabled ->
-                    "Ready â€” start an exercise or ping below"
+                    "Ready — start an exercise or ping below"
                 else ->
                     "Not receiving notifications"
             },

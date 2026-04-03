@@ -159,7 +159,7 @@ private fun LedPresetCard(
 ) {
     val cs = MaterialTheme.colorScheme
 
-    // Scale spring â€” subtle pop on selection
+    // Scale spring — subtle pop on selection
     val scale by animateFloatAsState(
         targetValue   = if (isSelected) 1.04f else 1f,
         animationSpec = spring(
@@ -229,7 +229,7 @@ private fun LedPresetCard(
                                 )
                             )
                     )
-                    // Top-edge lighting pass â€” simulates light source from above
+                    // Top-edge lighting pass — simulates light source from above
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -240,7 +240,7 @@ private fun LedPresetCard(
                                 )
                             )
                     )
-                    // Radial inner glow â€” visible only when selected
+                    // Radial inner glow — visible only when selected
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -254,7 +254,7 @@ private fun LedPresetCard(
                                 )
                             )
                     )
-                    // Check icon â€” fades and scales in when selected
+                    // Check icon — fades and scales in when selected
                     val checkAlpha by animateFloatAsState(
                         targetValue   = if (isSelected) 1f else 0f,
                         animationSpec = tween(140),

@@ -56,7 +56,7 @@ fun AuditScreen(onBack: () -> Unit) {
                     Column {
                         Text(stringResource(R.string.screen_title_wiring_audit), fontWeight = FontWeight.Bold)
                         Text(
-                            "$opCount / $totalActions operational Ã‚Â· ${(opCoverage * 100).toInt()}%",
+                            "$opCount / $totalActions operational · ${(opCoverage * 100).toInt()}%",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -304,7 +304,7 @@ private fun ActionStatRow(stat: ActionStat) {
                         color = MaterialTheme.colorScheme.secondaryContainer,
                     ) {
                         Text(
-                            text       = "Ãƒâ€”${stat.count}",
+                            text       = "Ãƒ—${stat.count}",
                             style      = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             modifier   = Modifier.padding(horizontal = AppDimens.Spacing.xs_sm, vertical = AppDimens.Spacing.xxs),

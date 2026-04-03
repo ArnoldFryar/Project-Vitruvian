@@ -235,14 +235,14 @@ internal fun BleDiagnosticsDialog(
                 }
                 if (machineWifi != null) {
                     Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
-                    DiagRow("WiFi SSID",     machineWifi.ssid.ifEmpty { "â€”" })
-                    DiagRow("WiFi Password", machineWifi.password.ifEmpty { "â€”" })
+                    DiagRow("WiFi SSID",     machineWifi.ssid.ifEmpty { "—" })
+                    DiagRow("WiFi Password", machineWifi.password.ifEmpty { "—" })
                 }
                 if (machineRawDiagnostic != null) {
                     Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
                     DiagRow("Diag (hex)",
                         machineRawDiagnostic.joinToString(" ") { "%02x".format(it) }
-                            .ifEmpty { "â€”" })
+                            .ifEmpty { "—" })
                 }
                 if (machineMode != null) {
                     Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
@@ -250,8 +250,8 @@ internal fun BleDiagnosticsDialog(
                 }
                 if (machineVersion != null) {
                     Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
-                    DiagRow("HW",        machineVersion.hardware.ifEmpty { "â€”" })
-                    DiagRow("FW",        machineVersion.firmware.ifEmpty { "â€”" })
+                    DiagRow("HW",        machineVersion.hardware.ifEmpty { "—" })
+                    DiagRow("FW",        machineVersion.firmware.ifEmpty { "—" })
                     DiagRow("Max Force", "${ "%.1f".format(machineVersion.maxForceKg) } kg")
                 }
                 if (machineHeuristic != null) {

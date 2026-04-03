@@ -44,7 +44,7 @@ import com.example.vitruvianredux.presentation.util.loadExercises
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Exercise Picker sheet  â€” matches Workout Library card style
+// Exercise Picker sheet  — matches Workout Library card style
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @Composable
@@ -287,7 +287,7 @@ fun ExercisePickerSheet(
                                 verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                             ) {
-                                // â”€â”€ Thumbnail (120dp â€” matches official app) â”€â”€
+                                // â”€â”€ Thumbnail (120dp — matches official app) â”€â”€
                                 Box(
                                     modifier         = Modifier
                                         .size(120.dp)

@@ -31,7 +31,7 @@ import com.example.vitruvianredux.presentation.ui.theme.AccentCyan
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
-/** Full-screen rest countdown â€” embedded into ExercisePlayerScreen via AnimatedContent. */
+/** Full-screen rest countdown — embedded into ExercisePlayerScreen via AnimatedContent. */
 @Composable
 fun RestScreenContent(
     secondsRemaining: Int,
@@ -165,7 +165,7 @@ fun RestScreenContent(
                     Text(stringResource(R.string.rest_skip_exercise), fontWeight = FontWeight.Medium)
                 }
                 Text(
-                    "Â·",
+                    "·",
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                     modifier = Modifier.align(Alignment.CenterVertically),
                 )

@@ -37,7 +37,7 @@ import java.time.temporal.ChronoUnit
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * Workout History screen â€” date-grouped training log.
+ * Workout History screen — date-grouped training log.
  * Shows sessions grouped by date with workout name, duration, and points.
  */
 @Composable
@@ -207,7 +207,7 @@ private fun WorkoutHistoryCard(
             }
             Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
-            // â”€â”€ Stats grid: 2Ã—2 compact metric pills â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // â”€â”€ Stats grid: 2×2 compact metric pills â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
@@ -230,21 +230,21 @@ private fun WorkoutHistoryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
-                // Sets Ã— Reps
+                // Sets x Reps
                 MiniStat(
                     icon = AppIcons.Layers,
-                    value = "${session.totalSets}s Ã— ${session.totalReps}r",
+                    value = "${session.totalSets}s x ${session.totalReps}r",
                     modifier = Modifier.weight(1f),
                 )
                 // Calories
-                val calLabel = if (session.calories > 0) "${session.calories} kcal" else "â€” kcal"
+                val calLabel = if (session.calories > 0) "${session.calories} kcal" else "- kcal"
                 MiniStat(
                     icon = AppIcons.LocalFireDepartment,
                     value = calLabel,
                     modifier = Modifier.weight(1f),
                 )
             }
-            // Quality score row â€” only when quality data is available
+            // Quality score row — only when quality data is available
             if (session.avgQualityScore != null) {
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
                 Row(
@@ -340,7 +340,7 @@ private fun WorkoutHistoryCard(
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        "$setCount sets Â· $totalReps reps Â· $weightDisplay",
+                                        "$setCount sets · $totalReps reps · $weightDisplay",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = cs.onSurfaceVariant,
                                     )

@@ -57,7 +57,7 @@ fun HomeScreen(
 ) {
     val cs = MaterialTheme.colorScheme
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
-    // Up Next: resolved via UpNextResolver â€” accounts for active program and history.
+    // Up Next: resolved via UpNextResolver — accounts for active program and history.
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
     val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
     val activeProgramId = workoutVM?.activeProgramId
@@ -78,7 +78,7 @@ fun HomeScreen(
         } catch (_: Exception) { emptyMap() }
     }
 
-    // Real stats from AnalyticsStore â€” rolling 7-day window matches the "Last 7 days" label.
+    // Real stats from AnalyticsStore — rolling 7-day window matches the "Last 7 days" label.
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val weekVolumeKg  = remember(allLogs) { AnalyticsStore.rollingVolumeKg(7) }
     val weekSessions  = remember(allLogs) { AnalyticsStore.rollingSessionCount(7) }
@@ -158,7 +158,7 @@ fun HomeScreen(
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // â”€â”€ Up Next â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        // Reads from ProgramStore â€” the single repository source of truth.
+        // Reads from ProgramStore — the single repository source of truth.
         // Deleted programs and an empty list are handled gracefully.
         SectionHeader(title = stringResource(R.string.rest_up_next))
         Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -232,7 +232,7 @@ fun HomeScreen(
         // â”€â”€ Workout Calendar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         SectionHeader(title = stringResource(R.string.home_workout_calendar))
         Spacer(Modifier.height(AppDimens.Spacing.sm))
-        // Real workout history â€” dates come from WorkoutHistoryStore
+        // Real workout history — dates come from WorkoutHistoryStore
         val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
         val workoutDays = remember(workoutHistory) {
             workoutHistory.map { it.date }.toSet()
@@ -242,7 +242,7 @@ fun HomeScreen(
 }
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  Workout calendar composable â€” monthly grid with navigable month header
+//  Workout calendar composable — monthly grid with navigable month header
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable

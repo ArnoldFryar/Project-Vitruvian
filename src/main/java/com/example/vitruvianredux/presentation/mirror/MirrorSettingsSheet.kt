@@ -30,11 +30,11 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * A bottom sheet exposing Mirror Mode settings that are purely UI-level â€”
+ * A bottom sheet exposing Mirror Mode settings that are purely UI-level —
  * no BLE, rep-detection, or session-engine code is referenced here.
  *
  * Currently offers:
- *  â€¢ Form guides toggle  â€” shows/hides [FormGuideOverlay] on the camera preview
+ *  â€¢ Form guides toggle  — shows/hides [FormGuideOverlay] on the camera preview
  *
  * Driven entirely by [MirrorModeController] StateFlows; safe to recompose
  * at any frequency.

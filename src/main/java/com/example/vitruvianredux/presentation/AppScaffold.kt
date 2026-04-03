@@ -360,7 +360,7 @@ private fun AppTopBar(
     onDisconnectClick: () -> Unit,
     onNavigateToAudit: () -> Unit,
 ) {
-    // Hidden dev entry â€” long-press "Project Vitruvian" 5Ã— to open Audit screen
+    // Hidden dev entry — long-press "Project Vitruvian" 5× to open Audit screen
     var longPressCount by remember { mutableIntStateOf(0) }
 
     Surface(
@@ -399,7 +399,7 @@ private fun AppTopBar(
                 )
             }
 
-            // LAN sync status indicator â€” tap to open Sync screen
+            // LAN sync status indicator — tap to open Sync screen
             SyncStatusPill(lanState = lanSyncState, onClick = onSyncPillClick)
 
             when (bleState) {
@@ -470,7 +470,7 @@ private fun extractImportJson(intent: android.content.Intent?): String? {
                 val json = uri.getQueryParameter("json")
                 if (!json.isNullOrBlank()) return json
             }
-            // content:// or file:// â€” try to read the URI
+            // content:// or file:// — try to read the URI
             // (handled below)
         }
     }

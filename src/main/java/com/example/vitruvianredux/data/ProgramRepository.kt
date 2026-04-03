@@ -35,8 +35,8 @@ data class ProgramItemDraft(
         ExerciseMode.TIME -> durationSec != null
     }
     val summary: String get() = when (mode) {
-        ExerciseMode.REPS -> "$sets × ${reps ?: "-"} reps · $targetWeightLb lb · $programMode · ${restTimerSec}s rest"
-        ExerciseMode.TIME -> "$sets × ${durationSec ?: "-"}s · $targetWeightLb lb · $programMode · ${restTimerSec}s rest"
+        ExerciseMode.REPS -> "$sets x ${reps ?: "-"} reps · $targetWeightLb lb · $programMode · ${restTimerSec}s rest"
+        ExerciseMode.TIME -> "$sets x ${durationSec ?: "-"}s · $targetWeightLb lb · $programMode · ${restTimerSec}s rest"
     }
 }
 

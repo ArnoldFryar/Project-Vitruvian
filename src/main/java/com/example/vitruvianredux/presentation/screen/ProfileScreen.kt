@@ -110,7 +110,7 @@ fun ProfileScreen(
         }
     }
 
-    // â”€â”€ Room-backed weekly stats (SQL aggregation â€” replaces O(n) in-memory loops) â”€â”€â”€â”€â”€â”€
+    // â”€â”€ Room-backed weekly stats (SQL aggregation — replaces O(n) in-memory loops) â”€â”€â”€â”€â”€â”€
     val localContext = androidx.compose.ui.platform.LocalContext.current
     val roomDb = remember(localContext) { SessionLogDatabase.getInstance(localContext) }
     val thisWeekStartMs = remember {
@@ -600,7 +600,7 @@ fun ProfileScreen(
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Sessions chart â€” navigable (same style as Volume)
+        //  Sessions chart — navigable (same style as Volume)
         //  Real data from WorkoutHistoryStore
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         ProfileSection(title = stringResource(R.string.profile_stat_sessions)) {
@@ -741,7 +741,7 @@ fun ProfileScreen(
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Muscle Groups donut chart â€” real data with date filter
+        //  Muscle Groups donut chart — real data with date filter
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         ProfileSection(title = "Muscle Groups") {
             val periodOptions = listOf("Last 7 days" to 7, "Last 14 days" to 14, "Last 30 days" to 30, "All time" to null)
@@ -1605,7 +1605,7 @@ fun ProfileScreen(
                         checked = hcEnabled,
                         onCheckedChange = { wantEnabled ->
                             if (wantEnabled) {
-                                // Request permissions first â€” toggle turns ON only after grant
+                                // Request permissions first — toggle turns ON only after grant
                                 hcScope.launch {
                                     val alreadyGranted = HealthConnectManager.hasPermissions()
                                     if (alreadyGranted) {

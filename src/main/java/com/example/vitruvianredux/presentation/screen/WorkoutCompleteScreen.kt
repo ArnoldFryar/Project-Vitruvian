@@ -50,7 +50,7 @@ import com.example.vitruvianredux.util.UnitConversions
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
-/** Workout summary screen â€” shown inside ExercisePlayerScreen via AnimatedContent. */
+/** Workout summary screen — shown inside ExercisePlayerScreen via AnimatedContent. */
 @Composable
 fun WorkoutCompleteContent(
     stats: WorkoutStats,
@@ -256,7 +256,7 @@ fun WorkoutCompleteContent(
                 StatTile(
                     icon  = AppIcons.Stars,
                     label = stringResource(R.string.complete_quality),
-                    value = avgQualityScore?.toString() ?: "â€”",
+                    value = avgQualityScore?.toString() ?: "—",
                     unit  = when {
                         avgQualityScore == null -> ""
                         avgQualityScore >= 90  -> "Perfect"

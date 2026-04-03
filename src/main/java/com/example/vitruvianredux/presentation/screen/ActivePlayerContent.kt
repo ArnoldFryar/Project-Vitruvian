@@ -129,7 +129,7 @@ internal fun ActivePlayerContent(
     val rawWeightLb: Float = if (isActive || isComplete) sessionState.targetWeightLb.toFloat() else resistanceLb
     val displayWeight: Float = lbToDisplay(rawWeightLb)
 
-    // â”€â”€ Rep counter state (CRITICAL â€” same logic as before) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â”€â”€ Rep counter state (CRITICAL — same logic as before) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val activePhase   = phase as? SessionPhase.ExerciseActive
     val activeWarmup  = activePhase?.warmupReps ?: warmupReps
     val isWarmupPhase = isActive && sessionState.setPhase == SetPhase.WARMUP
@@ -179,7 +179,7 @@ internal fun ActivePlayerContent(
     // â”€â”€ Micro-animation: resistance change colour shift â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val resistanceFlashAlpha = remember { Animatable(0f) }
 
-    // â”€â”€ Set Point alpha â€” recedes while a set is active so Live Resistance
+    // â”€â”€ Set Point alpha — recedes while a set is active so Live Resistance
     // becomes the clear primary readout during lifting.
     val setPointAlpha by animateFloatAsState(
         targetValue   = if (isActive) 0.42f else 1f,
@@ -553,7 +553,7 @@ internal fun ActivePlayerContent(
                                     color    = MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
-                                    text = if (hasLiveData) "%.1f ${if (isLb) "lb" else "kg"}".format(liveResistanceDisplay) else "â€” ${if (isLb) "lb" else "kg"}",
+                                    text = if (hasLiveData) "%.1f ${if (isLb) "lb" else "kg"}".format(liveResistanceDisplay) else "— ${if (isLb) "lb" else "kg"}",
                                     style = MaterialTheme.typography.headlineLarge,
                                     fontWeight = FontWeight.Black,
                                     color = if (hasLiveData && isActive)
@@ -1087,7 +1087,7 @@ internal fun ActivePlayerContent(
                                         Text(buildString {
                                             append("${cp.stats.repsCompleted} working reps")
                                             if (cp.stats.warmupRepsCompleted > 0) append(" + ${cp.stats.warmupRepsCompleted} warmup")
-                                            append(" Â· ${cp.stats.durationSec}s Â· ${cp.stats.weightPerCableLb} lb/cable")
+                                            append(" · ${cp.stats.durationSec}s · ${cp.stats.weightPerCableLb} lb/cable")
                                         },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSecondaryContainer)

@@ -25,7 +25,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-//  Template Preview â€” shows days, exercises, focus; "Use Template" button
+//  Template Preview — shows days, exercises, focus; "Use Template" button
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @Composable
@@ -54,7 +54,7 @@ fun TemplatePreviewScreen(
                     if (template.days.size == 1) {
                         "This will create a new program \"${template.name}\" in your library."
                     } else {
-                        "This will create ${template.days.size} programs in your library â€” one for each day of the template."
+                        "This will create ${template.days.size} programs in your library — one for each day of the template."
                     }
                 )
             },
@@ -139,8 +139,8 @@ fun TemplatePreviewScreen(
                         index = index + 1,
                         name = exercise.exerciseName,
                         detail = when (exercise.mode) {
-                            ExerciseMode.REPS -> "${exercise.sets} Ã— ${exercise.reps ?: "-"} reps Â· ${exercise.targetWeightLb} lb"
-                            ExerciseMode.TIME -> "${exercise.sets} Ã— ${exercise.durationSec ?: "-"}s Â· ${exercise.targetWeightLb} lb"
+                            ExerciseMode.REPS -> "${exercise.sets} x ${exercise.reps ?: "-"} reps · ${exercise.targetWeightLb} lb"
+                            ExerciseMode.TIME -> "${exercise.sets} x ${exercise.durationSec ?: "-"}s · ${exercise.targetWeightLb} lb"
                         },
                         restSec = exercise.restTimerSec,
                     )

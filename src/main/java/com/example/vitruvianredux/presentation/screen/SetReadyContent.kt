@@ -76,20 +76,20 @@ internal fun SetReadyContent(
     onFinishWorkout: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     isOpenEnded: Boolean = false,
-    /** Show the Sets count stepper â€” true for JustLift and exercise-menu launches. */
+    /** Show the Sets count stepper — true for JustLift and exercise-menu launches. */
     showSetsStepper: Boolean = false,
     /** When non-null, show a "level up" suggestion banner above the weight selector. */
     progressionSuggestionLb: Int? = null,
     onAcceptProgression: (Int) -> Unit = {},
-    /** Echo (isokinetic) mode â€” weight is adaptive so the selector is hidden. */
+    /** Echo (isokinetic) mode — weight is adaptive so the selector is hidden. */
     isEchoMode: Boolean = false,
     /** Currently selected training mode (e.g. "Old School", "Pump", "TUT", "Echo"). */
     selectedMode: String = "Old School",
     onModeSelect: (String) -> Unit = {},
-    /** TUT â€” Beast Mode (faster loading). */
+    /** TUT — Beast Mode (faster loading). */
     isBeastMode: Boolean = false,
     onBeastModeChange: (Boolean) -> Unit = {},
-    /** Echo â€” resistance level. */
+    /** Echo — resistance level. */
     echoLevel: EchoLevel = EchoLevel.HARD,
     onEchoLevelChange: (EchoLevel) -> Unit = {},
     /** Eccentric load percentage. */
@@ -366,7 +366,7 @@ internal fun SetReadyContent(
             )
         }
 
-        // Sets plan picker â€” shown for JustLift and exercise-menu launches.
+        // Sets plan picker — shown for JustLift and exercise-menu launches.
         // Hidden for program workouts where the engine controls set count.
         if (showSetsStepper) {
             Spacer(Modifier.height(AppDimens.Spacing.xs))
@@ -510,7 +510,7 @@ internal fun SetReadyContent(
             }
         }
 
-        // â”€â”€ GO button â€” primary action, visual center of gravity â”€â”€â”€â”€â”€â”€â”€â”€
+        // â”€â”€ GO button — primary action, visual center of gravity â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
         val goHaptic = LocalHapticFeedback.current
@@ -550,7 +550,7 @@ internal fun SetReadyContent(
             Text("GO", fontWeight = FontWeight.Black, fontSize = 22.sp, letterSpacing = AppDimens.LetterSpacing.spaced)
         }
 
-        // â”€â”€ Secondary actions â€” visually subordinate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // â”€â”€ Secondary actions — visually subordinate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         Row(

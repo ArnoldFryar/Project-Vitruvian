@@ -43,7 +43,7 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
  * label are centred vertically on the right.  Each button sits inside a
  * 48 dp touch-target zone while the visual surface stays at [buttonSize].
  *
- * In compact mode the overall height is **96 dp**, matching a 3 Ã— 32 dp
+ * In compact mode the overall height is **96 dp**, matching a 3 × 32 dp
  * compact tumbler.
  *
  * @param value          Current integer value.
@@ -74,7 +74,7 @@ fun ValueStepper(
     val buttonSize = if (compact) 36.dp else 40.dp
     val iconSize   = if (compact) 18.dp else 20.dp
     val touchTarget = 48.dp
-    // Compact: matches 3Ã—32 dp tumbler; default: taller for full-size layouts
+    // Compact: matches 3×32 dp tumbler; default: taller for full-size layouts
     val totalHeight = if (compact) (touchTarget * 2) else (touchTarget * 2 + AppDimens.Spacing.sm)
 
     Row(
@@ -89,7 +89,7 @@ fun ValueStepper(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Minus â€” 48 dp touch target, smaller visual button
+            // Minus — 48 dp touch target, smaller visual button
             Box(
                 modifier = Modifier.size(touchTarget),
                 contentAlignment = Alignment.Center,

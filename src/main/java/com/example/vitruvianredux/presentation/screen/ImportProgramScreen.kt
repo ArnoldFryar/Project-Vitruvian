@@ -591,13 +591,13 @@ private fun ExercisePreviewRow(
                 overflow = TextOverflow.Ellipsis,
             )
             val summary = buildString {
-                append("${resolved.imported.sets}Ã—")
+                append("${resolved.imported.sets}x")
                 when (resolved.imported.mode) {
                     ExerciseMode.REPS -> append("${resolved.imported.reps ?: "-"} reps")
                     ExerciseMode.TIME -> append("${resolved.imported.durationSec ?: "-"}s")
                 }
-                append(" Â· ${resolved.imported.targetWeightLb} lb")
-                append(" Â· ${resolved.imported.restTimerSec}s rest")
+                append(" · ${resolved.imported.targetWeightLb} lb")
+                append(" · ${resolved.imported.restTimerSec}s rest")
             }
             Text(
                 summary,

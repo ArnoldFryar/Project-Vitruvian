@@ -36,7 +36,7 @@ import java.time.format.DateTimeFormatter
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * Premium Session Detail screen â€” shows a single completed workout session.
+ * Premium Session Detail screen — shows a single completed workout session.
  * Navigated to from the sessions list or the activity history.
  */
 @Composable
@@ -129,7 +129,7 @@ fun SessionDetailScreen(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            "${timeFmt.format(startInstant)} â€“ ${timeFmt.format(endInstant)}  Â·  ${formatSessionDuration(session.durationSec)}",
+                            "${timeFmt.format(startInstant)} â€“ ${timeFmt.format(endInstant)}  ·  ${formatSessionDuration(session.durationSec)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = cs.onSurfaceVariant,
                         )
@@ -145,7 +145,7 @@ fun SessionDetailScreen(
                         Text(
                             buildString {
                                 session.programName?.let { append(it) }
-                                if (session.programName != null && session.dayName != null) append(" Â· ")
+                                if (session.programName != null && session.dayName != null) append(" · ")
                                 session.dayName?.let { append(it) }
                             },
                             style = MaterialTheme.typography.labelSmall,
@@ -189,7 +189,7 @@ fun SessionDetailScreen(
                     label = stringResource(R.string.metric_volume),
                     value = if (session.volumeAvailable)
                         "${UnitConversions.formatVolumeFromKg(session.totalVolumeKg, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}"
-                    else "â€”",
+                    else "—",
                     modifier = Modifier.weight(1f),
                 )
                 SdStatTile(
@@ -286,7 +286,7 @@ fun SessionDetailScreen(
                                         fontWeight = FontWeight.SemiBold,
                                     )
                                     Text(
-                                        "$setCount sets Â· $totalReps reps Â· $weightDisplay",
+                                        "$setCount sets · $totalReps reps · $weightDisplay",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = cs.onSurfaceVariant,
                                     )

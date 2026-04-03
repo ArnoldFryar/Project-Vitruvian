@@ -40,23 +40,23 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 /**
- * A full-size container that layers the front-camera mirror overlay â€” with
- * optional form guides â€” on top of the live workout content (video, telemetry)
+ * A full-size container that layers the front-camera mirror overlay — with
+ * optional form guides — on top of the live workout content (video, telemetry)
  * without touching any BLE or rep-detection code.
  *
  * Layout z-order (bottom â†’ top):
- *   1. [content] slot       â€” exercise video / thumbnail / telemetry overlays
- *   2. Dim scrim            â€” Black @ 0â†’55 % alpha, animated with the mirror;
+ *   1. [content] slot       — exercise video / thumbnail / telemetry overlays
+ *   2. Dim scrim            — Black @ 0â†’55 % alpha, animated with the mirror;
  *                             suppresses the background so the user becomes the
  *                             visual focus without hiding it entirely
- *   3. [FrontCameraOverlay] â€” fills the central training zone; horizontally
+ *   3. [FrontCameraOverlay] — fills the central training zone; horizontally
  *                             inset 40 dp on each side so cable position bars
  *                             (32 dp + 6 dp padding) stay fully visible
- *   4. [FormGuideOverlay]   â€” centre line, shoulder markers, hip line;
+ *   4. [FormGuideOverlay]   — centre line, shoulder markers, hip line;
  *                             fills the same inset zone as the camera preview
- *   5. Mirror control pill  â€” labeled pill anchored bottom-start; Mirror
+ *   5. Mirror control pill  — labeled pill anchored bottom-start; Mirror
  *                             segment always visible, Guides segment slides
- *                             in inline when mirror is active â€” no sheet hop
+ *                             in inline when mirror is active — no sheet hop
  *
  * Cable position bars, the top app bar, and the Ready/phase pill all live in
  * outer Boxes drawn *after* this container, so they are never dimmed.
@@ -162,7 +162,7 @@ fun WorkoutLiveContainer(
 
             // â”€â”€ Form guides segment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // Slides in horizontally the moment mirror activates.
-            // Toggles guides inline â€” no navigation to a settings sheet.
+            // Toggles guides inline — no navigation to a settings sheet.
             AnimatedVisibility(
                 visible = mirrorEnabled,
                 enter   = fadeIn(tween(200)) + expandHorizontally(tween(220)),

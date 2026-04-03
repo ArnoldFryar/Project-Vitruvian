@@ -50,21 +50,21 @@ private val PAGES = listOf(
     OnboardingPage(
         icon        = AppIcons.Sync,
         title       = "Track Every Rep",
-        subtitle    = "Every set is stored automatically â€” review history, spot trends, and share progress with your trainer.",
+        subtitle    = "Every set is stored automatically — review history, spot trends, and share progress with your trainer.",
         accentColor = AccentCyan,
         tag         = "CONNECTIVITY",
     ),
     OnboardingPage(
         icon        = AppIcons.FitnessCenter,
         title       = "Choose Your Style",
-        subtitle    = "From beginner programs to advanced progressive overload â€” pick your training mode and let the Trainer adapt.",
+        subtitle    = "From beginner programs to advanced progressive overload — pick your training mode and let the Trainer adapt.",
         accentColor = AccentAmber,
         tag         = "PERFORMANCE",
     ),
 )
 
 /**
- * Premium first-run onboarding â€” 3-page pager with per-page entrance animations.
+ * Premium first-run onboarding — 3-page pager with per-page entrance animations.
  * Dismissed with [onComplete], which the caller marks as seen in SharedPreferences.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -297,7 +297,7 @@ private fun OnboardingPageContent(
 
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
-        // Title â€” full opacity, high weight
+        // Title — full opacity, high weight
         Text(
             text       = page.title,
             style      = MaterialTheme.typography.headlineMedium,
@@ -308,7 +308,7 @@ private fun OnboardingPageContent(
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
-        // Subtitle â€” fixed to 0.85f for actual readability in dark mode
+        // Subtitle — fixed to 0.85f for actual readability in dark mode
         Text(
             text       = page.subtitle,
             style      = MaterialTheme.typography.bodyLarge,

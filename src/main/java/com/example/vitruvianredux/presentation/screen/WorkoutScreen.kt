@@ -167,7 +167,7 @@ fun WorkoutScreen(
                 )
             }
 
-            // â”€â”€ Search Â· Chips Â· Sort â€” grouped control block â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // â”€â”€ Search · Chips · Sort — grouped control block â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
                     // Search field
@@ -309,7 +309,7 @@ private fun ExerciseCard(
     onLongPress: () -> Unit = {},
 ) {
     // Use group labels ("Arms", "Legs") as concise tags on the card
-    // Limit to 1 visible tag + overflow count â€” the content column is narrow
+    // Limit to 1 visible tag + overflow count — the content column is narrow
     val tags        = exercise.groupLabels
     val visibleTags = tags.take(1)
     val overflow    = tags.size - visibleTags.size
@@ -492,7 +492,7 @@ private fun ExerciseDetailSheet(
             }
             if (exercise.muscles.isNotEmpty()) {
                 Text(
-                    text  = exercise.muscles.joinToString(" Â· ") { it.replace('_', ' ').replaceFirstChar { c -> c.uppercase() } },
+                    text  = exercise.muscles.joinToString(" · ") { it.replace('_', ' ').replaceFirstChar { c -> c.uppercase() } },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -684,7 +684,7 @@ private fun ActiveSessionBanner(
                             tint               = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                         Text(
-                            text  = "Set complete Â· ${state.currentExerciseName}",
+                            text  = "Set complete · ${state.currentExerciseName}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
@@ -730,6 +730,6 @@ private fun ActiveSessionBanner(
             }
         }
 
-        else -> { /* Idle / Ready â€” nothing to show */ }
+        else -> { /* Idle / Ready — nothing to show */ }
     }
 }

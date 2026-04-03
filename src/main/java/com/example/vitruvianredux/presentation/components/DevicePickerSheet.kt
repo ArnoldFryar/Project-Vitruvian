@@ -45,7 +45,7 @@ private val blePermissions
 
 /**
  * Centered overlay dialog that automatically scans for and connects to the
- * nearest Vitruvian trainer â€” no manual device selection required.
+ * nearest Vitruvian trainer — no manual device selection required.
  *
  * Flow: Permissions â†’ Scanning â†’ Auto-connect first device â†’ Connected â†’ dismiss.
  *

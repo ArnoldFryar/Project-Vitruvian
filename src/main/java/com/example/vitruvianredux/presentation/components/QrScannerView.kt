@@ -197,7 +197,7 @@ private fun CameraPreviewWithAnalysis(onQrScanned: (String) -> Unit) {
                         preview,
                         imageAnalysis,
                     )
-                } catch (_: Exception) { /* camera bind failure â€” surface may be detached */ }
+                } catch (_: Exception) { /* camera bind failure — surface may be detached */ }
             }, ContextCompat.getMainExecutor(ctx))
             previewView
         },
@@ -229,7 +229,7 @@ private fun ScannerOverlay() {
             cornerRadius = CornerRadius(12.dp.toPx()),
         )
 
-        // Accent corners â€” top-left
+        // Accent corners — top-left
         val cornerLen = squareSide * 0.12f
         val strokePx = 4.dp.toPx()
         val r = 12.dp.toPx()
@@ -295,9 +295,9 @@ private class ZXingQrAnalyzer(private val onResult: (String) -> Unit) : ImageAna
             val result = reader.decodeWithState(bitmap)
             onResult(result.text)
         } catch (_: NotFoundException) {
-            // No QR code in this frame â€” normal, just keep trying
+            // No QR code in this frame — normal, just keep trying
         } catch (_: Exception) {
-            // Other decode errors â€” swallow, keep scanning
+            // Other decode errors — swallow, keep scanning
         } finally {
             image.close()
         }

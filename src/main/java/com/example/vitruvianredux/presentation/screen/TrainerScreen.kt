@@ -89,7 +89,7 @@ fun TrainerScreen(
             .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
     ) {
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  HEADER â€” "Your Trainer"
+        //  HEADER — "Your Trainer"
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Text(
             text = "Your Trainer",
@@ -213,7 +213,7 @@ fun TrainerScreen(
                 )
                 Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
 
-                // Colour indicator â€” opens LED colour picker
+                // Colour indicator — opens LED colour picker
                 TrainerInfoRow(
                     label = stringResource(R.string.trainer_colour),
                     modifier = Modifier.clickable { showColorPicker = true },

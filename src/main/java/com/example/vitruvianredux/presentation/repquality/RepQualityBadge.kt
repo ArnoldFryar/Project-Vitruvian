@@ -39,7 +39,7 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
  * Appears for [displayDurationMs] then auto-hides via [AnimatedVisibility].
  * Positioned by the caller (typically above the phase pill in the rep counter).
  *
- * Purely visual â€” no BLE, session, or rep-detection code involved.
+ * Purely visual — no BLE, session, or rep-detection code involved.
  */
 @Composable
 fun RepQualityBadge(

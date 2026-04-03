@@ -163,7 +163,7 @@ internal fun ProgressionPickerDialog(current: Float, onSelect: (Float) -> Unit, 
     val cs = MaterialTheme.colorScheme
     val isLb = UnitsStore.current == UnitsStore.UnitSystem.IMPERIAL_LB
     val unitLabel = if (isLb) "lb" else "kg"
-    // Options stored in kg â€” displayed in user's preferred unit
+    // Options stored in kg — displayed in user's preferred unit
     val options = listOf(-10f, -5f, -2.5f, -1f, -0.5f, 0f, 0.5f, 1f, 2.5f, 5f, 10f)
     DialogContainer(onDismiss = onDismiss) {
                 Text(stringResource(R.string.justlift_progression_title), color = cs.onSurface, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm))

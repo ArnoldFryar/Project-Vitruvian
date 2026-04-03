@@ -237,7 +237,7 @@ fun ExercisePlayerScreen(
                         // â”€â”€ Passive session recording (fires exactly once per session) â”€â”€
                         // LaunchedEffect is keyed on completePhase so it re-fires only when
                         // a new WorkoutComplete phase object arrives. Never touches BLE or
-                        // rep-detection code â€” purely reads the final stats and writes to DB.
+                        // rep-detection code — purely reads the final stats and writes to DB.
                         LaunchedEffect(completePhase) {
                             WorkoutSessionRecorder.record(
                                 stats       = completePhase.workoutStats,

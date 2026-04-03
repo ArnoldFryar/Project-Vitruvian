@@ -308,7 +308,7 @@ fun ProgramsScreen(
                                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // Lettered avatar â€” color cycles through primary/secondary/tertiary
+                            // Lettered avatar — color cycles through primary/secondary/tertiary
                             val avatarPalette = listOf(
                                 MaterialTheme.colorScheme.primary,
                                 MaterialTheme.colorScheme.secondary,
@@ -337,7 +337,7 @@ fun ProgramsScreen(
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                 // Exercise name preview (up to 3, with overflow count)
                                 val exercisePreview = if (p.items.isNotEmpty())
-                                    p.items.take(3).joinToString(" Â· ") { it.exerciseName } +
+                                    p.items.take(3).joinToString(" · ") { it.exerciseName } +
                                         if (p.items.size > 3) "  +${p.items.size - 3} more" else ""
                                 else "${p.exerciseCount} exercise${if (p.exerciseCount != 1) "s" else ""}"
                                 Text(
