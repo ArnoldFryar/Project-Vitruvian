@@ -30,9 +30,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
 private const val TAG = "WorkoutSession"
@@ -239,6 +241,15 @@ sealed class SessionPhase {
         val thumbnailUrl: String?,
         val videoUrl: String? = null,
     ) : SessionPhase()
+
+    /**
+     * Mid-workout BLE disconnect detected. The engine is attempting to reconnect
+     * automatically. [secondsLeft] counts down to zero; on timeout the session
+     * transitions to [Error].
+     */
+    data class Reconnecting(
+        val secondsLeft: Int,
+    ) : SessionPhase()
 }
 
 data class SessionState(
@@ -331,6 +342,10 @@ class WorkoutSessionEngine(
         get() = if (currentPlayerIndex < playerSets.size) playerSets.subList(currentPlayerIndex, playerSets.size) else emptyList()
     private var playerJob: Job? = null
     private var restJob: Job? = null
+    /** Job driving the 15-second reconnect countdown. Cancelled on success or explicit reset. */
+    private var reconnectJob: Job? = null
+    /** Phase captured at the moment of disconnect — used to resume after successful reconnect. */
+    private var preDisconnectPhase: SessionPhase = SessionPhase.Idle
     @Volatile private var setStartTimeMs = 0L
     @Volatile private var workoutStartTimeMs = 0L
     private val completedStats = mutableListOf<ExerciseStats>()
@@ -558,41 +573,28 @@ class WorkoutSessionEngine(
         scope.launch {
             bleClient.state.collect { conn ->
                 _state.value = _state.value.copy(connectionState = conn)
-                if (conn is BleConnectionState.Disconnected) {
-                    val phase = _state.value.sessionPhase
-                    when (phase) {
-                        is SessionPhase.InSet -> {
-                            Log.w(TAG, "Device disconnected while InSet - aborting")
-                            programJob?.cancel()
-                            _state.value = _state.value.copy(
-                                sessionPhase = SessionPhase.Error("Device disconnected during set"))
-                            SessionEventLog.append(SessionEventLog.EventType.ERROR, "Connection lost while InSet")
-                        }
-                        is SessionPhase.ExerciseActive -> {
-                            // Transient flickers are common — give the connection a chance to recover
-                            // before forcefully completing the set. For rep-mode sets without a
-                            // duration target the session would otherwise get permanently stuck.
-                            Log.w(TAG, "Device disconnected during ExerciseActive – scheduling auto-complete in 5s")
-                            SessionEventLog.append(SessionEventLog.EventType.ERROR, "Connection lost while ExerciseActive – auto-complete in 5s")
-                            scope.launch {
-                                delay(5_000L)
-                                // If still disconnected AND still in ExerciseActive, force-complete the set
-                                val current = _state.value
-                                if (current.connectionState is BleConnectionState.Disconnected &&
-                                    current.sessionPhase is SessionPhase.ExerciseActive) {
-                                    Log.w(TAG, "Still disconnected after 5s – force-completing current set")
-                                    completeCurrentPlayerSet()
-                                }
+                val phase = _state.value.sessionPhase
+                when {
+                    conn is BleConnectionState.Disconnected && phase !is SessionPhase.Reconnecting -> {
+                        when (phase) {
+                            is SessionPhase.InSet -> {
+                                programJob?.cancel()
+                                startReconnectFlow(phase)
                             }
+                            is SessionPhase.ExerciseActive -> {
+                                startReconnectFlow(phase)
+                            }
+                            is SessionPhase.Resting -> {
+                                restJob?.cancel()
+                                startReconnectFlow(phase)
+                            }
+                            else -> { /* no active session — ignore */ }
                         }
-                        is SessionPhase.Resting -> {
-                            Log.w(TAG, "Device disconnected during Resting - aborting")
-                            restJob?.cancel()
-                            _state.value = _state.value.copy(
-                                sessionPhase = SessionPhase.Error("Connection lost"))
-                            SessionEventLog.append(SessionEventLog.EventType.ERROR, "Connection lost while Resting")
-                        }
-                        else -> { /* no active session */ }
+                    }
+                    conn is BleConnectionState.Connected && phase is SessionPhase.Reconnecting -> {
+                        reconnectJob?.cancel()
+                        reconnectJob = null
+                        resumeAfterReconnect()
                     }
                 }
             }
@@ -1207,7 +1209,7 @@ class WorkoutSessionEngine(
 
     private fun clearPlayerSessionState(sessionPhase: SessionPhase = SessionPhase.Idle) {
         stopMonitorPolling()
-        playerJob?.cancel(); restJob?.cancel()
+        playerJob?.cancel(); restJob?.cancel(); reconnectJob?.cancel(); reconnectJob = null
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
         cancelAutoStartTimer()
@@ -1646,6 +1648,149 @@ class WorkoutSessionEngine(
                 startHandleAutoStop()
             } else {
                 Log.d(TAG, "DELOAD_OCCURRED: within grace period — ignoring")
+            }
+        }
+    }
+
+    // ── Disconnect recovery ───────────────────────────────────────────────────
+
+    /** Transition to [SessionPhase.Error] and save any completed sets to history. */
+    private fun handleDisconnectError(fromPhase: SessionPhase) {
+        if (completedStats.isNotEmpty()) savePartialWorkout()
+        val msg = when (fromPhase) {
+            is SessionPhase.InSet          -> "Device disconnected during set"
+            is SessionPhase.ExerciseActive -> "Device disconnected during exercise"
+            is SessionPhase.Resting        -> "Connection lost during rest"
+            else                           -> "Device disconnected"
+        }
+        Log.w(TAG, "handleDisconnectError: $msg  (from=$fromPhase)")
+        SessionEventLog.append(SessionEventLog.EventType.ERROR, "Disconnect error: $msg")
+        _state.value = _state.value.copy(sessionPhase = SessionPhase.Error(msg))
+    }
+
+    /** Persist completed sets to workout history (called on reconnect timeout or error). */
+    private fun savePartialWorkout() {
+        if (completedStats.isEmpty()) return
+        val totalDurSec   = if (workoutStartTimeMs > 0L)
+            ((System.currentTimeMillis() - workoutStartTimeMs) / 1_000L).toInt() else 0
+        val totalReps     = completedStats.sumOf { it.repsCompleted }
+        val totalVolumeKg = completedStats.sumOf { it.volumeKg.toDouble() }.toFloat()
+        Log.i(TAG, "savePartialWorkout: ${completedStats.size} sets, $totalReps reps, ${totalDurSec}s")
+        com.example.vitruvianredux.data.ActivityStatsStore.recordSession(totalVolumeKg.toDouble())
+        com.example.vitruvianredux.data.WorkoutHistoryStore.record(
+            com.example.vitruvianredux.data.WorkoutHistoryStore.WorkoutRecord(
+                date          = java.time.LocalDate.now(),
+                exerciseNames = completedStats.map { it.exerciseName }.distinct(),
+                muscleGroups  = playerSets.flatMap { it.muscleGroups }.distinct(),
+                totalVolumeKg = totalVolumeKg.toDouble(),
+                durationSec   = totalDurSec,
+                totalSets     = completedStats.size,
+                totalReps     = totalReps,
+                programName   = activeWorkoutProgramName,
+            )
+        )
+    }
+
+    /**
+     * Launch a 15-second reconnect countdown. On success the [bleClient.state] collector
+     * detects [BleConnectionState.Connected] and calls [resumeAfterReconnect]; on timeout
+     * the session falls through to [SessionPhase.Error] via [handleDisconnectError].
+     */
+    private fun startReconnectFlow(savedPhase: SessionPhase) {
+        val lastAddr = bleClient.lastConnectedAddress
+        if (lastAddr == null) {
+            handleDisconnectError(savedPhase)
+            return
+        }
+        preDisconnectPhase = savedPhase
+        val reconnectSec = 15
+        _state.value = _state.value.copy(
+            sessionPhase = SessionPhase.Reconnecting(reconnectSec)
+        )
+        SessionEventLog.append(
+            SessionEventLog.EventType.ERROR,
+            "Connection lost — attempting reconnect for ${reconnectSec}s"
+        )
+        Log.w(TAG, "startReconnectFlow: saved=$savedPhase  addr=$lastAddr")
+        reconnectJob?.cancel()
+        reconnectJob = scope.launch {
+            bleClient.connect(lastAddr)
+            var remaining = reconnectSec
+            while (isActive && remaining > 0) {
+                delay(1_000L)
+                remaining--
+                val cur = _state.value.sessionPhase
+                if (cur is SessionPhase.Reconnecting) {
+                    _state.value = _state.value.copy(sessionPhase = cur.copy(secondsLeft = remaining))
+                } else {
+                    // Phase changed externally (e.g. Connected fired resumeAfterReconnect) — bail
+                    return@launch
+                }
+            }
+            if (isActive) handleDisconnectError(preDisconnectPhase)
+        }
+    }
+
+    /**
+     * Called when BLE reconnects while in [SessionPhase.Reconnecting].
+     * Waits for [AndroidBleClient.isReady] then resumes the appropriate phase.
+     */
+    private fun resumeAfterReconnect() {
+        val savedPhase = preDisconnectPhase
+        Log.i(TAG, "resumeAfterReconnect: awaiting isReady  savedPhase=$savedPhase")
+        SessionEventLog.append(SessionEventLog.EventType.STATE, "BLE reconnected — resuming from $savedPhase")
+        scope.launch {
+            val ready = kotlinx.coroutines.withTimeoutOrNull(10_000L) {
+                bleClient.isReady.first { it }
+            }
+            if (ready == null) {
+                Log.w(TAG, "resumeAfterReconnect: device not ready after 10s — error")
+                handleDisconnectError(savedPhase)
+                return@launch
+            }
+            when (savedPhase) {
+                is SessionPhase.ExerciseActive -> {
+                    val set = playerSets.getOrNull(currentPlayerIndex)
+                    if (set != null) {
+                        Log.i(TAG, "resumeAfterReconnect: ExerciseActive → SetReady  idx=$currentPlayerIndex")
+                        _state.value = _state.value.copy(
+                            sessionPhase = SessionPhase.SetReady(
+                                exerciseName      = set.exerciseName,
+                                thumbnailUrl      = set.thumbnailUrl,
+                                videoUrl          = set.videoUrl,
+                                setIndex          = currentPlayerIndex,
+                                totalSets         = playerSets.size,
+                                targetReps        = set.targetReps,
+                                targetDurationSec = set.targetDurationSec,
+                                warmupReps        = set.warmupReps,
+                                weightPerCableLb  = set.weightPerCableLb,
+                                programMode       = set.programMode,
+                                isJustLift        = set.isJustLift,
+                            )
+                        )
+                    } else {
+                        handleDisconnectError(savedPhase)
+                    }
+                }
+                is SessionPhase.InSet -> {
+                    // Legacy mode — can't safely resume mid-set
+                    _state.value = _state.value.copy(
+                        sessionPhase = SessionPhase.Error("Reconnected, but the active set was interrupted")
+                    )
+                }
+                is SessionPhase.Resting -> {
+                    Log.i(TAG, "resumeAfterReconnect: Resting → restart rest ${savedPhase.secondsRemaining}s")
+                    startRest(savedPhase.secondsRemaining.coerceAtLeast(3), savedPhase.next)
+                }
+                is SessionPhase.SetReady -> {
+                    _state.value = _state.value.copy(sessionPhase = savedPhase)
+                }
+                is SessionPhase.Paused -> {
+                    _state.value = _state.value.copy(sessionPhase = savedPhase)
+                }
+                else -> {
+                    _state.value = _state.value.copy(sessionPhase = SessionPhase.Idle)
+                }
             }
         }
     }

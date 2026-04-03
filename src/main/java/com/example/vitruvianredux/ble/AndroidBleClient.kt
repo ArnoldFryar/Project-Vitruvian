@@ -81,6 +81,10 @@ class AndroidBleClient(context: Context) {
     private val _state = MutableStateFlow<BleConnectionState>(BleConnectionState.Disconnected)
     val state: StateFlow<BleConnectionState> = _state.asStateFlow()
 
+    /** Address of the most-recently connected device — used for mid-workout auto-reconnect. */
+    var lastConnectedAddress: String? = null
+        private set
+
     private val _devices = MutableStateFlow<List<BleDevice>>(emptyList())
     val devices: StateFlow<List<BleDevice>> = _devices.asStateFlow()
 
@@ -187,6 +191,7 @@ class AndroidBleClient(context: Context) {
     // Connect / Disconnect
 
     fun connect(address: String) {
+        lastConnectedAddress = address
         stopScan()
         val adapter = bluetoothAdapter ?: run {
             _state.value = BleConnectionState.Error("Bluetooth not supported")

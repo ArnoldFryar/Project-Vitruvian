@@ -34,8 +34,9 @@ import com.example.vitruvianredux.util.UnitConversions
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import androidx.compose.ui.unit.dp
 
-private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE, PAUSED }
+private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE, PAUSED, RECONNECTING }
 
 @Composable
 fun ExercisePlayerScreen(
@@ -119,6 +120,7 @@ fun ExercisePlayerScreen(
         is SessionPhase.Resting         -> PlayerView.RESTING
         is SessionPhase.WorkoutComplete -> PlayerView.WORKOUT_COMPLETE
         is SessionPhase.Paused          -> PlayerView.PAUSED
+        is SessionPhase.Reconnecting    -> PlayerView.RECONNECTING
         else                            -> PlayerView.ACTIVE
     }
 
@@ -482,6 +484,39 @@ fun ExercisePlayerScreen(
                             onStop             = { workoutVM.panicStop(); onBack() },
                             modifier           = Modifier.fillMaxSize(),
                         )
+                    }
+                }
+
+                PlayerView.RECONNECTING -> {
+                    val reconnectPhase = phase as? SessionPhase.Reconnecting
+                    if (reconnectPhase != null) {
+                        Box(
+                            modifier           = Modifier.fillMaxSize(),
+                            contentAlignment   = androidx.compose.ui.Alignment.Center,
+                        ) {
+                            Column(
+                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
+                                modifier            = Modifier.padding(AppDimens.Spacing.xl),
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(56.dp),
+                                )
+                                Text(
+                                    text  = "Reconnecting to machine\u2026",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text      = "${reconnectPhase.secondsLeft}s",
+                                    style     = MaterialTheme.typography.displaySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color     = MaterialTheme.colorScheme.primary,
+                                )
+                                TextButton(onClick = { workoutVM.panicStop(); onBack() }) {
+                                    Text("Cancel workout")
+                                }
+                            }
+                        }
                     }
                 }
             }

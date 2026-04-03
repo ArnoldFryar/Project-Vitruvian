@@ -324,6 +324,7 @@ fun AppScaffold() {
                     phase is SessionPhase.ExerciseComplete || 
                     phase is SessionPhase.WorkoutComplete ||
                     phase is SessionPhase.Paused ||
+                    phase is SessionPhase.Reconnecting ||
                     phase is SessionPhase.Error
 
                 AnimatedVisibility(
