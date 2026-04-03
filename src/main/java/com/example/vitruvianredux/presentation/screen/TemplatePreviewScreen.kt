@@ -146,6 +146,15 @@ fun TemplatePreviewScreen(
                         restSec = exercise.restTimerSec,
                     )
                 }
+
+                if (dayIndex < template.days.size - 1) {
+                    item(key = "day_divider_$dayIndex") {
+                        Divider(
+                            modifier = Modifier.padding(vertical = AppDimens.Spacing.sm),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        )
+                    }
+                }
             }
 
             // Bottom spacing so content isn't hidden behind the bottom bar
@@ -183,8 +192,8 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
 
             Text(
                 template.name,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Black,
             )
 
             Spacer(Modifier.height(AppDimens.Spacing.xs))
@@ -228,7 +237,7 @@ private fun OverviewStat(icon: ImageVector, value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(icon, null, modifier = Modifier.size(AppDimens.Icon.md), tint = cs.primary)
         Spacer(Modifier.height(AppDimens.Spacing.xs))
-        Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(value, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = cs.primary)
         Text(label, style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
     }
 }
@@ -308,13 +317,22 @@ private fun ExerciseRow(index: Int, name: String, detail: String, restSec: Int) 
             modifier = Modifier.padding(AppDimens.Spacing.md_sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "$index",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = cs.onSurfaceVariant,
-                modifier = Modifier.width(24.dp),
-            )
+            // Index badge
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(cs.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "$index",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.primary,
+                )
+            }
+            Spacer(Modifier.width(AppDimens.Spacing.md_sm))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     name,
@@ -322,10 +340,25 @@ private fun ExerciseRow(index: Int, name: String, detail: String, restSec: Int) 
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    "$detail · ${restSec}s rest",
+                    detail,
                     style = MaterialTheme.typography.bodySmall,
                     color = cs.onSurfaceVariant,
                 )
+            }
+            if (restSec > 0) {
+                Spacer(Modifier.width(AppDimens.Spacing.sm))
+                Surface(
+                    color = cs.primary.copy(alpha = 0.10f),
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        "${restSec}s",
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs_sm, vertical = AppDimens.Spacing.xxs),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = cs.primary,
+                    )
+                }
             }
         }
     }

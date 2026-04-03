@@ -239,11 +239,19 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
             )
         }
         Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-        Text(
-            text = category,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = category,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Divider(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = AppDimens.Spacing.md_sm),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
         )
     }
 }
@@ -280,7 +288,7 @@ private fun TemplateCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             template.name,
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
                         if (template.isUserTemplate) {
@@ -316,7 +324,7 @@ private fun TemplateCard(
                 Text(
                     template.description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.8f),
+                    color = cs.onSurfaceVariant,
                     maxLines = 2,
                 )
             }
@@ -329,14 +337,14 @@ private fun TemplateCard(
                 ) {
                     template.days.forEach { day ->
                         Surface(
-                            color = cs.surfaceVariant,
+                            color = cs.secondaryContainer,
                             shape = MaterialTheme.shapes.small,
                         ) {
                             Text(
                                 "${day.name} · ${day.exercises.size} ex",
                                 modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = cs.onSurfaceVariant,
+                                color = cs.onSecondaryContainer,
                             )
                         }
                     }
