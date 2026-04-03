@@ -1695,7 +1695,7 @@ class WorkoutSessionEngine(
         }
     }
 
-    private fun finishWorkout() {
+    internal fun finishWorkout() {
         val totalDurSec = ((System.currentTimeMillis() - workoutStartTimeMs) / 1_000L).toInt()
         val totalReps      = completedStats.sumOf { it.repsCompleted }
         // Sum per-set working volumes — all in kg, the canonical unit.

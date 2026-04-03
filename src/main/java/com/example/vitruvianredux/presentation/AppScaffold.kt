@@ -246,13 +246,21 @@ fun AppScaffold() {
                             )
                         }
 
+                        val tags = workoutVM.sessionTags
+                        val fullNotes = buildString {
+                            if (tags.isNotEmpty()) {
+                                append(tags.joinToString(", "))
+                                if (workoutVM.sessionNotes.isNotBlank()) { append("\n") }
+                            }
+                            append(workoutVM.sessionNotes)
+                        }
                         AnalyticsRecorder.onSessionCompleted(
                             stats         = stats,
                             exerciseNames = exerciseNames,
                             exerciseSets  = exerciseSets,
                             programName   = workoutVM.activeProgramName,
                             dayName       = workoutVM.activeDayName,
-                            notes         = workoutVM.sessionNotes,
+                            notes         = fullNotes,
                         )
                         // Reseed activity stats from the now-persisted AnalyticsStore so that
                         // weekly volume, session count, and streak reflect real data rather

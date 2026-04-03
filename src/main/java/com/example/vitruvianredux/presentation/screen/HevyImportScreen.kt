@@ -122,7 +122,7 @@ fun HevyImportScreen(
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 100.dp, top = AppDimens.Spacing.sm),
+                        contentPadding = PaddingValues(bottom = 120.dp, top = AppDimens.Spacing.sm),
                         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
                         item {
@@ -210,6 +210,7 @@ fun HevyImportScreen(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars)
                             .padding(bottom = AppDimens.Spacing.lg),
                         onClick = {
                             importing = true

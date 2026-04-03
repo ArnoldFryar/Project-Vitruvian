@@ -278,6 +278,9 @@ fun ExercisePlayerScreen(
                                 ?.average()?.toInt(),
                             notes        = workoutVM.sessionNotes,
                             onNotesChange = { workoutVM.sessionNotes = it },
+                            isJustLift   = workoutVM.activeProgramId == null,
+                            tags         = workoutVM.sessionTags,
+                            onTagsChange = { workoutVM.sessionTags = it },
                             prCount      = prCount,
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -359,6 +362,9 @@ fun ExercisePlayerScreen(
                             },
                             onSkipSet      = { workoutVM.skipSet() },
                             onSkipExercise = { workoutVM.skipExercise() },
+                            onFinishWorkout = if (isOpenEnded && workoutVM.completedExerciseStats.isNotEmpty()) {
+                                { workoutVM.finishWorkout() }
+                            } else null,
                             onAddSet       = {
                                 workoutVM.addSet(
                                     weightOverrideLb        = resistanceLb.roundToInt(),

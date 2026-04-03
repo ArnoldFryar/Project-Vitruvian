@@ -71,6 +71,8 @@ internal fun SetReadyContent(
     onSkipSet: () -> Unit,
     onSkipExercise: () -> Unit,
     onAddSet: () -> Unit = {},
+    /** When non-null and isOpenEnded, shows a "Finish Workout" button to end the just-lift session. */
+    onFinishWorkout: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     isOpenEnded: Boolean = false,
     /** Show the Sets count stepper — true for JustLift and exercise-menu launches. */
@@ -589,6 +591,21 @@ internal fun SetReadyContent(
             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.sm))
             Spacer(Modifier.width(AppDimens.Spacing.xs))
             Text("Add Set", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+        }
+
+        if (isOpenEnded && onFinishWorkout != null) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            OutlinedButton(
+                onClick  = onFinishWorkout,
+                modifier = Modifier.fillMaxWidth(),
+                colors   = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+            ) {
+                Icon(Icons.Default.CheckCircle, contentDescription = "Finish", modifier = Modifier.size(AppDimens.Icon.sm))
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
+                Text("Finish Workout", fontWeight = FontWeight.Medium)
+            }
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.md))

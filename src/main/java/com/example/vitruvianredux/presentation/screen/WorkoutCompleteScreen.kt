@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+
 package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
@@ -8,6 +10,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -45,6 +49,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 /** Workout summary screen — shown inside ExercisePlayerScreen via AnimatedContent. */
 @Composable
@@ -55,6 +60,9 @@ fun WorkoutCompleteContent(
     avgQualityScore: Int? = null,
     notes: String = "",
     onNotesChange: (String) -> Unit = {},
+    isJustLift: Boolean = false,
+    tags: Set<String> = emptySet(),
+    onTagsChange: (Set<String>) -> Unit = {},
     prCount: Int = 0,
     modifier: Modifier = Modifier,
 ) {
@@ -289,6 +297,34 @@ fun WorkoutCompleteContent(
                     )
                 }
             }
+        }
+
+        // ── Muscle-group tags (just-lift sessions only) ──────────────────────
+        if (isJustLift) {
+            val muscleGroups = listOf("Chest", "Back", "Shoulders", "Arms", "Legs", "Core", "Full Body")
+            Text(
+                "What did you work?",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                verticalArrangement   = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                muscleGroups.forEach { group ->
+                    val selected = group in tags
+                    FilterChip(
+                        selected = selected,
+                        onClick  = {
+                            onTagsChange(if (selected) tags - group else tags + group)
+                        },
+                        label    = { Text(group, style = MaterialTheme.typography.labelMedium) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
         }
 
         // ── Workout notes ─────────────────────────────────────────────────────

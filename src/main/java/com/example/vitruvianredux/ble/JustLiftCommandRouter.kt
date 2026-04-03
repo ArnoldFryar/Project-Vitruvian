@@ -86,6 +86,7 @@ class JustLiftCommandRouter(
     fun applyMode(mode: JustLiftMode) {
         Log.d(TAG, "applyMode → $mode (connected=$isConnected)")
         updateStore { it.copy(workoutModeId = mode) }
+        refreshActiveSession()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -100,6 +101,7 @@ class JustLiftCommandRouter(
     fun applyWeightPerCableKg(kg: Float) {
         Log.d(TAG, "applyWeightPerCableKg → $kg (connected=$isConnected)")
         updateStore { it.copy(weightPerCableKg = kg) }
+        refreshActiveSession()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -113,6 +115,7 @@ class JustLiftCommandRouter(
     fun applyProgressionKgPerRep(deltaKg: Float) {
         Log.d(TAG, "applyProgressionKgPerRep → $deltaKg")
         updateStore { it.copy(weightChangePerRep = deltaKg) }
+        refreshActiveSession()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -127,6 +130,7 @@ class JustLiftCommandRouter(
     fun applyRestSeconds(seconds: Int) {
         Log.d(TAG, "applyRestSeconds → $seconds")
         updateStore { it.copy(restSeconds = seconds) }
+        refreshActiveSession()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -162,16 +166,19 @@ class JustLiftCommandRouter(
     fun applyEccentricPct(pct: Int) {
         Log.d(TAG, "applyEccentricPct → $pct")
         updateStore { it.copy(eccentricLoadPercentage = pct) }
+        refreshActiveSession()
     }
 
     fun applyEchoLevel(level: EchoLevel) {
         Log.d(TAG, "applyEchoLevel → $level")
         updateStore { it.copy(echoLevelValue = level) }
+        refreshActiveSession()
     }
 
     fun applyBeastMode(enabled: Boolean) {
         Log.d(TAG, "applyBeastMode → $enabled")
         updateStore { it.copy(isBeastMode = enabled) }
+        refreshActiveSession()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -185,6 +192,7 @@ class JustLiftCommandRouter(
     fun applyStallDetection(enabled: Boolean) {
         Log.d(TAG, "applyStallDetection → $enabled")
         updateStore { it.copy(stallDetectionEnabled = enabled) }
+        refreshActiveSession()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -199,6 +207,7 @@ class JustLiftCommandRouter(
     fun applyRepCountTiming(timingName: String) {
         Log.d(TAG, "applyRepCountTiming → $timingName")
         updateStore { it.copy(repCountTimingName = timingName) }
+        refreshActiveSession()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -258,6 +267,30 @@ class JustLiftCommandRouter(
     // ─────────────────────────────────────────────────────────────────────────
     // Private helpers
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * If a Just Lift session is currently active, push updated [PlayerSetParams]
+     * so the next re-armed set picks up any BLE-relevant setting changes.
+     * Must be called after [updateStore] so [JustLiftStore.current] is already fresh.
+     */
+    private fun refreshActiveSession() {
+        val current = workoutVM.upcomingSets.firstOrNull()
+            ?.takeIf { it.isJustLift } ?: return
+        val c = JustLiftStore.current()
+        val p = c.toWorkoutParameters()
+        val updated = current.copy(
+            weightPerCableLb        = if (p.isEchoMode) 0 else kgToLb(p.weightPerCableKg),
+            programMode             = p.programMode.displayName,
+            progressionRegressionLb = if (p.isEchoMode) 0 else kgToLb(p.progressionRegressionKg),
+            echoLevel               = p.echoLevel,
+            eccentricLoadPct        = p.eccentricLoadPct,
+            restAfterSec            = c.restSeconds,
+            stallDetectionEnabled   = p.stallDetectionEnabled,
+            repCountTiming          = p.repCountTiming,
+        )
+        Log.d(TAG, "refreshActiveSession: eccentricLoadPct=${updated.eccentricLoadPct} echoLevel=${updated.echoLevel}")
+        workoutVM.updateUpcomingSets(listOf(updated))
+    }
 
     /** Atomically read-modify-write the persisted controls. */
     private inline fun updateStore(transform: (JustLiftDefaults) -> JustLiftDefaults) {

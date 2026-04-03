@@ -125,6 +125,9 @@ class WorkoutSessionViewModel(
     /** User-entered notes for the current workout session. */
     var sessionNotes: String = ""
 
+    /** Muscle-group tags selected by the user on the just-lift completion screen. */
+    var sessionTags: Set<String> = emptySet()
+
     /** Epoch millis captured when the workout starts; used to compute session startTime. */
     var sessionStartMs: Long = 0L
         private set
@@ -545,6 +548,9 @@ class WorkoutSessionViewModel(
     val upcomingSets: List<PlayerSetParams>
         get() = engine.upcomingSets
 
+    /** Transition just-lift session to WorkoutComplete so analytics/history are recorded. */
+    fun finishWorkout() = engine.finishWorkout()
+
     /** Reset from WorkoutComplete back to Idle. Call after user dismisses the summary. */
     fun resetAfterWorkout() {
         activeProgramId   = null
@@ -552,6 +558,7 @@ class WorkoutSessionViewModel(
         activeDayName     = null
         sessionStartMs    = 0L
         sessionNotes      = ""
+        sessionTags       = emptySet()
         _completedExerciseStats.clear()
         _currentSetRepQualities.clear()
         soundEnabled.value = true   // Restore default so every new workout starts with audio on
