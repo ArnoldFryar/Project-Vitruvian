@@ -53,6 +53,7 @@ import com.example.vitruvianredux.data.HevyStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
+import com.example.vitruvianredux.data.db.SessionLogDatabase
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.vitruvianredux.presentation.audit.*
@@ -110,19 +111,38 @@ fun ProfileScreen(
         }
     }
 
-    // ── Real 7-day stats ─────────────────────────────────────────────────────
-    // Prefer AnalyticsStore (richer model); fall back to WorkoutHistoryStore
-    // for charts and when AnalyticsStore is empty (migration period).
-    val weekVolumeKg = remember(allLogs, history) {
-        val fromAnalytics = AnalyticsStore.weeklyVolumesKg(1).lastOrNull()?.second ?: 0.0
-        if (fromAnalytics > 0.0 || allLogs.isNotEmpty()) fromAnalytics
-        else WorkoutHistoryStore.recentVolumeKg(7)
+    // ── Room-backed weekly stats (SQL aggregation — replaces O(n) in-memory loops) ──────
+    val localContext = androidx.compose.ui.platform.LocalContext.current
+    val roomDb = remember(localContext) { SessionLogDatabase.getInstance(localContext) }
+    val thisWeekStartMs = remember {
+        java.time.LocalDate.now()
+            .with(java.time.DayOfWeek.MONDAY)
+            .atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
     }
-    val weekSessions = remember(allLogs, history) {
-        // Calendar-week count matches weeklyVolumesKg semantics (Mon�Sun)
-        val fromAnalytics = AnalyticsStore.sessionsPerWeek(1).lastOrNull()?.second ?: 0
-        if (fromAnalytics > 0 || allLogs.isNotEmpty()) fromAnalytics
-        else WorkoutHistoryStore.recentSessions(7)
+    val weekVolumeKgFromRoom by roomDb.sessionLogDao()
+        .currentWeekVolumeKgFlow(thisWeekStartMs)
+        .collectAsState(initial = 0.0)
+    val weekSessionsFromRoom by roomDb.sessionLogDao()
+        .currentWeekSessionCountFlow(thisWeekStartMs)
+        .collectAsState(initial = 0)
+
+    // ── Real 7-day stats ─────────────────────────────────────────────────────
+    // Room Flow is primary; fall back to shared-prefs stores for devices where Room
+    // may lag behind shared-prefs data (migration period).
+    val weekVolumeKg = remember(weekVolumeKgFromRoom, allLogs, history) {
+        when {
+            weekVolumeKgFromRoom > 0.0 -> weekVolumeKgFromRoom
+            allLogs.isNotEmpty()       -> AnalyticsStore.weeklyVolumesKg(1).lastOrNull()?.second ?: 0.0
+            else                       -> WorkoutHistoryStore.recentVolumeKg(7)
+        }
+    }
+    val weekSessions = remember(weekSessionsFromRoom, allLogs, history) {
+        when {
+            weekSessionsFromRoom > 0 -> weekSessionsFromRoom
+            allLogs.isNotEmpty()     -> AnalyticsStore.sessionsPerWeek(1).lastOrNull()?.second ?: 0
+            else                     -> WorkoutHistoryStore.recentSessions(7)
+        }
     }
     val currentStreak = remember(allLogs, history) {
         val fromAnalytics = AnalyticsStore.currentStreak()

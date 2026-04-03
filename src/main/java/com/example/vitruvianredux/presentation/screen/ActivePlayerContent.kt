@@ -67,6 +67,7 @@ import com.example.vitruvianredux.presentation.repquality.RepQualityCalculator
 import com.example.vitruvianredux.presentation.repquality.TelemetryFrame
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
+import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.ResistanceStepPolicy
@@ -185,6 +186,25 @@ internal fun ActivePlayerContent(
         targetValue   = if (isActive) 0.42f else 1f,
         animationSpec = tween(350),
         label         = "SetPointFade",
+    )
+
+    // ── Personal Best indicator ───────────────────────────────────────────────────
+    val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
+    val exerciseNameForPb = exercise?.name
+        ?: (phase as? SessionPhase.ExerciseActive)?.exerciseName ?: ""
+    val prLb = pbSummaries[exerciseNameForPb.lowercase().trim()]?.bestWeightLb ?: 0
+    val isNewPb = prLb > 0 && selectedMode != "Echo" && rawWeightLb.roundToInt() >= prLb
+    val pbChipBg by animateColorAsState(
+        targetValue   = if (isNewPb) MaterialTheme.colorScheme.secondaryContainer
+                        else         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+        animationSpec = tween(300),
+        label         = "pbChipBg",
+    )
+    val pbChipFg by animateColorAsState(
+        targetValue   = if (isNewPb) MaterialTheme.colorScheme.secondary
+                        else         MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(300),
+        label         = "pbChipFg",
     )
 
     // ── Rep quality scoring (presentation-only) ──────────────────────────
@@ -710,6 +730,37 @@ internal fun ActivePlayerContent(
                                         modifier      = Modifier.fillMaxWidth(),
                                     )
                                 }
+                            }
+                        }
+                    }
+
+                    // ── PB percentage indicator ─────────────────────────────
+                    if (prLb > 0 && selectedMode != "Echo") {
+                        Surface(
+                            shape    = RoundedCornerShape(50),
+                            color    = pbChipBg,
+                            modifier = Modifier.graphicsLayer { alpha = dimAlpha },
+                        ) {
+                            Row(
+                                modifier              = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.xs),
+                                verticalAlignment     = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                            ) {
+                                if (isNewPb) {
+                                    Icon(
+                                        imageVector        = Icons.Default.Star,
+                                        contentDescription = null,
+                                        modifier           = Modifier.size(11.dp),
+                                        tint               = pbChipFg,
+                                    )
+                                }
+                                Text(
+                                    text       = if (isNewPb) "New PB weight!"
+                                                 else "${(rawWeightLb / prLb.toFloat() * 100f).roundToInt()}% of PB",
+                                    style      = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (isNewPb) FontWeight.Bold else FontWeight.Medium,
+                                    color      = pbChipFg,
+                                )
                             }
                         }
                     }

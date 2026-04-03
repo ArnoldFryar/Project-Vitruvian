@@ -29,6 +29,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -209,6 +212,27 @@ private object ExerciseAnalytics {
         prevBestE1RmLb  = previousSets.mapNotNull { est1RM(it.reps, it.weightLb) }.maxOrNull() ?: 0.0,
         currBestE1RmLb  = currentSets.mapNotNull  { est1RM(it.reps, it.weightLb) }.maxOrNull() ?: 0.0,
     )
+
+    /**
+     * Per-session progression for a line chart: (endTimeMs, best working weight lb).
+     * Returns the most recent [maxPoints] sessions where the exercise was performed,
+     * each reduced to the heaviest valid set in that session.
+     */
+    fun exerciseProgression(
+        exerciseName: String,
+        allSessions: List<AnalyticsStore.SessionLog>,
+        maxPoints: Int = 14,
+    ): List<Pair<Long, Int>> = allSessions
+        .filter { s -> s.exerciseSets.any { it.exerciseName.equals(exerciseName, ignoreCase = true) } }
+        .sortedBy { it.endTimeMs }
+        .takeLast(maxPoints)
+        .map { session ->
+            val maxW = session.exerciseSets
+                .filter { it.exerciseName.equals(exerciseName, ignoreCase = true) && it.reps >= 1 && it.weightLb >= 1 }
+                .maxOfOrNull { it.weightLb } ?: 0
+            session.endTimeMs to maxW
+        }
+        .filter { (_, w) -> w > 0 }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -291,6 +315,11 @@ fun ExerciseDataScreen(
     val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
     val allTimePbs = remember(pbSummaries, exerciseName) {
         pbSummaries[exerciseName.lowercase().trim()]
+    }
+
+    // ── Multi-session progression (for line chart) ────────────────────────────
+    val progressionPoints = remember(allSessions, exerciseName) {
+        ExerciseAnalytics.exerciseProgression(exerciseName, allSessions)
     }
 
     val performedDateLabel = session?.endTimeMs?.let { ms ->
@@ -497,10 +526,28 @@ fun ExerciseDataScreen(
                     )
                 }
 
+                // Multi-session progression line chart
+                if (progressionPoints.size >= 2) {
+                    EdsSection("Progress")
+                    EdsCard {
+                        SessionProgressionChart(
+                            points     = progressionPoints,
+                            unitSystem = unitSystem,
+                            modifier   = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
                 // Per-set table
                 EdsSection("Sets")
                 EdsCard {
                     SetTable(sets = sets, unitSystem = unitSystem, bestSetIndex = bestSetResult?.setIndex)
+                }
+
+                // Quality subscores breakdown
+                if (sets.any { it.avgRom != null || it.avgTempo != null || it.avgSymmetry != null || it.avgSmoothness != null }) {
+                    EdsSection("Quality Breakdown")
+                    QualityBreakdownCard(sets = sets)
                 }
 
             } else {
@@ -844,6 +891,119 @@ private fun PolishedLoadChart(
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+//  MULTI-SESSION PROGRESSION LINE CHART
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Line chart showing the best weight per session across up to 14 historical
+ * sessions for a single exercise.  Requires at least 2 data points to render.
+ */
+@Composable
+private fun SessionProgressionChart(
+    points: List<Pair<Long, Int>>,   // endTimeMs → best weight lb
+    unitSystem: UnitsStore.UnitSystem,
+    modifier: Modifier = Modifier,
+) {
+    if (points.size < 2) return
+    val cs = MaterialTheme.colorScheme
+    val lineColor  = cs.primary
+    val labelColor = cs.onSurfaceVariant
+    val unitLabel  = UnitConversions.unitLabel(unitSystem)
+
+    val displayWeights = points.map { (_, lb) ->
+        if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) lb.toFloat()
+        else UnitConversions.lbToKg(lb.toDouble()).toFloat()
+    }
+    val minW = (displayWeights.minOrNull() ?: 0f) * 0.92f   // add 8% padding below
+    val maxW = (displayWeights.maxOrNull() ?: 1f).let { if (it <= minW) it + 1f else it }
+
+    val zone    = ZoneId.systemDefault()
+    val dateFmt = DateTimeFormatter.ofPattern("MMM d")
+
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("${formatChartValue(minW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.45f))
+            Text("${formatChartValue(maxW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.70f))
+        }
+
+        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
+            val w = size.width
+            val h = size.height
+            val n = (points.size - 1).coerceAtLeast(1).toFloat()
+            val range = (maxW - minW).coerceAtLeast(0.001f)
+
+            val path = Path()
+            displayWeights.forEachIndexed { idx, weight ->
+                val x = idx / n * w
+                val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
+                if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, color = lineColor.copy(alpha = 0.75f),
+                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
+
+            displayWeights.forEachIndexed { idx, weight ->
+                val x = idx / n * w
+                val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
+                val isLatest = idx == displayWeights.lastIndex
+                drawCircle(
+                    color  = if (isLatest) lineColor else lineColor.copy(alpha = 0.55f),
+                    radius = if (isLatest) 5.dp.toPx() else 3.5.dp.toPx(),
+                    center = Offset(x, y),
+                )
+            }
+        }
+
+        // X-axis: first, mid, last date labels
+        Row(modifier = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs)) {
+            Text(
+                dateFmt.format(Instant.ofEpochMilli(points.first().first).atZone(zone)),
+                style = MaterialTheme.typography.labelSmall,
+                color = labelColor.copy(alpha = 0.55f),
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Start,
+            )
+            if (points.size > 2) {
+                val midIdx = points.size / 2
+                Text(
+                    dateFmt.format(Instant.ofEpochMilli(points[midIdx].first).atZone(zone)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = labelColor.copy(alpha = 0.55f),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Text(
+                dateFmt.format(Instant.ofEpochMilli(points.last().first).atZone(zone)),
+                style = MaterialTheme.typography.labelSmall,
+                color = labelColor.copy(alpha = 0.55f),
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End,
+            )
+        }
+
+        // Latest weight badge
+        Spacer(Modifier.height(AppDimens.Spacing.xs))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Surface(
+                shape = RoundedCornerShape(AppDimens.Corner.pill),
+                color = cs.primaryContainer,
+            ) {
+                Text(
+                    "Latest: ${formatWeightLb(points.last().second, unitSystem)}",
+                    style      = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = cs.onPrimaryContainer,
+                    modifier   = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xxs),
+                )
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 //  SET TABLE
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -944,6 +1104,64 @@ private fun SetTable(
             }
         }
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  QUALITY BREAKDOWN CARD
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Grid showing per-set ROM / Tempo / Symmetry / Smoothness subscores.
+ * Rendered only when at least one set has non-null subcomponent scores.
+ */
+@Composable
+private fun QualityBreakdownCard(sets: List<AnalyticsStore.ExerciseSetLog>) {
+    val cs = MaterialTheme.colorScheme
+    val setsWithData = sets.filter { !it.skipped }
+        .filter { it.avgRom != null || it.avgTempo != null || it.avgSymmetry != null || it.avgSmoothness != null }
+    if (setsWithData.isEmpty()) return
+
+    EdsCard {
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs)) {
+            Text("Set",    style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(36.dp))
+            Text("ROM",    style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text("Tempo",  style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text("Sym",    style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text("Smooth", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        }
+        Divider(color = cs.outlineVariant, thickness = 0.5.dp)
+        setsWithData.forEach { set ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${set.setIndex + 1}", style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(36.dp))
+                QualityScoreCell(set.avgRom,        Modifier.weight(1f))
+                QualityScoreCell(set.avgTempo,      Modifier.weight(1f))
+                QualityScoreCell(set.avgSymmetry,   Modifier.weight(1f))
+                QualityScoreCell(set.avgSmoothness, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun QualityScoreCell(score: Int?, modifier: Modifier = Modifier) {
+    val color = when {
+        score == null -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.30f)
+        score >= 80   -> Success
+        score >= 60   -> Warning
+        else          -> Error
+    }
+    Text(
+        text       = score?.toString() ?: "—",
+        style      = MaterialTheme.typography.bodySmall,
+        fontWeight = if (score != null && score >= 80) FontWeight.SemiBold else FontWeight.Normal,
+        color      = color,
+        modifier   = modifier,
+        textAlign  = TextAlign.Center,
+    )
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
