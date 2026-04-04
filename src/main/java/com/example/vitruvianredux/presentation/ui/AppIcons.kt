@@ -821,14 +821,24 @@ object AppIcons {
 
     // ── M ─────────────────────────────────────────────────────────────────
 
-    /** lucide:weight */
+    /** lucide:weight – bathroom scale */
     val MonitorWeight: ImageVector by lazy {
         lucide("MonitorWeight") {
             path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                // outer circle (scale face)
                 moveTo(12f, 3f)
                 arcTo(9f, 9f, 0f, true, true, 3f, 12f)
                 arcTo(9f, 9f, 0f, true, true, 12f, 3f)
-                moveTo(12f, 7f); lineTo(12f, 12f); lineTo(16f, 16f)
+            }
+            path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                // top handle / loop
+                moveTo(12f, 7f)
+                arcTo(2f, 2f, 0f, true, false, 12f, 11f)
+                arcTo(2f, 2f, 0f, true, false, 12f, 7f)
+            }
+            path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                // dial tick
+                moveTo(12f, 11f); lineTo(12f, 14f)
             }
         }
     }
@@ -904,16 +914,27 @@ object AppIcons {
         }
     }
 
-    /** lucide:audio-waveform */
+    /** lucide:mic – microphone */
     val RecordVoiceOver: ImageVector by lazy {
         lucide("RecordVoiceOver") {
             path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
-                moveTo(9f, 2f)
-                curveTo(9f, 2f, 2f, 6f, 2f, 12f)
-                curveTo(2f, 18f, 9f, 22f, 9f, 22f)
-                moveTo(15f, 2f)
-                curveTo(15f, 2f, 22f, 6f, 22f, 12f)
-                curveTo(22f, 18f, 15f, 22f, 15f, 22f)
+                // mic head (rounded rect / capsule)
+                moveTo(12f, 2f)
+                arcTo(3f, 3f, 0f, false, false, 9f, 5f)
+                lineTo(9f, 11f)
+                arcTo(3f, 3f, 0f, false, false, 15f, 11f)
+                lineTo(15f, 5f)
+                arcTo(3f, 3f, 0f, false, false, 12f, 2f)
+            }
+            path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                // U-shaped pickup arc
+                moveTo(19f, 10f)
+                arcTo(7f, 7f, 0f, false, true, 5f, 10f)
+            }
+            path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                // stand + base
+                moveTo(12f, 18f); lineTo(12f, 22f)
+                moveTo(8f, 22f); lineTo(16f, 22f)
             }
         }
     }
