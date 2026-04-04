@@ -594,27 +594,16 @@ object AppIcons {
     val FitnessCenter: ImageVector by lazy {
         lucide("FitnessCenter") {
             path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
-                moveTo(14.4f, 14.4f); lineTo(9.6f, 9.6f)
-                moveTo(18.657f, 21.485f)
-                arcToRelative(2f, 2f, 0f, true, true, -2.829f, -2.828f)
-                lineToRelative(0.707f, -0.707f)
-                arcToRelative(2f, 2f, 0f, true, true, 2.829f, 2.828f)
-                close()
-                moveTo(2.515f, 5.343f)
-                arcToRelative(2f, 2f, 0f, true, true, 2.829f, 2.828f)
-                lineToRelative(-0.707f, 0.707f)
-                arcToRelative(2f, 2f, 0f, true, true, -2.829f, -2.828f)
-                close()
-                moveTo(21.485f, 5.343f)
-                arcToRelative(2f, 2f, 0f, false, false, -2.828f, -2.828f)
-                lineToRelative(-0.707f, 0.707f)
-                arcToRelative(2f, 2f, 0f, false, false, 2.828f, 2.828f)
-                close()
-                moveTo(5.343f, 21.485f)
-                arcToRelative(2f, 2f, 0f, false, false, 2.828f, -2.828f)
-                lineToRelative(-0.707f, -0.707f)
-                arcToRelative(2f, 2f, 0f, false, false, -2.828f, 2.828f)
-                close()
+                // horizontal handle bar
+                moveTo(7f, 12f); lineTo(17f, 12f)
+                // left weight plate
+                moveTo(4.5f, 7f); lineTo(7f, 7f); lineTo(7f, 17f); lineTo(4.5f, 17f); close()
+                // right weight plate
+                moveTo(17f, 7f); lineTo(19.5f, 7f); lineTo(19.5f, 17f); lineTo(17f, 17f); close()
+                // left end cap
+                moveTo(2f, 9.5f); lineTo(4.5f, 9.5f); lineTo(4.5f, 14.5f); lineTo(2f, 14.5f); close()
+                // right end cap
+                moveTo(19.5f, 9.5f); lineTo(22f, 9.5f); lineTo(22f, 14.5f); lineTo(19.5f, 14.5f); close()
             }
         }
     }
