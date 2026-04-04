@@ -37,17 +37,27 @@ internal fun ProfileSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
-    )
+    ) {
+        Surface(
+            modifier = Modifier.width(3.dp).height(AppDimens.Icon.sm),
+            shape = MaterialTheme.shapes.extraSmall,
+            color = MaterialTheme.colorScheme.primary,
+        ) {}
+        Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.selector,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = AppDimens.Elevation.raised,
     ) {
         Column(Modifier
             .animateContentSize(tween(MotionTokens.STANDARD_MS))
@@ -222,7 +232,7 @@ internal fun SessionsDetailSheet(
                                 if (workout.exerciseNames.isNotEmpty()) {
                                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                     Text(
-                                        workout.exerciseNames.joinToString(" \u00b7 "),
+                                        workout.exerciseNames.joinToString(" - "),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 2,
@@ -230,7 +240,7 @@ internal fun SessionsDetailSheet(
                                 }
                             } else {
                                 Text(
-                                    workout.exerciseNames.joinToString(" \u00b7 "),
+                                    workout.exerciseNames.joinToString(" - "),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 2,
@@ -240,7 +250,7 @@ internal fun SessionsDetailSheet(
                             val volDisplay = UnitConversions.formatVolumeFromKg(workout.totalVolumeKg, unitSystem)
                             val mins = workout.durationSec / 60
                             Text(
-                                "${workout.totalSets} sets \u00b7 ${workout.totalReps} reps \u00b7 $volDisplay ${UnitConversions.unitLabel(unitSystem)} \u00b7 ${mins}m",
+                                "${workout.totalSets} sets - ${workout.totalReps} reps - $volDisplay ${UnitConversions.unitLabel(unitSystem)} - ${mins}m",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

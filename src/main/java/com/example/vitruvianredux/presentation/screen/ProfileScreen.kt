@@ -1,4 +1,4 @@
-package com.example.vitruvianredux.presentation.screen
+﻿package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
@@ -218,7 +218,8 @@ fun ProfileScreen(
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(56.dp),
+                border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)),
+                modifier = Modifier.size(64.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -244,18 +245,28 @@ fun ProfileScreen(
                         modifier = Modifier.size(AppDimens.Icon.sm),
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        AppIcons.Star, contentDescription = stringResource(R.string.cd_personal_record),
-                        tint = LocalExtendedColors.current.gold,
-                        modifier = Modifier.size(AppDimens.Icon.sm),
-                    )
-                    Spacer(Modifier.width(AppDimens.Spacing.xs))
-                    Text(
-                        "${weekSessions * 120} pts",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = LocalExtendedColors.current.gold.copy(alpha = 0.12f),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs_sm, vertical = AppDimens.Spacing.xxs),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
+                    ) {
+                        Icon(
+                            AppIcons.Star,
+                            contentDescription = null,
+                            tint = LocalExtendedColors.current.gold,
+                            modifier = Modifier.size(AppDimens.Icon.xs),
+                        )
+                        Text(
+                            "${weekSessions * 120} pts",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = LocalExtendedColors.current.gold,
+                        )
+                    }
                 }
             }
             // BLE connect/disconnect compact button
@@ -827,23 +838,36 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Donut chart
-                    Canvas(modifier = Modifier.size(100.dp)) {
-                        val stroke = Stroke(width = 20f, cap = StrokeCap.Butt)
-                        var startAngle = -90f
-                        sliceEntries.forEach { (_, count, color) ->
-                            val sweep = (count / total) * 360f
-                            drawArc(
-                                color = color,
-                                startAngle = startAngle,
-                                sweepAngle = sweep,
-                                useCenter = false,
-                                style = stroke,
-                                topLeft = Offset(10f, 10f),
-                                size = Size(size.width - 20f, size.height - 20f),
-                            )
-                            startAngle += sweep
+                    // Donut chart with center label
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(100.dp)) {
+                        Canvas(modifier = Modifier.matchParentSize()) {
+                            val strokeW = 26f
+                            val gapDeg = if (sliceEntries.size > 1) 2f else 0f
+                            val stroke = Stroke(width = strokeW, cap = StrokeCap.Butt)
+                            var startAngle = -90f
+                            sliceEntries.forEach { (_, count, color) ->
+                                val sweep = ((count / total) * 360f) - gapDeg
+                                drawArc(
+                                    color = color,
+                                    startAngle = startAngle + gapDeg / 2f,
+                                    sweepAngle = sweep.coerceAtLeast(1f),
+                                    useCenter = false,
+                                    style = stroke,
+                                    topLeft = Offset(strokeW / 2f, strokeW / 2f),
+                                    size = Size(size.width - strokeW, size.height - strokeW),
+                                )
+                                startAngle += sweep + gapDeg
+                            }
                         }
+                        Text(
+                            sliceEntries.firstOrNull()?.first?.let {
+                                if (it.length > 6) it.take(5) + "." else it
+                            } ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
                     }
                     Spacer(Modifier.width(AppDimens.Spacing.md))
                     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm)) {
@@ -909,7 +933,7 @@ fun ProfileScreen(
                         color = if (selected) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier
-                            .size(AppDimens.Icon.xxl_sm)
+                            .size(40.dp)
                             .clickable(
                                 interactionSource = interactionSource,
                                 indication = null,
@@ -938,25 +962,40 @@ fun ProfileScreen(
         //  Exercise History ï¿½ date-grouped sessions with PR badges
         // -----------------------------------------------------------
         var historyExpanded by rememberSaveable { mutableStateOf(true) }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { historyExpanded = !historyExpanded }
-                .padding(bottom = AppDimens.Spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = AppDimens.Elevation.raised,
         ) {
-            Text(stringResource(R.string.profile_exercise_history),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                if (historyExpanded) AppIcons.ExpandLess else AppIcons.ExpandMore,
-                contentDescription = if (historyExpanded) "Collapse history" else "Expand history",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(AppDimens.Icon.md),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { historyExpanded = !historyExpanded }
+                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    AppIcons.FitnessCenter,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(AppDimens.Icon.md),
+                )
+                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                Text(stringResource(R.string.profile_exercise_history),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    if (historyExpanded) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                    contentDescription = if (historyExpanded) "Collapse history" else "Expand history",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(AppDimens.Icon.md),
+                )
+            }
         }
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
 
         AnimatedVisibility(
             visible = historyExpanded,
@@ -1275,6 +1314,13 @@ fun ProfileScreen(
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
         )
+        Text(
+            "PREFERENCES",
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 1.2.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
+        )
         PressScaleCard(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier          = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
@@ -1360,10 +1406,10 @@ fun ProfileScreen(
                                 else {
                                     val raw = selectedVoiceName.substringAfterLast("-x-").substringBeforeLast("-").uppercase()
                                     when (raw) {
-                                        "IOB" -> "Neural ï¿½ Voice 1"; "IOG" -> "Neural ï¿½ Voice 2"
-                                        "IOM" -> "Neural ï¿½ Voice 3"; "IOL" -> "Neural ï¿½ Voice 4"
-                                        "TPF" -> "Standard ï¿½ Voice A"; "TPD" -> "Standard ï¿½ Voice B"
-                                        "TPC" -> "Standard ï¿½ Voice C"; "SFG" -> "Standard ï¿½ Voice D"
+                                        "IOB" -> "Neural - Voice 1"; "IOG" -> "Neural - Voice 2"
+                                        "IOM" -> "Neural - Voice 3"; "IOL" -> "Neural - Voice 4"
+                                        "TPF" -> "Standard - Voice A"; "TPD" -> "Standard - Voice B"
+                                        "TPC" -> "Standard - Voice C"; "SFG" -> "Standard - Voice D"
                                         else  -> raw.ifEmpty { selectedVoiceName }
                                     }
                                 },
@@ -1441,14 +1487,14 @@ fun ProfileScreen(
                                         // Map Google's internal codes to friendlier names
                                         val raw = voice.name.substringAfterLast("-x-").substringBeforeLast("-").uppercase()
                                         val friendly = when (raw) {
-                                            "IOB" -> "Neural ï¿½ Voice 1"
-                                            "IOG" -> "Neural ï¿½ Voice 2"
-                                            "IOM" -> "Neural ï¿½ Voice 3"
-                                            "IOL" -> "Neural ï¿½ Voice 4"
-                                            "TPF" -> "Standard ï¿½ Voice A"
-                                            "TPD" -> "Standard ï¿½ Voice B"
-                                            "TPC" -> "Standard ï¿½ Voice C"
-                                            "SFG" -> "Standard ï¿½ Voice D"
+                                            "IOB" -> "Neural - Voice 1"
+                                            "IOG" -> "Neural - Voice 2"
+                                            "IOM" -> "Neural - Voice 3"
+                                            "IOL" -> "Neural - Voice 4"
+                                            "TPF" -> "Standard - Voice A"
+                                            "TPD" -> "Standard - Voice B"
+                                            "TPC" -> "Standard - Voice C"
+                                            "SFG" -> "Standard - Voice D"
                                             else  -> raw.ifEmpty { voice.name }
                                         }
                                         append(friendly)
@@ -1625,6 +1671,14 @@ fun ProfileScreen(
 
         // â”€â”€ Debug tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // -- Cloud Account --------------------------------------------
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+        Text(
+            "ACCOUNT & SYNC",
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 1.2.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
+        )
         if (com.example.vitruvianredux.cloud.SupabaseProvider.isInitialized) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             val sessionStatus by com.example.vitruvianredux.cloud.AuthRepository.sessionStatus
@@ -1804,7 +1858,14 @@ fun ProfileScreen(
         }
 
         // -- Device Management --------------------------------------------
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+        Text(
+            "DEVICE",
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 1.2.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
+        )
         PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDevice) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
