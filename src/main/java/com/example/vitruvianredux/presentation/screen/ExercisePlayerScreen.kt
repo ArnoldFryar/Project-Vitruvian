@@ -282,6 +282,18 @@ fun ExercisePlayerScreen(
                             tags         = workoutVM.sessionTags,
                             onTagsChange = { workoutVM.sessionTags = it },
                             prCount      = prCount,
+                            exerciseSets = workoutVM.completedExerciseStats.map { es ->
+                                com.example.vitruvianredux.data.AnalyticsStore.ExerciseSetLog(
+                                    exerciseName = es.exerciseName,
+                                    setIndex     = es.setIndex,
+                                    reps         = es.repsCompleted,
+                                    weightLb     = es.weightPerCableLb * es.numCables,
+                                    volumeKg     = es.volumeKg,
+                                    avgQualityScore = es.avgQualityScore,
+                                    numCables    = es.numCables,
+                                    skipped      = es.skipped,
+                                )
+                            },
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

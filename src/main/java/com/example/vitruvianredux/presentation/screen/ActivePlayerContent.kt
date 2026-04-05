@@ -904,15 +904,26 @@ internal fun ActivePlayerContent(
                                     color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                                             else MaterialTheme.colorScheme.surfaceVariant,
                                 ) {
-                                    Text(
-                                        text = level.displayName,
+                                    Column(
                                         modifier = Modifier.padding(vertical = AppDimens.Spacing.sm),
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    )
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    ) {
+                                        Text(
+                                            text = level.displayName,
+                                            textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        )
+                                        Text(
+                                            text = "${level.velocityMmS.toInt()} mm/s",
+                                            textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = (if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.6f),
+                                        )
+                                    }
                                 }
                             }
                         }

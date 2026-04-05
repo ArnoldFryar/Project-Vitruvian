@@ -240,6 +240,10 @@ fun AppScaffold() {
                                 avgSmoothness   = es.avgSmoothness,
                                 numCables       = es.numCables,
                                 skipped         = es.skipped,
+                                avgForce        = es.avgForce,
+                                peakForce       = es.peakForce,
+                                echoLevel       = es.echoLevel,
+                                eccentricLoadPct = es.eccentricLoadPct,
                             )
                         }
 

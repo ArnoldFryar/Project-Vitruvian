@@ -1422,6 +1422,11 @@ class WorkoutSessionEngine(
         val totalDeviceReps = _state.value.repsCount
         val workingReps     = (totalDeviceReps - set.warmupReps).coerceAtLeast(0)
         // Authoritative working volume comes from the per-rep accumulator — no lb recalculation.
+        // Capture heuristic force data (left+right average) if available
+        val heuristic = _machineHeuristic.value
+        val hAvgForce  = heuristic?.let { (it.left.concentric.kgAvg + it.right.concentric.kgAvg) / 2f } ?: 0f
+        val hPeakForce = heuristic?.let { maxOf(it.left.concentric.kgMax, it.right.concentric.kgMax) } ?: 0f
+        val isEcho = set.programMode == "Echo"
         val stats  = ExerciseStats(
             exerciseName         = set.exerciseName,
             setIndex             = currentPlayerIndex,
@@ -1431,6 +1436,10 @@ class WorkoutSessionEngine(
             weightPerCableLb     = set.weightPerCableLb,
             numCables            = set.numCables,
             volumeKg             = setVolumeAccumulator.workingKg,
+            avgForce             = hAvgForce,
+            peakForce            = hPeakForce,
+            echoLevel            = if (isEcho) set.echoLevel.displayName else null,
+            eccentricLoadPct     = set.eccentricLoadPct,
         )
         completedStats.add(stats)
         Log.i(TAG, "completeCurrentPlayerSet: set $currentPlayerIndex done — warmup=${set.warmupReps} working=$workingReps reps (device total=$totalDeviceReps), ${durSec}s, ${set.weightPerCableLb}lb")

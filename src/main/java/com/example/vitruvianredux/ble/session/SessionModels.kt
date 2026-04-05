@@ -29,6 +29,10 @@ data class ExerciseStats(
     val avgSmoothness: Int? = null,
     /** True when this set was skipped (not completed) during the workout. */
     val skipped: Boolean = false,
+    /** Echo level used for this set, or null if Regular mode. */
+    val echoLevel: String? = null,
+    /** Eccentric load percentage (default 100 = no reduction). */
+    val eccentricLoadPct: Int = 100,
 )
 
 /** Aggregate stats for a completed workout. */

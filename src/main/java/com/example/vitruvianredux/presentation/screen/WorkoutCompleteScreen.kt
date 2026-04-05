@@ -64,6 +64,7 @@ fun WorkoutCompleteContent(
     tags: Set<String> = emptySet(),
     onTagsChange: (Set<String>) -> Unit = {},
     prCount: Int = 0,
+    exerciseSets: List<AnalyticsStore.ExerciseSetLog> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
@@ -249,8 +250,9 @@ fun WorkoutCompleteContent(
                 StatTile(
                     icon  = AppIcons.BarChart,
                     label = stringResource(R.string.complete_heaviest),
-                    value = "${stats.heaviestLiftLb}",
-                    unit  = "lb/cable",
+                    value = if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) "${stats.heaviestLiftLb}"
+                            else "%.1f".format(stats.heaviestLiftLb * 0.45359237),
+                    unit  = UnitConversions.unitLabel(unitSystem),
                     modifier = Modifier.weight(1f),
                     animDelay = 500,
                 )
@@ -271,7 +273,56 @@ fun WorkoutCompleteContent(
             }
         }
 
-        // â”€â”€ Muscle-group tags (just-lift sessions only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Points earned + per-exercise breakdown ───────────────────────────
+        val sessionPts = AnalyticsStore.sessionPoints(
+            stats.totalVolumeKg.toDouble(), avgQualityScore)
+        val breakdown = remember(exerciseSets) {
+            AnalyticsStore.exercisePointsBreakdown(exerciseSets)
+                .entries.sortedByDescending { it.value }
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                StatTile(
+                    icon  = AppIcons.Star,
+                    label = "Points Earned",
+                    value = "$sessionPts",
+                    unit  = "pts",
+                    modifier = Modifier.fillMaxWidth(),
+                    animDelay = 700,
+                )
+            }
+            if (breakdown.size > 1) {
+                breakdown.forEach { (name, pts) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.sm),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurface.copy(alpha = 0.6f),
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "+$pts pts",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ext.gold,
+                        )
+                    }
+                }
+            }
+        }
+
+        // ── Muscle-group tags (just-lift sessions only) ──────────────────────
         if (isJustLift) {
             val muscleGroups = listOf("Chest", "Back", "Shoulders", "Arms", "Legs", "Core", "Full Body")
             Text(

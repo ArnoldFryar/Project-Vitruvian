@@ -1,4 +1,4 @@
-﻿package com.example.vitruvianredux.presentation.screen
+package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
@@ -299,6 +299,32 @@ fun ProfileScreen(
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
+        // Leaderboard link
+        Surface(
+            onClick = {
+                val intent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://app.vitruvian.me/leaderboard"),
+                )
+                context.startActivity(intent)
+            },
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                Icon(AppIcons.EmojiEvents, contentDescription = null, tint = LocalExtendedColors.current.gold, modifier = Modifier.size(AppDimens.Icon.md))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Leaderboard", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    Text("See where you rank", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.sm))
+            }
+        }
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  This Week stats row

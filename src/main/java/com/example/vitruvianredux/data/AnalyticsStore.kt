@@ -48,6 +48,10 @@ object AnalyticsStore {
         val avgSmoothness: Int? = null,
         val numCables: Int = 2,
         val skipped: Boolean = false,
+        val avgForce: Float = 0f,
+        val peakForce: Float = 0f,
+        val echoLevel: String? = null,
+        val eccentricLoadPct: Int = 100,
     )
 
     data class SessionLog(
@@ -88,6 +92,17 @@ object AnalyticsStore {
     fun sessionPoints(totalVolumeKg: Double, avgQualityScore: Int?): Int =
         ((totalVolumeKg * (0.50 + (avgQualityScore ?: 50) / 200.0) / 10.0) + 0.5)
             .toInt().coerceAtLeast(0)
+
+    /** Per-exercise points breakdown for a session's exercise sets. */
+    fun exercisePointsBreakdown(sets: List<ExerciseSetLog>): Map<String, Int> {
+        return sets.filter { !it.skipped }
+            .groupBy { it.exerciseName }
+            .mapValues { (_, exSets) ->
+                val vol = exSets.sumOf { it.volumeKg.toDouble() }
+                val q = exSets.mapNotNull { it.avgQualityScore }.average().takeIf { !it.isNaN() }?.toInt()
+                sessionPoints(vol, q)
+            }
+    }
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -340,6 +355,10 @@ object AnalyticsStore {
                                 if (s.avgSymmetry   != null) put("avgSymmetry",   s.avgSymmetry)
                                 if (s.avgSmoothness != null) put("avgSmoothness", s.avgSmoothness)
                                 if (s.skipped) put("skipped", true)
+                                if (s.avgForce > 0f) put("avgForce", s.avgForce.toDouble())
+                                if (s.peakForce > 0f) put("peakForce", s.peakForce.toDouble())
+                                if (s.echoLevel != null) put("echoLevel", s.echoLevel)
+                                if (s.eccentricLoadPct != 100) put("eccentricLoadPct", s.eccentricLoadPct)
                             })
                         }
                     })
@@ -392,6 +411,10 @@ object AnalyticsStore {
                                 avgSmoothness   = if (so.has("avgSmoothness")) so.getInt("avgSmoothness") else null,
                                 numCables       = so.optInt("numCables", 2),
                                 skipped         = so.optBoolean("skipped", false),
+                                avgForce        = so.optDouble("avgForce", 0.0).toFloat(),
+                                peakForce       = so.optDouble("peakForce", 0.0).toFloat(),
+                                echoLevel       = so.optString("echoLevel", "").takeIf { it.isNotEmpty() },
+                                eccentricLoadPct = so.optInt("eccentricLoadPct", 100),
                             )
                         }
                     } ?: emptyList(),

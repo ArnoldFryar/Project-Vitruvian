@@ -6,11 +6,16 @@ package com.example.vitruvianredux.ble.protocol
  *
  * Used in [WorkoutParameters.echoLevel] and [BlePacketFactory.createEchoControl].
  */
-enum class EchoLevel(val levelValue: Int, val displayName: String) {
-    HARD(0,    "Hard"),
-    HARDER(1,  "Harder"),
-    HARDEST(2, "Hardest"),
-    EPIC(3,    "Epic");
+enum class EchoLevel(
+    val levelValue: Int,
+    val displayName: String,
+    /** Target concentric velocity in mm/s (from device firmware). */
+    val velocityMmS: Float,
+) {
+    HARD(0,    "Hard",    50f),
+    HARDER(1,  "Harder",  40f),
+    HARDEST(2, "Hardest", 30f),
+    EPIC(3,    "Epic",    15f);
 
     companion object {
         fun fromValue(value: Int): EchoLevel =
