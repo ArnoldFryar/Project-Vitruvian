@@ -137,6 +137,7 @@ fun AppScaffold() {
             Route.Sync.path            -> "Sync"
             Route.Account.path         -> "Account"
             Route.ImportProgram.path   -> "Import"
+            Route.AnalyticsDashboard.path -> "Analytics"
             else                       -> "Vitruvian"
         }
 

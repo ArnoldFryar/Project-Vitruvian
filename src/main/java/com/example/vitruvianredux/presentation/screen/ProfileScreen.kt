@@ -82,6 +82,7 @@ fun ProfileScreen(
     onNavigateToDevice: () -> Unit = {},
     onNavigateToDebug: () -> Unit = {},
     onNavigateToAccount: () -> Unit = {},
+    onNavigateToAnalytics: () -> Unit = {},
 ) {
     val bleState by (bleVM?.state?.collectAsState() ?: remember { mutableStateOf(BleConnectionState.Disconnected) })
     var showDevicePicker by remember { mutableStateOf(false) }
@@ -1692,6 +1693,43 @@ fun ProfileScreen(
         }
 
         // â”€â”€ Debug tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // -- Cloud Account --------------------------------------------
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+        Text(
+            "ANALYTICS",
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 1.2.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
+        )
+        PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToAnalytics) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    AppIcons.BarChart, contentDescription = "Analytics Dashboard",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(AppDimens.Icon.lg),
+                )
+                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Analytics Dashboard",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                    Text(
+                        "View detailed workout analytics",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(AppIcons.KeyboardArrowRight, contentDescription = "Open", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
         // -- Cloud Account --------------------------------------------
         Spacer(Modifier.height(AppDimens.Spacing.md))
         Text(

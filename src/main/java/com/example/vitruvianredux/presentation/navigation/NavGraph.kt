@@ -42,6 +42,7 @@ enum class Route(val path: String) {
     SessionDetail("session_detail"),
     TemplatePreview("template_preview"),
     ExerciseDataDetail("exercise_data"),
+    AnalyticsDashboard("analytics_dashboard"),
 }
 
 private const val ANIM_DURATION = 280
@@ -121,10 +122,14 @@ fun AppNavHost(
                 onNavigateToDevice  = { nav.navigate(Route.Device.path) },
                 onNavigateToDebug   = { if (BuildConfig.IS_DEBUG_BUILD) nav.navigate(Route.Debug.path) },
                 onNavigateToAccount = { nav.navigate(Route.Account.path) },
+                onNavigateToAnalytics = { nav.navigate(Route.AnalyticsDashboard.path) },
             )
         }
         composable(Route.Account.path) {
             AccountScreen(onBack = { nav.popBackStack() })
+        }
+        composable(Route.AnalyticsDashboard.path) {
+            AnalyticsDashboardScreen(onBack = { nav.popBackStack() })
         }
         if (BuildConfig.IS_DEBUG_BUILD) {
             composable(Route.Debug.path) { DebugScreen(innerPadding, bleVM, workoutVM, onBack = { nav.popBackStack() }) }

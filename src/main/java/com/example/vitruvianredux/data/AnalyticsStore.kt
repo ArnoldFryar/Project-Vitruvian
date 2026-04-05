@@ -72,6 +72,7 @@ object AnalyticsStore {
         val exerciseSets: List<ExerciseSetLog> = emptyList(),
         val avgQualityScore: Int? = null,
         val notes: String = "",
+        val trainingMode: String? = null,
     )
 
     // ── State ────────────────────────────────────────────────────────────────
@@ -364,6 +365,7 @@ object AnalyticsStore {
                     })
                     if (log.avgQualityScore != null) put("avgQualityScore", log.avgQualityScore)
                     if (log.notes.isNotEmpty()) put("notes", log.notes)
+                    if (log.trainingMode != null) put("trainingMode", log.trainingMode)
                 })
             }
             prefs.edit().putString(KEY_LOGS, arr.toString()).commit()
@@ -420,6 +422,7 @@ object AnalyticsStore {
                     } ?: emptyList(),
                     avgQualityScore = if (o.has("avgQualityScore")) o.getInt("avgQualityScore") else null,
                     notes           = o.optString("notes", ""),
+                    trainingMode    = o.optString("trainingMode", "").takeIf { it.isNotEmpty() },
                 )
             }
         } catch (e: Exception) {

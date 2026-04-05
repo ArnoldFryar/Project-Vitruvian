@@ -57,6 +57,10 @@ object VitruvianWorkoutImporter {
                 val programName = w.optJSONObject("routine")?.optString("name")?.ifBlank { null }
                     ?: w.optString("routineName").ifBlank { null }
 
+                // Training mode (e.g. "pump", "echo", "static", "eccentric", …)
+                val trainingMode = w.optJSONObject("mode")?.optString("type")?.ifBlank { null }
+                    ?: w.optString("mode").takeIf { it.isNotBlank() && it != "null" }
+
                 val exerciseNames = mutableListOf<String>()
                 val muscleGroups  = mutableSetOf<String>()
                 var totalSets     = 0
@@ -109,6 +113,7 @@ object VitruvianWorkoutImporter {
                         heaviestLiftLb  = 0,
                         calories        = 0,
                         createdAt       = endMs,
+                        trainingMode    = trainingMode,
                     )
                 )
 
