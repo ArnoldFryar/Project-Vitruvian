@@ -1549,6 +1549,14 @@ fun ProfileScreen(
         val manualWeightKg by BodyWeightStore.manualWeightKgFlow.collectAsState()
         var showWeightDialog by remember { mutableStateOf(false) }
 
+        // Auto-fetch latest weight from Health Connect on entry
+        LaunchedEffect(Unit) {
+            if (hcAvailability == HealthConnectManager.Availability.AVAILABLE &&
+                HealthConnectManager.hasPermissions()) {
+                HealthConnectManager.readLatestWeightKg()?.let { BodyWeightStore.setWeightKg(it) }
+            }
+        }
+
         PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showWeightDialog = true }) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
@@ -1565,7 +1573,7 @@ fun ProfileScreen(
                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
                     Text(
                         if (manualWeightKg != null)
-                            "${"%.1f".format(manualWeightKg)} kg  (~${"%.0f".format((manualWeightKg ?: 0.0) * 2.20462)} lb)"
+                            "${"%.1f".format((manualWeightKg ?: 0.0) * 2.20462)} lb"
                         else "Tap to enter your body weight",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1576,7 +1584,7 @@ fun ProfileScreen(
         }
 
         if (showWeightDialog) {
-            var weightInput by remember { mutableStateOf(manualWeightKg?.let { "%.1f".format(it) } ?: "") }
+            var weightInput by remember { mutableStateOf(manualWeightKg?.let { "%.1f".format(it * 2.20462) } ?: "") }
             AlertDialog(
                 onDismissRequest = { showWeightDialog = false },
                 title = { Text(stringResource(R.string.settings_bodyweight_dialog_title)) },
@@ -1594,7 +1602,7 @@ fun ProfileScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        weightInput.toDoubleOrNull()?.let { BodyWeightStore.setWeightKg(it) }
+                        weightInput.toDoubleOrNull()?.let { BodyWeightStore.setWeightKg(it / 2.20462) }
                         showWeightDialog = false
                     }) { Text(stringResource(R.string.cd_save)) }
                 },

@@ -189,8 +189,8 @@
     <string name="settings_bodyweight_label">Body Weight</string>
     <string name="settings_bodyweight_hint">Tap to enter your body weight</string>
     <string name="settings_bodyweight_dialog_title">Body Weight</string>
-    <string name="settings_bodyweight_dialog_help">Enter your current body weight in kg. Used for relative strength calculations.</string>
-    <string name="settings_bodyweight_input_label">Weight (kg)</string>
+    <string name="settings_bodyweight_dialog_help">Enter your current body weight in lbs. Used for relative strength calculations.</string>
+    <string name="settings_bodyweight_input_label">Weight (lb)</string>
     <string name="settings_health_connect_label">Samsung Health Sync</string>
     <string name="settings_health_connect_description">Export workouts via Health Connect</string>
     <string name="settings_health_connect_permission_toast">Health Connect permissions required to sync workouts</string>
