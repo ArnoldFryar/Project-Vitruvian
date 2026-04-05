@@ -1,6 +1,9 @@
 package com.example.vitruvianredux.presentation.screen
 
+import android.content.Context
+import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,12 +17,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -28,12 +29,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.caverock.androidsvg.SVG
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  Analytics Dashboard Screen
@@ -319,184 +323,158 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Muscle Silhouette Heatmap
+//  Muscle Silhouette Heatmap (SVG-based)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Mapping from WorkoutHistoryStore muscle-group names → silhouette regions.
- * The silhouette draws simplified front + back body outlines and fills
- * labelled muscle zones with an intensity-based green colour.
- */
-private val BODY_GROUPS = listOf("CHEST", "BACK", "SHOULDERS", "ARMS", "CORE", "LEGS")
+/** Maps each SVG muscle-group ID in muscles.svg to its WorkoutHistoryStore key. */
+private val SVG_MUSCLE_MAP = mapOf(
+    "upper_pecs" to "CHEST",  "middle_pecs" to "CHEST",  "lower_pecs" to "CHEST",
+    "lats" to "BACK",         "rhomboids" to "BACK",     "lower_back" to "BACK",
+    "lower_traps" to "BACK",
+    "front_delts" to "SHOULDERS", "side_delts" to "SHOULDERS",
+    "rear_delts" to "SHOULDERS",  "upper_traps" to "SHOULDERS", "neck" to "SHOULDERS",
+    "biceps" to "ARMS",   "triceps" to "ARMS",   "forearms" to "ARMS",
+    "upper_abs" to "CORE", "lower_abs" to "CORE", "obliques" to "CORE",
+    "quads" to "LEGS",        "hamstrings" to "LEGS",  "calves" to "LEGS",
+    "glutes" to "LEGS",       "hip_abductor" to "LEGS", "hip_adductor" to "LEGS",
+)
+
+private fun buildStyledMuscleSvg(
+    rawSvg: String,
+    distribution: Map<String, Int>,
+    maxVal: Int,
+    viewBox: String,
+): String {
+    fun intensityColor(group: String): String {
+        val count = distribution[group] ?: 0
+        if (count == 0) return "#1e293b"
+        val v = (count.toFloat() / maxVal).coerceIn(0f, 1f)
+        return "rgba(34,197,94,${"%,.2f".format(0.15f + v * 0.75f)})"
+    }
+
+    val baseCss = """
+        .st0{fill:none;stroke:#475569;stroke-width:5;stroke-miterlimit:10;}
+        .st1{display:none;}
+        .st2{display:inline;}
+        .st3{fill:#1e293b;stroke:#475569;stroke-width:5;stroke-miterlimit:10;}
+        .st4{fill:#1e293b;stroke:#1e293b;stroke-width:5;stroke-miterlimit:10;}
+        .st5{fill:#1e293b;stroke:#1e293b;stroke-width:5;stroke-linejoin:round;stroke-miterlimit:10;}
+        .st6{fill:#1e293b;stroke:#475569;stroke-width:3;stroke-miterlimit:10;}
+    """.trimIndent()
+
+    val groupCss = SVG_MUSCLE_MAP.entries.joinToString("\n") { (groupId, muscleGroup) ->
+        val color = intensityColor(muscleGroup)
+        val stroke = if ((distribution[muscleGroup] ?: 0) > 0) color else "#334155"
+        "#$groupId path{fill:$color;stroke:$stroke;stroke-width:5;}"
+    }
+
+    return rawSvg
+        .replace(Regex("""<style[^>]*>.*?</style>""", setOf(RegexOption.DOT_MATCHES_ALL)),
+            """<style type="text/css">$baseCss\n$groupCss</style>""")
+        .replace(Regex("""viewBox="[^"]+""""), """viewBox="$viewBox"""")
+}
+
+private suspend fun renderMuscleSvgBitmap(
+    context: Context,
+    distribution: Map<String, Int>,
+    maxVal: Int,
+    viewBox: String,
+    widthPx: Int = 480,
+): ImageBitmap = withContext(Dispatchers.IO) {
+    val rawSvg = context.assets.open("muscles.svg").bufferedReader().readText()
+    val styledSvg = buildStyledMuscleSvg(rawSvg, distribution, maxVal, viewBox)
+    val svg = SVG.getFromString(styledSvg)
+    // Each half viewBox is 1800 wide × 3240 tall
+    val heightPx = (widthPx * 3240f / 1800f).toInt()
+    val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    canvas.drawColor(android.graphics.Color.parseColor("#0f172a"))
+    svg.renderToCanvas(canvas)
+    bitmap.asImageBitmap()
+}
 
 @Composable
 private fun MuscleSilhouetteSection(distribution: Map<String, Int>) {
-    if (distribution.isEmpty()) return
-    val maxVal = distribution.values.max().coerceAtLeast(1)
+    val context = LocalContext.current
+    val maxVal = distribution.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+
+    val bitmaps by produceState<Pair<ImageBitmap, ImageBitmap>?>(null, distribution) {
+        val front = renderMuscleSvgBitmap(context, distribution, maxVal, "-20 -20 1800 3240")
+        val back  = renderMuscleSvgBitmap(context, distribution, maxVal, "1748 -20 1800 3240")
+        value = Pair(front, back)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
         SectionHeader("Muscle Group Heatmap")
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            // Front silhouette
-            BodySilhouette(
-                label = "Front",
-                distribution = distribution,
-                maxVal = maxVal,
-                isFront = true,
-                modifier = Modifier.weight(1f).aspectRatio(0.45f),
-            )
-            Spacer(Modifier.width(AppDimens.Spacing.sm))
-            // Back silhouette
-            BodySilhouette(
-                label = "Back",
-                distribution = distribution,
-                maxVal = maxVal,
-                isFront = false,
-                modifier = Modifier.weight(1f).aspectRatio(0.45f),
-            )
-        }
-        // Legend
-        Spacer(Modifier.height(AppDimens.Spacing.xs))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Low", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(4.dp))
-            (1..4).forEach { lvl ->
-                val alpha = 0.15f + (lvl / 4f) * 0.75f
-                Canvas(modifier = Modifier.size(16.dp)) {
-                    drawRoundRect(
-                        color = Color(0xFF22C55E).copy(alpha = alpha),
-                        cornerRadius = CornerRadius(3f, 3f),
-                    )
+        when (val pair = bitmaps) {
+            null -> Box(
+                modifier = Modifier.fillMaxWidth().height(220.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(32.dp))
+            }
+            else -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(150.dp),
+                    ) {
+                        Text("Front", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        Image(
+                            bitmap = pair.first,
+                            contentDescription = "Front muscle heatmap",
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(150.dp),
+                    ) {
+                        Text("Back", style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        Image(
+                            bitmap = pair.second,
+                            contentDescription = "Back muscle heatmap",
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
                 }
-                Spacer(Modifier.width(2.dp))
-            }
-            Spacer(Modifier.width(4.dp))
-            Text("High", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun BodySilhouette(
-    label: String,
-    distribution: Map<String, Int>,
-    maxVal: Int,
-    isFront: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val outlineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-    val baseColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(fontSize = 10.sp, color = textColor, textAlign = TextAlign.Center)
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(4.dp))
-        Canvas(modifier = modifier) {
-            val w = size.width
-            val h = size.height
-            val cx = w / 2
-
-            // Intensity helper
-            fun groupIntensity(group: String): Color {
-                val count = distribution[group] ?: 0
-                if (count == 0) return baseColor
-                val v = (count.toFloat() / maxVal).coerceIn(0f, 1f)
-                return Color(0xFF22C55E).copy(alpha = 0.15f + v * 0.75f)
-            }
-
-            // Draw body outline
-            drawBodyOutline(cx, w, h, outlineColor)
-
-            if (isFront) {
-                // Chest region
-                drawMuscleRegion(cx - w * 0.18f, h * 0.22f, w * 0.36f, h * 0.1f, groupIntensity("CHEST"))
-                // Shoulders
-                drawMuscleRegion(cx - w * 0.32f, h * 0.18f, w * 0.12f, h * 0.07f, groupIntensity("SHOULDERS"))
-                drawMuscleRegion(cx + w * 0.20f, h * 0.18f, w * 0.12f, h * 0.07f, groupIntensity("SHOULDERS"))
-                // Arms
-                drawMuscleRegion(cx - w * 0.40f, h * 0.26f, w * 0.10f, h * 0.14f, groupIntensity("ARMS"))
-                drawMuscleRegion(cx + w * 0.30f, h * 0.26f, w * 0.10f, h * 0.14f, groupIntensity("ARMS"))
-                // Core
-                drawMuscleRegion(cx - w * 0.15f, h * 0.33f, w * 0.30f, h * 0.12f, groupIntensity("CORE"))
-                // Legs (quads)
-                drawMuscleRegion(cx - w * 0.18f, h * 0.50f, w * 0.15f, h * 0.22f, groupIntensity("LEGS"))
-                drawMuscleRegion(cx + w * 0.03f, h * 0.50f, w * 0.15f, h * 0.22f, groupIntensity("LEGS"))
-            } else {
-                // Upper back
-                drawMuscleRegion(cx - w * 0.18f, h * 0.20f, w * 0.36f, h * 0.13f, groupIntensity("BACK"))
-                // Rear shoulders
-                drawMuscleRegion(cx - w * 0.32f, h * 0.18f, w * 0.12f, h * 0.07f, groupIntensity("SHOULDERS"))
-                drawMuscleRegion(cx + w * 0.20f, h * 0.18f, w * 0.12f, h * 0.07f, groupIntensity("SHOULDERS"))
-                // Triceps
-                drawMuscleRegion(cx - w * 0.40f, h * 0.26f, w * 0.10f, h * 0.14f, groupIntensity("ARMS"))
-                drawMuscleRegion(cx + w * 0.30f, h * 0.26f, w * 0.10f, h * 0.14f, groupIntensity("ARMS"))
-                // Lower back / core
-                drawMuscleRegion(cx - w * 0.15f, h * 0.34f, w * 0.30f, h * 0.10f, groupIntensity("BACK"))
-                // Glutes
-                drawMuscleRegion(cx - w * 0.18f, h * 0.46f, w * 0.36f, h * 0.07f, groupIntensity("LEGS"))
-                // Hamstrings
-                drawMuscleRegion(cx - w * 0.18f, h * 0.54f, w * 0.15f, h * 0.18f, groupIntensity("LEGS"))
-                drawMuscleRegion(cx + w * 0.03f, h * 0.54f, w * 0.15f, h * 0.18f, groupIntensity("LEGS"))
+                // Legend
+                Spacer(Modifier.height(AppDimens.Spacing.xs))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Low", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
+                    (1..4).forEach { lvl ->
+                        val alpha = 0.15f + (lvl / 4f) * 0.75f
+                        Canvas(modifier = Modifier.size(16.dp)) {
+                            drawRoundRect(
+                                color = Color(0xFF22C55E).copy(alpha = alpha),
+                                cornerRadius = CornerRadius(3f, 3f),
+                            )
+                        }
+                        Spacer(Modifier.width(2.dp))
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    Text("High", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }
-}
-
-private fun DrawScope.drawBodyOutline(cx: Float, w: Float, h: Float, color: Color) {
-    val stroke = Stroke(width = 2f, cap = StrokeCap.Round)
-    // Head
-    drawCircle(color = color, radius = w * 0.08f, center = Offset(cx, h * 0.07f), style = stroke)
-    // Neck
-    drawLine(color, Offset(cx - w * 0.03f, h * 0.12f), Offset(cx - w * 0.03f, h * 0.16f), strokeWidth = 2f)
-    drawLine(color, Offset(cx + w * 0.03f, h * 0.12f), Offset(cx + w * 0.03f, h * 0.16f), strokeWidth = 2f)
-    // Torso
-    val torso = Path().apply {
-        moveTo(cx - w * 0.22f, h * 0.17f) // left shoulder
-        lineTo(cx - w * 0.32f, h * 0.19f) // left shoulder edge
-        lineTo(cx - w * 0.35f, h * 0.25f) // left arm joint
-        moveTo(cx - w * 0.22f, h * 0.17f)
-        lineTo(cx - w * 0.20f, h * 0.33f) // left waist
-        lineTo(cx - w * 0.18f, h * 0.46f) // left hip
-        lineTo(cx - w * 0.20f, h * 0.50f) // left leg top
-        moveTo(cx + w * 0.22f, h * 0.17f) // right shoulder
-        lineTo(cx + w * 0.32f, h * 0.19f) // right shoulder edge
-        lineTo(cx + w * 0.35f, h * 0.25f) // right arm joint
-        moveTo(cx + w * 0.22f, h * 0.17f)
-        lineTo(cx + w * 0.20f, h * 0.33f) // right waist
-        lineTo(cx + w * 0.18f, h * 0.46f) // right hip
-        lineTo(cx + w * 0.20f, h * 0.50f) // right leg top
-        // Chest line
-        moveTo(cx - w * 0.22f, h * 0.17f)
-        lineTo(cx + w * 0.22f, h * 0.17f)
-    }
-    drawPath(torso, color, style = stroke)
-    // Arms
-    drawLine(color, Offset(cx - w * 0.35f, h * 0.25f), Offset(cx - w * 0.42f, h * 0.42f), strokeWidth = 2f)
-    drawLine(color, Offset(cx + w * 0.35f, h * 0.25f), Offset(cx + w * 0.42f, h * 0.42f), strokeWidth = 2f)
-    // Legs
-    drawLine(color, Offset(cx - w * 0.20f, h * 0.50f), Offset(cx - w * 0.22f, h * 0.75f), strokeWidth = 2f)
-    drawLine(color, Offset(cx + w * 0.20f, h * 0.50f), Offset(cx + w * 0.22f, h * 0.75f), strokeWidth = 2f)
-    // Lower legs
-    drawLine(color, Offset(cx - w * 0.22f, h * 0.75f), Offset(cx - w * 0.22f, h * 0.92f), strokeWidth = 2f)
-    drawLine(color, Offset(cx + w * 0.22f, h * 0.75f), Offset(cx + w * 0.22f, h * 0.92f), strokeWidth = 2f)
-}
-
-private fun DrawScope.drawMuscleRegion(x: Float, y: Float, w: Float, h: Float, color: Color) {
-    drawRoundRect(
-        color = color,
-        topLeft = Offset(x, y),
-        size = Size(w, h),
-        cornerRadius = CornerRadius(8f, 8f),
-    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
