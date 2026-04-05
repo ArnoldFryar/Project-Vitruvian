@@ -20,9 +20,22 @@ sealed class ProgramMode(val modeValue: Int, val displayName: String) {
     object EccentricOnly : ProgramMode(6,  "Eccentric Only")
     /** Echo mode — dynamic eccentric assist; uses its own BLE frame (0x4E). */
     object Echo          : ProgramMode(10, "Echo")
+    /**
+     * Static / isometric hold mode — sustained constant load through the ROM.
+     * Maps to the Vitruvian API "static" set type.
+     * Uses TUT's BLE mode value (3) as the closest analogue until the exact
+     * machine value is confirmed from protocol analysis.
+     */
+    object Static        : ProgramMode(3,  "Static")
+    /**
+     * External resistance mode — machine tracks form only; user lifts external
+     * weight (dumbbells, barbell).  Maps to Vitruvian API "external" set type.
+     * Uses OldSchool BLE mode value (0) with very low load.
+     */
+    object External      : ProgramMode(0,  "External")
 
     companion object {
-        val all: List<ProgramMode> get() = listOf(OldSchool, Pump, TUT, TUTBeast, EccentricOnly, Echo)
+        val all: List<ProgramMode> get() = listOf(OldSchool, Pump, TUT, TUTBeast, EccentricOnly, Echo, Static, External)
 
         /** Non-Echo modes suitable for the 96-byte program-params frame. */
         val programModes: List<ProgramMode> get() = all.filter { it !is Echo }

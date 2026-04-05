@@ -96,6 +96,15 @@ fun ProfileScreen(
     var showEditNameDialog by remember { mutableStateOf(false) }
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
+    // ── Cloud sign-in state (used for top-of-screen banner) ─────────────────────
+    val cloudSignedIn = remember {
+        if (com.example.vitruvianredux.cloud.SupabaseProvider.isInitialized)
+            com.example.vitruvianredux.cloud.AuthRepository.sessionStatus
+        else kotlinx.coroutines.flow.MutableStateFlow(io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated(false))
+    }
+    val cloudSessionStatus by cloudSignedIn.collectAsState(initial = io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated(false))
+    val isCloudSignedIn = cloudSessionStatus is io.github.jan.supabase.gotrue.SessionStatus.Authenticated
+
     // â”€â”€ Exercise catalog lookup for weighted muscle group distribution â”€â”€â”€â”€â”€â”€â”€â”€
     val context = androidx.compose.ui.platform.LocalContext.current
     val exerciseLookup = remember {

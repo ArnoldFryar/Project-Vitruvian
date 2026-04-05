@@ -294,6 +294,28 @@ object BlePacketFactory {
                 putShortLE(b, 0x18, -260);  putShortLE(b, 0x1a, -110)
                 putFloatLE(b, 0x1c, 0.0f)
             }
+            is ProgramMode.Static -> {
+                // Static hold — use TUT profile (sustained load, closest BLE analogue)
+                putShortLE(b, 0x00, 250);   putShortLE(b, 0x02, 350)
+                putFloatLE(b, 0x04, 7.0f)
+                putShortLE(b, 0x08, 450);   putShortLE(b, 0x0a, 600)
+                putFloatLE(b, 0x0c, 50.0f)
+                putShortLE(b, 0x10, -900);  putShortLE(b, 0x12, -700)
+                putFloatLE(b, 0x14, 70.0f)
+                putShortLE(b, 0x18, -100);  putShortLE(b, 0x1a, -50)
+                putFloatLE(b, 0x1c, 14.0f)
+            }
+            is ProgramMode.External -> {
+                // External resistance — machine tracks form only; use OldSchool profile
+                putShortLE(b, 0x00, 0);     putShortLE(b, 0x02, 20)
+                putFloatLE(b, 0x04, 3.0f)
+                putShortLE(b, 0x08, 75);    putShortLE(b, 0x0a, 600)
+                putFloatLE(b, 0x0c, 50.0f)
+                putShortLE(b, 0x10, -1300); putShortLE(b, 0x12, -1200)
+                putFloatLE(b, 0x14, 100.0f)
+                putShortLE(b, 0x18, -260);  putShortLE(b, 0x1a, -110)
+                putFloatLE(b, 0x1c, 0.0f)
+            }
         }
         return b
     }

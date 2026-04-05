@@ -15,6 +15,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -27,8 +28,14 @@ import com.example.vitruvianredux.cloud.AuthRepository
 import com.example.vitruvianredux.cloud.CloudSyncRepository
 import com.example.vitruvianredux.cloud.CloudSyncState
 import com.example.vitruvianredux.cloud.SupabaseProvider
+import com.example.vitruvianredux.cloud.VitruvianApiClient
+import com.example.vitruvianredux.cloud.VitruvianAuthManager
+import com.example.vitruvianredux.cloud.DeviceFlowSession
+import com.example.vitruvianredux.cloud.VitruvianRoutineImporter
+import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.util.loadAllExercises
 import io.github.jan.supabase.gotrue.SessionStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -43,13 +50,14 @@ fun AccountScreen(
 ) {
     val scope = rememberCoroutineScope()
 
-    // Only render if Supabase is initialised
+    // Only render Supabase section if Supabase is initialised
     if (!SupabaseProvider.isInitialized) {
         AccountShell(onBack) {
             Text(stringResource(R.string.account_unconfigured),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            VitruvianConnectionSection()
         }
         return
     }
@@ -75,6 +83,7 @@ fun AccountScreen(
                 SignInContent()
             }
         }
+        VitruvianConnectionSection()
     }
 }
 
@@ -361,6 +370,243 @@ private fun SignInContent() {
                     if (isSignUp) "Already have an account? Sign in" else "Don't have an account? Create one",
                     style = MaterialTheme.typography.labelMedium,
                 )
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  Vitruvian Machine Account section
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Card that manages the Auth0 device-flow connection to the Vitruvian REST API.
+ *
+ * States:
+ *  - Not connected → "Connect Vitruvian Account" button
+ *  - Connecting    → show user_code + instructions + polling status
+ *  - Connected     → display name + "Import My Routines" + "Disconnect"
+ */
+@Composable
+private fun VitruvianConnectionSection() {
+    val scope   = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    var isConnected  by remember { mutableStateOf(VitruvianAuthManager.isConnected) }
+    var displayName  by remember { mutableStateOf(VitruvianAuthManager.displayName) }
+
+    // Device-flow state
+    var isConnecting    by remember { mutableStateOf(false) }
+    var deviceSession   by remember { mutableStateOf<DeviceFlowSession?>(null) }
+    var flowStatus      by remember { mutableStateOf("") }
+    var flowError       by remember { mutableStateOf<String?>(null) }
+
+    // Import state
+    var isImporting     by remember { mutableStateOf(false) }
+    var importResult    by remember { mutableStateOf<String?>(null) }
+
+    Divider()
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Text(
+                "Vitruvian Machine Account",
+                style     = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            when {
+                // ── Connected ─────────────────────────────────────────────────
+                isConnected -> {
+                    Text(
+                        displayName ?: "Connected",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        "Import your Vitruvian routines as workout programs.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    if (importResult != null) {
+                        Text(
+                            importResult!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (importResult!!.startsWith("Error"))
+                                MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                        Button(
+                            onClick = {
+                                importResult = null
+                                isImporting  = true
+                                scope.launch(Dispatchers.IO) {
+                                    val token = VitruvianAuthManager.accessToken
+                                    if (token == null) {
+                                        importResult = "Error: not connected"
+                                        isImporting  = false
+                                        return@launch
+                                    }
+                                    val routinesJson = VitruvianApiClient.getRoutines(token)
+                                    if (routinesJson == null) {
+                                        importResult = "Error: could not fetch routines"
+                                        isImporting  = false
+                                        return@launch
+                                    }
+                                    val catalog  = loadAllExercises(context)
+                                    val programs = VitruvianRoutineImporter.importRoutines(
+                                        routinesJson = routinesJson,
+                                        catalog      = catalog,
+                                    )
+                                    programs.forEach { ProgramStore.addProgram(it) }
+                                    importResult = "Imported ${programs.size} routines"
+                                    isImporting  = false
+                                }
+                            },
+                            enabled = !isImporting,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            if (isImporting) {
+                                CircularProgressIndicator(
+                                    modifier    = Modifier.size(AppDimens.Icon.md),
+                                    strokeWidth = AppDimens.Stroke.medium,
+                                    color       = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            } else {
+                                Text("Import My Routines")
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                VitruvianAuthManager.disconnect()
+                                isConnected  = false
+                                displayName  = null
+                                importResult = null
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ),
+                        ) {
+                            Text("Disconnect")
+                        }
+                    }
+                }
+
+                // ── Connecting (device flow active) ───────────────────────────
+                isConnecting -> {
+                    val session = deviceSession
+                    if (session != null) {
+                        Text(
+                            "Visit: ${session.verificationUri}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            "Enter code:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            session.userCode,
+                            style      = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color      = MaterialTheme.colorScheme.primary,
+                        )
+                        if (flowStatus.isNotBlank()) {
+                            Text(
+                                flowStatus,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier    = Modifier.size(AppDimens.Icon.md),
+                                strokeWidth = AppDimens.Stroke.medium,
+                            )
+                            Spacer(Modifier.width(AppDimens.Spacing.sm))
+                            Text("Starting connection…", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    if (flowError != null) {
+                        Text(
+                            flowError!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = { isConnecting = false; deviceSession = null; flowError = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+
+                // ── Not connected ─────────────────────────────────────────────
+                else -> {
+                    Text(
+                        "Connect your Vitruvian account to import your routines as workout programs.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (flowError != null) {
+                        Text(
+                            flowError!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            flowError  = null
+                            flowStatus = ""
+                            isConnecting = true
+                            scope.launch(Dispatchers.IO) {
+                                val sessionResult = VitruvianAuthManager.startDeviceFlow()
+                                sessionResult.onFailure { e ->
+                                    flowError    = e.message ?: "Failed to start connection"
+                                    isConnecting = false
+                                    return@launch
+                                }
+                                val session = sessionResult.getOrThrow()
+                                deviceSession = session
+
+                                val error = VitruvianAuthManager.pollForToken(session) { status ->
+                                    flowStatus = status
+                                }
+                                if (error != null) {
+                                    flowError    = error
+                                    isConnecting = false
+                                    deviceSession = null
+                                } else {
+                                    // Success
+                                    isConnected  = true
+                                    displayName  = VitruvianAuthManager.displayName
+                                    isConnecting = false
+                                    deviceSession = null
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(
+                            AppIcons.AccountCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(AppDimens.Icon.md),
+                        )
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Text("Connect Vitruvian Account")
+                    }
+                }
             }
         }
     }

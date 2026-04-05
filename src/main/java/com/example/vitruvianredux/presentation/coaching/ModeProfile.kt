@@ -104,6 +104,34 @@ data class ModeProfile(
             focusHint               = "Match the rhythm",
         )
 
+        /** Static / isometric — smoothness and ROM are equally critical. */
+        val Static = ModeProfile(
+            name                    = "Static",
+            romWeight               = 0.30f,
+            tempoWeight             = 0.10f,
+            symmetryWeight          = 0.25f,
+            smoothnessWeight        = 0.35f,
+            tempoWarnThreshold      = 30,
+            romWarnThreshold        = 55,
+            symmetryWarnThreshold   = 50,
+            smoothnessWarnThreshold = 60,
+            focusHint               = "Hold steady",
+        )
+
+        /** External — machine tracks form only; focus on symmetry and ROM. */
+        val External = ModeProfile(
+            name                    = "External",
+            romWeight               = 0.30f,
+            tempoWeight             = 0.20f,
+            symmetryWeight          = 0.30f,
+            smoothnessWeight        = 0.20f,
+            tempoWarnThreshold      = 40,
+            romWarnThreshold        = 55,
+            symmetryWarnThreshold   = 55,
+            smoothnessWarnThreshold = 45,
+            focusHint               = "Full range, even sides",
+        )
+
         /** Look up profile by the mode label string from MODE_OPTIONS / selectedMode. */
         fun forMode(mode: String): ModeProfile = when (mode) {
             "Old School"               -> OldSchool
@@ -111,6 +139,8 @@ data class ModeProfile(
             "TUT", "TUT Beast"         -> TUT
             "Eccentric", "Eccentric Only" -> Eccentric
             "Echo"                     -> Echo
+            "Static"                   -> Static
+            "External"                 -> External
             else                       -> OldSchool
         }
     }

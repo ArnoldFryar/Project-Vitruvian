@@ -98,6 +98,8 @@ class MainActivity : ComponentActivity() {
             TemplateRepository.init(applicationContext)
             ProgramStore.init(applicationContext)
             SyncServiceLocator.init(applicationContext)
+            // Vitruvian machine account (Auth0 device-flow token store)
+            com.example.vitruvianredux.cloud.VitruvianAuthManager.init(applicationContext)
             // Backfill SessionRepository from AnalyticsStore so existing
             // workouts are syncable.
             SyncServiceLocator.exportToSessionRepo()
