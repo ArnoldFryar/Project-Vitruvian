@@ -98,11 +98,11 @@ fun DebugScreen(
                 ) {
                     StatusChip(
                         label = when (bleState) {
-                            is BleConnectionState.Connected    -> "â— ${(bleState as BleConnectionState.Connected).device.name}"
-                            is BleConnectionState.Connecting   -> "â—Œ Connectingâ€¦"
-                            is BleConnectionState.Scanning     -> "â—Œ Scanningâ€¦"
-                            is BleConnectionState.Disconnected -> "â—‹ Disconnected"
-                            is BleConnectionState.Error        -> "âœ• ${(bleState as BleConnectionState.Error).message}"
+                            is BleConnectionState.Connected    -> (bleState as BleConnectionState.Connected).device.name ?: "Connected"
+                            is BleConnectionState.Connecting   -> "Connecting..."
+                            is BleConnectionState.Scanning     -> "Scanning..."
+                            is BleConnectionState.Disconnected -> "Disconnected"
+                            is BleConnectionState.Error        -> "Error: ${(bleState as BleConnectionState.Error).message}"
                         },
                         containerColor = if (isConnected)
                             MaterialTheme.colorScheme.primaryContainer
@@ -150,7 +150,7 @@ fun DebugScreen(
                     ) {
                         workoutVM.resetDevice()
                     }
-                    DebugButton("SCROLLâ†“") {
+                    DebugButton("SCROLL v") {
                         scope.launch {
                             if (logEntries.isNotEmpty())
                                 listState.animateScrollToItem(logEntries.size - 1)
