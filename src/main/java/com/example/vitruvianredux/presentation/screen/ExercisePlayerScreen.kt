@@ -338,7 +338,13 @@ fun ExercisePlayerScreen(
                             onWarmupRepsChange = { warmupReps = it.coerceIn(0, 20) },
                             onTotalSetsChange  = { targetSets = it.coerceIn(1, 20) },
                             onResistanceChange = { resistanceLb = it.coerceIn(0f, ResistanceLimits.maxPerHandleLb.toFloat()) },
-                            onToggleMode       = { isRepsMode = it },
+                            onToggleMode       = { reps ->
+                                isRepsMode = reps
+                                workoutVM.patchCurrentSetMode(
+                                    targetReps        = if (reps) targetReps else null,
+                                    targetDurationSec = if (!reps) targetDuration else null,
+                                )
+                            },
                             onAutoPlayChange   = { autoPlay = it; workoutVM.autoPlay = it },
                             onGo = {
                                 if (isExerciseMenuLaunch) {
@@ -411,7 +417,13 @@ fun ExercisePlayerScreen(
                         selectedTab           = selectedTab,
                         onTabSelected         = { selectedTab = it },
                         isRepsMode            = isRepsMode,
-                        onToggleMode          = { isRepsMode = it },
+                        onToggleMode          = { reps ->
+                            isRepsMode = reps
+                            workoutVM.patchCurrentSetMode(
+                                targetReps        = if (reps) targetReps else null,
+                                targetDurationSec = if (!reps) targetDuration else null,
+                            )
+                        },
                         targetReps            = targetReps,
                         onTargetRepsChange    = { targetReps = (it).coerceIn(1, 100) },
                         warmupReps               = warmupReps,

@@ -542,6 +542,10 @@ class WorkoutSessionViewModel(
         updateUpcomingSets(newQueue)
     }
 
+    /** Persist the user's reps/duration mode choice into the current set so pause-resume keeps it. */
+    fun patchCurrentSetMode(targetReps: Int?, targetDurationSec: Int?) =
+        engine.patchCurrentSetMode(targetReps, targetDurationSec)
+
     /** Update the upcoming sets in the player workout. */
     fun updateUpcomingSets(newSets: List<PlayerSetParams>) = engine.updateUpcomingSets(newSets)
 

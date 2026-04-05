@@ -1163,6 +1163,26 @@ class WorkoutSessionEngine(
     }
 
     /** Update the upcoming sets in the player workout. */
+    /**
+     * Patch the mode (reps vs duration) of the current set in [playerSets] so that
+     * a pause-then-resume cycle preserves the user's choice.
+     *
+     * Safe to call from [SessionPhase.ExerciseActive] or [SessionPhase.Paused].
+     * Passing [targetReps]=null and [targetDurationSec]!=null switches to duration mode.
+     * Passing [targetReps]!=null and [targetDurationSec]=null switches to reps mode.
+     */
+    fun patchCurrentSetMode(targetReps: Int?, targetDurationSec: Int?) {
+        val index = currentPlayerIndex
+        val original = playerSets.getOrNull(index) ?: return
+        playerSets = playerSets.toMutableList().also { list ->
+            list[index] = original.copy(
+                targetReps        = targetReps,
+                targetDurationSec = targetDurationSec,
+            )
+        }
+        Log.d(TAG, "patchCurrentSetMode[$index]: reps=$targetReps  dur=$targetDurationSec")
+    }
+
     fun updateUpcomingSets(newSets: List<PlayerSetParams>) {
         val currentSets = playerSets.take(currentPlayerIndex)
         playerSets = currentSets + newSets
