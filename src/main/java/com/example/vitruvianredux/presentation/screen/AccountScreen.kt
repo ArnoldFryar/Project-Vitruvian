@@ -32,6 +32,7 @@ import com.example.vitruvianredux.cloud.VitruvianApiClient
 import com.example.vitruvianredux.cloud.VitruvianAuthManager
 import com.example.vitruvianredux.cloud.DeviceFlowSession
 import com.example.vitruvianredux.cloud.VitruvianRoutineImporter
+import com.example.vitruvianredux.cloud.VitruvianWorkoutImporter
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
@@ -405,6 +406,10 @@ private fun VitruvianConnectionSection() {
     var isImporting     by remember { mutableStateOf(false) }
     var importResult    by remember { mutableStateOf<String?>(null) }
 
+    // Workout history import state
+    var isImportingHistory  by remember { mutableStateOf(false) }
+    var historyImportResult by remember { mutableStateOf<String?>(null) }
+
     Divider()
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -437,6 +442,16 @@ private fun VitruvianConnectionSection() {
                             importResult!!,
                             style = MaterialTheme.typography.bodySmall,
                             color = if (importResult!!.startsWith("Error"))
+                                MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    if (historyImportResult != null) {
+                        Text(
+                            historyImportResult!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (historyImportResult!!.startsWith("Error"))
                                 MaterialTheme.colorScheme.error
                             else MaterialTheme.colorScheme.primary,
                         )
@@ -490,12 +505,61 @@ private fun VitruvianConnectionSection() {
                                 isConnected  = false
                                 displayName  = null
                                 importResult = null
+                                historyImportResult = null
                             },
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error,
                             ),
                         ) {
                             Text("Disconnect")
+                        }
+                    }
+
+                    // Workout history import
+                    Button(
+                        onClick = {
+                            historyImportResult = null
+                            isImportingHistory  = true
+                            scope.launch(Dispatchers.IO) {
+                                val token = VitruvianAuthManager.accessToken
+                                if (token == null) {
+                                    historyImportResult = "Error: not connected"
+                                    isImportingHistory  = false
+                                    return@launch
+                                }
+                                val workoutsJson = VitruvianApiClient.getWorkouts(token)
+                                if (workoutsJson == null) {
+                                    historyImportResult = "Error: could not fetch workout history"
+                                    isImportingHistory  = false
+                                    return@launch
+                                }
+                                val catalog = loadAllExercises(context)
+                                val count   = VitruvianWorkoutImporter.importWorkouts(
+                                    workoutsJson = workoutsJson,
+                                    catalog      = catalog,
+                                )
+                                historyImportResult = if (count > 0)
+                                    "Imported $count workouts"
+                                else
+                                    "No new workouts to import"
+                                isImportingHistory = false
+                            }
+                        },
+                        enabled  = !isImportingHistory,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors   = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor   = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ),
+                    ) {
+                        if (isImportingHistory) {
+                            CircularProgressIndicator(
+                                modifier    = Modifier.size(AppDimens.Icon.md),
+                                strokeWidth = AppDimens.Stroke.medium,
+                                color       = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        } else {
+                            Text("Import Workout History")
                         }
                     }
                 }

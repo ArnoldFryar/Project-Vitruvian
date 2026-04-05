@@ -63,10 +63,8 @@ fun DebugScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(
-                top    = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding(),
-            ),
+            .statusBarsPadding()
+            .padding(bottom = innerPadding.calculateBottomPadding()),
     ) {
         // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Surface(tonalElevation = AppDimens.Elevation.card) {
