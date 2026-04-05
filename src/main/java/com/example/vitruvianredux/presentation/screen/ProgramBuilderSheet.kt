@@ -156,7 +156,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                     )
                     AnimatedVisibility(visible = draftItems.isNotEmpty()) {
                         Text(
-                            "${draftItems.size} exercise${if (draftItems.size != 1) "s" else ""} \u00b7 ${draftItems.sumOf { it.sets }} total sets",
+                            "${draftItems.size} exercise${if (draftItems.size != 1) "s" else ""} - ${draftItems.sumOf { it.sets }} total sets",
                             style    = MaterialTheme.typography.bodySmall,
                             color    = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = AppDimens.Spacing.xs),
