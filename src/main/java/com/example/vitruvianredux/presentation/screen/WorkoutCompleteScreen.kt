@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.sin
 import kotlin.random.Random
 import com.example.vitruvianredux.ble.session.WorkoutStats
+import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*

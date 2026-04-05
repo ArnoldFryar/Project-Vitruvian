@@ -236,11 +236,12 @@ private fun WorkoutHistoryCard(
                     value = "${session.totalSets}s x ${session.totalReps}r",
                     modifier = Modifier.weight(1f),
                 )
-                // Calories
-                val calLabel = if (session.calories > 0) "${session.calories} kcal" else "- kcal"
+                // Points
+                val sessionPts = AnalyticsStore.sessionPoints(session.totalVolumeKg, session.avgQualityScore)
                 MiniStat(
-                    icon = AppIcons.LocalFireDepartment,
-                    value = calLabel,
+                    icon = AppIcons.Star,
+                    value = "$sessionPts pts",
+                    iconTint = gold,
                     modifier = Modifier.weight(1f),
                 )
             }

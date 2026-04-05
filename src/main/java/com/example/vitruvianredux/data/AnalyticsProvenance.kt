@@ -117,10 +117,10 @@ object AnalyticsProvenance {
             "Rough placeholder; exported to Health Connect; not shown in-app",
         ),
         MetricInfo(
-            "points", Source.PLACEHOLDER,
-            "totalSets × 10 + totalReps × 2 (ActivityHistoryScreen only)",
-            Confidence.LOW,
-            "Arbitrary gamification; single formula remains in session history",
+            "points", Source.APP_DERIVED,
+            "volumeKg × (0.50 + (quality ?: 50) / 200.0) / 10  →  quality multiplier 0.50–1.00",
+            Confidence.MEDIUM,
+            "Volume × form quality hybrid; shown on profile chip, session history cards, and workout complete screen",
         ),
         MetricInfo(
             "heaviest_lift", Source.APP_DERIVED,

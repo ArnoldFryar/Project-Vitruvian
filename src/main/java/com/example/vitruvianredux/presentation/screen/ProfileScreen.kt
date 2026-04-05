@@ -143,6 +143,11 @@ fun ProfileScreen(
             else                     -> WorkoutHistoryStore.recentSessions(7)
         }
     }
+    val weekPoints = remember(allLogs, thisWeekStartMs) {
+        allLogs
+            .filter { it.startTimeMs >= thisWeekStartMs }
+            .sumOf { AnalyticsStore.sessionPoints(it.totalVolumeKg, it.avgQualityScore) }
+    }
     val currentStreak = remember(allLogs, history) {
         val fromAnalytics = AnalyticsStore.currentStreak()
         if (fromAnalytics > 0 || allLogs.isNotEmpty()) fromAnalytics
@@ -261,7 +266,7 @@ fun ProfileScreen(
                             modifier = Modifier.size(AppDimens.Icon.xs),
                         )
                         Text(
-                            "${weekSessions * 120} pts",
+                            "$weekPoints pts",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = LocalExtendedColors.current.gold,

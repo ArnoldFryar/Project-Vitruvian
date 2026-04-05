@@ -77,6 +77,18 @@ object AnalyticsStore {
     private val _logs = MutableStateFlow<List<SessionLog>>(emptyList())
     val logsFlow: StateFlow<List<SessionLog>> = _logs.asStateFlow()
 
+    // ── Gamification ─────────────────────────────────────────────────────────
+
+    /**
+     * Points earned for a session.
+     * Formula: volumeKg × qualityMultiplier ÷ 10
+     * qualityMultiplier = 0.50 + (quality ?: 50) / 200.0
+     *   → 0.50 at quality=0,  0.75 with no quality data,  1.00 at quality=100.
+     */
+    fun sessionPoints(totalVolumeKg: Double, avgQualityScore: Int?): Int =
+        ((totalVolumeKg * (0.50 + (avgQualityScore ?: 50) / 200.0) / 10.0) + 0.5)
+            .toInt().coerceAtLeast(0)
+
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
     fun init(context: Context) {
