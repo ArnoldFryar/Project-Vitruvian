@@ -43,8 +43,6 @@ enum class Route(val path: String) {
     TemplatePreview("template_preview"),
     ExerciseDataDetail("exercise_data"),
     AnalyticsDashboard("analytics_dashboard"),
-    CoachingHub("coaching_hub"),
-    ClassWebView("class_webview"),
 }
 
 private const val ANIM_DURATION = 280
@@ -107,7 +105,6 @@ fun AppNavHost(
                 onNavigateToTemplates       = { nav.navigate(Route.Templates.path) },
                 onNavigateToImport          = { nav.navigate(Route.ImportProgram.path) },
                 onNavigateToHevyImport      = { nav.navigate(Route.HevyImport.path) },
-                onNavigateToCoachingHub     = { nav.navigate(Route.CoachingHub.path) },
             )
         }
         composable(Route.Device.path)    {
@@ -131,26 +128,6 @@ fun AppNavHost(
         }
         composable(Route.Account.path) {
             AccountScreen(onBack = { nav.popBackStack() })
-        }
-        composable(Route.CoachingHub.path) {
-            CoachingScreen(
-                innerPadding  = innerPadding,
-                onOpenClass   = { enrollmentId, programId ->
-                    nav.navigate("${Route.ClassWebView.path}/${Uri.encode(enrollmentId)}/${Uri.encode(programId)}")
-                },
-                onOpenProgram = { programId ->
-                    nav.navigate("${Route.ClassWebView.path}/_/${Uri.encode(programId)}")
-                },
-            )
-        }
-        composable(route = "${Route.ClassWebView.path}/{enrollmentId}/{programId}") { backStackEntry ->
-            val enrollmentId = backStackEntry.arguments?.getString("enrollmentId") ?: ""
-            val programId    = backStackEntry.arguments?.getString("programId")    ?: ""
-            ClassWebViewScreen(
-                enrollmentId = if (enrollmentId == "_") "" else enrollmentId,
-                programId    = programId,
-                onBack       = { nav.popBackStack() },
-            )
         }
         composable(Route.AnalyticsDashboard.path) {
             AnalyticsDashboardScreen(onBack = { nav.popBackStack() })
