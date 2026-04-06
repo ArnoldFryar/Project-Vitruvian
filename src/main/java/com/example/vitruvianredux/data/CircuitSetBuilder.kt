@@ -77,5 +77,6 @@ object CircuitSetBuilder {
             programMode             = item.programMode,
             progressionRegressionLb = item.progressionRegressionLb,
             muscleGroups            = ex?.muscleGroups ?: emptyList(),
+            numCables               = ex?.numCables ?: 2,
         )
 }

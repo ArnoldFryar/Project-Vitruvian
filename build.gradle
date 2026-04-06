@@ -181,6 +181,7 @@ dependencies {
     implementation 'com.jakewharton.timber:timber:5.0.1'
     implementation 'com.google.accompanist:accompanist-permissions:0.32.0'
     implementation 'io.coil-kt:coil-compose:2.7.0'
+    implementation 'com.caverock:androidsvg-aar:1.4'
 
     implementation 'androidx.media3:media3-exoplayer:1.2.1'
     implementation 'androidx.media3:media3-exoplayer-hls:1.2.1'

@@ -54,9 +54,43 @@ data class Exercise(
     val perSide: Boolean = false,
     /** User-starred exercises float to the top of the library. */
     val isFavorite: Boolean = false,
+    /**
+     * Movement sidedness from the Vitruvian exercise catalog.
+     * Values: "bilateral", "unilateral", "alternating", or null.
+     */
+    val sidedness: String? = null,
 ) {
     val thumbnailUrl: String? get() = videos.firstOrNull()?.thumbnail
     val videoUrl: String? get() = videos.firstOrNull()?.video
+
+    /**
+     * Number of cables used on the Vitruvian for this exercise (1 or 2).
+     *
+     * Detection rules (applied in order):
+     * 1. Unilateral exercises that use a wrist/ankle strap attach to only one
+     *    cable → 1 cable.
+     * 2. A small set of bilateral rope exercises route both cables through a
+     *    single combined attachment (e.g. pull-through) → 1 cable.
+     * 3. Everything else (handles, bars, bilateral movements) → 2 cables.
+     */
+    val numCables: Int
+        get() = when {
+            sidedness == "unilateral" && "STRAPS" in equipment -> 1
+            name.trim().lowercase() in SINGLE_CABLE_EXERCISES -> 1
+            else -> 2
+        }
+
+    companion object {
+        /**
+         * Bilateral exercises that still use a single combined cable load
+         * (both cables feed through one rope/attachment behind the user).
+         * All names stored in lowercase.
+         */
+        private val SINGLE_CABLE_EXERCISES: Set<String> = setOf(
+            "pull through",
+            "kneeling pull through",
+        )
+    }
 
     val groupLabels: List<String>
         get() = muscleGroups.map {

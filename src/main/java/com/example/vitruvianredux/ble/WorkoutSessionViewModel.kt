@@ -346,6 +346,7 @@ class WorkoutSessionViewModel(
                         warmupReps        = 3,
                         programMode       = "Old School",
                         muscleGroups      = exercise.muscleGroups,
+                        numCables         = exercise.numCables,
                     )
                 )
             )
@@ -481,6 +482,7 @@ class WorkoutSessionViewModel(
                 stallDetectionEnabled = stallDetectionEnabled,
                 repCountTiming    = repCountTiming,
                 muscleGroups      = exercise.muscleGroups,
+                numCables         = exercise.numCables,
             )
         )
         engine.startPlayerWorkout(sets)

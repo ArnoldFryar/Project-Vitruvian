@@ -111,6 +111,7 @@ fun AppNavHost(
             TrainerScreen(
                 innerPadding    = innerPadding,
                 bleVM           = bleVM,
+                workoutVM       = workoutVM,
                 onNavigateToRepair = { nav.navigate(Route.Repair.path) },
             )
         }

@@ -3,8 +3,10 @@ package com.example.vitruvianredux.presentation.screen
 import com.vitruvian.trainer.R
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
+import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.protocol.BlePacketFactory
@@ -40,6 +43,7 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
 fun TrainerScreen(
     innerPadding: PaddingValues = PaddingValues(),
     bleVM: BleViewModel? = null,
+    workoutVM: WorkoutSessionViewModel? = null,
     onNavigateToRepair: () -> Unit = {},
 ) {
     val cs = MaterialTheme.colorScheme
@@ -80,10 +84,12 @@ fun TrainerScreen(
     val isConnected  = state is BleConnectionState.Connected
     val isConnecting = state is BleConnectionState.Connecting
     val isScanning   = state is BleConnectionState.Scanning
+    val machineVersion by (workoutVM?.machineVersion?.collectAsState() ?: remember { mutableStateOf(null) })
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(innerPadding)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
@@ -103,8 +109,8 @@ fun TrainerScreen(
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         AnimatedVisibility(
             visible = !isConnected && !isScanning && !isConnecting,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -268,9 +274,9 @@ fun TrainerScreen(
             tonalElevation = AppDimens.Elevation.selector,
         ) {
             Column {
-                TrainerInfoRow(label = stringResource(R.string.trainer_firmware), value = "\u2013")
+                TrainerInfoRow(label = stringResource(R.string.trainer_firmware), value = machineVersion?.firmware ?: "\u2013")
                 Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
-                TrainerInfoRow(label = stringResource(R.string.trainer_hardware), value = "\u2013")
+                TrainerInfoRow(label = stringResource(R.string.trainer_hardware), value = machineVersion?.hardware ?: "\u2013")
                 Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
                 TrainerInfoRow(
                     label = stringResource(R.string.trainer_app),

@@ -210,9 +210,9 @@ object WorkoutHistoryStore {
                     exerciseNames = obj.getJSONArray("exerciseNames").let { a ->
                         (0 until a.length()).map { a.getString(it) }
                     },
-                    muscleGroups  = obj.getJSONArray("muscleGroups").let { a ->
+                    muscleGroups  = obj.optJSONArray("muscleGroups")?.let { a ->
                         (0 until a.length()).map { a.getString(it) }
-                    },
+                    } ?: emptyList(),
                     totalVolumeKg = obj.getDouble("totalVolumeKg"),
                     durationSec   = obj.getInt("durationSec"),
                     totalSets     = obj.getInt("totalSets"),

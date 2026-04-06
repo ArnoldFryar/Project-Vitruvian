@@ -576,6 +576,7 @@ class WorkoutSessionEngine(
                 val phase = _state.value.sessionPhase
                 when {
                     conn is BleConnectionState.Disconnected && phase !is SessionPhase.Reconnecting -> {
+                        _machineVersion.value = null
                         when (phase) {
                             is SessionPhase.InSet -> {
                                 programJob?.cancel()
@@ -595,6 +596,22 @@ class WorkoutSessionEngine(
                         reconnectJob?.cancel()
                         reconnectJob = null
                         resumeAfterReconnect()
+                    }
+                }
+            }
+        }
+        // Read VERSION once the full BLE handshake is complete (isReady = all CCCDs written,
+        // services discovered). Covers machines that don't proactively re-notify.
+        scope.launch {
+            bleClient.isReady.collect { ready ->
+                if (ready && _machineVersion.value == null) {
+                    val data = bleClient.readCharacteristic(VERSION_UUID)
+                    if (data != null) {
+                        val v = parseMachineVersion(data)
+                        if (v != null) {
+                            _machineVersion.value = v
+                            Log.i(TAG, "VERSION (read): hw=${v.hardware} fw=${v.firmware} maxForce=${v.maxForceKg}kg")
+                        }
                     }
                 }
             }

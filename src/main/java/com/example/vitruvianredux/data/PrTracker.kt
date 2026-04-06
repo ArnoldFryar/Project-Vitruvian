@@ -121,7 +121,15 @@ object PrTracker {
         val bestWeightAtReps: Map<Int, Int>,
         val latestPbAchievedAtMs: Long,
         val latestPbSessionId: String,
-    )
+        /** Number of cables on the Vitruvian for bestSetWeightLb / bestWeightLb.
+         *  Use this to convert to per-cable weight: weightLb / bestNumCables. */
+        val bestNumCables: Int = 2,
+    ) {
+        /** Total load divided back to per-cable weight (what the user dialled in). */
+        val bestWeightPerCableLb: Int get() = bestWeightLb / bestNumCables.coerceAtLeast(1)
+        val bestSetWeightPerCableLb: Int get() = bestSetWeightLb / bestNumCables.coerceAtLeast(1)
+        val bestEst1RmPerCableLb: Double get() = bestEst1RmLb / bestNumCables.coerceAtLeast(1)
+    }
 
     /**
      * Audit record capturing the source data behind a single PB value.
@@ -305,6 +313,7 @@ object PrTracker {
             var bestTotalReps: Int = 0,
             var bestSetWeightLb: Int = 0,
             var bestSetReps: Int = 0,
+            var bestNumCables: Int = 2,
             val bestWeightAtReps: MutableMap<Int, Int> = mutableMapOf(),
             var latestPbMs: Long = 0L,
             var latestPbSessionId: String = "",
@@ -349,6 +358,7 @@ object PrTracker {
                         t.bestEst1RmLb    = e1rm
                         t.bestSetWeightLb = s.weightLb
                         t.bestSetReps     = s.reps
+                        t.bestNumCables   = s.numCables.coerceAtLeast(1)
                         pbThisSession     = true
                     }
 
@@ -403,6 +413,7 @@ object PrTracker {
                 bestWeightAtReps     = t.bestWeightAtReps.toMap(),
                 latestPbAchievedAtMs = t.latestPbMs,
                 latestPbSessionId    = t.latestPbSessionId,
+                bestNumCables        = t.bestNumCables,
             )
         }
     }

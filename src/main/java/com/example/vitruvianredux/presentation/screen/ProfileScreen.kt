@@ -976,7 +976,7 @@ fun ProfileScreen(
         // -----------------------------------------------------------
         //  Exercise History ï¿½ date-grouped sessions with PR badges
         // -----------------------------------------------------------
-        var historyExpanded by rememberSaveable { mutableStateOf(true) }
+        var historyExpanded by rememberSaveable { mutableStateOf(false) }
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,

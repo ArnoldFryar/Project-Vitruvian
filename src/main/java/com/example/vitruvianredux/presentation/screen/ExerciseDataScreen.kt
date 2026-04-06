@@ -647,15 +647,15 @@ private fun AllTimePbsCard(
     EdsCard {
         Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
             if (pbs.bestWeightLb > 0) {
-                PbRow("Best Weight", formatWeightLb(pbs.bestWeightLb, unitSystem))
+                PbRow("Best Weight", formatWeightLb(pbs.bestWeightPerCableLb, unitSystem))
             }
             if (pbs.bestEst1RmLb > 0.0) {
-                PbRow("Best Est. 1RM", formatWeightLb(pbs.bestEst1RmLb.roundToInt(), unitSystem))
+                PbRow("Best Est. 1RM", formatWeightLb(pbs.bestEst1RmPerCableLb.roundToInt(), unitSystem))
             }
             if (pbs.bestSetWeightLb > 0 && pbs.bestSetReps > 0) {
                 PbRow(
                     "Best Set",
-                    "${pbs.bestSetReps} x ${formatWeightLb(pbs.bestSetWeightLb, unitSystem)}",
+                    "${pbs.bestSetReps} x ${formatWeightLb(pbs.bestSetWeightPerCableLb, unitSystem)}",
                 )
             }
             if (pbs.bestVolumeKg > 0.0) {

@@ -22,6 +22,7 @@ class PrTrackerTest {
         weightLb: Int,
         volumeKg: Float = (weightLb * reps * 0.45359237f),
         quality: Int? = null,
+        numCables: Int = 1,
     ) = AnalyticsStore.ExerciseSetLog(
         exerciseName    = name,
         setIndex        = index,
@@ -29,6 +30,7 @@ class PrTrackerTest {
         weightLb        = weightLb,
         volumeKg        = volumeKg,
         avgQualityScore = quality,
+        numCables       = numCables,
     )
 
     private fun session(

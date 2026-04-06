@@ -229,9 +229,9 @@ fun DevicePickerSheet(
                         Text(
                             text = if (isConnecting) {
                                 val d = (connectionState as BleConnectionState.Connecting).device
-                                "Connecting to ${d.name}â€¦"
+                                "Connecting to ${d.name}\u2026"
                             } else {
-                                "Searching for trainerâ€¦"
+                                "Searching for trainer\u2026"
                             },
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,

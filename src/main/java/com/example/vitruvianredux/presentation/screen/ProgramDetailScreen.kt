@@ -82,7 +82,11 @@ fun ProgramDetailScreen(
                             ActualOutcome.StateChanged("programDeleted"),
                         )
                         showDeleteDialog = false
-                        onBack()
+                        // Do NOT call onBack() here. Deleting the program causes the
+                        // savedProgramsFlow to emit with this program absent, which triggers
+                        // the null-guard LaunchedEffect above to call onBack() exactly once.
+                        // Calling onBack() here too would cause a double-pop, sending the
+                        // user all the way back to the home screen.
                     },
                 ) {
                     Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error)
