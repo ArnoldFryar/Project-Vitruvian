@@ -64,6 +64,7 @@ fun ProgramsScreen(
     onNavigateToTemplates: () -> Unit = {},
     onNavigateToImport: () -> Unit = {},
     onNavigateToHevyImport: () -> Unit = {},
+    onNavigateToCoachingHub: () -> Unit = {},
 ) {
     val programs by savedProgramsFlow.collectAsState()
     var showBuilder by remember { mutableStateOf(false) }
@@ -216,6 +217,33 @@ fun ProgramsScreen(
                             }
                             Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+                    }
+                }
+                Spacer(Modifier.height(AppDimens.Spacing.lg))
+            }
+
+            item(key = "coaching_hub") {
+                val coachInteraction = remember { MutableInteractionSource() }
+                val coachPressed by coachInteraction.collectIsPressedAsState()
+                val coachScale by animateFloatAsState(
+                    targetValue = if (coachPressed) MotionTokens.PRESS_SCALE else 1f,
+                    animationSpec = MotionTokens.SnapSpring, label = "coachScale",
+                )
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth()
+                        .graphicsLayer(scaleX = coachScale, scaleY = coachScale)
+                        .clickable(interactionSource = coachInteraction, indication = null) { onNavigateToCoachingHub() },
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(AppIcons.School, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(36.dp))
+                        Spacer(Modifier.width(AppDimens.Spacing.md))
+                        Column(Modifier.weight(1f)) {
+                            Text("Vitruvian Coaching", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                            Text("Browse and start coaching programs from Vitruvian", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(AppIcons.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Spacer(Modifier.height(AppDimens.Spacing.lg))
