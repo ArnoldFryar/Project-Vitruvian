@@ -72,7 +72,9 @@ fun ProgramsScreen(
     // Ordered list -- preserves user order across external changes
     var orderedPrograms by remember { mutableStateOf(programs) }
     LaunchedEffect(programs) {
-        val existing = orderedPrograms.filter { p -> programs.any { it.id == p.id } }
+        val existing = orderedPrograms
+            .filter { p -> programs.any { it.id == p.id } }
+            .map    { p -> programs.first { it.id == p.id } }
         val newOnes  = programs.filter { p -> orderedPrograms.none { it.id == p.id } }
         orderedPrograms = existing + newOnes
     }
