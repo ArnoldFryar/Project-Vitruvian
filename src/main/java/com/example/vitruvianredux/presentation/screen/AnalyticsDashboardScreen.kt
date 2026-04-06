@@ -100,42 +100,73 @@ fun AnalyticsDashboardScreen(
             )
         },
     ) { innerPadding ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                .padding(innerPadding),
         ) {
-            // ── Summary stat cards ───────────────────────────────
-            SummaryStatsRow(allLogs, unitSystem)
+            val isTablet = maxWidth >= 600.dp
+            val hPad    = if (isTablet) AppDimens.Spacing.xl else AppDimens.Spacing.md
+            val colGap  = AppDimens.Spacing.md
 
-            // ── Volume per session chart ─────────────────────────
-            VolumePerSessionChart(allLogs, unitSystem)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = hPad, vertical = AppDimens.Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+            ) {
+                // ── Summary stat cards (always full-width) ───────────────
+                SummaryStatsRow(allLogs, unitSystem, isTablet)
 
-            // ── Weekly session frequency ─────────────────────────
-            WeeklyFrequencyChart()
+                if (isTablet) {
+                    // ── Tablet: two-column layout ─────────────────────────
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            VolumePerSessionChart(allLogs, unitSystem)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            WeeklyFrequencyChart()
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            MostTrainedExercises(allLogs)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            ModeBreakdownSection(allLogs)
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            MuscleSilhouetteSection(muscleDistribution)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            PersonalRecordsSection(allLogs, unitSystem)
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            RecentPrsSection(allLogs, unitSystem)
+                        }
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            StallDetectorSection(allLogs)
+                        }
+                    }
+                } else {
+                    // ── Phone: single column ──────────────────────────────
+                    VolumePerSessionChart(allLogs, unitSystem)
+                    WeeklyFrequencyChart()
+                    MostTrainedExercises(allLogs)
+                    MuscleSilhouetteSection(muscleDistribution)
+                    ModeBreakdownSection(allLogs)
+                    PersonalRecordsSection(allLogs, unitSystem)
+                    RecentPrsSection(allLogs, unitSystem)
+                    StallDetectorSection(allLogs)
+                }
 
-            // ── Most trained exercises ───────────────────────────
-            MostTrainedExercises(allLogs)
-
-            // ── Muscle silhouette heatmap ────────────────────────
-            MuscleSilhouetteSection(muscleDistribution)
-
-            // ── Training mode breakdown ──────────────────────────
-            ModeBreakdownSection(allLogs)
-
-            // ── Personal records table ───────────────────────────
-            PersonalRecordsSection(allLogs, unitSystem)
-
-            // ── Recent PR events feed ───────────────────────────
-            RecentPrsSection(allLogs, unitSystem)
-
-            // ── Stall detector ────────────────────────────────
-            StallDetectorSection(allLogs)
-
-            Spacer(Modifier.height(AppDimens.Spacing.xl))
+                Spacer(Modifier.height(AppDimens.Spacing.xl))
+            }
         }
     }
 }
@@ -145,7 +176,7 @@ fun AnalyticsDashboardScreen(
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: UnitsStore.UnitSystem) {
+private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: UnitsStore.UnitSystem, isTablet: Boolean = false) {
     val totalSessions = logs.size
     val totalVolume = logs.sumOf { it.totalVolumeKg }
     val totalReps = logs.sumOf { it.totalReps }
@@ -160,25 +191,26 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
         SectionHeader("Overview")
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            modifier = if (isTablet) Modifier.fillMaxWidth() else Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
         ) {
-            StatCard("Sessions", "$totalSessions", cs.primary)
-            StatCard("Volume", UnitConversions.formatVolumeFromKg(totalVolume, unitSystem) + " $unitLabel", cs.tertiary)
-            StatCard("Reps", "$totalReps", Color(0xFF10B981))
-            StatCard("Avg Duration", formatDuration(avgDuration), Color(0xFF06B6D4))
+            val cardMod = if (isTablet) Modifier.weight(1f) else Modifier.width(120.dp)
+            StatCard("Sessions", "$totalSessions", cs.primary, cardMod)
+            StatCard("Volume", UnitConversions.formatVolumeFromKg(totalVolume, unitSystem) + " $unitLabel", cs.tertiary, cardMod)
+            StatCard("Reps", "$totalReps", Color(0xFF10B981), cardMod)
+            StatCard("Avg Duration", formatDuration(avgDuration), Color(0xFF06B6D4), cardMod)
             if (heaviestLift > 0) {
-                StatCard("Heaviest", "$heaviestLift lb", Color(0xFFF59E0B))
+                StatCard("Heaviest", "$heaviestLift lb", Color(0xFFF59E0B), cardMod)
             }
         }
     }
 }
 
 @Composable
-private fun StatCard(label: String, value: String, accent: Color) {
+private fun StatCard(label: String, value: String, accent: Color, modifier: Modifier = Modifier.width(120.dp)) {
     ElevatedCard(
         shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.width(120.dp),
+        modifier = modifier,
     ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.md_sm),
