@@ -55,6 +55,8 @@ data class SavedProgram(
     val sortOrder: Int = 0,
     /** Days of the week this program is scheduled for. */
     val scheduledDays: Set<DayOfWeek> = emptySet(),
+    /** Whether the user has starred this program to keep it always visible. */
+    val isFavorite: Boolean = false,
 )
 
 // ── Backing-store interface ────────────────────────────────────────────────────
@@ -189,6 +191,14 @@ class ProgramRepository(
         return programs.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
     }
 
+    /** Toggle [isFavorite] for the program with [id]. */
+    fun toggleFavorite(id: String): List<SavedProgram> {
+        val all = parsePrograms()
+        val updated = all.map { if (it.id == id) it.copy(isFavorite = !it.isFavorite, updatedAt = System.currentTimeMillis()) else it }
+        writePrograms(updated)
+        return updated.filter { it.deletedAt == null }.sortedBy { it.sortOrder }
+    }
+
     /**
      * Persist a new user-defined ordering of programs.
      * [orderedIds] contains the ids of active programs in the desired display order.
@@ -279,6 +289,7 @@ class ProgramRepository(
                     val deletedAt  = if (obj.has("deletedAt") && !obj.isNull("deletedAt")) obj.optLong("deletedAt") else null
                     val devId      = obj.optString("deviceId", "")
                     val sortOrder  = obj.optInt("sortOrder", 0)
+                    val isFavorite = obj.optBoolean("isFavorite", false)
                     val daysArray  = obj.optJSONArray("scheduledDays")
                     val days = if (daysArray != null) {
                         (0 until daysArray.length()).mapNotNull { i ->
@@ -286,7 +297,7 @@ class ProgramRepository(
                         }.toSet()
                     } else emptySet()
 
-                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder, days)
+                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder, days, isFavorite)
                 }
         } catch (_: Exception) {
             backing.writePrograms("[]")
@@ -323,6 +334,7 @@ class ProgramRepository(
                 if (p.deletedAt != null) put("deletedAt", p.deletedAt) else put("deletedAt", JSONObject.NULL)
                 put("deviceId", p.deviceId)
                 put("sortOrder", p.sortOrder)
+                put("isFavorite", p.isFavorite)
                 put("scheduledDays", JSONArray().apply { p.scheduledDays.forEach { put(it.name) } })
             })
         }

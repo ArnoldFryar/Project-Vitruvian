@@ -318,6 +318,7 @@ fun ExercisePlayerScreen(
                                 )
                             else null
                         }
+                        val isBodyweight = remember(exercise) { exercise?.equipment?.isEmpty() == true }
                         SetReadyContent(
                             exerciseName      = readyPhase.exerciseName,
                             setIndex          = readyPhase.setIndex,
@@ -332,6 +333,7 @@ fun ExercisePlayerScreen(
                             isRepsMode        = isRepsMode,
                             isOpenEnded       = isOpenEnded,
                             showSetsStepper   = isOpenEnded || isExerciseMenuLaunch,
+                            isBodyweight      = isBodyweight,
                             autoPlay          = autoPlay,
                             onTargetRepsChange = { targetReps = it.coerceIn(1, 100) },
                             onTargetDurationChange = { targetDuration = it.coerceIn(5, 300) },

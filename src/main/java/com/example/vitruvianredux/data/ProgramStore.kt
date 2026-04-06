@@ -71,6 +71,11 @@ object ProgramStore {
         _programs.value = repo.reorder(orderedIds)
     }
 
+    /** Toggle the starred/favorite flag for the program with [id]. */
+    fun toggleFavorite(id: String) {
+        _programs.value = repo.toggleFavorite(id)
+    }
+
     /** Re-read from disk and refresh the UI flow. Called after cloud sync merges. */
     fun refreshFromDisk() {
         _programs.value = repo.loadActive()

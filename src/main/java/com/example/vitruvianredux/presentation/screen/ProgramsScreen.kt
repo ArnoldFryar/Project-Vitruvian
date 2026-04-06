@@ -88,6 +88,15 @@ fun ProgramsScreen(
     var rowHeightPx  by remember { mutableFloatStateOf(0f) }
     val haptic = LocalHapticFeedback.current
 
+    // Favorites-first: non-favorites collapse unless expanded
+    var showAllPrograms by remember { mutableStateOf(false) }
+    val favoritePrograms    = orderedPrograms.filter { it.isFavorite }
+    val nonFavoritePrograms = orderedPrograms.filter { !it.isFavorite }
+    val visiblePrograms = if (showAllPrograms || favoritePrograms.isEmpty())
+        orderedPrograms
+    else
+        favoritePrograms
+
     Scaffold(
         modifier            = Modifier.fillMaxSize().padding(innerPadding),
         topBar              = {
@@ -231,12 +240,12 @@ fun ProgramsScreen(
             }
 
             // Draggable program rows
-            items(orderedPrograms, key = { it.id }) { p ->
+            items(visiblePrograms, key = { it.id }) { p ->
                 val isDragging = draggingId == p.id
-                val isFirst = orderedPrograms.firstOrNull()?.id == p.id
-                val isLast  = orderedPrograms.lastOrNull()?.id == p.id
+                val isFirst = visiblePrograms.firstOrNull()?.id == p.id
+                val isLast  = visiblePrograms.lastOrNull()?.id == p.id
                 val rowShape = when {
-                    orderedPrograms.size == 1 -> MaterialTheme.shapes.medium
+                    visiblePrograms.size == 1 -> MaterialTheme.shapes.medium
                     isFirst -> RoundedCornerShape(topStart = AppDimens.Corner.md_sm, topEnd = AppDimens.Corner.md_sm, bottomStart = 0.dp, bottomEnd = 0.dp)
                     isLast  -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = AppDimens.Corner.md_sm, bottomEnd = AppDimens.Corner.md_sm)
                     else    -> RoundedCornerShape(0.dp)
@@ -369,6 +378,18 @@ fun ProgramsScreen(
                                     }
                                 }
                             }
+                            IconButton(
+                                onClick = { ProgramStore.toggleFavorite(p.id) },
+                                modifier = Modifier.size(AppDimens.Icon.xl),
+                            ) {
+                                Icon(
+                                    if (p.isFavorite) AppIcons.Favorite else AppIcons.FavoriteBorder,
+                                    contentDescription = if (p.isFavorite) "Remove from favorites" else "Add to favorites",
+                                    tint = if (p.isFavorite) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                    modifier = Modifier.size(AppDimens.Icon.md),
+                                )
+                            }
                             Icon(
                                 AppIcons.DragHandle,
                                 contentDescription = "Long press to reorder",
@@ -379,6 +400,29 @@ fun ProgramsScreen(
                         if (!isLast) {
                             Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDragging) 0f else 1f))
                         }
+                    }
+                }
+            }
+
+            // Show more / show less row (only when there are non-favorite programs and favorites exist)
+            if (nonFavoritePrograms.isNotEmpty() && favoritePrograms.isNotEmpty()) {
+                item(key = "show_more") {
+                    TextButton(
+                        onClick  = { showAllPrograms = !showAllPrograms },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = AppDimens.Spacing.xs),
+                    ) {
+                        Icon(
+                            imageVector = if (showAllPrograms) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(AppDimens.Icon.sm),
+                        )
+                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                        Text(
+                            if (showAllPrograms) "Show less"
+                            else "${nonFavoritePrograms.size} more program${if (nonFavoritePrograms.size != 1) "s" else ""}",
+                        )
                     }
                 }
             }

@@ -81,6 +81,8 @@ internal fun SetReadyContent(
     /** When non-null, show a "level up" suggestion banner above the weight selector. */
     progressionSuggestionLb: Int? = null,
     onAcceptProgression: (Int) -> Unit = {},
+    /** Bodyweight exercise — hide resistance, warmup, and mode controls. */
+    isBodyweight: Boolean = false,
     /** Echo (isokinetic) mode — weight is adaptive so the selector is hidden. */
     isEchoMode: Boolean = false,
     /** Currently selected training mode (e.g. "Old School", "Pump", "TUT", "Echo"). */
@@ -248,7 +250,7 @@ internal fun SetReadyContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
-            SelectorCard(modifier = Modifier.weight(1f)) {
+            SelectorCard(modifier = if (isBodyweight) Modifier.fillMaxWidth() else Modifier.weight(1f)) {
                 AnimatedContent(
                     targetState = if (isOpenEnded) 0 else if (isRepsMode) 1 else 2,
                     transitionSpec = { fadeIn(tween(170)) togetherWith fadeOut(tween(120)) },
@@ -291,7 +293,7 @@ internal fun SetReadyContent(
                     }
                 }
             }
-            SelectorCard(modifier = Modifier.weight(1f)) {
+            if (!isBodyweight) SelectorCard(modifier = Modifier.weight(1f)) {
                 if (isEchoMode) {
                     Box(
                         modifier = Modifier
@@ -321,7 +323,7 @@ internal fun SetReadyContent(
         }
 
         // â”€â”€ PR percentage indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (prLb > 0 && !isEchoMode) {
+        if (prLb > 0 && !isEchoMode && !isBodyweight) {
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Surface(
                 shape = RoundedCornerShape(50),
@@ -353,7 +355,7 @@ internal fun SetReadyContent(
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
         // Warmup reps picker
-        SelectorCard(
+        if (!isBodyweight) SelectorCard(
             title    = stringResource(R.string.ready_warmup),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -385,6 +387,7 @@ internal fun SetReadyContent(
         }
 
         // â”€â”€ Mode selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        if (!isBodyweight) {
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -472,6 +475,7 @@ internal fun SetReadyContent(
                 }
             }
         }
+        } // end !isBodyweight
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
         Divider(
