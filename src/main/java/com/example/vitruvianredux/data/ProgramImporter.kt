@@ -204,6 +204,8 @@ object ProgramImporter {
                 programMode = re.imported.programMode,
                 progressionRegressionLb = re.imported.progressionRegressionLb,
                 restTimerSec = re.imported.restTimerSec,
+                repRangeMin = re.imported.repRangeMin,
+                repRangeMax = re.imported.repRangeMax,
             )
         }
         return SavedProgram(

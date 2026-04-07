@@ -29,13 +29,26 @@ data class ProgramItemDraft(
     val restTimerSec: Int = 60,
     /** Non-null ⇒ this item belongs to a superset group (A1/B1 interleaved). */
     val circuitGroup: Int? = null,
+    /**
+     * Double-progression rep range. When both are non-null the progression engine uses
+     * them instead of the exact [reps] target:
+     *  • hit [repRangeMax] on all sets for 2 sessions → increase weight, target drops to [repRangeMin]
+     *  • miss [repRangeMin] on all sets for 2 sessions → deload –10%, target stays at [repRangeMin]
+     * When null, falls back to the legacy exact-reps behaviour.
+     */
+    val repRangeMin: Int? = null,
+    val repRangeMax: Int? = null,
 ) {
     val isValid: Boolean get() = when (mode) {
         ExerciseMode.REPS -> reps != null
         ExerciseMode.TIME -> durationSec != null
     }
     val summary: String get() = when (mode) {
-        ExerciseMode.REPS -> "$sets x ${reps ?: "-"} reps · $targetWeightLb lb · $programMode · ${restTimerSec}s rest"
+        ExerciseMode.REPS -> {
+            val repStr = if (repRangeMin != null && repRangeMax != null) "$repRangeMin–$repRangeMax"
+                         else "${reps ?: "-"}"
+            "$sets x $repStr reps · $targetWeightLb lb · $programMode · ${restTimerSec}s rest"
+        }
         ExerciseMode.TIME -> "$sets x ${durationSec ?: "-"}s · $targetWeightLb lb · $programMode · ${restTimerSec}s rest"
     }
 }

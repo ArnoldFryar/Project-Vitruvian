@@ -85,4 +85,8 @@ data class PlayerSetParams(
     val muscleGroups: List<String> = emptyList(),
     /** Number of cables used for this exercise (1 or 2). Default 2 covers most Vitruvian movements. */
     val numCables: Int = 2,
+    /** Double-progression rep range lower bound (null → legacy exact-reps mode). */
+    val repRangeMin: Int? = null,
+    /** Double-progression rep range upper bound (null → legacy exact-reps mode). */
+    val repRangeMax: Int? = null,
 )

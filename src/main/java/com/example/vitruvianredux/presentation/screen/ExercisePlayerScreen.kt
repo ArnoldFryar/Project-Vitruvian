@@ -28,6 +28,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgressionEngine
+import com.example.vitruvianredux.data.ProgressionResult
 import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.UnitConversions
@@ -309,12 +310,14 @@ fun ExercisePlayerScreen(
                         val allSessions by AnalyticsStore.logsFlow.collectAsState()
                         val progressionSuggestion = remember(readyPhase.exerciseName, targetReps, resistanceLb, allSessions) {
                             if (!isOpenEnded && readyPhase.setIndex == 0 && isRepsMode)
-                                ProgressionEngine.suggestWeightLb(
+                                ProgressionEngine.suggestProgression(
                                     exerciseName      = readyPhase.exerciseName,
                                     targetReps        = targetReps,
                                     currentWeightLb   = resistanceLb.toInt(),
                                     progressionStepLb = 5,
                                     sessions          = allSessions,
+                                    repRangeMin       = readyPhase.repRangeMin,
+                                    repRangeMax       = readyPhase.repRangeMax,
                                 )
                             else null
                         }
@@ -393,7 +396,8 @@ fun ExercisePlayerScreen(
                                     warmupOverride          = warmupReps,
                                 )
                             },
-                            progressionSuggestionLb = progressionSuggestion,
+                            progressionSuggestionLb = (progressionSuggestion as? ProgressionResult.Increase)?.newWeightLb,
+                            progressionDeloadLb     = (progressionSuggestion as? ProgressionResult.Deload)?.newWeightLb,
                             onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
                             isEchoMode          = (selectedMode == "Echo"),
                             selectedMode        = selectedMode,

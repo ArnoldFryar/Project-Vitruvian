@@ -78,5 +78,7 @@ object CircuitSetBuilder {
             progressionRegressionLb = item.progressionRegressionLb,
             muscleGroups            = ex?.muscleGroups ?: emptyList(),
             numCables               = ex?.numCables ?: 2,
+            repRangeMin             = item.repRangeMin,
+            repRangeMax             = item.repRangeMax,
         )
 }

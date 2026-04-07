@@ -1,17 +1,23 @@
 package com.example.vitruvianredux.data
 
 /**
- * Determines whether it's time to suggest a weight increase for a given exercise.
+ * Determines whether it's time to suggest a weight change for a given exercise.
  *
- * Rule: if the user completed ALL target reps on EVERY set across the last
- * [REQUIRED_SUCCESSES] sessions that included this exercise, suggest bumping
- * the weight by [progressionStepLb].
+ * Supports two modes:
+ *
+ * **Legacy (repRangeMin / repRangeMax both null)**
+ * — Hit ALL exact target reps across the last [REQUIRED_SUCCESSES] sessions →
+ *   suggest +step lb.
+ *
+ * **Double Progression (repRangeMin / repRangeMax provided)**
+ * — Hit [repRangeMax] reps on every set for [REQUIRED_SUCCESSES] sessions →
+ *   [ProgressionResult.Increase] (add step, reset target to repRangeMin).
+ * — Fail to hit [repRangeMin] reps on every set for [REQUIRED_SUCCESSES] sessions →
+ *   [ProgressionResult.Deload] (drop 10 %, target stays at repRangeMin).
+ * — Otherwise → null (hold current weight / target).
  *
  * Also provides evidence-based default starting weights sourced from
  * [setExerciseDefaults] (populated by HistorySeedManager from historical data).
- *
- * Pure/stateless except for the mutable defaults map;
- * no BLE/session-engine dependencies.
  */
 object ProgressionEngine {
 
@@ -32,9 +38,6 @@ object ProgressionEngine {
     /**
      * Returns a suggested starting weight (lb) for [exerciseName] based on
      * historical training data, or null if no historical data is available.
-     *
-     * Intended for use when creating a new program item before any personal
-     * history exists, giving users a sensible default.
      */
     fun suggestedStartingWeightLb(exerciseName: String): Int? {
         val key = exerciseName.trim().lowercase()
@@ -42,50 +45,38 @@ object ProgressionEngine {
     }
 
     /**
-     * Returns the suggested new weight in lb, or null if the user hasn't yet
-     * earned a progression.
+     * Evaluates whether a progression or deload is warranted and returns the
+     * appropriate [ProgressionResult], or null if the weight should be held.
      *
-     * @param exerciseName        The exercise being checked (case-insensitive).
-     * @param targetReps          The rep target that must have been fully met.
-     * @param currentWeightLb     The weight currently in the program item.
-     * @param progressionStepLb   The step size stored in the item; falls back to
-     *                            5 lb when 0.
-     * @param sessions            All stored [AnalyticsStore.SessionLog] records
-     *                            (newest-first order expected, but sorted anyway).
-     */
-    /**
-     * Returns the suggested new weight in lb, or null if the user hasn't yet
-     * earned a progression.
+     * When [repRangeMin] and [repRangeMax] are both non-null, **double progression**
+     * rules apply.  When either is null, falls back to legacy exact-reps logic.
      *
-     * @param exerciseName        The exercise being checked (case-insensitive).
-     * @param targetReps          The rep target that must have been fully met.
-     * @param currentWeightLb     The weight currently in the program item.
-     * @param progressionStepLb   The step size stored in the item; falls back to
-     *                            5 lb when 0.
-     * @param sessions            All stored [AnalyticsStore.SessionLog] records.
-     * @param movementCoefficient Optional lever/pulley ratio for the exercise.
-     *                            When non-null the effective load of each historical
-     *                            set is `weightLb * movementCoefficient`, letting the
-     *                            engine verify the user actually trained at the same
-     *                            effective load as the current program weight.
+     * @param exerciseName      The exercise being checked (case-insensitive).
+     * @param targetReps        The rep target currently set in the program item.
+     * @param currentWeightLb   The weight currently in the program item.
+     * @param progressionStepLb The step size stored in the item; falls back to 5 lb when ≤ 0.
+     * @param sessions          All stored [AnalyticsStore.SessionLog] records.
+     * @param repRangeMin       Lower bound of double-progression range (null → legacy mode).
+     * @param repRangeMax       Upper bound of double-progression range (null → legacy mode).
+     * @param movementCoefficient Optional lever/pulley ratio for effective-load normalisation.
      */
-    fun suggestWeightLb(
+    fun suggestProgression(
         exerciseName: String,
         targetReps: Int,
         currentWeightLb: Int,
         progressionStepLb: Int,
         sessions: List<AnalyticsStore.SessionLog>,
+        repRangeMin: Int? = null,
+        repRangeMax: Int? = null,
         movementCoefficient: Double? = null,
-    ): Int? {
-        if (targetReps <= 0 || currentWeightLb <= 0) return null
-        val step = if (progressionStepLb > 0) progressionStepLb else 5
+    ): ProgressionResult? {
+        if (currentWeightLb <= 0) return null
+        val step  = if (progressionStepLb > 0) progressionStepLb else 5
         val coeff = movementCoefficient?.takeIf { it > 0.0 } ?: 1.0
-
         val nameNorm = exerciseName.trim().lowercase()
         val effectiveCurrentLoad = currentWeightLb * coeff
 
-        // Collect the last REQUIRED_SUCCESSES sessions that included this exercise
-        // at or above the current program weight (effective-load normalised).
+        // Sessions where the user trained this exercise at (or above) current weight
         val relevantSessions = sessions
             .sortedByDescending { it.endTimeMs }
             .filter { session ->
@@ -98,15 +89,69 @@ object ProgressionEngine {
 
         if (relevantSessions.size < REQUIRED_SUCCESSES) return null
 
-        // Every qualifying set must have met the target reps
-        val allMet = relevantSessions.all { session ->
-            val sets = session.exerciseSets.filter {
-                it.exerciseName.trim().lowercase() == nameNorm &&
-                    it.weightLb * coeff >= effectiveCurrentLoad
+        return if (repRangeMin != null && repRangeMax != null) {
+            // ── Double Progression ────────────────────────────────────────────
+            val allHitTop = relevantSessions.all { session ->
+                val sets = session.exerciseSets.filter {
+                    it.exerciseName.trim().lowercase() == nameNorm &&
+                        it.weightLb * coeff >= effectiveCurrentLoad
+                }
+                sets.isNotEmpty() && sets.all { it.reps >= repRangeMax }
             }
-            sets.isNotEmpty() && sets.all { it.reps >= targetReps }
-        }
+            if (allHitTop) return ProgressionResult.Increase(currentWeightLb + step)
 
-        return if (allMet) currentWeightLb + step else null
+            val allMissedFloor = relevantSessions.all { session ->
+                val sets = session.exerciseSets.filter {
+                    it.exerciseName.trim().lowercase() == nameNorm &&
+                        it.weightLb * coeff >= effectiveCurrentLoad
+                }
+                sets.isNotEmpty() && sets.all { it.reps < repRangeMin }
+            }
+            if (allMissedFloor) {
+                val deloadLb = (currentWeightLb * 0.9).toInt().coerceAtLeast(1)
+                return ProgressionResult.Deload(deloadLb)
+            }
+            null
+        } else {
+            // ── Legacy: exact-reps ────────────────────────────────────────────
+            if (targetReps <= 0) return null
+            val allMet = relevantSessions.all { session ->
+                val sets = session.exerciseSets.filter {
+                    it.exerciseName.trim().lowercase() == nameNorm &&
+                        it.weightLb * coeff >= effectiveCurrentLoad
+                }
+                sets.isNotEmpty() && sets.all { it.reps >= targetReps }
+            }
+            if (allMet) ProgressionResult.Increase(currentWeightLb + step) else null
+        }
     }
+
+    /**
+     * Legacy convenience wrapper preserved for call-sites not yet migrated.
+     * Returns the new weight in lb, or null if no progression is warranted.
+     */
+    fun suggestWeightLb(
+        exerciseName: String,
+        targetReps: Int,
+        currentWeightLb: Int,
+        progressionStepLb: Int,
+        sessions: List<AnalyticsStore.SessionLog>,
+        movementCoefficient: Double? = null,
+    ): Int? = (suggestProgression(
+        exerciseName      = exerciseName,
+        targetReps        = targetReps,
+        currentWeightLb   = currentWeightLb,
+        progressionStepLb = progressionStepLb,
+        sessions          = sessions,
+        movementCoefficient = movementCoefficient,
+    ) as? ProgressionResult.Increase)?.newWeightLb
 }
+
+/** Result of a progression evaluation. */
+sealed class ProgressionResult {
+    /** Weight should increase — user earned it. */
+    data class Increase(val newWeightLb: Int) : ProgressionResult()
+    /** Weight should decrease — user is struggling below the floor for too long. */
+    data class Deload(val newWeightLb: Int) : ProgressionResult()
+}
+

@@ -67,6 +67,9 @@ fun EditExerciseSheet(
     var restTimerSec  by remember { mutableIntStateOf(item.restTimerSec) }
     var isSuperset    by remember { mutableStateOf(item.circuitGroup != null) }
     var circuitGroup  by remember { mutableIntStateOf(item.circuitGroup ?: 1) }
+    var repRangeMin   by remember { mutableStateOf(item.repRangeMin ?: 8) }
+    var repRangeMax   by remember { mutableStateOf(item.repRangeMax ?: 12) }
+    var useRepRange   by remember { mutableStateOf(item.repRangeMin != null && item.repRangeMax != null) }
     val pbMap          by PersonalBestStore.summariesFlow.collectAsState()
     val prLb           = pbMap[item.exerciseName.lowercase().trim()]?.bestWeightLb ?: 0
 
@@ -204,6 +207,45 @@ fun EditExerciseSheet(
                             unitLabel     = stringResource(R.string.session_stat_reps),
                             compact       = true,
                         )
+                    }
+
+                    // ── Double Progression toggle + range steppers ─────────────
+                    SelectorCard(
+                        title    = "Rep Range (Double Progression)",
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Switch(
+                            checked         = useRepRange,
+                            onCheckedChange = { useRepRange = it },
+                        )
+                    }
+                    AnimatedVisibility(visible = useRepRange) {
+                        Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                            SelectorCard(
+                                title    = "Min Reps (Deload Trigger)",
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                ValueStepper(
+                                    value         = repRangeMin,
+                                    onValueChange = { repRangeMin = it.coerceAtMost(repRangeMax - 1) },
+                                    range         = 1..29,
+                                    unitLabel     = "reps",
+                                    compact       = true,
+                                )
+                            }
+                            SelectorCard(
+                                title    = "Max Reps (Progress Trigger)",
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                ValueStepper(
+                                    value         = repRangeMax,
+                                    onValueChange = { repRangeMax = it.coerceAtLeast(repRangeMin + 1) },
+                                    range         = 2..30,
+                                    unitLabel     = "reps",
+                                    compact       = true,
+                                )
+                            }
+                        }
                     }
                 } else {
                     SelectorCard(
@@ -386,6 +428,8 @@ fun EditExerciseSheet(
                                 progressionRegressionLb = progRegLb,
                                 restTimerSec            = restTimerSec,
                                 circuitGroup            = if (isSuperset) circuitGroup else null,
+                                repRangeMin             = if (mode == ExerciseMode.REPS && useRepRange) repRangeMin else null,
+                                repRangeMax             = if (mode == ExerciseMode.REPS && useRepRange) repRangeMax else null,
                             ))
                         },
                         modifier = Modifier.weight(1f),

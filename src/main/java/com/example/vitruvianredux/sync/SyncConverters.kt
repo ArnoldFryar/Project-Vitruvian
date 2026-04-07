@@ -44,6 +44,8 @@ fun ProgramItemDraft.toSync(): SyncProgramItem = SyncProgramItem(
     programMode             = programMode,
     progressionRegressionLb = progressionRegressionLb,
     restTimerSec            = restTimerSec,
+    repRangeMin             = repRangeMin,
+    repRangeMax             = repRangeMax,
 )
 
 fun SyncProgramItem.toDomain(): ProgramItemDraft = ProgramItemDraft(
@@ -57,6 +59,8 @@ fun SyncProgramItem.toDomain(): ProgramItemDraft = ProgramItemDraft(
     programMode             = programMode,
     progressionRegressionLb = progressionRegressionLb,
     restTimerSec            = restTimerSec,
+    repRangeMin             = repRangeMin,
+    repRangeMax             = repRangeMax,
 )
 
 // ── Session ──────────────────────────────────────────────────────────────────

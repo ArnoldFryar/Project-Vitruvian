@@ -52,6 +52,8 @@ data class ImportedExercise(
     val programMode: String,
     val progressionRegressionLb: Int,
     val restTimerSec: Int,
+    val repRangeMin: Int? = null,
+    val repRangeMax: Int? = null,
 )
 
 data class ImportedDay(
@@ -235,6 +237,8 @@ object ProgramImportParser {
         val programMode = obj.optString("programMode", "Old School").takeIf { it.isNotBlank() } ?: "Old School"
         val progressionLb = sanitizeInt(obj.optInt("progressionRegressionLb", 0), min = 0, max = 50, default = 0)
         val restTimerSec = sanitizeInt(obj.optInt("restTimerSec", 60), min = 0, max = 600, default = 60)
+        val repRangeMin = if (obj.has("repRangeMin")) sanitizeInt(obj.optInt("repRangeMin", 8), min = 1, max = 29, default = 8) else null
+        val repRangeMax = if (obj.has("repRangeMax")) sanitizeInt(obj.optInt("repRangeMax", 12), min = 2, max = 30, default = 12) else null
 
         return ImportedExercise(
             exerciseId = exerciseId,
@@ -247,6 +251,8 @@ object ProgramImportParser {
             programMode = programMode,
             progressionRegressionLb = progressionLb,
             restTimerSec = restTimerSec,
+            repRangeMin = repRangeMin,
+            repRangeMax = if (repRangeMin != null && repRangeMax != null && repRangeMax > repRangeMin) repRangeMax else if (repRangeMin != null) repRangeMin + 4 else null,
         )
     }
 
@@ -281,6 +287,8 @@ object ProgramExportHelper {
                     put("programMode", item.programMode)
                     put("progressionRegressionLb", item.progressionRegressionLb)
                     put("restTimerSec", item.restTimerSec)
+                    if (item.repRangeMin != null) put("repRangeMin", item.repRangeMin)
+                    if (item.repRangeMax != null) put("repRangeMax", item.repRangeMax)
                 })
             }
             pObj.put("exercises", exArr)

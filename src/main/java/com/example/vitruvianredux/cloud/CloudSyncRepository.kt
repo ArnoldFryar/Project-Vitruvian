@@ -603,6 +603,8 @@ object CloudSyncRepository {
                 put("programMode", item.programMode)
                 put("progressionRegressionLb", item.progressionRegressionLb)
                 put("restTimerSec", item.restTimerSec)
+                if (item.repRangeMin != null) put("repRangeMin", item.repRangeMin)
+                if (item.repRangeMax != null) put("repRangeMax", item.repRangeMax)
             })
         }
         return arr.toString()
@@ -624,6 +626,8 @@ object CloudSyncRepository {
                     programMode = obj.optString("programMode", "Old School"),
                     progressionRegressionLb = obj.optInt("progressionRegressionLb", 0),
                     restTimerSec = obj.optInt("restTimerSec", 60),
+                    repRangeMin = if (obj.has("repRangeMin")) obj.optInt("repRangeMin") else null,
+                    repRangeMax = if (obj.has("repRangeMax")) obj.optInt("repRangeMax") else null,
                 )
             }
         } catch (_: Exception) { emptyList() }

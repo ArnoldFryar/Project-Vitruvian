@@ -198,6 +198,8 @@ sealed class SessionPhase {
         val weightPerCableLb: Int = 0,
         val programMode: String = "Old School",
         val isJustLift: Boolean = false,
+        val repRangeMin: Int? = null,
+        val repRangeMax: Int? = null,
     ) : SessionPhase()
 
     data class ExerciseActive(
@@ -955,6 +957,8 @@ class WorkoutSessionEngine(
                 weightPerCableLb  = firstSet.weightPerCableLb,
                 programMode       = firstSet.programMode,
                 isJustLift        = firstSet.isJustLift,
+                repRangeMin       = firstSet.repRangeMin,
+                repRangeMax       = firstSet.repRangeMax,
             )
         )
         completedStats.clear()
@@ -1313,6 +1317,8 @@ class WorkoutSessionEngine(
                 weightPerCableLb  = set.weightPerCableLb,
                 programMode       = set.programMode,
                 isJustLift        = set.isJustLift,
+                repRangeMin       = set.repRangeMin,
+                repRangeMax       = set.repRangeMax,
             ),
             currentExerciseName = set.exerciseName,
             targetWeightLb      = set.weightPerCableLb,
@@ -1812,6 +1818,8 @@ class WorkoutSessionEngine(
                                 weightPerCableLb  = set.weightPerCableLb,
                                 programMode       = set.programMode,
                                 isJustLift        = set.isJustLift,
+                                repRangeMin       = set.repRangeMin,
+                                repRangeMax       = set.repRangeMax,
                             )
                         )
                     } else {

@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+﻿@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 
 package com.example.vitruvianredux.presentation.screen
 
@@ -80,6 +80,8 @@ internal fun SetReadyContent(
     showSetsStepper: Boolean = false,
     /** When non-null, show a "level up" suggestion banner above the weight selector. */
     progressionSuggestionLb: Int? = null,
+    /** When non-null, show a deload suggestion banner (user struggling below rep floor). */
+    progressionDeloadLb: Int? = null,
     onAcceptProgression: (Int) -> Unit = {},
     /** Bodyweight exercise — hide resistance, warmup, and mode controls. */
     isBodyweight: Boolean = false,
@@ -149,7 +151,7 @@ internal fun SetReadyContent(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         Text(
-                            "You've hit all reps 2 sessions in a row. Try $progressionSuggestionLb lb.",
+                            "You've hit the top of your rep range 2 sessions in a row. Try $progressionSuggestionLb lb.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                         )
@@ -159,6 +161,47 @@ internal fun SetReadyContent(
                         onClick = { onAcceptProgression(progressionSuggestionLb) },
                     ) {
                         Text("Try $progressionSuggestionLb lb",
+                            style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+        }
+
+        if (progressionDeloadLb != null) {
+            Surface(
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Consider a deload",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        Text(
+                            "You've missed the rep floor 2 sessions in a row. Try $progressionDeloadLb lb.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                        )
+                    }
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    FilledTonalButton(
+                        onClick = { onAcceptProgression(progressionDeloadLb) },
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                        ),
+                    ) {
+                        Text("Try $progressionDeloadLb lb",
                             style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                     }
                 }
