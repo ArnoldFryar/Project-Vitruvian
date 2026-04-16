@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.data
 
+import com.example.vitruvianredux.cloud.VitruvianApiClient
+import com.example.vitruvianredux.cloud.VitruvianAuthManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -66,6 +68,9 @@ object AnalyticsRecorder {
                     } ?: Timber.tag(TAG).w("Hevy push timed out after 30s")
                 }
             }
+
+            // Vitruvian push disabled — POST /user/sessions semantics need verification
+            // before re-enabling to avoid unintended data changes
         } catch (e: Exception) {
             Timber.tag("analytics").e(e, "Failed to record session: ${e.message}")
         }

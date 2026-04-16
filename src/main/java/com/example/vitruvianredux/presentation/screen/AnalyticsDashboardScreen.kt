@@ -72,17 +72,6 @@ fun AnalyticsDashboardScreen(
         } catch (_: Exception) { emptyMap() }
     }
 
-    val muscleDistribution = remember(allLogs, catalogByName) {
-        if (catalogByName.isNotEmpty()) {
-            allLogs
-                .flatMap { it.exerciseNames }
-                .flatMap { name -> catalogByName[name.trim().lowercase()] ?: emptyList() }
-                .groupingBy { it.uppercase() }
-                .eachCount()
-        } else {
-            WorkoutHistoryStore.muscleGroupDistribution()
-        }
-    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -139,7 +128,7 @@ fun AnalyticsDashboardScreen(
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
-                            MuscleSilhouetteSection(muscleDistribution)
+                            MuscleSilhouetteSection(allLogs, catalogByName)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
                             PersonalRecordsSection(allLogs, unitSystem)
@@ -158,7 +147,7 @@ fun AnalyticsDashboardScreen(
                     VolumePerSessionChart(allLogs, unitSystem)
                     WeeklyFrequencyChart()
                     MostTrainedExercises(allLogs)
-                    MuscleSilhouetteSection(muscleDistribution)
+                    MuscleSilhouetteSection(allLogs, catalogByName)
                     ModeBreakdownSection(allLogs)
                     PersonalRecordsSection(allLogs, unitSystem)
                     RecentPrsSection(allLogs, unitSystem)
@@ -539,9 +528,37 @@ private suspend fun renderMuscleSvgBitmap(
     bitmap.asImageBitmap()
 }
 
+private enum class HeatmapPeriod(val label: String, val days: Int?) {
+    WEEK("Weekly", 7),
+    MONTH("Monthly", 30),
+    ALL("All Time", null),
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MuscleSilhouetteSection(distribution: Map<String, Int>) {
+private fun MuscleSilhouetteSection(
+    allLogs: List<AnalyticsStore.SessionLog>,
+    catalogByName: Map<String, List<String>>,
+) {
     val context = LocalContext.current
+    var period by remember { mutableStateOf(HeatmapPeriod.WEEK) }
+
+    val distribution = remember(allLogs, catalogByName, period) {
+        val cutoffMs = period.days?.let {
+            System.currentTimeMillis() - it * 24 * 60 * 60 * 1000L
+        }
+        val filtered = if (cutoffMs != null) allLogs.filter { it.endTimeMs >= cutoffMs } else allLogs
+        if (catalogByName.isNotEmpty()) {
+            filtered
+                .flatMap { it.exerciseNames }
+                .flatMap { name -> catalogByName[name.trim().lowercase()] ?: emptyList() }
+                .groupingBy { it.uppercase() }
+                .eachCount()
+        } else {
+            WorkoutHistoryStore.muscleGroupDistribution(period.days)
+        }
+    }
+
     val maxVal = distribution.values.maxOrNull()?.coerceAtLeast(1) ?: 1
 
     val bitmaps by produceState<Pair<ImageBitmap, ImageBitmap>?>(null, distribution) {
@@ -552,6 +569,20 @@ private fun MuscleSilhouetteSection(distribution: Map<String, Int>) {
 
     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
         SectionHeader("Muscle Group Heatmap")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            HeatmapPeriod.values().forEach { p ->
+                FilterChip(
+                    selected = period == p,
+                    onClick  = { period = p },
+                    label    = { Text(p.label, style = MaterialTheme.typography.labelSmall) },
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+        }
         when (val pair = bitmaps) {
             null -> Box(
                 modifier = Modifier.fillMaxWidth().height(220.dp),

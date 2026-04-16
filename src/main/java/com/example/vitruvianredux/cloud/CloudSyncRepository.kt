@@ -308,6 +308,10 @@ object CloudSyncRepository {
 
         for (rp in remotePrograms) {
             val local = localMap[rp.id]
+            // Tombstone wins: never accept an active remote over a locally-deleted record.
+            // This prevents clock-skew or a stale cloud copy from resurrecting programs the
+            // user explicitly deleted on this device.
+            if (local != null && local.deletedAt != null && rp.deletedAt == null) continue
             // LWW: only accept if remote is newer
             if (local == null || rp.updatedAt > local.updatedAt) {
                 val program = SavedProgram(

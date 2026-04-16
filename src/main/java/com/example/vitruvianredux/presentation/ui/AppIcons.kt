@@ -450,6 +450,51 @@ object AppIcons {
         }
     }
 
+    /** lucide:trash-2 */
+    val Delete: ImageVector by lazy {
+        lucide("Delete") {
+            path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                moveTo(3f, 6f); lineTo(21f, 6f)
+                moveTo(8f, 6f); lineTo(8f, 4f)
+                arcToRelative(1f, 1f, 0f, false, true, 1f, -1f); lineTo(15f, 3f)
+                arcToRelative(1f, 1f, 0f, false, true, 1f, 1f); lineTo(16f, 6f)
+                moveTo(19f, 6f); lineTo(19f, 20f)
+                arcToRelative(2f, 2f, 0f, false, true, -2f, 2f); lineTo(7f, 22f)
+                arcToRelative(2f, 2f, 0f, false, true, -2f, -2f); lineTo(5f, 6f)
+                moveTo(10f, 11f); lineTo(10f, 17f)
+                moveTo(14f, 11f); lineTo(14f, 17f)
+            }
+        }
+    }
+
+    /** lucide:more-vertical */
+    val MoreVert: ImageVector by lazy {
+        lucide("MoreVert") {
+            path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                moveTo(12f, 5f); lineTo(12.01f, 5f)
+                moveTo(12f, 12f); lineTo(12.01f, 12f)
+                moveTo(12f, 19f); lineTo(12.01f, 19f)
+            }
+        }
+    }
+
+    /** lucide:copy */
+    val ContentCopy: ImageVector by lazy {
+        lucide("ContentCopy") {
+            path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                moveTo(8f, 4f)
+                arcToRelative(2f, 2f, 0f, false, true, 2f, -2f); lineTo(20f, 2f)
+                arcToRelative(2f, 2f, 0f, false, true, 2f, 2f); lineTo(22f, 18f)
+                arcToRelative(2f, 2f, 0f, false, true, -2f, 2f)
+                moveTo(4f, 8f); lineTo(16f, 8f)
+                arcToRelative(2f, 2f, 0f, false, true, 2f, 2f); lineTo(18f, 22f)
+                arcToRelative(2f, 2f, 0f, false, true, -2f, 2f); lineTo(4f, 24f)
+                arcToRelative(2f, 2f, 0f, false, true, -2f, -2f); lineTo(2f, 10f)
+                arcToRelative(2f, 2f, 0f, false, true, 2f, -2f)
+            }
+        }
+    }
+
     /** lucide:grip-vertical */
     val DragHandle: ImageVector by lazy {
         lucide("DragHandle") {

@@ -407,12 +407,38 @@ class WorkoutSessionViewModel(
             if (stat.repsCompleted > 0) latestRepsByExercise[stat.exerciseName] = stat.repsCompleted
         }
 
+        // Analytics snapshot — the current session is already persisted by the time
+        // the user taps "Save and Exit", so this includes the just-finished workout.
+        val allSessions = com.example.vitruvianredux.data.AnalyticsStore.logsFlow.value
+
         val updatedItems = program.items.map { item ->
-            val newWeight = latestWeightByExercise[item.exerciseName]
-            if (newWeight != null && newWeight != item.targetWeightLb) {
-                item.copy(targetWeightLb = newWeight)
+            if (item.mode == com.example.vitruvianredux.data.ExerciseMode.REPS &&
+                item.repRangeMin != null && item.repRangeMax != null) {
+                // Auto-apply double progression: engine decides the weight.
+                val result = com.example.vitruvianredux.data.ProgressionEngine.suggestProgression(
+                    exerciseName      = item.exerciseName,
+                    targetReps        = item.reps ?: item.repRangeMin,
+                    currentWeightLb   = item.targetWeightLb,
+                    progressionStepLb = item.progressionRegressionLb,
+                    sessions          = allSessions,
+                    repRangeMin       = item.repRangeMin,
+                    repRangeMax       = item.repRangeMax,
+                )
+                when (result) {
+                    is com.example.vitruvianredux.data.ProgressionResult.Increase ->
+                        item.copy(targetWeightLb = result.newWeightLb, reps = item.repRangeMin)
+                    is com.example.vitruvianredux.data.ProgressionResult.Deload ->
+                        item.copy(targetWeightLb = result.newWeightLb)
+                    else -> item
+                }
             } else {
-                item
+                // Legacy: save the last weight used during the workout.
+                val newWeight = latestWeightByExercise[item.exerciseName]
+                if (newWeight != null && newWeight != item.targetWeightLb) {
+                    item.copy(targetWeightLb = newWeight)
+                } else {
+                    item
+                }
             }
         }
 

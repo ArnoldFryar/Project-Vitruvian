@@ -245,6 +245,8 @@ fun AppScaffold() {
                                 peakForce       = es.peakForce,
                                 echoLevel       = es.echoLevel,
                                 eccentricLoadPct = es.eccentricLoadPct,
+                                cableSamplesLeft  = es.cableSamplesLeft,
+                                cableSamplesRight = es.cableSamplesRight,
                             )
                         }
 

@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.sync
 
 import com.example.vitruvianredux.data.ProgramRepository
+import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SessionRepository
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
@@ -256,6 +257,7 @@ class SyncHub(
         programsAccepted = pAccepted
         programsRejected = pRejected
         programRepo.writePrograms(mergedPrograms)
+        if (programsAccepted > 0) ProgramStore.refreshFromDisk()
 
         // ── Merge sessions ────────────────────────────────────────────────
 

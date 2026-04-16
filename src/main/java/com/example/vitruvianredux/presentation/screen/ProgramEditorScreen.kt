@@ -4,7 +4,7 @@ package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
-import androidx.compose.animation.AnimatedVisibility
+import coil.compose.AsyncImage
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,25 +15,33 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
+import com.example.vitruvianredux.data.ExerciseMode
+import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.ProgressionEngine
-import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
-import com.example.vitruvianredux.presentation.ui.AppDimens
-import java.time.DayOfWeek
+import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.util.loadExercises
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import java.time.DayOfWeek
 
 @Composable
 fun ProgramEditorScreen(
@@ -43,33 +51,47 @@ fun ProgramEditorScreen(
     val programs by savedProgramsFlow.collectAsState()
     val program = programs.find { it.id == programId }
 
-    var programName by remember(program) { mutableStateOf(program?.name ?: "") }
-    var draftItems by remember(program) { mutableStateOf(program?.items ?: emptyList()) }
+    var programName   by remember(program) { mutableStateOf(program?.name ?: "") }
+    var draftItems    by remember(program) { mutableStateOf(program?.items ?: emptyList()) }
     var scheduledDays by remember(program) { mutableStateOf(program?.scheduledDays ?: emptySet()) }
-    var showPicker by remember { mutableStateOf(false) }
-    var editingItem by remember { mutableStateOf<ProgramItemDraft?>(null) }
+    var showPicker    by remember { mutableStateOf(false) }
+    var editingItem   by remember { mutableStateOf<ProgramItemDraft?>(null) }
+    // Snapshot of weights before PB scaling so we can restore them
+    var preScaleItems by remember { mutableStateOf<List<ProgramItemDraft>?>(null) }
+    var scalePBs      by remember { mutableStateOf(false) }
+    var showStatsMenu by remember { mutableStateOf(false) }
+    var showDaysDialog by remember { mutableStateOf(false) }
+
+    val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
 
     val isSaveEnabled = programName.isNotBlank() && draftItems.isNotEmpty() && draftItems.all { it.isValid }
 
+    val context = LocalContext.current
+    var exerciseCatalog  by remember { mutableStateOf<Map<String, Exercise>>(emptyMap()) }
+    var isLoadingCatalog by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        try {
+            exerciseCatalog = withContext(Dispatchers.IO) { loadExercises(context) }.associateBy { it.stableKey }
+        } catch (_: Exception) {
+            exerciseCatalog = emptyMap()
+        } finally {
+            isLoadingCatalog = false
+        }
+    }
+
     val reorderState = rememberReorderableLazyListState(onMove = { from, to ->
         val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
-        val toKey = to.key as? String ?: return@rememberReorderableLazyListState
-
-        val fromIndex = draftItems.indexOfFirst { it.exerciseId == fromKey }
-        val toIndex = draftItems.indexOfFirst { it.exerciseId == toKey }
-
-        if (fromIndex != -1 && toIndex != -1) {
-            draftItems = draftItems.toMutableList().apply {
-                add(toIndex, removeAt(fromIndex))
-            }
+        val toKey   = to.key as? String   ?: return@rememberReorderableLazyListState
+        val fromIdx = draftItems.indexOfFirst { it.exerciseId == fromKey }
+        val toIdx   = draftItems.indexOfFirst { it.exerciseId == toKey }
+        if (fromIdx != -1 && toIdx != -1) {
+            draftItems = draftItems.toMutableList().apply { add(toIdx, removeAt(fromIdx)) }
         }
     })
 
     if (showPicker) {
         val alreadyExercises = remember(draftItems) {
-            draftItems.map { di ->
-                Exercise(id = di.exerciseId, name = di.exerciseName)
-            }
+            draftItems.map { di -> Exercise(id = di.exerciseId, name = di.exerciseName) }
         }
         ExercisePickerSheet(
             alreadySelected = alreadyExercises,
@@ -93,177 +115,425 @@ fun ProgramEditorScreen(
 
     editingItem?.let { item ->
         EditExerciseSheet(
-            item = item,
-            onSave = { updated ->
-                draftItems = draftItems.map { if (it.exerciseId == updated.exerciseId) updated else it }
+            item      = item,
+            onSave    = { updated ->
+                draftItems  = draftItems.map { if (it.exerciseId == updated.exerciseId) updated else it }
                 editingItem = null
             },
             onDismiss = { editingItem = null },
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            if (program != null) "Edit Program" else "New Program",
-                            fontWeight = FontWeight.Bold,
-                        )
-                        AnimatedVisibility(visible = draftItems.isNotEmpty()) {
-                            Text(
-                                "${draftItems.size} exercise${if (draftItems.size != 1) "s" else ""} - ${draftItems.sumOf { it.sets }} total sets",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    TextButton(
-                        onClick = {
-                            if (isSaveEnabled && program != null) {
-                                ProgramStore.addProgram(
-                                    program.copy(
-                                        name = programName.trim(),
-                                        exerciseCount = draftItems.size,
-                                        items = draftItems,
-                                        scheduledDays = scheduledDays,
-                                    )
-                                )
-                                onBack()
-                            }
-                        },
-                        enabled = isSaveEnabled
-                    ) {
-                        Text(stringResource(R.string.cd_save))
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
+    val totalSets     = draftItems.sumOf { it.sets }
+    val estimatedMins = draftItems.sumOf { item ->
+        item.sets * (item.restTimerSec / 60.0 + 1.5)
+    }.toInt().coerceAtLeast(if (draftItems.isEmpty()) 0 else 1)
+
+    // ── Schedule Days dialog ─────────────────────────────────────────────────
+    if (showDaysDialog) {
+        AlertDialog(
+            onDismissRequest = { showDaysDialog = false },
+            title            = { Text("Workout Days") },
+            text             = {
+                DayOfWeekSelector(
+                    selected = scheduledDays,
+                    onToggle = { day ->
+                        scheduledDays = if (day in scheduledDays) scheduledDays - day else scheduledDays + day
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showDaysDialog = false }) { Text("Done") }
+            },
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant)) {
+
+        LazyColumn(
+            state          = reorderState.listState,
+            modifier       = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .reorderable(reorderState)
+                .detectReorderAfterLongPress(reorderState),
+            contentPadding = PaddingValues(bottom = 96.dp),
         ) {
-            LazyColumn(
-                state = reorderState.listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .reorderable(reorderState)
-                    .detectReorderAfterLongPress(reorderState),
-                contentPadding = PaddingValues(
-                    horizontal = AppDimens.Spacing.md,
-                    vertical   = AppDimens.Spacing.md,
-                ),
-                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
-            ) {
-                // Program name with char counter
-                item(key = "__name__") {
-                    OutlinedTextField(
-                        value = programName,
-                        onValueChange = { if (it.length <= 40) programName = it },
+
+            item(key = "__name__") {
+                Column(
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(start = 20.dp, end = 20.dp, top = 72.dp, bottom = 0.dp),
+                ) {
+                    Text(
+                        "Name your workout",
+                        style         = MaterialTheme.typography.labelSmall,
+                        color         = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 0.4.sp,
+                    )
+                    TextField(
+                        value         = programName,
+                        onValueChange = { if (it.length <= 60) programName = it },
+                        textStyle     = MaterialTheme.typography.headlineMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        singleLine = false,
+                        maxLines   = 3,
+                        colors     = TextFieldDefaults.colors(
+                            focusedContainerColor   = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor  = Color.Transparent,
+                            focusedIndicatorColor   = MaterialTheme.colorScheme.primary,
+                            unfocusedIndicatorColor = MaterialTheme.colorScheme.outlineVariant,
+                        ),
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.program_name_label)) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(AppDimens.Corner.md),
-                        supportingText = {
-                            Text(
-                                "${programName.length}/40",
-                                modifier  = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.End,
-                                style     = MaterialTheme.typography.labelSmall,
-                                color     = if (programName.length >= 35) MaterialTheme.colorScheme.error
-                                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
                     )
                 }
+            }
 
-                // Workout days selector
-                item(key = "__days__") {
-                    DayOfWeekSelector(
-                        selected = scheduledDays,
-                        onToggle = { day ->
-                            scheduledDays = if (day in scheduledDays) scheduledDays - day else scheduledDays + day
-                        },
+            item(key = "__stats__") {
+                Row(
+                    modifier          = Modifier
+                        .background(MaterialTheme.colorScheme.surface)
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 4.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "$totalSets sets  $estimatedMins mins",
+                        style    = MaterialTheme.typography.bodyMedium,
+                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
                     )
-                }
-
-                // Section header
-                if (draftItems.isNotEmpty()) {
-                    item(key = "__section__") {
-                        Row(
-                            modifier          = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(stringResource(R.string.session_exercises_header),
-                                style         = MaterialTheme.typography.labelMedium,
-                                color         = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = AppDimens.LetterSpacing.wide,
+                    Box {
+                        IconButton(onClick = { showStatsMenu = true }) {
+                            Icon(
+                                AppIcons.MoreVert,
+                                contentDescription = "Options",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Spacer(Modifier.weight(1f))
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                shape = RoundedCornerShape(AppDimens.Corner.sm),
-                            ) {
-                                Text(
-                                    "${draftItems.size}",
-                                    style      = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color      = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier   = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xxs),
-                                )
-                            }
                         }
-                    }
-                }
-
-                // Exercise items
-                items(draftItems, key = { it.exerciseId }) { item ->
-                    ReorderableItem(reorderState, key = item.exerciseId) { isDragging ->
-                        val elevation by animateDpAsState(
-                            targetValue = if (isDragging) 8.dp else 1.dp,
-                            label       = "cardElevation",
-                        )
-                        ProgramItemCard(
-                            item = item,
-                            onEdit = { editingItem = item },
-                            onRemove = { draftItems = draftItems.filter { it.exerciseId != item.exerciseId } },
-                            modifier = Modifier.shadow(elevation, RoundedCornerShape(AppDimens.Corner.md)),
-                        )
+                        DropdownMenu(expanded = showStatsMenu, onDismissRequest = { showStatsMenu = false }) {
+                            DropdownMenuItem(
+                                text    = { Text("Schedule Days") },
+                                onClick = { showStatsMenu = false; showDaysDialog = true },
+                            )
+                        }
                     }
                 }
             }
 
-            // Sticky bottom bar
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            Column(
+            item(key = "__scale_pbs__") {
+                Row(
+                    modifier          = Modifier
+                        .background(MaterialTheme.colorScheme.surface)
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 16.dp, bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        AppIcons.FitnessCenter,
+                        contentDescription = null,
+                        tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        "Scale with my PBs",
+                        style    = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked         = scalePBs,
+                        onCheckedChange = { enabled ->
+                            if (enabled) {
+                                preScaleItems = draftItems
+                                draftItems = draftItems.map { item ->
+                                    val pb = pbSummaries[item.exerciseName.lowercase().trim()]
+                                    if (pb != null) {
+                                        val targetReps = when (item.mode) {
+                                            ExerciseMode.REPS -> item.reps ?: item.repRangeMin ?: 10
+                                            ExerciseMode.TIME -> null
+                                        }
+                                        val pbWeight = if (targetReps != null)
+                                            pb.bestWeightAtReps[targetReps] ?: pb.bestWeightLb
+                                        else
+                                            pb.bestWeightLb
+                                        if (pbWeight > 0) item.copy(targetWeightLb = pbWeight) else item
+                                    } else item
+                                }
+                            } else {
+                                preScaleItems?.let { draftItems = it }
+                                preScaleItems = null
+                            }
+                            scalePBs = enabled
+                        },
+                    )
+                }
+            }
+
+            item(key = "__gap__") { Spacer(Modifier.height(12.dp)) }
+
+            items(draftItems, key = { it.exerciseId }) { item ->
+                ReorderableItem(reorderState, key = item.exerciseId) { isDragging ->
+                    val elevation by animateDpAsState(
+                        targetValue = if (isDragging) 8.dp else 1.dp,
+                        label       = "cardElevation",
+                    )
+                    val exercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
+                    EditorExerciseCard(
+                        item     = item,
+                        exercise = exercise,
+                        onEdit   = { editingItem = item },
+                        onRemove = { draftItems = draftItems.filter { it.exerciseId != item.exerciseId } },
+                        modifier = Modifier.shadow(elevation, RoundedCornerShape(16.dp)),
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier              = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 4.dp, vertical = 4.dp)
+                .align(Alignment.TopCenter),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            IconButton(
+                onClick = onBack,
+                colors  = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                ),
+            ) { Icon(AppIcons.Close, contentDescription = "Close") }
+
+            Text(
+                if (program != null) "Edit Workout" else "New Workout",
+                style      = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+
+            IconButton(
+                onClick = {
+                    if (isSaveEnabled && program != null) {
+                        ProgramStore.addProgram(
+                            program.copy(
+                                name          = programName.trim(),
+                                exerciseCount = draftItems.size,
+                                items         = draftItems,
+                                scheduledDays = scheduledDays,
+                            )
+                        )
+                        onBack()
+                    }
+                },
+                enabled = isSaveEnabled,
+                colors  = IconButtonDefaults.iconButtonColors(
+                    containerColor         = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                    disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                ),
+            ) { Icon(AppIcons.Save, contentDescription = "Save") }
+        }
+
+        Surface(
+            modifier        = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+            shadowElevation = 12.dp,
+            color           = MaterialTheme.colorScheme.surface,
+        ) {
+            GradientButton(
+                text     = if (draftItems.isEmpty()) "Add Exercises" else "Add Exercises (${draftItems.size})",
+                icon     = AppIcons.Add,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
-                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-            ) {
-                OutlinedButton(
-                    onClick  = { showPicker = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape    = RoundedCornerShape(AppDimens.Corner.md),
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .navigationBarsPadding(),
+                onClick  = { showPicker = true },
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditorExerciseCard(
+    item: ProgramItemDraft,
+    exercise: Exercise?,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Card(
+        modifier  = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        shape     = RoundedCornerShape(16.dp),
+        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(160.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                 ) {
-                    Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
-                    Spacer(Modifier.width(AppDimens.Spacing.sm))
-                    Text(
-                        if (draftItems.isEmpty()) "Add Exercises" else "Add / Edit Exercises (${draftItems.size})",
-                        fontWeight = FontWeight.SemiBold,
+                    val thumbUrl = exercise?.thumbnailUrl
+                    if (!thumbUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model              = thumbUrl,
+                            contentDescription = item.exerciseName,
+                            contentScale       = ContentScale.Crop,
+                            modifier           = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)),
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.Top,
+                        modifier          = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            item.exerciseName,
+                            style      = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines   = 2,
+                            overflow   = TextOverflow.Ellipsis,
+                            modifier   = Modifier.weight(1f),
+                        )
+                        Box {
+                            IconButton(
+                                onClick  = { showMenu = true },
+                                modifier = Modifier.size(28.dp),
+                            ) {
+                                Icon(
+                                    AppIcons.MoreVert,
+                                    contentDescription = "Card options",
+                                    modifier = Modifier.size(16.dp),
+                                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                DropdownMenuItem(
+                                    text        = { Text(stringResource(R.string.cd_edit)) },
+                                    leadingIcon = { Icon(AppIcons.Edit, null, Modifier.size(18.dp)) },
+                                    onClick     = { showMenu = false; onEdit() },
+                                )
+                                DropdownMenuItem(
+                                    text        = { Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = { Icon(AppIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) },
+                                    onClick     = { showMenu = false; onRemove() },
+                                )
+                            }
+                        }
+                    }
+
+                    val modeText = item.programMode.ifBlank { null }
+                    if (modeText != null) {
+                        Text(
+                            modeText,
+                            style    = MaterialTheme.typography.labelSmall,
+                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(bottom = 6.dp),
+                        )
+                    } else {
+                        Spacer(Modifier.height(6.dp))
+                    }
+
+                    val headerStyle = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight    = FontWeight.SemiBold,
+                        letterSpacing = 0.8.sp,
+                        fontSize      = 9.sp,
                     )
+                    val headerColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    val weightLabel = if ((exercise?.numCables ?: 2) == 1) "WEIGHT" else "PER CABLE"
+                    Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp)) {
+                        Text("SET",       style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
+                        Text("REPS",      style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
+                        Text(weightLabel, style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
+                    }
+                    Divider(
+                        modifier = Modifier.padding(vertical = 4.dp).padding(end = 8.dp),
+                        color    = MaterialTheme.colorScheme.outlineVariant,
+                    )
+
+                    val boldStyle = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.ExtraBold)
+                    val numStyle  = MaterialTheme.typography.bodySmall
+                    val repsText  = when (item.mode) {
+                        ExerciseMode.REPS -> {
+                            if (item.repRangeMin != null && item.repRangeMax != null)
+                                "${item.repRangeMin}\u2013${item.repRangeMax}"
+                            else
+                                "${item.reps ?: "-"}"
+                        }
+                        ExerciseMode.TIME -> "${item.durationSec ?: "-"}s"
+                    }
+                    repeat(item.sets) { setIdx ->
+                        Row(
+                            modifier          = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp, bottom = 2.dp, end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "${setIdx + 1}",
+                                style    = numStyle,
+                                color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(0.55f),
+                            )
+                            Text(repsText,                  style = boldStyle, modifier = Modifier.weight(0.8f))
+                            Text("${item.targetWeightLb}", style = boldStyle, modifier = Modifier.weight(1.2f))
+                        }
+                    }
+                }
+            }
+
+            if (item.restTimerSec > 0 || item.programMode.isNotBlank()) {
+                Divider(
+                    color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                )
+                Row(
+                    modifier              = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    if (item.restTimerSec > 0) {
+                        val restMin  = item.restTimerSec / 60
+                        val restSec  = item.restTimerSec % 60
+                        val restText = if (restSec == 0) "$restMin min rest"
+                                       else "$restMin:${restSec.toString().padStart(2, '0')} min rest"
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(AppIcons.Timer, null, Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(4.dp))
+                            Text(restText, style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    val modeFooter = item.programMode.ifBlank { null }
+                    if (modeFooter != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(AppIcons.FitnessCenter, null, Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(4.dp))
+                            Text(modeFooter, style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
             }
         }

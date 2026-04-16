@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.sync
 
 import com.example.vitruvianredux.data.ProgramRepository
+import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SessionRepository
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -209,6 +210,7 @@ class SyncClient(
             }
             pullProgramCount = pAcc
             programRepo.writePrograms(mergedPrograms)
+            ProgramStore.refreshFromDisk()
 
             // Sessions
             val mergedSessions = localSessions.toMutableList()

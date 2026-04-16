@@ -52,6 +52,7 @@ import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.data.db.SessionLogDatabase
+import com.example.vitruvianredux.workers.VideoDownloadWorker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.vitruvianredux.presentation.audit.*
@@ -72,6 +73,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -121,6 +123,9 @@ fun ProfileScreen(
     }
 
     // â”€â”€ Room-backed weekly stats (SQL aggregation — replaces O(n) in-memory loops) â”€â”€â”€â”€â”€â”€
+
+    // ── Local Gamification ───────────────────────────────────────────────
+
     val localContext = androidx.compose.ui.platform.LocalContext.current
     val roomDb = remember(localContext) { SessionLogDatabase.getInstance(localContext) }
     val thisWeekStartMs = remember {
@@ -157,6 +162,9 @@ fun ProfileScreen(
         allLogs
             .filter { it.startTimeMs >= thisWeekStartMs }
             .sumOf { AnalyticsStore.sessionPoints(it.totalVolumeKg, it.avgQualityScore) }
+    }
+    val lifetimePoints = remember(allLogs) {
+        allLogs.sumOf { AnalyticsStore.sessionPoints(it.totalVolumeKg, it.avgQualityScore) }
     }
     val currentStreak = remember(allLogs, history) {
         val fromAnalytics = AnalyticsStore.currentStreak()
@@ -320,6 +328,52 @@ fun ProfileScreen(
             ProfileStatCard(modifier = Modifier.weight(1f), value = "$volumeDisplay $unitLabel", label = stringResource(R.string.metric_volume),   onClick = { showVolumeDetail = true })
             ProfileStatCard(modifier = Modifier.weight(1f), value = weekSessions.toString(),     label = stringResource(R.string.profile_stat_sessions), onClick = { showSessionsDetail = true })
             ProfileStatCard(modifier = Modifier.weight(1f), value = "$currentStreak d",          label = stringResource(R.string.profile_stat_streak),   onClick = { showStreakDetail = true })
+        }
+        // -- Lifetime points card
+        if (lifetimePoints > 0) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            Surface(
+                modifier       = Modifier.fillMaxWidth(),
+                shape          = MaterialTheme.shapes.medium,
+                color          = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                tonalElevation = AppDimens.Elevation.raised,
+            ) {
+                Row(
+                    modifier          = Modifier.padding(AppDimens.Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Lifetime Training Points",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            lifetimePoints.toString(),
+                            style      = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color      = MaterialTheme.colorScheme.primary,
+                        )
+                        val rank = when {
+                            lifetimePoints >= 5000 -> "Elite"
+                            lifetimePoints >= 1000 -> "Advanced"
+                            lifetimePoints >= 250 -> "Intermediate"
+                            else -> "Beginner"
+                        }
+                        Text(
+                            rank,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                        )
+                    }
+                    Icon(
+                        AppIcons.Star,
+                        contentDescription = null,
+                        tint     = LocalExtendedColors.current.gold,
+                        modifier = Modifier.size(AppDimens.Icon.xxl),
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
@@ -1913,6 +1967,88 @@ fun ProfileScreen(
                             AccentCyan else MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs),
                     )
+                }
+            }
+        }
+
+        // -- Device Management --------------------------------------------
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+        Text(
+            "OFFLINE STORAGE",
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 1.2.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
+        )
+        run {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            val scope = rememberCoroutineScope()
+            val workInfos by VideoDownloadWorker.getWorkInfoFlow(ctx)
+                .collectAsState(initial = emptyList())
+            val cachedCount by remember {
+                com.example.vitruvianredux.data.VideoCache.let { vc ->
+                    kotlinx.coroutines.flow.flow {
+                        while (true) {
+                            emit(vc.cachedCount)
+                            kotlinx.coroutines.delay(2_000L)
+                        }
+                    }
+                }
+            }.collectAsState(initial = com.example.vitruvianredux.data.VideoCache.cachedCount)
+
+            val activeInfo = workInfos.firstOrNull()
+            val isRunning = activeInfo?.state == androidx.work.WorkInfo.State.RUNNING ||
+                            activeInfo?.state == androidx.work.WorkInfo.State.ENQUEUED
+            val progress = activeInfo?.progress?.getInt(VideoDownloadWorker.PROGRESS_KEY, 0) ?: 0
+
+            PressScaleCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            AppIcons.Download,
+                            contentDescription = "Offline videos",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(AppDimens.Icon.lg),
+                        )
+                        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Exercise Videos",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                            Text(
+                                when {
+                                    isRunning -> "Downloading… $progress%"
+                                    cachedCount > 0 -> "$cachedCount video${if (cachedCount != 1) "s" else ""} saved offline"
+                                    else -> "Download all demo videos for offline use"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (isRunning && progress > 0) {
+                        Spacer(Modifier.height(AppDimens.Spacing.sm))
+                        LinearProgressIndicator(
+                            progress = progress / 100f,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    if (!isRunning) {
+                        Spacer(Modifier.height(AppDimens.Spacing.sm))
+                        Button(
+                            onClick = {
+                                VideoDownloadWorker.enqueue(ctx)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(AppIcons.Download, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+                            Spacer(Modifier.width(AppDimens.Spacing.sm))
+                            Text(if (cachedCount > 0) "Update cache" else "Download videos")
+                        }
+                    }
                 }
             }
         }

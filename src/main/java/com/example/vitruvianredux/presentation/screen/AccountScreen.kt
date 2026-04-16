@@ -33,6 +33,7 @@ import com.example.vitruvianredux.cloud.VitruvianAuthManager
 import com.example.vitruvianredux.cloud.DeviceFlowSession
 import com.example.vitruvianredux.cloud.VitruvianRoutineImporter
 import com.example.vitruvianredux.cloud.VitruvianWorkoutImporter
+import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
@@ -410,6 +411,11 @@ private fun VitruvianConnectionSection() {
     var isImportingHistory  by remember { mutableStateOf(false) }
     var historyImportResult by remember { mutableStateOf<String?>(null) }
 
+    // Session cleanup state (delete bad sessions posted today)
+    var isCleaningUp    by remember { mutableStateOf(false) }
+    var cleanupResult   by remember { mutableStateOf<String?>(null) }
+
+
     Divider()
 
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -442,16 +448,6 @@ private fun VitruvianConnectionSection() {
                             importResult!!,
                             style = MaterialTheme.typography.bodySmall,
                             color = if (importResult!!.startsWith("Error"))
-                                MaterialTheme.colorScheme.error
-                            else MaterialTheme.colorScheme.primary,
-                        )
-                    }
-
-                    if (historyImportResult != null) {
-                        Text(
-                            historyImportResult!!,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (historyImportResult!!.startsWith("Error"))
                                 MaterialTheme.colorScheme.error
                             else MaterialTheme.colorScheme.primary,
                         )
@@ -562,6 +558,124 @@ private fun VitruvianConnectionSection() {
                             Text("Import Workout History")
                         }
                     }
+
+                    if (historyImportResult != null) {
+                        Text(
+                            historyImportResult!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (historyImportResult!!.startsWith("Error"))
+                                MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    Divider()
+
+                    // ── Session cleanup ─────────────────────────────────────
+                    // Deletes any workout entries posted to Vitruvian today.
+                    // Use to undo accidental pushes while the session endpoint
+                    // behaviour is being verified.
+                    Text(
+                        "Session Cleanup",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Fetches today's sessions from Vitruvian and deletes their workout entries one by one.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    if (cleanupResult != null) {
+                        Text(
+                            cleanupResult!!,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (cleanupResult!!.startsWith("Error"))
+                                MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            cleanupResult = null
+                            isCleaningUp  = true
+                            scope.launch(Dispatchers.IO) {
+                                val token = VitruvianAuthManager.accessToken
+                                if (token == null) {
+                                    cleanupResult = "Error: not connected"
+                                    isCleaningUp = false
+                                    return@launch
+                                }
+                                // Fetch sessions created today, expanded with their workout IDs
+                                val todayStart = java.time.LocalDate.now()
+                                    .atStartOfDay(java.time.ZoneId.systemDefault())
+                                    .toInstant()
+                                val sessions = VitruvianApiClient.getSessions(
+                                    accessToken = token,
+                                    workoutsExpanded = true,
+                                    limit = 100,
+                                    createdLessThan = null,
+                                )
+                                if (sessions == null) {
+                                    cleanupResult = "Error: could not fetch sessions"
+                                    isCleaningUp = false
+                                    return@launch
+                                }
+                                // Collect workout IDs from sessions created today
+                                val todayStartMs = todayStart.toEpochMilli()
+                                val workoutIds = mutableListOf<String>()
+                                for (i in 0 until sessions.length()) {
+                                    val s = sessions.optJSONObject(i) ?: continue
+                                    val createdStr = s.optString("created", null)
+                                    if (createdStr != null) {
+                                        val createdMs = try {
+                                            java.time.Instant.parse(createdStr).toEpochMilli()
+                                        } catch (_: Exception) { 0L }
+                                        if (createdMs < todayStartMs) continue
+                                    }
+                                    val workoutsArr = s.optJSONArray("workouts") ?: continue
+                                    for (j in 0 until workoutsArr.length()) {
+                                        val w = workoutsArr.optJSONObject(j) ?: continue
+                                        val wId = w.optString("id", null)
+                                        if (!wId.isNullOrBlank()) workoutIds.add(wId)
+                                    }
+                                }
+                                if (workoutIds.isEmpty()) {
+                                    cleanupResult = "No sessions from today found"
+                                    isCleaningUp = false
+                                    return@launch
+                                }
+                                var deleted = 0
+                                var failed  = 0
+                                for (wId in workoutIds) {
+                                    if (VitruvianApiClient.deleteWorkout(token, wId)) deleted++ else failed++
+                                }
+                                cleanupResult = when {
+                                    failed == 0 -> "Deleted $deleted workout${if (deleted == 1) "" else "s"}"
+                                    deleted == 0 -> "Error: all $failed delete${if (failed == 1) "" else "s"} failed"
+                                    else -> "Deleted $deleted, $failed failed"
+                                }
+                                isCleaningUp = false
+                            }
+                        },
+                        enabled  = !isCleaningUp,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors   = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        if (isCleaningUp) {
+                            CircularProgressIndicator(
+                                modifier    = Modifier.size(AppDimens.Icon.md),
+                                strokeWidth = AppDimens.Stroke.medium,
+                                color       = MaterialTheme.colorScheme.error,
+                            )
+                        } else {
+                            Text("Delete Today's Sessions")
+                        }
+                    }
+
                 }
 
                 // ── Connecting (device flow active) ───────────────────────────

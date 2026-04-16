@@ -33,6 +33,8 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.data.HevyStore
+import com.example.vitruvianredux.data.VitruvianFavoritesStore
+import com.example.vitruvianredux.data.VitruvianLibrary
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
@@ -64,10 +66,15 @@ fun ProgramsScreen(
     onNavigateToTemplates: () -> Unit = {},
     onNavigateToImport: () -> Unit = {},
     onNavigateToHevyImport: () -> Unit = {},
+    onNavigateToOfficialPrograms: () -> Unit = {},
+    onNavigateToOfficialProgramDetail: (String) -> Unit = {},
 ) {
     val programs by savedProgramsFlow.collectAsState()
     var showBuilder by remember { mutableStateOf(false) }
     val hevyEnabled by HevyStore.enabledFlow.collectAsState()
+    val vitRoutines by VitruvianLibrary.routinesFlow.collectAsState()
+    val vitFavorites by VitruvianFavoritesStore.favoritesFlow.collectAsState()
+    var vitExpanded by remember { mutableStateOf(false) }
 
     // Ordered list -- preserves user order across external changes
     var orderedPrograms by remember { mutableStateOf(programs) }
@@ -99,11 +106,54 @@ fun ProgramsScreen(
     else
         favoritePrograms
 
+    // Hearted Vitruvian routines (computed here so TopAppBar can reference them)
+    val heartedVit = vitRoutines.filter { it.id in vitFavorites }
+
+    // Multi-select state
+    var isSelecting by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    // All selectable IDs: SavedProgram IDs + "hv_<id>" for hearted Vit rows
+    val allSelectableIds = visiblePrograms.map { it.id } + heartedVit.map { "hv_${it.id}" }
+
     Scaffold(
         modifier            = Modifier.fillMaxSize().padding(innerPadding),
         topBar              = {
             TopAppBar(
-                title        = { Text(stringResource(R.string.nav_programs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) },
+                title        = {
+                    if (isSelecting)
+                        Text("${selectedIds.size} selected", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                    else
+                        Text(stringResource(R.string.nav_programs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                },
+                navigationIcon = {
+                    if (isSelecting) {
+                        IconButton(onClick = { isSelecting = false; selectedIds = emptySet() }) {
+                            Icon(AppIcons.Close, contentDescription = "Cancel selection")
+                        }
+                    }
+                },
+                actions = {
+                    if (isSelecting) {
+                        IconButton(onClick = { selectedIds = allSelectableIds.toSet() }) {
+                            Icon(AppIcons.CheckCircle, contentDescription = "Select all")
+                        }
+                        IconButton(onClick = {
+                            selectedIds.forEach { id ->
+                                if (id.startsWith("hv_")) VitruvianFavoritesStore.toggle(id.removePrefix("hv_"))
+                                else ProgramStore.deleteProgram(id)
+                            }
+                            selectedIds = emptySet()
+                            isSelecting = false
+                        }) {
+                            Icon(AppIcons.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
+                        }
+                    } else if (allSelectableIds.isNotEmpty()) {
+                        IconButton(onClick = { isSelecting = true }) {
+                            Icon(AppIcons.CheckCircle, contentDescription = "Select programs")
+                        }
+                    }
+                },
                 windowInsets = WindowInsets(0),
             )
         },
@@ -131,6 +181,8 @@ fun ProgramsScreen(
                     )
                 }
             }
+
+
 
             item(key = "create") {
                 val createInteraction = remember { MutableInteractionSource() }
@@ -272,30 +324,39 @@ fun ProgramsScreen(
                             detectDragGesturesAfterLongPress(
                                 onDragStart = { _ ->
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    draggingId = p.id
-                                    dragOffsetY = 0f
+                                    if (isSelecting) {
+                                        // In selection mode: long-press just toggles selection, no drag
+                                        selectedIds = if (p.id in selectedIds) selectedIds - p.id else selectedIds + p.id
+                                    } else {
+                                        draggingId = p.id
+                                        dragOffsetY = 0f
+                                    }
                                 },
                                 onDrag = { change, dragAmount ->
                                     change.consume()
-                                    dragOffsetY += dragAmount.y
-                                    if (rowHeightPx > 0f) {
-                                        val idx = orderedPrograms.indexOfFirst { it.id == p.id }
-                                        when {
-                                            dragOffsetY > rowHeightPx * 0.5f && idx < orderedPrograms.lastIndex -> {
-                                                orderedPrograms = orderedPrograms.toMutableList().apply { add(idx + 1, removeAt(idx)) }
-                                                dragOffsetY -= rowHeightPx
-                                            }
-                                            dragOffsetY < -rowHeightPx * 0.5f && idx > 0 -> {
-                                                orderedPrograms = orderedPrograms.toMutableList().apply { add(idx - 1, removeAt(idx)) }
-                                                dragOffsetY += rowHeightPx
+                                    if (draggingId == p.id) {
+                                        dragOffsetY += dragAmount.y
+                                        if (rowHeightPx > 0f) {
+                                            val idx = orderedPrograms.indexOfFirst { it.id == p.id }
+                                            when {
+                                                dragOffsetY > rowHeightPx * 0.5f && idx < orderedPrograms.lastIndex -> {
+                                                    orderedPrograms = orderedPrograms.toMutableList().apply { add(idx + 1, removeAt(idx)) }
+                                                    dragOffsetY -= rowHeightPx
+                                                }
+                                                dragOffsetY < -rowHeightPx * 0.5f && idx > 0 -> {
+                                                    orderedPrograms = orderedPrograms.toMutableList().apply { add(idx - 1, removeAt(idx)) }
+                                                    dragOffsetY += rowHeightPx
+                                                }
                                             }
                                         }
                                     }
                                 },
                                 onDragEnd = {
-                                    ProgramStore.reorderPrograms(orderedPrograms.map { it.id })
-                                    draggingId = null
-                                    dragOffsetY = 0f
+                                    if (draggingId != null) {
+                                        ProgramStore.reorderPrograms(orderedPrograms.map { it.id })
+                                        draggingId = null
+                                        dragOffsetY = 0f
+                                    }
                                 },
                                 onDragCancel = {
                                     draggingId = null
@@ -311,10 +372,20 @@ fun ProgramsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .then(
+                                    if (isSelecting && p.id in selectedIds)
+                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                    else
+                                        Modifier
+                                )
                                 .clickable(enabled = !isDragging) {
-                                    WiringRegistry.hit(A_PROGRAMS_SAVED_OPEN)
-                                    WiringRegistry.recordOutcome(A_PROGRAMS_SAVED_OPEN, ActualOutcome.Navigated("program_detail"))
-                                    onNavigateToProgramDetail(p.id)
+                                    if (isSelecting) {
+                                        selectedIds = if (p.id in selectedIds) selectedIds - p.id else selectedIds + p.id
+                                    } else {
+                                        WiringRegistry.hit(A_PROGRAMS_SAVED_OPEN)
+                                        WiringRegistry.recordOutcome(A_PROGRAMS_SAVED_OPEN, ActualOutcome.Navigated("program_detail"))
+                                        onNavigateToProgramDetail(p.id)
+                                    }
                                 }
                                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                             verticalAlignment = Alignment.CenterVertically,
@@ -380,24 +451,34 @@ fun ProgramsScreen(
                                     }
                                 }
                             }
-                            IconButton(
-                                onClick = { ProgramStore.toggleFavorite(p.id) },
-                                modifier = Modifier.size(AppDimens.Icon.xl),
-                            ) {
+                            if (isSelecting) {
                                 Icon(
-                                    if (p.isFavorite) AppIcons.Favorite else AppIcons.FavoriteBorder,
-                                    contentDescription = if (p.isFavorite) "Remove from favorites" else "Add to favorites",
-                                    tint = if (p.isFavorite) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
-                                    modifier = Modifier.size(AppDimens.Icon.md),
+                                    AppIcons.CheckCircle,
+                                    contentDescription = if (p.id in selectedIds) "Selected" else "Not selected",
+                                    tint = if (p.id in selectedIds) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(AppDimens.Icon.lg),
+                                )
+                            } else {
+                                IconButton(
+                                    onClick = { ProgramStore.toggleFavorite(p.id) },
+                                    modifier = Modifier.size(AppDimens.Icon.xl),
+                                ) {
+                                    Icon(
+                                        if (p.isFavorite) AppIcons.Favorite else AppIcons.FavoriteBorder,
+                                        contentDescription = if (p.isFavorite) "Remove from favorites" else "Add to favorites",
+                                        tint = if (p.isFavorite) MaterialTheme.colorScheme.primary
+                                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                        modifier = Modifier.size(AppDimens.Icon.md),
+                                    )
+                                }
+                                Icon(
+                                    AppIcons.DragHandle,
+                                    contentDescription = "Long press to reorder",
+                                    tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.35f),
+                                    modifier = Modifier.size(AppDimens.Icon.lg),
                                 )
                             }
-                            Icon(
-                                AppIcons.DragHandle,
-                                contentDescription = "Long press to reorder",
-                                tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.35f),
-                                modifier = Modifier.size(AppDimens.Icon.lg),
-                            )
                         }
                         if (!isLast) {
                             Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = if (isDragging) 0f else 1f))
@@ -429,7 +510,212 @@ fun ProgramsScreen(
                 }
             }
 
+            // ── Hearted Vitruvian routines in "Your Programs" ──────────────────────
+            items(heartedVit, key = { "hv_${it.id}" }) { r ->
+                val isLastS  = heartedVit.lastOrNull()?.id == r.id
+                val hvAllCount = orderedPrograms.size + heartedVit.size
+                val hvIdx      = orderedPrograms.size + heartedVit.indexOf(r)
+                val rowShape = when {
+                    hvAllCount == 1 -> MaterialTheme.shapes.medium
+                    hvIdx == 0      -> RoundedCornerShape(topStart = AppDimens.Corner.md_sm, topEnd = AppDimens.Corner.md_sm, bottomStart = 0.dp, bottomEnd = 0.dp)
+                    isLastS         -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = AppDimens.Corner.md_sm, bottomEnd = AppDimens.Corner.md_sm)
+                    else            -> RoundedCornerShape(0.dp)
+                }
+                Surface(
+                    modifier       = Modifier.fillMaxWidth(),
+                    shape          = rowShape,
+                    tonalElevation = AppDimens.Elevation.selector,
+                ) {
+                    Column {
+                        val hvKey = "hv_${r.id}"
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (isSelecting && hvKey in selectedIds)
+                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                    else
+                                        Modifier
+                                )
+                                .clickable {
+                                    if (isSelecting) {
+                                        selectedIds = if (hvKey in selectedIds) selectedIds - hvKey else selectedIds + hvKey
+                                    } else {
+                                        onNavigateToOfficialProgramDetail(r.id)
+                                    }
+                                }
+                                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(AppDimens.Icon.xl)
+                                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text       = r.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                    style      = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color      = MaterialTheme.colorScheme.tertiary,
+                                    textAlign  = TextAlign.Center,
+                                )
+                            }
+                            Spacer(Modifier.width(AppDimens.Spacing.md))
+                            Column(Modifier.weight(1f)) {
+                                Text(r.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                Text(
+                                    r.muscleLabels.ifBlank { "${r.totalExercises} exercises" },
+                                    style    = MaterialTheme.typography.bodySmall,
+                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            if (isSelecting) {
+                                Icon(
+                                    AppIcons.CheckCircle,
+                                    contentDescription = if (hvKey in selectedIds) "Selected" else "Not selected",
+                                    tint = if (hvKey in selectedIds) MaterialTheme.colorScheme.primary
+                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(AppDimens.Icon.lg),
+                                )
+                            } else {
+                                IconButton(
+                                    onClick  = { VitruvianFavoritesStore.toggle(r.id) },
+                                    modifier = Modifier.size(AppDimens.Icon.xl),
+                                ) {
+                                    Icon(
+                                        AppIcons.Favorite,
+                                        contentDescription = "Remove from My Programs",
+                                        tint     = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(AppDimens.Icon.md),
+                                    )
+                                }
+                            }
+                        }
+                        if (!isLastS) {
+                            Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                    }
+                }
+            }
+
             item(key = "spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
+
+            // ── Vitruvian Programs (collapsible) ─────────────────────────────────────
+            item(key = "vit_header") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                            vitExpanded = !vitExpanded
+                        }
+                        .padding(top = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (vitExpanded || vitRoutines.isEmpty()) "Vitruvian Programs"
+                        else "Vitruvian Programs (${vitRoutines.size})",
+                        style    = MaterialTheme.typography.labelLarge,
+                        color    = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (vitRoutines.isNotEmpty()) {
+                        IconButton(
+                            onClick = { vitExpanded = !vitExpanded },
+                            modifier = Modifier.size(AppDimens.Icon.xl),
+                        ) {
+                            Icon(
+                                if (vitExpanded) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                                contentDescription = if (vitExpanded) "Collapse" else "Expand",
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        TextButton(
+                            onClick      = onNavigateToOfficialPrograms,
+                            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.sm, vertical = 0.dp),
+                        ) {
+                            Icon(AppIcons.Search, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                            Spacer(Modifier.width(AppDimens.Spacing.xxs))
+                            Text("Search", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+
+            if (vitExpanded) {
+                items(vitRoutines, key = { "vit_${it.id}" }) { r ->
+                    val isFirst = vitRoutines.firstOrNull()?.id == r.id
+                    val isLast  = vitRoutines.lastOrNull()?.id == r.id
+                    val rowShape = when {
+                        vitRoutines.size == 1 -> MaterialTheme.shapes.medium
+                        isFirst -> RoundedCornerShape(topStart = AppDimens.Corner.md_sm, topEnd = AppDimens.Corner.md_sm, bottomStart = 0.dp, bottomEnd = 0.dp)
+                        isLast  -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = AppDimens.Corner.md_sm, bottomEnd = AppDimens.Corner.md_sm)
+                        else    -> RoundedCornerShape(0.dp)
+                    }
+                    Surface(
+                        modifier       = Modifier.fillMaxWidth(),
+                        shape          = rowShape,
+                        tonalElevation = AppDimens.Elevation.selector,
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onNavigateToOfficialProgramDetail(r.id) }
+                                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(AppDimens.Icon.xl)
+                                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f), CircleShape),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text       = r.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                                        style      = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color      = MaterialTheme.colorScheme.tertiary,
+                                        textAlign  = TextAlign.Center,
+                                    )
+                                }
+                                Spacer(Modifier.width(AppDimens.Spacing.md))
+                                Column(Modifier.weight(1f)) {
+                                    Text(r.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                    Text(
+                                        r.muscleLabels.ifBlank { "${r.totalExercises} exercises" },
+                                        style    = MaterialTheme.typography.bodySmall,
+                                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                val isHearted = r.id in vitFavorites
+                                IconButton(
+                                    onClick  = { VitruvianFavoritesStore.toggle(r.id) },
+                                    modifier = Modifier.size(AppDimens.Icon.xl),
+                                ) {
+                                    Icon(
+                                        if (isHearted) AppIcons.Favorite else AppIcons.FavoriteBorder,
+                                        contentDescription = if (isHearted) "Remove from My Programs" else "Add to My Programs",
+                                        tint = if (isHearted) MaterialTheme.colorScheme.primary
+                                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                        modifier = Modifier.size(AppDimens.Icon.md),
+                                    )
+                                }
+                            }
+                            if (!isLast) {
+                                Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant)
+                            }
+                        }
+                    }
+                }
+                item(key = "vit_spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
+            }
 
             item(key = "templates_header") {
                 Text(

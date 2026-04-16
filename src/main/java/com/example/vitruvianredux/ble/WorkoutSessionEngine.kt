@@ -406,9 +406,15 @@ class WorkoutSessionEngine(
     /** Last processed deload event timestamp for debouncing. */
     private var lastDeloadTimeMs: Long = 0L
 
+    /** Per-set raw cable telemetry accumulated during WORKING phase (cleared after each set). */
+    private val samplesLeft  = ArrayList<CableSample>(512)
+    private val samplesRight = ArrayList<CableSample>(512)
+
     companion object {
         /** Duration handles must stay released before auto-stopping (spec: >5 s). */
         private const val HANDLE_RELEASE_AUTO_STOP_MS = 5_000L
+        /** Max cable samples to retain per set to bound memory usage (~100 s @ 15 Hz). */
+        private const val MAX_SET_SAMPLES = 1_500
         /** Grace period after auto-start before auto-stop can trigger (prevent immediate re-stop). */
         private const val AUTO_START_GRACE_MS = 1_000L
         /** Delay before auto-start confirms after handles are grabbed. */
@@ -531,6 +537,13 @@ class WorkoutSessionEngine(
                                 }
                                 // Tick the handle-release auto-stop timer
                                 checkHandleAutoStop()
+                            }
+
+                            // ── Sample accumulation (for Vitruvian API upload) ───
+                            if (engineState.phase == SetPhase.WORKING
+                                && samplesLeft.size < MAX_SET_SAMPLES) {
+                                samplesLeft.add(sample.left)
+                                samplesRight.add(sample.right)
                             }
 
                             // ── Deload event detection (status bit 15) ───────
@@ -963,6 +976,8 @@ class WorkoutSessionEngine(
         )
         completedStats.clear()
         skippedStatsList.clear()
+        samplesLeft.clear()
+        samplesRight.clear()
         engineState = EngineState()
         repDetector.reset()
         repCountPolicy.reset()
@@ -1483,8 +1498,12 @@ class WorkoutSessionEngine(
             peakForce            = hPeakForce,
             echoLevel            = if (isEcho) set.echoLevel.displayName else null,
             eccentricLoadPct     = set.eccentricLoadPct,
+            cableSamplesLeft     = samplesLeft.toList(),
+            cableSamplesRight    = samplesRight.toList(),
         )
         completedStats.add(stats)
+        samplesLeft.clear()
+        samplesRight.clear()
         Log.i(TAG, "completeCurrentPlayerSet: set $currentPlayerIndex done — warmup=${set.warmupReps} working=$workingReps reps (device total=$totalDeviceReps), ${durSec}s, ${set.weightPerCableLb}lb")
 
         // Send STOP through the adapter (skip if not connected is handled internally)

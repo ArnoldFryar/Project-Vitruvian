@@ -1,5 +1,6 @@
 package com.example.vitruvianredux.presentation.components
 
+import android.net.Uri
 import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -15,6 +16,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.example.vitruvianredux.data.VideoCache
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 /**
@@ -37,9 +39,15 @@ fun ExerciseVideoPlayer(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val exoPlayer = remember(videoUrl) {
+    // Resolve to a local file URI when the video has been cached offline;
+    // fall back to the remote URL when no local copy exists.
+    val resolvedUri: Uri = remember(videoUrl) {
+        VideoCache.getLocalUri(videoUrl) ?: Uri.parse(videoUrl)
+    }
+
+    val exoPlayer = remember(resolvedUri) {
         ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(videoUrl))
+            setMediaItem(MediaItem.fromUri(resolvedUri))
             repeatMode    = Player.REPEAT_MODE_ONE
             volume        = 0f
             playWhenReady = true

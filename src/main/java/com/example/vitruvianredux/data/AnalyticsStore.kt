@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
+import com.example.vitruvianredux.ble.protocol.CableSample
 import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDate
@@ -52,6 +53,9 @@ object AnalyticsStore {
         val peakForce: Float = 0f,
         val echoLevel: String? = null,
         val eccentricLoadPct: Int = 100,
+        /** Raw cable telemetry for Vitruvian API upload. NOT persisted to SharedPreferences. */
+        val cableSamplesLeft: List<CableSample> = emptyList(),
+        val cableSamplesRight: List<CableSample> = emptyList(),
     )
 
     data class SessionLog(

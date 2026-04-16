@@ -282,7 +282,7 @@ fun EditExerciseSheet(
                 }
                 if (suggestedWeightLb != null) {
                     Text(
-                        "Population median: ${suggestedWeightLb} lb",
+                        "Suggested starting weight: ${suggestedWeightLb} lb",
                         style  = MaterialTheme.typography.bodySmall,
                         color  = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = AppDimens.Spacing.xs),

@@ -197,7 +197,7 @@ fun HomeScreen(
                                     modifier = Modifier.weight(1f),
                                     onClick  = {
                                         val sets = CircuitSetBuilder.build(program.items, exerciseCatalog)
-                                        workoutVM?.startPlayerWorkout(sets)
+                                        workoutVM?.startProgramWorkout(program.id, sets)
                                     },
                                 )
                                 OutlinedButton(

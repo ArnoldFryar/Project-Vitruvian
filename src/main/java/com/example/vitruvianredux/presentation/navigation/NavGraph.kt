@@ -43,6 +43,8 @@ enum class Route(val path: String) {
     TemplatePreview("template_preview"),
     ExerciseDataDetail("exercise_data"),
     AnalyticsDashboard("analytics_dashboard"),
+    OfficialPrograms("official_programs"),
+    OfficialProgramDetail("official_program_detail"),
 }
 
 private const val ANIM_DURATION = 280
@@ -105,6 +107,10 @@ fun AppNavHost(
                 onNavigateToTemplates       = { nav.navigate(Route.Templates.path) },
                 onNavigateToImport          = { nav.navigate(Route.ImportProgram.path) },
                 onNavigateToHevyImport      = { nav.navigate(Route.HevyImport.path) },
+                onNavigateToOfficialPrograms = { nav.navigate(Route.OfficialPrograms.path) },
+                onNavigateToOfficialProgramDetail = { id ->
+                    nav.navigate("${Route.OfficialProgramDetail.path}/${Uri.encode(id)}")
+                },
             )
         }
         composable(Route.Device.path)    {
@@ -161,6 +167,21 @@ fun AppNavHost(
             val programId = backStackEntry.arguments?.getString("programId") ?: ""
             ProgramEditorScreen(
                 programId = programId,
+                onBack    = { nav.popBackStack() },
+            )
+        }
+        composable(Route.OfficialPrograms.path) {
+            OfficialProgramsScreen(
+                onBack          = { nav.popBackStack() },
+                onRoutineClick  = { id ->
+                    nav.navigate("${Route.OfficialProgramDetail.path}/${Uri.encode(id)}")
+                },
+            )
+        }
+        composable(route = "${Route.OfficialProgramDetail.path}/{routineId}") { backStackEntry ->
+            val routineId = backStackEntry.arguments?.getString("routineId") ?: ""
+            OfficialProgramDetailScreen(
+                routineId = routineId,
                 onBack    = { nav.popBackStack() },
             )
         }

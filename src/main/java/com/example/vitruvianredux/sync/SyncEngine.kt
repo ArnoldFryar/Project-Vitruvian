@@ -53,6 +53,19 @@ object SyncEngine {
         if (drift > 3_600_000L && remote.deviceId != local.deviceId) {
             Timber.tag(TAG).w("MERGE id=${remote.id}: large timestamp drift (${drift / 1000}s) between devices — possible clock skew")
         }
+        // Tombstone wins: a local deletion is never reversed by an active remote, regardless
+        // of updatedAt order.  This prevents clock-skew or cross-device race conditions from
+        // silently resurrecting programs the user explicitly deleted.
+        // A locally-deleted record can only be overwritten by a remote that is ALSO deleted
+        // (newer tombstone beats older tombstone via normal LWW below).
+        if (local.deletedAt != null && remote.deletedAt == null) {
+            Timber.tag(TAG).d(
+                "MERGE id=${remote.id}: REJECT — local tombstone wins over active remote " +
+                    "(local.deletedAt=${local.deletedAt}, remote.updatedAt=${remote.updatedAt})"
+            )
+            return MergeVerdict.Reject("local tombstone wins over active remote")
+        }
+
         return when {
             remote.updatedAt > local.updatedAt -> {
                 Timber.tag(TAG).d(

@@ -8,6 +8,11 @@ import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.TtsVoiceStore
 import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.data.ProfileStore
+import com.example.vitruvianredux.data.VitruvianFavoritesStore
+import com.example.vitruvianredux.data.VitruvianLibrary
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.cloud.SupabaseProvider
 import com.example.vitruvianredux.workers.WorkoutReminderWorker
@@ -65,5 +70,9 @@ class VitruvianApp : Application() {
         TtsVoiceStore.init(this)
         // Initialise Supabase client for cloud sync (reads config from resources).
         SupabaseProvider.init(this)
+        // Load hearted Vitruvian Library programs.
+        VitruvianFavoritesStore.init(this)
+        // Load official Vitruvian program library from bundled assets.
+        CoroutineScope(Dispatchers.IO).launch { VitruvianLibrary.load(this@VitruvianApp) }
     }
 }

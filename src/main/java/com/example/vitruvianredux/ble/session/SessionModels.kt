@@ -1,5 +1,7 @@
 package com.example.vitruvianredux.ble.session
 
+import com.example.vitruvianredux.ble.protocol.CableSample
+
 /** Per-set statistics captured during a player-mode set. */
 data class ExerciseStats(
     val exerciseName: String = "",
@@ -33,6 +35,9 @@ data class ExerciseStats(
     val echoLevel: String? = null,
     /** Eccentric load percentage (default 100 = no reduction). */
     val eccentricLoadPct: Int = 100,
+    /** Raw per-sample cable telemetry collected during this set (WORKING phase only). Not persisted. */
+    val cableSamplesLeft: List<CableSample> = emptyList(),
+    val cableSamplesRight: List<CableSample> = emptyList(),
 )
 
 /** Aggregate stats for a completed workout. */

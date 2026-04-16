@@ -1,5 +1,6 @@
 package com.example.vitruvianredux.data
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 
 /**
@@ -8,10 +9,11 @@ import java.time.LocalDate
  * Priority:
  *  a. Active program + history → next program in sorted list after the active one (cyclic).
  *  b. Active program + no history → the active program itself (first session).
- *  c. No active program + history → most recently used program, UNLESS it was completed
+ *  c. Scheduled for today + not yet completed today → show the scheduled program.
+ *  d. No active program + history → most recently used program, UNLESS it was completed
  *     today — in that case advance to the next program in sequence (cyclic) so the card
  *     reflects what comes after today's completed session.
- *  d. No active program + no history → first available program.
+ *  e. No active program + no history → first available program.
  *
  * Pure Kotlin — no Android dependencies, fully unit-testable.
  */
@@ -30,6 +32,9 @@ object UpNextResolver {
     ): SavedProgram? {
         if (programs.isEmpty()) return null
 
+        val today = LocalDate.now()
+        val todayDayOfWeek = today.dayOfWeek
+
         // a. Active program + history → advance to the next program in sequence (cyclic).
         //    Rationale: the user is mid-workout on the active program; the card should
         //    prime them for what comes after, not repeat the one they're doing right now.
@@ -46,7 +51,23 @@ object UpNextResolver {
             return programs.firstOrNull { it.id == activeProgramId } ?: programs.first()
         }
 
-        // c. No active program, but history exists → most recently used program.
+        // c. Check if any program is explicitly scheduled for today and NOT yet completed today.
+        val scheduledToday = programs.filter { it.scheduledDays.contains(todayDayOfWeek) }
+        if (scheduledToday.isNotEmpty()) {
+            // Find which (if any) of today's scheduled programs haven't been done yet today.
+            val completedTodayNames = workoutHistory
+                .filter { it.date == today }
+                .mapNotNull { it.programName }
+                .toSet()
+
+            val pendingToday = scheduledToday.filter { it.name !in completedTodayNames }
+            if (pendingToday.isNotEmpty()) {
+                // Return the first pending scheduled program for today.
+                return pendingToday.minByOrNull { it.sortOrder }
+            }
+        }
+
+        // d. No active program, but history exists → most recently used program.
         //    If the last workout was completed today, advance to the next program in sequence
         //    so the card reflects what comes after the session the user just finished.
         if (workoutHistory.isNotEmpty()) {
@@ -55,7 +76,7 @@ object UpNextResolver {
             if (lastProgramName != null) {
                 val lastProgram = programs.firstOrNull { it.name == lastProgramName }
                 if (lastProgram != null) {
-                    if (lastRecord?.date == LocalDate.now()) {
+                    if (lastRecord?.date == today) {
                         // Today's workout is done — show the next one in the rotation.
                         val lastIndex = programs.indexOfFirst { it.id == lastProgram.id }
                         return programs[(lastIndex + 1) % programs.size]
@@ -66,7 +87,7 @@ object UpNextResolver {
             // History present but records have no programName (free workouts) → fall through.
         }
 
-        // d. No history at all → first available program.
+        // e. No history at all → first available program.
         return programs.first()
     }
 }
