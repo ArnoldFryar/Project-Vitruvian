@@ -73,3 +73,22 @@ build_output.txt
 build_result.txt
 install_out.txt
 *.hprof
+
+# Reverse engineering and extraction folders containing massive amounts of smali/assets
+_*
+decompiled_*
+vitruvian_*
+scrape_output/
+
+# Root level reverse engineering temp dumps
+/*.txt
+/*.png
+/*.xml
+/*.py
+/*.bin
+/*.jar
+/cat_first.json
+/categories_expanded.json
+/routines_padded.json
+/routines_response.json
+/prebuilt_routines.json
