@@ -39,8 +39,10 @@ import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
+import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
@@ -49,9 +51,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.style.TextAlign
 import java.time.DayOfWeek
+import java.time.LocalDate
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 data class ProgramDraft(val name: String, val items: List<ProgramItemDraft>)
+
+private fun estimateProgramMinutes(items: List<ProgramItemDraft>): Int =
+    items.sumOf { item ->
+        item.sets * (item.restTimerSec / 60.0 + 1.5)
+    }.toInt().coerceAtLeast(if (items.isEmpty()) 0 else 1)
+
+private fun Set<DayOfWeek>.toggle(day: DayOfWeek): Set<DayOfWeek> =
+    if (day in this) this - day else this + day
 
 /** Live list of saved programs backed by [ProgramStore] (persisted). */
 val savedProgramsFlow: StateFlow<List<SavedProgram>> get() = ProgramStore.savedProgramsFlow
@@ -71,10 +82,12 @@ fun ProgramsScreen(
 ) {
     val programs by savedProgramsFlow.collectAsState()
     var showBuilder by remember { mutableStateOf(false) }
+    var editingScheduleId by remember { mutableStateOf<String?>(null) }
     val hevyEnabled by HevyStore.enabledFlow.collectAsState()
     val vitRoutines by VitruvianLibrary.routinesFlow.collectAsState()
     val vitFavorites by VitruvianFavoritesStore.favoritesFlow.collectAsState()
     var vitExpanded by remember { mutableStateOf(false) }
+    val today = LocalDate.now().dayOfWeek
 
     // Ordered list -- preserves user order across external changes
     var orderedPrograms by remember { mutableStateOf(programs) }
@@ -84,6 +97,9 @@ fun ProgramsScreen(
             .map    { p -> programs.first { it.id == p.id } }
         val newOnes  = programs.filter { p -> orderedPrograms.none { it.id == p.id } }
         orderedPrograms = existing + newOnes
+        if (editingScheduleId != null && programs.none { it.id == editingScheduleId }) {
+            editingScheduleId = null
+        }
     }
 
     val sessionState = workoutVM?.state?.collectAsState()?.value
@@ -101,10 +117,14 @@ fun ProgramsScreen(
     var showAllPrograms by remember { mutableStateOf(false) }
     val favoritePrograms    = orderedPrograms.filter { it.isFavorite }
     val nonFavoritePrograms = orderedPrograms.filter { !it.isFavorite }
+    val scheduledTodayIds   = orderedPrograms.filter { today in it.scheduledDays }.map { it.id }.toSet()
+    val pinnedProgramIds    = favoritePrograms.map { it.id }.toSet() + scheduledTodayIds
     val visiblePrograms = if (showAllPrograms || favoritePrograms.isEmpty())
         orderedPrograms
     else
-        favoritePrograms
+        orderedPrograms.filter { it.id in pinnedProgramIds }
+    val hiddenProgramsCount = (orderedPrograms.size - visiblePrograms.size).coerceAtLeast(0)
+    val scheduledTodayCount = scheduledTodayIds.size
 
     // Hearted Vitruvian routines (computed here so TopAppBar can reference them)
     val heartedVit = vitRoutines.filter { it.id in vitFavorites }
@@ -112,6 +132,10 @@ fun ProgramsScreen(
     // Multi-select state
     var isSelecting by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    LaunchedEffect(isSelecting) {
+        if (isSelecting) editingScheduleId = null
+    }
 
     // All selectable IDs: SavedProgram IDs + "hv_<id>" for hearted Vit rows
     val allSelectableIds = visiblePrograms.map { it.id } + heartedVit.map { "hv_${it.id}" }
@@ -165,7 +189,14 @@ fun ProgramsScreen(
         ) {
 
             item(key = "subtitle") {
-                Text(stringResource(R.string.project_tagline),
+                val listGuidance = when {
+                    orderedPrograms.isEmpty() -> "Build repeatable workouts, save favorites, or import a plan in a couple of taps."
+                    scheduledTodayCount > 0 && hiddenProgramsCount > 0 -> "$scheduledTodayCount scheduled today. Favorites and today\'s workouts stay visible first."
+                    hiddenProgramsCount > 0 -> "Favorites stay pinned here. Show more to browse the rest of your saved workouts."
+                    scheduledTodayCount > 0 -> "$scheduledTodayCount scheduled today. Use the calendar on a row to adjust workout days quickly."
+                    else -> "Tap a program to open it, or use the calendar on a row to adjust workout days without leaving the list."
+                }
+                Text(listGuidance,
                     style    = MaterialTheme.typography.bodyMedium,
                     color    = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = AppDimens.Spacing.lg),
@@ -191,7 +222,7 @@ fun ProgramsScreen(
                     targetValue = if (createPressed) MotionTokens.PRESS_SCALE else 1f,
                     animationSpec = MotionTokens.SnapSpring, label = "createScale",
                 )
-                ElevatedCard(
+                AppCard(
                     modifier = Modifier.fillMaxWidth()
                         .graphicsLayer(scaleX = createScale, scaleY = createScale)
                         .clickable(interactionSource = createInteraction, indication = null) {
@@ -199,7 +230,6 @@ fun ProgramsScreen(
                             WiringRegistry.recordOutcome(A_PROGRAMS_CREATE_OPEN, ActualOutcome.SheetOpened("program_builder"))
                             showBuilder = true
                         },
-                    shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
                         Icon(AppIcons.AddCircleOutline, contentDescription = stringResource(R.string.cd_add), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
@@ -216,10 +246,7 @@ fun ProgramsScreen(
             }
 
             item(key = "import_group") {
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape    = MaterialTheme.shapes.medium,
-                ) {
+                AppCard(modifier = Modifier.fillMaxWidth()) {
                     val importInteraction = remember { MutableInteractionSource() }
                     val importPressed by importInteraction.collectIsPressedAsState()
                     val importScale by animateFloatAsState(
@@ -282,6 +309,55 @@ fun ProgramsScreen(
                 )
             }
 
+            if (orderedPrograms.isNotEmpty() && (scheduledTodayCount > 0 || hiddenProgramsCount > 0)) {
+                item(key = "programs_status") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = AppDimens.Spacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                    ) {
+                        if (scheduledTodayCount > 0) {
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        AppIcons.CalendarToday,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(AppDimens.Icon.sm),
+                                    )
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                    Text(
+                                        "$scheduledTodayCount scheduled today",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                }
+                            }
+                        }
+                        if (hiddenProgramsCount > 0 && favoritePrograms.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                            ) {
+                                Text(
+                                    "$hiddenProgramsCount hidden until Show more",
+                                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             if (orderedPrograms.isEmpty()) {
                 item(key = "empty") {
                     AppEmptyState(
@@ -312,7 +388,6 @@ fun ProgramsScreen(
                         .graphicsLayer {
                             if (isDragging) {
                                 translationY = dragOffsetY
-                                shadowElevation = 20f
                                 scaleX = 1.02f
                                 scaleY = 1.02f
                             }
@@ -365,8 +440,16 @@ fun ProgramsScreen(
                             )
                         },
                     shape           = rowShape,
-                    tonalElevation  = if (isDragging) 8.dp else AppDimens.Elevation.selector,
-                    shadowElevation = if (isDragging) 8.dp else 0.dp,
+                    tonalElevation  = 0.dp,
+                    shadowElevation = 0.dp,
+                    border          = androidx.compose.foundation.BorderStroke(
+                        if (isDragging) AppDimens.Stroke.medium else AppDimens.Stroke.thin,
+                        when {
+                            isDragging -> MaterialTheme.colorScheme.primary
+                            today in p.scheduledDays -> MaterialTheme.colorScheme.secondary
+                            else -> MaterialTheme.colorScheme.outline
+                        },
+                    ),
                 ) {
                     Column {
                         Row(
@@ -374,7 +457,9 @@ fun ProgramsScreen(
                                 .fillMaxWidth()
                                 .then(
                                     if (isSelecting && p.id in selectedIds)
-                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                                    else if (today in p.scheduledDays)
+                                        Modifier.background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.14f))
                                     else
                                         Modifier
                                 )
@@ -415,7 +500,43 @@ fun ProgramsScreen(
                             }
                             Spacer(Modifier.width(AppDimens.Spacing.md))
                             Column(Modifier.weight(1f)) {
+                                val totalSets = p.items.sumOf { it.sets }
+                                val estimatedMins = estimateProgramMinutes(p.items)
+                                val isScheduledToday = today in p.scheduledDays
+                                val scheduleSummary = formatScheduledDays(p.scheduledDays).takeIf { it.isNotBlank() }
+                                val structureSummary = buildString {
+                                    append("${p.exerciseCount} exercise")
+                                    if (p.exerciseCount != 1) append("s")
+                                    if (totalSets > 0) append(" · $totalSets sets")
+                                    if (estimatedMins > 0) append(" · about $estimatedMins min")
+                                    if (scheduleSummary != null) append(" · $scheduleSummary")
+                                }
                                 Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (isScheduledToday) {
+                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                    Surface(
+                                        shape = RoundedCornerShape(999.dp),
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
+                                        ) {
+                                            Icon(
+                                                AppIcons.CalendarToday,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                modifier = Modifier.size(AppDimens.Icon.xs),
+                                            )
+                                            Text(
+                                                "Scheduled today",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            )
+                                        }
+                                    }
+                                }
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
                                 // Exercise name preview (up to 3, with overflow count)
                                 val exercisePreview = if (p.items.isNotEmpty())
@@ -429,6 +550,67 @@ fun ProgramsScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                Text(
+                                    structureSummary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (!isSelecting) {
+                                    Spacer(Modifier.height(AppDimens.Spacing.xs))
+                                    val scheduleActionActive = editingScheduleId == p.id || isScheduledToday
+                                    val scheduleActionLabel = when {
+                                        editingScheduleId == p.id -> "Hide workout days"
+                                        scheduleSummary == null -> "Set workout days"
+                                        else -> "Edit workout days"
+                                    }
+                                    Surface(
+                                        shape = RoundedCornerShape(999.dp),
+                                        color = if (scheduleActionActive) MaterialTheme.colorScheme.primaryContainer
+                                                else MaterialTheme.colorScheme.surfaceVariant,
+                                        modifier = Modifier.clickable {
+                                            editingScheduleId = if (editingScheduleId == p.id) null else p.id
+                                        },
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                        ) {
+                                            Icon(
+                                                AppIcons.CalendarToday,
+                                                contentDescription = null,
+                                                tint = if (scheduleActionActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(AppDimens.Icon.sm),
+                                            )
+                                            Text(
+                                                scheduleActionLabel,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (scheduleActionActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                }
+                                if (scheduleSummary == null) {
+                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                    Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                                        Surface(
+                                            shape = RoundedCornerShape(999.dp),
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
+                                        ) {
+                                            Text(
+                                                "No days set",
+                                                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 2.dp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                }
                                 // Scheduled day dots (Monâ€“Sun, 7 circles)
                                 if (p.scheduledDays.isNotEmpty()) {
                                     Spacer(Modifier.height(AppDimens.Spacing.xxs))
@@ -443,7 +625,7 @@ fun ProgramsScreen(
                                                     .size(6.dp)
                                                     .background(
                                                         if (day in p.scheduledDays) avatarColor
-                                                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                                                        else MaterialTheme.colorScheme.outlineVariant,
                                                         CircleShape,
                                                     )
                                             )
@@ -456,7 +638,7 @@ fun ProgramsScreen(
                                     AppIcons.CheckCircle,
                                     contentDescription = if (p.id in selectedIds) "Selected" else "Not selected",
                                     tint = if (p.id in selectedIds) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                           else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(AppDimens.Icon.lg),
                                 )
                             } else {
@@ -468,7 +650,7 @@ fun ProgramsScreen(
                                         if (p.isFavorite) AppIcons.Favorite else AppIcons.FavoriteBorder,
                                         contentDescription = if (p.isFavorite) "Remove from favorites" else "Add to favorites",
                                         tint = if (p.isFavorite) MaterialTheme.colorScheme.primary
-                                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                               else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(AppDimens.Icon.md),
                                     )
                                 }
@@ -478,6 +660,72 @@ fun ProgramsScreen(
                                     tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.35f),
                                     modifier = Modifier.size(AppDimens.Icon.lg),
                                 )
+                            }
+                        }
+                        if (!isSelecting && editingScheduleId == p.id) {
+                            Divider(
+                                modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                            )
+                            val schedulePanelColor = if (today in p.scheduledDays) MaterialTheme.colorScheme.secondaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            val schedulePanelContent = if (today in p.scheduledDays) MaterialTheme.colorScheme.onSecondaryContainer
+                                else MaterialTheme.colorScheme.onSurface
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                                    color = schedulePanelColor,
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm_md),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                AppIcons.CalendarToday,
+                                                contentDescription = null,
+                                                tint = schedulePanelContent,
+                                                modifier = Modifier.size(AppDimens.Icon.sm),
+                                            )
+                                            Column(Modifier.weight(1f)) {
+                                                Text(
+                                                    if (today in p.scheduledDays) "Scheduled for today"
+                                                    else "Weekly schedule",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = schedulePanelContent,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                )
+                                                Spacer(Modifier.height(2.dp))
+                                                Text(
+                                                    formatScheduledDays(p.scheduledDays).takeIf { it.isNotBlank() } ?: "No days selected yet",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = schedulePanelContent.copy(alpha = 0.78f),
+                                                )
+                                            }
+                                        }
+                                        Spacer(Modifier.height(AppDimens.Spacing.sm))
+                                        DayOfWeekSelector(
+                                            selected = p.scheduledDays,
+                                            onToggle = { day ->
+                                                ProgramStore.addProgram(
+                                                    p.copy(scheduledDays = p.scheduledDays.toggle(day))
+                                                )
+                                                editingScheduleId = null
+                                            },
+                                            title = null,
+                                            buttonSize = 36.dp,
+                                        )
+                                    }
+                                }
                             }
                         }
                         if (!isLast) {
@@ -524,7 +772,10 @@ fun ProgramsScreen(
                 Surface(
                     modifier       = Modifier.fillMaxWidth(),
                     shape          = rowShape,
-                    tonalElevation = AppDimens.Elevation.selector,
+                    border         = androidx.compose.foundation.BorderStroke(
+                        AppDimens.Stroke.thin,
+                        MaterialTheme.colorScheme.outline,
+                    ),
                 ) {
                     Column {
                         val hvKey = "hv_${r.id}"
@@ -533,7 +784,7 @@ fun ProgramsScreen(
                                 .fillMaxWidth()
                                 .then(
                                     if (isSelecting && hvKey in selectedIds)
-                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
                                     else
                                         Modifier
                                 )
@@ -550,7 +801,7 @@ fun ProgramsScreen(
                             Box(
                                 modifier = Modifier
                                     .size(AppDimens.Icon.xl)
-                                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f), CircleShape),
+                                    .background(MaterialTheme.colorScheme.tertiaryContainer, CircleShape),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
@@ -578,7 +829,7 @@ fun ProgramsScreen(
                                     AppIcons.CheckCircle,
                                     contentDescription = if (hvKey in selectedIds) "Selected" else "Not selected",
                                     tint = if (hvKey in selectedIds) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                           else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(AppDimens.Icon.lg),
                                 )
                             } else {
@@ -658,7 +909,10 @@ fun ProgramsScreen(
                     Surface(
                         modifier       = Modifier.fillMaxWidth(),
                         shape          = rowShape,
-                        tonalElevation = AppDimens.Elevation.selector,
+                        border         = androidx.compose.foundation.BorderStroke(
+                            AppDimens.Stroke.thin,
+                            MaterialTheme.colorScheme.outline,
+                        ),
                     ) {
                         Column {
                             Row(
@@ -671,7 +925,7 @@ fun ProgramsScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(AppDimens.Icon.xl)
-                                        .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f), CircleShape),
+                                        .background(MaterialTheme.colorScheme.tertiaryContainer, CircleShape),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
@@ -703,7 +957,7 @@ fun ProgramsScreen(
                                         if (isHearted) AppIcons.Favorite else AppIcons.FavoriteBorder,
                                         contentDescription = if (isHearted) "Remove from My Programs" else "Add to My Programs",
                                         tint = if (isHearted) MaterialTheme.colorScheme.primary
-                                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                               else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(AppDimens.Icon.md),
                                     )
                                 }
@@ -727,13 +981,12 @@ fun ProgramsScreen(
             }
 
             item(key = "browse_templates") {
-                ElevatedCard(
+                AppCard(
                     modifier = Modifier.fillMaxWidth().clickable {
                         WiringRegistry.hit(A_PROGRAMS_TEMPLATES)
                         WiringRegistry.recordOutcome(A_PROGRAMS_TEMPLATES, ActualOutcome.Navigated("templates"))
                         onNavigateToTemplates()
                     },
-                    shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
                         Icon(AppIcons.GridView, contentDescription = stringResource(R.string.cd_grid_view), tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(AppDimens.Icon.xl))

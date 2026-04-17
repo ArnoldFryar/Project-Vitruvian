@@ -1,5 +1,11 @@
 package com.example.vitruvianredux.presentation.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,15 +15,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.unit.Dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 
 /**
@@ -54,7 +66,7 @@ fun LoadingOverlay(
                 Text(
                     text = message,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -97,5 +109,47 @@ fun LoadingBar(
         color = color,
         trackColor = trackColor,
         strokeCap = StrokeCap.Round,
+    )
+}
+
+/**
+ * Skeleton shimmer placeholder — replaces content while it loads.
+ *
+ * Animates a left-to-right alpha wave (shimmer) over a [surfaceVariant] base.
+ * Drop in wherever a piece of content is loading:
+ * ```
+ * if (item == null) ShimmerBox(Modifier.fillMaxWidth().height(56.dp))
+ * else Content(item)
+ * ```
+ */
+@Composable
+fun ShimmerBox(
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = AppDimens.Corner.sm,
+) {
+    val surface = MaterialTheme.colorScheme.surfaceVariant
+    val highlight = MaterialTheme.colorScheme.surface
+
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateX by transition.animateFloat(
+        initialValue  = -600f,
+        targetValue   = 600f,
+        animationSpec = infiniteRepeatable(
+            animation  = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "shimmerX",
+    )
+
+    val brush = Brush.linearGradient(
+        colors = listOf(surface, highlight, surface),
+        start  = Offset(translateX, 0f),
+        end    = Offset(translateX + 400f, 0f),
+    )
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(brush),
     )
 }

@@ -67,7 +67,12 @@ fun DebugScreen(
             .padding(bottom = innerPadding.calculateBottomPadding()),
     ) {
         // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Surface(tonalElevation = AppDimens.Elevation.card) {
+        Surface(
+            border = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                MaterialTheme.colorScheme.outline,
+            ),
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -205,9 +210,9 @@ fun DebugScreen(
 private fun BleLogRow(entry: BleDebugLog.Entry) {
     val isTx    = entry.direction == BleDebugLog.Direction.TX
     val bgColor = if (isTx)
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+        MaterialTheme.colorScheme.primaryContainer
     else
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        MaterialTheme.colorScheme.surfaceVariant
 
     val dirIcon  = if (isTx) AppIcons.ArrowUpward else AppIcons.ArrowDownward
     val dirColor = if (isTx) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
@@ -269,7 +274,7 @@ private fun BleLogRow(entry: BleDebugLog.Entry) {
                     fontFamily = FontFamily.Monospace,
                     fontSize   = 10.sp,
                 ),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -321,7 +326,12 @@ private fun AnalyticsProvenanceSection() {
     val sessionCount = remember { provenance.sessionCount() }
     val dupes = remember { provenance.detectDuplicates() }
 
-    Surface(tonalElevation = AppDimens.Elevation.card) {
+    Surface(
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -348,7 +358,8 @@ private fun AnalyticsProvenanceSection() {
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                         )
                     }
-                    TextButton(onClick = { expanded = !expanded }) {
+                    TextButton(
+onClick = { expanded = !expanded }) {
                         Text(if (expanded) "Hide" else "Show")
                     }
                 }

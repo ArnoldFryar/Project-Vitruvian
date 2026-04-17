@@ -26,6 +26,9 @@ import com.example.vitruvianredux.ble.MachineVersion
 import com.example.vitruvianredux.ble.MachineHeuristic
 import com.example.vitruvianredux.ble.MachineUpdateState
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.presentation.components.AppCard
+import com.example.vitruvianredux.presentation.components.AppOutlinedButton
+import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.ValueStepper
@@ -39,17 +42,11 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
 
 // â”€â”€â”€ Paused screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only")
-
 @Composable
 internal fun PausedContent(
     exerciseName: String,
     setIndex: Int,
     totalSets: Int,
-    selectedMode: String,
-    modeExpanded: Boolean,
-    onModeSelect: (String) -> Unit,
-    onModeExpandChange: (Boolean) -> Unit,
     onResume: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
@@ -59,6 +56,8 @@ internal fun PausedContent(
     if (showEndConfirm) {
         AlertDialog(
             onDismissRequest = { showEndConfirm = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             icon = {
                 Icon(AppIcons.Warning, contentDescription = stringResource(R.string.cd_warning),
                     tint = MaterialTheme.colorScheme.error)
@@ -77,7 +76,8 @@ internal fun PausedContent(
                 ) { Text(stringResource(R.string.player_end_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { showEndConfirm = false }) { Text(stringResource(R.string.player_end_cancel)) }
+                TextButton(
+onClick = { showEndConfirm = false }) { Text(stringResource(R.string.player_end_cancel)) }
             },
         )
     }
@@ -88,107 +88,49 @@ internal fun PausedContent(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            AppIcons.Pause, contentDescription = stringResource(R.string.cd_pause),
-            modifier = Modifier.size(AppDimens.Icon.hero),
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
-        Text(text = stringResource(R.string.player_paused),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.xs))
-        Text(
-            text = exerciseName,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.xxs))
-        Text(
-            text = "Set ${setIndex + 1} of $totalSets",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
-
-        // â”€â”€ Mode selector (same look as active player) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(AppDimens.Corner.sm),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-            ExposedDropdownMenuBox(
-                expanded         = modeExpanded,
-                onExpandedChange = onModeExpandChange,
+        AppCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(AppDimens.Spacing.xl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
-                        .clickable { onModeExpandChange(!modeExpanded) }
-                        .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                    ) {
-                        Icon(
-                            AppIcons.Tune, contentDescription = stringResource(R.string.cd_mode_settings),
-                            modifier = Modifier.size(AppDimens.Icon.md),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = selectedMode,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    Icon(
-                        AppIcons.ExpandMore, contentDescription = stringResource(R.string.cd_expand_mode),
-                        modifier = Modifier.size(AppDimens.Icon.md),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                ExposedDropdownMenu(
-                    expanded         = modeExpanded,
-                    onDismissRequest = { onModeExpandChange(false) },
-                ) {
-                    MODE_OPTIONS.forEach { mode ->
-                        DropdownMenuItem(
-                            text    = { Text(mode) },
-                            onClick = { onModeSelect(mode) },
-                        )
-                    }
-                }
+                Icon(
+                    AppIcons.Pause, contentDescription = stringResource(R.string.cd_pause),
+                    modifier = Modifier.size(AppDimens.Icon.hero),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(text = stringResource(R.string.player_paused),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = exerciseName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = "Set ${setIndex + 1} of $totalSets",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "The trainer is paused. Resume when you're ready to continue the set.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                GradientButton(
+                    text = stringResource(R.string.player_resume_workout),
+                    icon = AppIcons.PlayArrow,
+                    onClick = onResume,
+                )
+                AppOutlinedButton(
+                    text = stringResource(R.string.player_end_confirm),
+                    icon = AppIcons.Stop,
+                    onClick = { showEndConfirm = true },
+                )
             }
-        }
-
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
-        Button(
-            onClick = onResume,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(AppDimens.Component.buttonHeightXl),
-            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-        ) {
-            Icon(AppIcons.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.lg))
-            Spacer(Modifier.width(AppDimens.Spacing.sm))
-            Text(stringResource(R.string.player_resume_workout), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
-        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
-        OutlinedButton(
-            onClick = { showEndConfirm = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(AppDimens.Component.buttonHeightLg),
-            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-        ) {
-            Icon(AppIcons.Stop, contentDescription = stringResource(R.string.cd_stop), modifier = Modifier.size(AppDimens.Icon.lg))
-            Spacer(Modifier.width(AppDimens.Spacing.sm))
-            Text(stringResource(R.string.player_end_confirm), fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }
@@ -218,6 +160,8 @@ internal fun BleDiagnosticsDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
         title = { Text(stringResource(R.string.player_ble_diagnostics), fontWeight = FontWeight.Bold) },
         text  = {
             Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
@@ -276,7 +220,8 @@ internal fun BleDiagnosticsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cd_close)) }
+            TextButton(
+onClick = onDismiss) { Text(stringResource(R.string.cd_close)) }
         },
     )
 }
@@ -319,6 +264,8 @@ internal fun UpcomingSetsSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         windowInsets = WindowInsets(0),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier
@@ -343,9 +290,14 @@ internal fun UpcomingSetsSheet(
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)
                 ) {
                     itemsIndexed(draftSets) { index, set ->
-                        ElevatedCard(
+                        Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium
+                            shape = MaterialTheme.shapes.medium,
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                AppDimens.Stroke.thin,
+                                MaterialTheme.colorScheme.outline,
+                            ),
                         ) {
                             Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
                                 Text(

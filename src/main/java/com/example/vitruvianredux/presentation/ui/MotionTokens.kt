@@ -42,10 +42,24 @@ object MotionTokens {
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = Spring.StiffnessMediumLow,
     )
+    /**
+     * Bouncy release spring — used when the finger lifts off an interactive
+     * element to give a satisfying snap-back. Low stiffness = springy feel.
+     */
+    val BounceSpring: SpringSpec<Float> = spring(
+        dampingRatio = Spring.DampingRatioLowBouncy,
+        stiffness    = Spring.StiffnessMediumLow,
+    )
 
     // ── Press feedback values ──────────────────────────────────────────
-    /** Scale during press */
-    const val PRESS_SCALE = 0.975f
+    /** Scale during press — Primary CTA (GradientButton). Largest depress. */
+    const val PRESS_SCALE_PRIMARY = 0.965f
+    /** Scale during press — Tonal (secondary action) buttons. */
+    const val PRESS_SCALE_TONAL = 0.975f
+    /** Scale during press — Outlined (tertiary/dismiss) buttons. */
+    const val PRESS_SCALE_OUTLINED = 0.985f
+    /** Legacy alias; kept for callsites using rememberPressState() default. */
+    const val PRESS_SCALE = PRESS_SCALE_TONAL
     /** Alpha during press */
     const val PRESS_ALPHA = 0.88f
 
@@ -109,16 +123,19 @@ object MotionTokens {
  * ```
  */
 @Composable
-fun rememberPressState(): Pair<Modifier, MutableInteractionSource> {
+fun rememberPressState(
+    targetScale: Float = MotionTokens.PRESS_SCALE,
+): Pair<Modifier, MutableInteractionSource> {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) MotionTokens.PRESS_SCALE else 1f,
-        animationSpec = MotionTokens.SnapSpring,
+        targetValue   = if (isPressed) targetScale else 1f,
+        // Press uses SnapSpring (immediate); release uses BounceSpring (springy)
+        animationSpec = if (isPressed) MotionTokens.SnapSpring else MotionTokens.BounceSpring,
         label = "pressScale",
     )
     val alpha by animateFloatAsState(
-        targetValue = if (isPressed) MotionTokens.PRESS_ALPHA else 1f,
+        targetValue   = if (isPressed) MotionTokens.PRESS_ALPHA else 1f,
         animationSpec = MotionTokens.SnapSpring,
         label = "pressAlpha",
     )

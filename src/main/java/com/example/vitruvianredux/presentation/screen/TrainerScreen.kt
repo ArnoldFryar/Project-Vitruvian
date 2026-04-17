@@ -116,7 +116,10 @@ fun TrainerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                tonalElevation = AppDimens.Elevation.card,
+                border = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.outline,
+                ),
             ) {
                 Column(
                     modifier = Modifier
@@ -128,7 +131,7 @@ fun TrainerScreen(
                     Icon(
                         imageVector = AppIcons.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting),
                         modifier = Modifier.size(56.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        tint = MaterialTheme.colorScheme.primaryContainer,
                     )
                     Text(
                         text = "No trainer connected",
@@ -164,7 +167,10 @@ fun TrainerScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
             color = cs.surfaceVariant,
-            tonalElevation = AppDimens.Elevation.selector,
+            border = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                cs.outline,
+            ),
         ) {
             Column {
                 // Connection row
@@ -174,9 +180,9 @@ fun TrainerScreen(
                         Surface(
                             shape = RoundedCornerShape(AppDimens.Corner.xs),
                             color = when {
-                                isConnected -> cs.primary.copy(alpha = 0.12f)
-                                isScanning || isConnecting -> cs.tertiary.copy(alpha = 0.12f)
-                                else -> cs.onSurfaceVariant.copy(alpha = 0.12f)
+                                isConnected -> cs.primaryContainer
+                                isScanning || isConnecting -> cs.tertiaryContainer
+                                else -> cs.onSurfaceVariant
                             },
                         ) {
                             Text(
@@ -199,14 +205,14 @@ fun TrainerScreen(
                         }
                     },
                 )
-                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+                Divider(color = cs.outlineVariant)
 
                 // Machine ID
                 TrainerInfoRow(
                     label = stringResource(R.string.trainer_machine_id),
                     value = if (isConnected) (state as BleConnectionState.Connected).device.address else "\u2013",
                 )
-                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+                Divider(color = cs.outlineVariant)
 
                 // Status
                 TrainerInfoRow(
@@ -217,7 +223,7 @@ fun TrainerScreen(
                         else -> "\u2013"
                     },
                 )
-                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+                Divider(color = cs.outlineVariant)
 
                 // Colour indicator — opens LED colour picker
                 TrainerInfoRow(
@@ -271,13 +277,16 @@ fun TrainerScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
             color = cs.surfaceVariant,
-            tonalElevation = AppDimens.Elevation.selector,
+            border = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                cs.outline,
+            ),
         ) {
             Column {
                 TrainerInfoRow(label = stringResource(R.string.trainer_firmware), value = machineVersion?.firmware ?: "\u2013")
-                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+                Divider(color = cs.outlineVariant)
                 TrainerInfoRow(label = stringResource(R.string.trainer_hardware), value = machineVersion?.hardware ?: "\u2013")
-                Divider(color = cs.outlineVariant.copy(alpha = 0.5f))
+                Divider(color = cs.outlineVariant)
                 TrainerInfoRow(
                     label = stringResource(R.string.trainer_app),
                     trailing = {

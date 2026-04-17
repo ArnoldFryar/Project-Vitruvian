@@ -4,6 +4,7 @@ import com.vitruvian.trainer.R
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -25,9 +26,12 @@ import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramStore
+import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AppCard
+import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.SectionHeader
 import com.example.vitruvianredux.presentation.components.StatCard
@@ -46,6 +50,7 @@ import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun HomeScreen(
@@ -61,6 +66,9 @@ fun HomeScreen(
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
     val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
     val activeProgramId = workoutVM?.activeProgramId
+    val workoutDays = remember(workoutHistory) {
+        workoutHistory.map { it.date }.toSet()
+    }
     val nextProgram = remember(programs, workoutHistory, activeProgramId) {
         com.example.vitruvianredux.data.UpNextResolver.resolveUpNextWorkout(
             programs         = programs,
@@ -84,7 +92,7 @@ fun HomeScreen(
     val weekSessions  = remember(allLogs) { AnalyticsStore.rollingSessionCount(7) }
     val currentStreak = remember(allLogs) { AnalyticsStore.currentStreak() }
     val volumeValue = UnitConversions.formatVolumeFromKg(weekVolumeKg, unitSystem)
-    val volumeLabel = "Volume (${UnitConversions.unitLabel(unitSystem)})"
+    val volumeLabel = stringResource(R.string.home_metric_volume, UnitConversions.unitLabel(unitSystem))
 
     ScreenScaffold(
         title = stringResource(R.string.screen_title_home),
@@ -97,8 +105,25 @@ fun HomeScreen(
         }
     ) {
 
-        // â”€â”€ Last 7 days â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        SectionHeader(title = stringResource(R.string.home_last_7_days), actionLabel = stringResource(R.string.home_action_history)) {
+        SectionHeader(
+            title = stringResource(R.string.home_up_next),
+            subtitle = "Your next workout should be the first thing you see.",
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        HomeUpNextCard(
+            nextProgram = nextProgram,
+            exerciseCatalog = exerciseCatalog,
+            workoutVM = workoutVM,
+            onNavigateToProgramDetail = onNavigateToProgramDetail,
+        )
+
+        Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+
+        SectionHeader(
+            title = stringResource(R.string.home_last_7_days),
+            subtitle = "Tap any metric for detail.",
+            actionLabel = stringResource(R.string.home_action_history),
+        ) {
             WiringRegistry.hit(A_ACTIVITY_HISTORY)
             WiringRegistry.recordOutcome(
                 A_ACTIVITY_HISTORY,
@@ -112,11 +137,13 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
         ) {
             StatCard(
-                icon     = AppIcons.Bolt,
-                value    = volumeValue,
-                label    = volumeLabel,
-                modifier = Modifier.weight(1f),
-                onClick  = {
+                icon        = AppIcons.Bolt,
+                value       = volumeValue,
+                label       = volumeLabel,
+                accentColor = cs.primary,
+                compact     = true,
+                modifier    = Modifier.weight(1f),
+                onClick     = {
                     WiringRegistry.hit(A_ACTIVITY_METRIC_VOLUME)
                     WiringRegistry.recordOutcome(
                         A_ACTIVITY_METRIC_VOLUME,
@@ -126,11 +153,13 @@ fun HomeScreen(
                 },
             )
             StatCard(
-                icon     = AppIcons.FitnessCenter,
-                value    = weekSessions.toString(),
-                label    = stringResource(R.string.profile_stat_sessions),
-                modifier = Modifier.weight(1f),
-                onClick  = {
+                icon        = AppIcons.FitnessCenter,
+                value       = weekSessions.toString(),
+                label       = stringResource(R.string.profile_stat_sessions),
+                accentColor = cs.secondary,
+                compact     = true,
+                modifier    = Modifier.weight(1f),
+                onClick     = {
                     WiringRegistry.hit(A_ACTIVITY_METRIC_SESSIONS)
                     WiringRegistry.recordOutcome(
                         A_ACTIVITY_METRIC_SESSIONS,
@@ -140,11 +169,13 @@ fun HomeScreen(
                 },
             )
             StatCard(
-                icon     = AppIcons.LocalFireDepartment,
-                value    = currentStreak.toString(),
-                label    = stringResource(R.string.metric_day_streak),
-                modifier = Modifier.weight(1f),
-                onClick  = {
+                icon        = AppIcons.LocalFireDepartment,
+                value       = currentStreak.toString(),
+                label       = stringResource(R.string.metric_day_streak),
+                accentColor = cs.tertiary,
+                compact     = true,
+                modifier    = Modifier.weight(1f),
+                onClick     = {
                     WiringRegistry.hit(A_ACTIVITY_METRIC_STREAK)
                     WiringRegistry.recordOutcome(
                         A_ACTIVITY_METRIC_STREAK,
@@ -155,89 +186,135 @@ fun HomeScreen(
             )
         }
 
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
+        Spacer(Modifier.height(AppDimens.Spacing.md_lg))
 
-        // â”€â”€ Up Next â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        // Reads from ProgramStore — the single repository source of truth.
-        // Deleted programs and an empty list are handled gracefully.
-        SectionHeader(title = stringResource(R.string.rest_up_next))
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
-        ElevatedCard(
-            modifier  = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.selector),
-        ) {
-            Column(Modifier.padding(AppDimens.Spacing.md)) {
-                Crossfade(
-                    targetState = nextProgram,
-                    animationSpec = MotionTokens.ContentCrossfade,
-                    label = "upNextContent",
-                ) { program ->
-                    if (program != null) {
-                        Column {
-                            Text(
-                                program.name,
-                                fontWeight = FontWeight.SemiBold,
-                                style      = MaterialTheme.typography.bodyLarge,
-                                maxLines   = 2,
-                                overflow   = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                "${program.exerciseCount} exercise",
-                                color = cs.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                            Spacer(Modifier.height(AppDimens.Spacing.md))
-                            Row(
-                                modifier              = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                            ) {
-                                GradientButton(
-                                    text     = "Start",
-                                    icon     = AppIcons.PlayArrow,
-                                    modifier = Modifier.weight(1f),
-                                    onClick  = {
-                                        val sets = CircuitSetBuilder.build(program.items, exerciseCatalog)
-                                        workoutVM?.startProgramWorkout(program.id, sets)
-                                    },
-                                )
-                                OutlinedButton(
-                                    onClick  = { onNavigateToProgramDetail(program.id) },
-                                    modifier = Modifier.weight(1f).height(AppDimens.Component.buttonHeight),
-                                ) {
-                                    Icon(AppIcons.Edit, contentDescription = stringResource(R.string.cd_edit), modifier = Modifier.size(AppDimens.Icon.sm))
-                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Text(stringResource(R.string.cd_edit))
-                                }
-                            }
-                        }
-                    } else {
-                        Column {
-                            Text(stringResource(R.string.home_no_program),
-                                color = cs.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Spacer(Modifier.height(AppDimens.Spacing.sm))
-                            Text(stringResource(R.string.home_no_program_message),
-                                color = cs.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
+        WorkoutCalendar(workoutDays = workoutDays)
+    }
+}
+
+@Composable
+private fun HomeUpNextCard(
+    nextProgram: SavedProgram?,
+    exerciseCatalog: Map<String, Exercise>,
+    workoutVM: WorkoutSessionViewModel?,
+    onNavigateToProgramDetail: (String) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = cs.surface,
+        borderColor = if (nextProgram != null) cs.primary.copy(alpha = 0.28f) else cs.outline,
+    ) {
+        Crossfade(
+            targetState = nextProgram,
+            animationSpec = MotionTokens.ContentCrossfade,
+            label = "upNextContent",
+        ) { program ->
+            if (program != null) {
+                val exerciseCountLabel = if (program.exerciseCount == 1) {
+                    stringResource(R.string.home_exercise_count_singular, program.exerciseCount)
+                } else {
+                    stringResource(R.string.home_exercise_count_plural, program.exerciseCount)
+                }
+
+                Column(
+                    modifier = Modifier.padding(AppDimens.Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
+                ) {
+                    HomeMetaPill(
+                        label = "Ready to train",
+                        background = cs.primaryContainer,
+                        content = cs.onPrimaryContainer,
+                    )
+                    Text(
+                        text = program.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = "Start your next programmed session or jump in to make edits.",
+                        color = cs.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                        HomeMetaPill(
+                            label = exerciseCountLabel,
+                            background = cs.secondaryContainer,
+                            content = cs.onSecondaryContainer,
+                        )
+                        HomeMetaPill(
+                            label = "Program",
+                            background = cs.surfaceVariant,
+                            content = cs.onSurfaceVariant,
+                        )
                     }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    ) {
+                        GradientButton(
+                            text = stringResource(R.string.common_start),
+                            icon = AppIcons.PlayArrow,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                val sets = CircuitSetBuilder.build(program.items, exerciseCatalog)
+                                workoutVM?.startProgramWorkout(program.id, sets)
+                            },
+                        )
+                        AppOutlinedButton(
+                            text = stringResource(R.string.common_edit),
+                            icon = AppIcons.Edit,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigateToProgramDetail(program.id) },
+                        )
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier.padding(AppDimens.Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                ) {
+                    HomeMetaPill(
+                        label = "Programs",
+                        background = cs.surfaceVariant,
+                        content = cs.onSurfaceVariant,
+                    )
+                    Text(
+                        text = stringResource(R.string.home_no_program),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = stringResource(R.string.home_no_program_message),
+                        color = cs.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
         }
+    }
+}
 
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
-
-        // â”€â”€ Workout Calendar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        SectionHeader(title = stringResource(R.string.home_workout_calendar))
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
-        // Real workout history — dates come from WorkoutHistoryStore
-        val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
-        val workoutDays = remember(workoutHistory) {
-            workoutHistory.map { it.date }.toSet()
-        }
-        WorkoutCalendar(workoutDays = workoutDays)
+@Composable
+private fun HomeMetaPill(
+    label: String,
+    background: Color,
+    content: Color,
+) {
+    Surface(
+        shape = MaterialTheme.shapes.extraSmall,
+        color = background,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = content,
+        )
     }
 }
 
@@ -257,38 +334,60 @@ private fun WorkoutCalendar(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = cs.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.selector,
+        color = cs.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            cs.outline,
+        ),
     ) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.sm)) {
-            // â”€â”€ Month navigation header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(
-                    onClick = { displayMonth = displayMonth.minusMonths(1) },
-                    modifier = Modifier.size(AppDimens.Spacing.xl),
-                ) {
-                    Icon(AppIcons.ChevronLeft, "Previous month", modifier = Modifier.size(AppDimens.Icon.md))
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs)) {
+                    Text(
+                        text = stringResource(R.string.home_workout_calendar),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                        CalendarLegendItem(
+                            label = stringResource(R.string.player_tab_workout),
+                            fill = cs.primaryContainer,
+                            stroke = cs.primary.copy(alpha = 0.55f),
+                        )
+                        CalendarLegendItem(
+                            label = stringResource(R.string.history_today),
+                            fill = cs.secondaryContainer,
+                            stroke = cs.secondary,
+                        )
+                    }
                 }
-                Text(
-                    text = "${displayMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${displayMonth.year}",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                IconButton(
-                    onClick = { displayMonth = displayMonth.plusMonths(1) },
-                    modifier = Modifier.size(AppDimens.Spacing.xl),
-                ) {
-                    Icon(AppIcons.ChevronRight, "Next month", modifier = Modifier.size(AppDimens.Icon.md))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { displayMonth = displayMonth.minusMonths(1) },
+                        modifier = Modifier.size(AppDimens.Component.buttonHeightSm),
+                    ) {
+                        Icon(AppIcons.ChevronLeft, stringResource(R.string.home_prev_month), modifier = Modifier.size(AppDimens.Icon.md))
+                    }
+                    Text(
+                        text = "${displayMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${displayMonth.year}",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    IconButton(
+                        onClick = { displayMonth = displayMonth.plusMonths(1) },
+                        modifier = Modifier.size(AppDimens.Component.buttonHeightSm),
+                    ) {
+                        Icon(AppIcons.ChevronRight, stringResource(R.string.home_next_month), modifier = Modifier.size(AppDimens.Icon.md))
+                    }
                 }
             }
 
-            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-            // â”€â”€ Day-of-week header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
             Row(modifier = Modifier.fillMaxWidth()) {
                 dayLabels.forEach { d ->
@@ -304,10 +403,8 @@ private fun WorkoutCalendar(
 
             Spacer(Modifier.height(AppDimens.Spacing.xxs))
 
-            // â”€â”€ Calendar grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             val firstOfMonth = displayMonth.atDay(1)
-            // Monday = 1 â€¦ Sunday = 7; we want Monday-start grid
-            val startOffset = (firstOfMonth.dayOfWeek.value - 1)   // blanks before day 1
+            val startOffset = firstOfMonth.dayOfWeek.value - 1
             val daysInMonth = displayMonth.lengthOfMonth()
             val totalCells = startOffset + daysInMonth
             val rows = (totalCells + 6) / 7
@@ -319,8 +416,7 @@ private fun WorkoutCalendar(
                         val dayNum = cellIndex - startOffset + 1
 
                         if (dayNum < 1 || dayNum > daysInMonth) {
-                            // Empty cell
-                            Spacer(Modifier.weight(1f).height(28.dp))
+                            Spacer(Modifier.weight(1f).height(32.dp))
                         } else {
                             val date = displayMonth.atDay(dayNum)
                             val isToday = date == today
@@ -329,14 +425,20 @@ private fun WorkoutCalendar(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(28.dp)
-                                    .padding(1.dp)
+                                    .height(32.dp)
+                                    .padding(2.dp)
                                     .clip(CircleShape)
                                     .then(
                                         when {
-                                            isToday && hasWorkout -> Modifier.background(cs.primary)
-                                            hasWorkout -> Modifier.background(cs.primary.copy(alpha = 0.25f))
-                                            isToday -> Modifier.background(cs.primary.copy(alpha = 0.12f))
+                                            isToday && hasWorkout -> Modifier
+                                                .background(cs.primary)
+                                                .border(1.dp, cs.primary, CircleShape)
+                                            hasWorkout -> Modifier
+                                                .background(cs.primaryContainer)
+                                                .border(1.dp, cs.primary.copy(alpha = 0.55f), CircleShape)
+                                            isToday -> Modifier
+                                                .background(cs.secondaryContainer)
+                                                .border(1.dp, cs.secondary, CircleShape)
                                             else -> Modifier
                                         }
                                     ),
@@ -345,10 +447,11 @@ private fun WorkoutCalendar(
                                 Text(
                                     text = dayNum.toString(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                                    fontWeight = if (isToday || hasWorkout) FontWeight.Bold else FontWeight.Normal,
                                     color = when {
                                         isToday && hasWorkout -> cs.onPrimary
-                                        isToday -> cs.primary
+                                        hasWorkout -> cs.onPrimaryContainer
+                                        isToday -> cs.onSecondaryContainer
                                         else -> cs.onSurface
                                     },
                                 )
@@ -357,33 +460,31 @@ private fun WorkoutCalendar(
                     }
                 }
             }
-
-            Spacer(Modifier.height(AppDimens.Spacing.xs))
-
-            // â”€â”€ Legend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(AppDimens.Spacing.sm)
-                        .clip(CircleShape)
-                        .background(cs.primary),
-                )
-                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text(stringResource(R.string.player_tab_workout), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-                Box(
-                    modifier = Modifier
-                        .size(AppDimens.Spacing.sm)
-                        .clip(CircleShape)
-                        .background(cs.primary.copy(alpha = 0.12f)),
-                )
-                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text(stringResource(R.string.history_today), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-            }
         }
+    }
+}
+
+@Composable
+private fun CalendarLegendItem(
+    label: String,
+    fill: Color,
+    stroke: Color,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(AppDimens.Spacing.sm)
+                .clip(CircleShape)
+                .background(fill)
+                .border(1.dp, stroke, CircleShape),
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

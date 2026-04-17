@@ -37,8 +37,17 @@ import com.example.vitruvianredux.data.PrTracker
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
+import com.example.vitruvianredux.presentation.ui.theme.AccentRed
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.theme.BrandBrass
+import com.example.vitruvianredux.presentation.ui.theme.BrandClay
+import com.example.vitruvianredux.presentation.ui.theme.BrandOxblood
+import com.example.vitruvianredux.presentation.ui.theme.Success
+import com.example.vitruvianredux.presentation.ui.theme.Warning
+import com.example.vitruvianredux.presentation.ui.theme.WarningContainer
+import com.example.vitruvianredux.presentation.ui.theme.WarningOnContainer
 import com.example.vitruvianredux.presentation.util.loadExercises
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
@@ -185,11 +194,11 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
         ) {
             val cardMod = if (isTablet) Modifier.weight(1f) else Modifier.width(120.dp)
             StatCard("Sessions", "$totalSessions", cs.primary, cardMod)
-            StatCard("Volume", UnitConversions.formatVolumeFromKg(totalVolume, unitSystem) + " $unitLabel", cs.tertiary, cardMod)
-            StatCard("Reps", "$totalReps", Color(0xFF10B981), cardMod)
-            StatCard("Avg Duration", formatDuration(avgDuration), Color(0xFF06B6D4), cardMod)
+            StatCard("Volume", UnitConversions.formatVolumeFromKg(totalVolume, unitSystem) + " $unitLabel", BrandBrass, cardMod)
+            StatCard("Reps", "$totalReps", Success, cardMod)
+            StatCard("Avg Duration", formatDuration(avgDuration), cs.secondary, cardMod)
             if (heaviestLift > 0) {
-                StatCard("Heaviest", "$heaviestLift lb", Color(0xFFF59E0B), cardMod)
+                StatCard("Heaviest", "$heaviestLift lb", AccentAmber, cardMod)
             }
         }
     }
@@ -197,9 +206,14 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
 
 @Composable
 private fun StatCard(label: String, value: String, accent: Color, modifier: Modifier = Modifier.width(120.dp)) {
-    ElevatedCard(
+    Card(
         shape = MaterialTheme.shapes.medium,
         modifier = modifier,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.md_sm),
@@ -233,7 +247,7 @@ private fun VolumePerSessionChart(logs: List<AnalyticsStore.SessionLog>, unitSys
 
     val maxVol = recent.maxOf { it.totalVolumeKg }.coerceAtLeast(1.0)
     val barColor = MaterialTheme.colorScheme.primary
-    val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    val bgColor = MaterialTheme.colorScheme.surfaceVariant
     val highlightColor = MaterialTheme.colorScheme.primaryContainer
     val labelColor = MaterialTheme.colorScheme.onSurface
     val measurer = rememberTextMeasurer()
@@ -305,11 +319,12 @@ private fun WeeklyFrequencyChart() {
     val data = remember { AnalyticsStore.sessionsPerWeek(12) }
     if (data.isEmpty()) return
     val maxCount = data.maxOf { it.second }.coerceAtLeast(1)
-    val barColor = Color(0xFF06B6D4) // cyan
-    val highlightColor = Color(0xFF38BDF8) // lighter cyan
-    val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val labelColor = MaterialTheme.colorScheme.onSurface
+    val cs = MaterialTheme.colorScheme
+    val barColor = cs.secondary
+    val highlightColor = cs.primary
+    val bgColor = cs.surfaceVariant
+    val textColor = cs.onSurfaceVariant
+    val labelColor = cs.onSurface
     val measurer = rememberTextMeasurer()
     val weekLabelStyle = TextStyle(fontSize = 9.sp, color = textColor)
     var selectedBar by remember { mutableIntStateOf(-1) }
@@ -412,12 +427,12 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
                     val fraction = count.toFloat() / maxCount
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawRoundRect(
-                            color = Color(0xFF10B981).copy(alpha = 0.2f),
+                            color = Success.copy(alpha = 0.2f),
                             size = Size(size.width, size.height),
                             cornerRadius = CornerRadius(4f, 4f),
                         )
                         drawRoundRect(
-                            color = Color(0xFF10B981),
+                            color = Success,
                             size = Size(size.width * fraction, size.height),
                             cornerRadius = CornerRadius(4f, 4f),
                         )
@@ -460,26 +475,26 @@ private fun buildStyledMuscleSvg(
 ): String {
     fun intensityColor(group: String): String {
         val count = distribution[group] ?: 0
-        if (count == 0) return "#1e293b"
+        if (count == 0) return "#221A18"
         val v = (count.toFloat() / maxVal).coerceIn(0f, 1f)
         val alpha = 0.15f + v * 0.75f
-        // Pre-blend green (34,197,94) over dark bg (30,41,59) — AndroidSVG doesn't support rgba()
-        val r = (30 * (1 - alpha) + 34 * alpha).toInt()
-        val g = (41 * (1 - alpha) + 197 * alpha).toInt()
-        val b = (59 * (1 - alpha) + 94 * alpha).toInt()
+        // Pre-blend brass over a warm charcoal base — AndroidSVG doesn't support rgba().
+        val r = (18 * (1 - alpha) + 192 * alpha).toInt()
+        val g = (14 * (1 - alpha) + 138 * alpha).toInt()
+        val b = (13 * (1 - alpha) + 46 * alpha).toInt()
         return "#%02x%02x%02x".format(r, g, b)
     }
 
     // CSS: remove fill from .st3/.st4/.st5 so that the presentation-attribute fill we inject
     // directly on each <path> below is the highest-priority style applied (no CSS override).
     val baseCss = """
-        .st0{fill:none;stroke:#475569;stroke-width:5;stroke-miterlimit:10;}
+        .st0{fill:none;stroke:#5F4D46;stroke-width:5;stroke-miterlimit:10;}
         .st1{display:none;}
         .st2{display:inline;}
-        .st3{stroke:#475569;stroke-width:5;stroke-miterlimit:10;}
-        .st4{stroke:#475569;stroke-width:5;stroke-miterlimit:10;}
-        .st5{stroke:#475569;stroke-width:5;stroke-linejoin:round;stroke-miterlimit:10;}
-        .st6{stroke:#475569;stroke-width:3;stroke-miterlimit:10;}
+        .st3{stroke:#5F4D46;stroke-width:5;stroke-miterlimit:10;}
+        .st4{stroke:#5F4D46;stroke-width:5;stroke-miterlimit:10;}
+        .st5{stroke:#5F4D46;stroke-width:5;stroke-linejoin:round;stroke-miterlimit:10;}
+        .st6{stroke:#5F4D46;stroke-width:3;stroke-miterlimit:10;}
     """.trimIndent()
 
     var svg = rawSvg
@@ -523,7 +538,7 @@ private suspend fun renderMuscleSvgBitmap(
     val heightPx = (widthPx * 3240f / 1800f).toInt()
     val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bitmap)
-    canvas.drawColor(android.graphics.Color.parseColor("#0f172a"))
+    canvas.drawColor(android.graphics.Color.parseColor("#120E0D"))
     svg.renderToCanvas(canvas)
     bitmap.asImageBitmap()
 }
@@ -639,7 +654,7 @@ private fun MuscleSilhouetteSection(
                         val alpha = 0.15f + (lvl / 4f) * 0.75f
                         Canvas(modifier = Modifier.size(16.dp)) {
                             drawRoundRect(
-                                color = Color(0xFF22C55E).copy(alpha = alpha),
+                                color = BrandBrass.copy(alpha = alpha),
                                 cornerRadius = CornerRadius(3f, 3f),
                             )
                         }
@@ -661,13 +676,13 @@ private fun MuscleSilhouetteSection(
 private data class ModeMeta(val label: String, val color: Color)
 
 private val MODE_COLORS = mapOf(
-    "pump"       to ModeMeta("Pump",       Color(0xFFF59E0B)),
-    "echo"       to ModeMeta("Echo",       Color(0xFF06B6D4)),
-    "focused"    to ModeMeta("Focused",    Color(0xFF10B981)),
-    "static"     to ModeMeta("Static",     Color(0xFF6366F1)),
-    "eccentric"  to ModeMeta("Eccentric",  Color(0xFFF43F5E)),
-    "external"   to ModeMeta("External",   Color(0xFF8B5CF6)),
-    "assessment" to ModeMeta("Assessment", Color(0xFFF97316)),
+    "pump"       to ModeMeta("Pump",       AccentAmber),
+    "echo"       to ModeMeta("Echo",       BrandBrass),
+    "focused"    to ModeMeta("Focused",    Success),
+    "static"     to ModeMeta("Static",     BrandClay),
+    "eccentric"  to ModeMeta("Eccentric",  AccentRed),
+    "external"   to ModeMeta("External",   BrandOxblood),
+    "assessment" to ModeMeta("Assessment", Warning),
 )
 
 @Composable
@@ -885,14 +900,14 @@ private fun RecentPrsSection(
                 PrTracker.PrType.WEIGHT, PrTracker.PrType.EST_1RM -> {
                     val lb = event.value.roundToInt()
                     val disp = if (isLb) "$lb lb" else "${(lb * UnitConversions.KG_PER_LB).roundToInt()} kg"
-                    Color(0xFFF59E0B) to disp
+                    AccentAmber to disp
                 }
                 PrTracker.PrType.REPS ->
-                    Color(0xFF10B981) to "${event.value.toInt()} reps"
+                    Success to "${event.value.toInt()} reps"
                 PrTracker.PrType.VOLUME -> {
                     val disp = UnitConversions.formatVolumeFromKg(event.value, unitSystem) +
                         " ${UnitConversions.unitLabel(unitSystem)}"
-                    Color(0xFF6366F1) to disp
+                    BrandClay to disp
                 }
             }
 
@@ -991,7 +1006,6 @@ private fun StallDetectorSection(logs: List<AnalyticsStore.SessionLog>) {
     }
     if (stalls.isEmpty()) return
 
-    val warnColor = Color(0xFFF59E0B)
     val cs = MaterialTheme.colorScheme
 
     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
@@ -1006,7 +1020,8 @@ private fun StallDetectorSection(logs: List<AnalyticsStore.SessionLog>) {
         stalls.forEach { stall ->
             Surface(
                 shape = RoundedCornerShape(AppDimens.Corner.sm),
-                color = warnColor.copy(alpha = 0.08f),
+                color = WarningContainer,
+                contentColor = WarningOnContainer,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -1018,7 +1033,6 @@ private fun StallDetectorSection(logs: List<AnalyticsStore.SessionLog>) {
                     Icon(
                         AppIcons.TrendingUp,
                         contentDescription = null,
-                        tint = warnColor,
                         modifier = Modifier.size(AppDimens.Icon.md),
                     )
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -1033,20 +1047,20 @@ private fun StallDetectorSection(logs: List<AnalyticsStore.SessionLog>) {
                         Text(
                             "${stall.sessionCount} sets in 5 weeks · no PR for ${stall.weeksSinceLastPr}w",
                             style = MaterialTheme.typography.labelSmall,
-                            color = cs.onSurfaceVariant,
+                            color = WarningOnContainer.copy(alpha = 0.82f),
                         )
                     }
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = warnColor.copy(alpha = 0.18f),
+                        color = Warning,
+                        contentColor = Color.Black,
                     ) {
                         Text(
                             "Deload?",
                             modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = warnColor,
                         )
                     }
                 }

@@ -39,6 +39,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.util.loadExercises
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 @Composable
@@ -77,10 +78,13 @@ fun ProgramDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title = { Text(stringResource(R.string.program_delete_title)) },
             text  = { Text(stringResource(R.string.program_delete_message)) },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(
+onClick = {
                     WiringRegistry.hit(A_PROGRAMS_DETAIL_DELETE)
                     deleteProgram(programId)
                     WiringRegistry.recordOutcome(A_PROGRAMS_DETAIL_DELETE, ActualOutcome.StateChanged("programDeleted"))
@@ -90,7 +94,8 @@ fun ProgramDetailScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
+                TextButton(
+onClick = { showDeleteDialog = false }) {
                     Text(stringResource(R.string.common_cancel))
                 }
             },
@@ -99,6 +104,9 @@ fun ProgramDetailScreen(
 
     // ── Screen ─────────────────────────────────────────────────────────────
     val totalSets = program.items.sumOf { it.sets }
+    val estimatedMins = program.items.sumOf { item ->
+        item.sets * (item.restTimerSec / 60.0 + 1.5)
+    }.toInt().coerceAtLeast(if (program.items.isEmpty()) 0 else 1)
     val daysLabel = formatScheduledDays(program.scheduledDays)
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant)) {
@@ -113,7 +121,7 @@ fun ProgramDetailScreen(
                 val heroBrush = Brush.verticalGradient(
                     listOf(
                         MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                        MaterialTheme.colorScheme.primary,
                         MaterialTheme.colorScheme.primaryContainer,
                     )
                 )
@@ -139,8 +147,15 @@ fun ProgramDetailScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             ProgramPillChip("$totalSets sets")
                             ProgramPillChip("${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}")
+                            if (estimatedMins > 0) ProgramPillChip("about $estimatedMins min")
                             if (daysLabel.isNotBlank()) ProgramPillChip(daysLabel)
                         }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "Starts in the saved order with your programmed load and rest.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.9f),
+                        )
                     }
                 }
             }
@@ -214,8 +229,12 @@ fun ProgramDetailScreen(
         // ── Bottom sticky "Start Workout" button ──────────────────────────
         Surface(
             modifier        = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
-            shadowElevation = 12.dp,
+            shadowElevation = 0.dp,
             color           = MaterialTheme.colorScheme.surface,
+            border          = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                MaterialTheme.colorScheme.outlineVariant,
+            ),
         ) {
             GradientButton(
                 text     = if (isLoadingCatalog) "Loading…" else "Start Workout",
@@ -256,13 +275,18 @@ private fun ProgramPillChip(label: String) {
 
 @Composable
 private fun ProgramItemCard(item: ProgramItemDraft, exercise: Exercise?) {
+    val isBodyweight = exercise?.isBodyweightOnly == true
     Card(
         modifier  = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp),
         shape     = RoundedCornerShape(16.dp),
         colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -302,7 +326,7 @@ private fun ProgramItemCard(item: ProgramItemDraft, exercise: Exercise?) {
                     )
 
                     // Mode chip
-                    val modeText = item.programMode.ifBlank { null }
+                    val modeText = item.programMode.ifBlank { null }?.takeUnless { isBodyweight }
                     if (modeText != null) {
                         Text(
                             modeText,
@@ -322,11 +346,18 @@ private fun ProgramItemCard(item: ProgramItemDraft, exercise: Exercise?) {
                         fontSize      = 9.sp,
                     )
                     val headerColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    val weightLabel = if ((exercise?.numCables ?: 2) == 1) "WEIGHT" else "PER CABLE"
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Text("SET",        style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
-                        Text("REPS",       style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
-                        Text(weightLabel,  style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
+                    if (isBodyweight) {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text("SET",  style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
+                            Text("REPS", style = headerStyle, color = headerColor, modifier = Modifier.weight(1f))
+                        }
+                    } else {
+                        val weightLabel = if ((exercise?.numCables ?: 2) == 1) "WEIGHT" else "PER CABLE"
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text("SET",        style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
+                            Text("REPS",       style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
+                            Text(weightLabel,  style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
+                        }
                     }
                     Divider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -349,21 +380,23 @@ private fun ProgramItemCard(item: ProgramItemDraft, exercise: Exercise?) {
                         ) {
                             Text("${setIdx + 1}", style = numStyle,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(0.55f))
-                            Text(repsText, style = boldStyle, modifier = Modifier.weight(0.8f))
-                            Text("${item.targetWeightLb}", style = boldStyle, modifier = Modifier.weight(1.2f))
+                            Text(repsText, style = boldStyle, modifier = Modifier.weight(if (isBodyweight) 1f else 0.8f))
+                            if (!isBodyweight) {
+                                Text("${item.targetWeightLb}", style = boldStyle, modifier = Modifier.weight(1.2f))
+                            }
                         }
                     }
                 }
             }
 
             // ── Footer: rest + mode ───────────────────────────────────────
-            if (item.restTimerSec > 0 || item.programMode.isNotBlank()) {
-                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            if (item.restTimerSec > 0 || (!isBodyweight && item.programMode.isNotBlank())) {
+                Divider(color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 12.dp))
                 Row(
                     modifier              = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -380,7 +413,7 @@ private fun ProgramItemCard(item: ProgramItemDraft, exercise: Exercise?) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (item.programMode.isNotBlank()) Spacer(Modifier.width(12.dp))
                     }
-                    if (item.programMode.isNotBlank()) {
+                    if (!isBodyweight && item.programMode.isNotBlank()) {
                         Icon(AppIcons.FitnessCenter, null, Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(item.programMode, style = MaterialTheme.typography.bodySmall,

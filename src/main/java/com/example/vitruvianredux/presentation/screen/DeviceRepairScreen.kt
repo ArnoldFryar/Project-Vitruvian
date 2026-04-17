@@ -479,8 +479,8 @@ private fun OverallHealthCard(
 ) {
     val containerColor = when {
         repairing   -> MaterialTheme.colorScheme.secondaryContainer
-        allOk       -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-        else        -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
+        allOk       -> MaterialTheme.colorScheme.primaryContainer
+        else        -> MaterialTheme.colorScheme.errorContainer
     }
     val icon = when {
         repairing  -> AppIcons.Sync
@@ -500,9 +500,14 @@ private fun OverallHealthCard(
         else                                   -> "Follow the Fix steps below or tap Repair Now"
     }
 
-    ElevatedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        colors   = CardDefaults.elevatedCardColors(containerColor = containerColor),
+        colors   = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Row(
             modifier          = Modifier
@@ -536,7 +541,14 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
         StepStatus.FIXING  -> Triple(StatusConnected,    "Fixing",  AppIcons.Sync)
     }
 
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
         Row(
             modifier          = Modifier
                 .fillMaxWidth()
@@ -628,7 +640,14 @@ private fun AutoRepairCard(
 ) {
     val isRunning = autoRepairState is AutoRepairState.Running
 
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -675,7 +694,8 @@ private fun AutoRepairCard(
                     }
                 }
                 if (autoRepairState is AutoRepairState.Success || autoRepairState is AutoRepairState.Failure) {
-                    OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.repair_dismiss)) }
+                    OutlinedButton(
+onClick = onDismiss) { Text(stringResource(R.string.repair_dismiss)) }
                 }
             }
         }
@@ -706,7 +726,7 @@ private fun EventLogRow(ev: SessionEventLog.Event) {
         Text(
             text  = fmt.format(Date(ev.timestampMs)),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(60.dp),
         )
         Text(

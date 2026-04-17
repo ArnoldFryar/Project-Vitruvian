@@ -24,6 +24,7 @@ import com.example.vitruvianredux.data.VitruvianLibrary
 import com.example.vitruvianredux.data.VitSetGroup
 import com.example.vitruvianredux.data.VitSet
 import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -192,8 +193,12 @@ fun OfficialProgramDetailScreen(
         // ── Bottom sticky button ──────────────────────────────────────────────
         Surface(
             modifier        = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
-            shadowElevation = 12.dp,
+            shadowElevation = 0.dp,
             color           = MaterialTheme.colorScheme.surface,
+            border          = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                MaterialTheme.colorScheme.outlineVariant,
+            ),
         ) {
             GradientButton(
                 text     = "Start Workout",
@@ -235,7 +240,11 @@ private fun ExerciseDetailCard(group: VitSetGroup, weightFactor: Float) {
             .padding(horizontal = 12.dp, vertical = 6.dp),
         shape     = RoundedCornerShape(16.dp),
         colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -322,13 +331,13 @@ private fun ExerciseDetailCard(group: VitSetGroup, weightFactor: Float) {
 
             if (restText != null || setType != null) {
                 Divider(
-                    color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    color    = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )
                 Row(
                     modifier              = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),

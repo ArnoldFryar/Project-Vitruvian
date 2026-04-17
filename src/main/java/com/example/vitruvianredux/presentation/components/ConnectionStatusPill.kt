@@ -36,17 +36,20 @@ fun ConnectionStatusPill(
         bleState is BleConnectionState.Scanning || bleState is BleConnectionState.Connecting ->
             "Connecting…" to ext.statusConnecting
         bleState is BleConnectionState.Connected && isReady ->
-            "Ready" to ext.statusReady
+            "Machine Ready" to ext.statusReady
         bleState is BleConnectionState.Connected ->
-            "Connected" to ext.statusConnected
+            "Machine Connected" to ext.statusConnected
         else -> "Unknown" to MaterialTheme.colorScheme.error
     }
 
     Surface(
         modifier       = modifier,
         shape          = RoundedCornerShape(AppDimens.Corner.pill),
-        color          = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-        tonalElevation = AppDimens.Elevation.card,
+        color          = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+        border         = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outlineVariant,
+        ),
     ) {
         Row(
             modifier              = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.xs),
@@ -62,6 +65,7 @@ fun ConnectionStatusPill(
             Text(
                 text     = label,
                 style    = MaterialTheme.typography.labelSmall,
+                color    = MaterialTheme.colorScheme.onSurface,
             )
         }
     }

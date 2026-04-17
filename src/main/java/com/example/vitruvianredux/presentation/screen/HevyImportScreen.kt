@@ -111,7 +111,8 @@ fun HevyImportScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.error,
                         )
-                        OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
+                        OutlinedButton(
+onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                     }
                 }
 
@@ -135,17 +136,22 @@ fun HevyImportScreen(
                                 routine.name, ProgramStore.savedProgramsFlow.value
                             )
 
-                            ElevatedCard(
+                            Card(
                                 onClick  = {
                                     selected = if (isSelected) selected - routine.name
                                              else selected + routine.name
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape    = MaterialTheme.shapes.medium,
-                                colors   = CardDefaults.elevatedCardColors(
+                                colors   = CardDefaults.cardColors(
                                     containerColor = if (isSelected)
                                         MaterialTheme.colorScheme.secondaryContainer
                                     else MaterialTheme.colorScheme.surfaceVariant,
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    if (isSelected) AppDimens.Stroke.medium else AppDimens.Stroke.thin,
+                                    if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outline,
                                 ),
                             ) {
                                 Row(

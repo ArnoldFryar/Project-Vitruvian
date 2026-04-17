@@ -123,7 +123,7 @@ fun SplashScreen(
                 text = "VITRUVIAN",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 letterSpacing = AppDimens.LetterSpacing.brand,
             )
 

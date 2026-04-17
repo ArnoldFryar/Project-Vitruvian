@@ -3,6 +3,7 @@ package com.example.vitruvianredux.presentation.screen
 import com.vitruvian.trainer.R
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,6 +26,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.ble.JustLiftCommandRouter
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.ble.protocol.EchoLevel
@@ -68,8 +70,8 @@ fun JustLiftFab(onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) MotionTokens.PRESS_SCALE else 1f,
-        animationSpec = MotionTokens.SnapSpring,
+        targetValue = if (isPressed) MotionTokens.PRESS_SCALE_PRIMARY else 1f,
+        animationSpec = if (isPressed) MotionTokens.SnapSpring else MotionTokens.BounceSpring,
         label = "fabScale",
     )
     Box(
@@ -183,11 +185,6 @@ fun JustLiftDialog(
     // Convert display value back to kg
     fun displayToKg(display: Float): Float =
         if (isLb) (display * UnitConversions.KG_PER_LB.toFloat()) else display
-    // Step size: 0.5 lb or 0.5 kg (ResistanceStepPolicy)
-    val weightStep = ResistanceStepPolicy.stepForUnit(unitSystem).toFloat()
-    // Max: 220 lb or ~99.8 kg (ResistanceLimits)
-    val weightMax = if (isLb) ResistanceLimits.maxPerHandleLb.toFloat()
-                   else ResistanceLimits.maxPerHandleKg.toFloat()
     // Current display value
     val weightDisplay = kgToDisplay(weightKgPerCable)
 
@@ -209,7 +206,13 @@ fun JustLiftDialog(
                     .widthIn(max = AppDimens.Layout.maxContentWidth)
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
+                    .clip(RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg))
                     .background(cs.background, RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg))
+                    .border(
+                        AppDimens.Stroke.thin,
+                        cs.outline,
+                        RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg),
+                    )
                     .verticalScroll(rememberScrollState())
             ) {
                 // -- Top bar --
@@ -218,7 +221,8 @@ fun JustLiftDialog(
                         .fillMaxWidth()
                         .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md)
                 ) {
-                    TextButton(onClick = { saveSnapshot(); onDismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
+                    TextButton(
+onClick = { saveSnapshot(); onDismiss() }, modifier = Modifier.align(Alignment.CenterStart)) {
                         Text(stringResource(R.string.complete_done), color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                     }
                     Text(stringResource(R.string.justlift_title),
@@ -235,6 +239,8 @@ fun JustLiftDialog(
                 if (showInfoDialog) {
                     AlertDialog(
                         onDismissRequest = { showInfoDialog = false },
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 0.dp,
                         title = { Text(stringResource(R.string.justlift_title)) },
                         text = {
                             Text(
@@ -246,7 +252,8 @@ fun JustLiftDialog(
                             )
                         },
                         confirmButton = {
-                            TextButton(onClick = { showInfoDialog = false }) { Text(stringResource(R.string.common_ok)) }
+                            TextButton(
+onClick = { showInfoDialog = false }) { Text(stringResource(R.string.common_ok)) }
                         },
                     )
                 }
@@ -348,7 +355,7 @@ fun JustLiftDialog(
                 // -- Connection status hint (weight section) --
                 if (!bleConnected) {
                     Text(stringResource(R.string.justlift_applies_when_connected),
-                        color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                        color = cs.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier
                             .padding(horizontal = AppDimens.Spacing.lg)
@@ -470,7 +477,7 @@ fun JustLiftDialog(
                 // -- Connection status hint (mode section) --
                 if (!bleConnected) {
                     Text(stringResource(R.string.justlift_applies_when_connected),
-                        color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                        color = cs.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier
                             .padding(horizontal = AppDimens.Spacing.lg)
@@ -559,20 +566,15 @@ fun JustLiftDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = AppDimens.Spacing.md)
-                        .clip(RoundedCornerShape(AppDimens.Corner.pill))
-                        .background(if (bleConnected) cs.secondary else cs.surfaceVariant)
-                        .clickable(enabled = bleConnected) {
+                        .padding(horizontal = AppDimens.Spacing.md),
+                ) {
+                    GradientButton(
+                        text = if (bleConnected) "Start Just Lift" else "Connect Trainer First",
+                        onClick = {
                             saveSnapshot()
                             if (router.connect()) onDismiss()
-                        }
-                        .padding(vertical = AppDimens.Spacing.md),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        if (bleConnected) "Connect" else "Connect trainer first",
-                        color = if (bleConnected) cs.onSecondary else cs.onSurfaceVariant,
-                        style = MaterialTheme.typography.titleMedium
+                        },
+                        enabled = bleConnected,
                     )
                 }
 

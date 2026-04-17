@@ -19,6 +19,7 @@ import com.example.vitruvianredux.ble.session.VolumeAccumulator
 import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.NextStep
 import com.example.vitruvianredux.ble.session.PlayerSetParams
+import com.example.vitruvianredux.ble.session.RepCounterFromMachine
 import com.example.vitruvianredux.ble.session.SessionEffect
 import com.example.vitruvianredux.ble.session.SessionEvent
 import com.example.vitruvianredux.ble.session.SessionReducer
@@ -1013,7 +1014,9 @@ class WorkoutSessionEngine(
         playerJob?.cancel()
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
-        bleAdapter.execute(BleCommand.Stop, "PLAYER_STOP")
+        playerSets.getOrNull(currentPlayerIndex)?.takeUnless { it.isOffMachineTimer }?.let {
+            bleAdapter.execute(BleCommand.Stop, "PLAYER_STOP")
+        }
         completeCurrentPlayerSet()
     }
 
@@ -1035,7 +1038,9 @@ class WorkoutSessionEngine(
         playerJob?.cancel()
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
-        bleAdapter.execute(BleCommand.Stop, "PAUSE")
+        playerSets.getOrNull(currentPlayerIndex)?.takeUnless { it.isOffMachineTimer }?.let {
+            bleAdapter.execute(BleCommand.Stop, "PAUSE")
+        }
         val (exSetIndex, exTotalSets) = perExerciseSetInfo(currentPlayerIndex)
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.Paused(
@@ -1098,7 +1103,9 @@ class WorkoutSessionEngine(
                 playerJob?.cancel()
                 awaitingEccentricFinish = false
                 eccentricTimeoutJob?.cancel()
-                bleAdapter.execute(BleCommand.Stop, "SKIP_SET_STOP")
+                playerSets.getOrNull(currentPlayerIndex)?.takeUnless { it.isOffMachineTimer }?.let {
+                    bleAdapter.execute(BleCommand.Stop, "SKIP_SET_STOP")
+                }
             }
             is SessionPhase.SetReady -> {
                 // Not started yet — nothing to stop on the machine
@@ -1163,7 +1170,9 @@ class WorkoutSessionEngine(
             playerJob?.cancel()
             awaitingEccentricFinish = false
             eccentricTimeoutJob?.cancel()
-            bleAdapter.execute(BleCommand.Stop, "SKIP_EXERCISE_STOP")
+            playerSets.getOrNull(currentPlayerIndex)?.takeUnless { it.isOffMachineTimer }?.let {
+                bleAdapter.execute(BleCommand.Stop, "SKIP_EXERCISE_STOP")
+            }
         }
         // Cancel rest timer if resting
         if (phase is SessionPhase.Resting) {
@@ -1363,7 +1372,7 @@ class WorkoutSessionEngine(
         val original = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
 
         // Apply any user overrides from the ready screen
-        val set = if (targetRepsOverride != null || targetDurationOverride != null ||
+        val draftSet = if (targetRepsOverride != null || targetDurationOverride != null ||
                       weightOverride != null || warmupOverride != null) {
             original.copy(
                 targetReps        = targetRepsOverride ?: original.targetReps,
@@ -1372,6 +1381,17 @@ class WorkoutSessionEngine(
                 warmupReps        = warmupOverride ?: original.warmupReps,
             ).also { playerSets = playerSets.toMutableList().also { list -> list[index] = it } }
         } else original
+        val set = if (draftSet.isOffMachineTimer) {
+            draftSet.copy(
+                targetReps = null,
+                targetDurationSec = draftSet.targetDurationSec ?: 30,
+                weightPerCableLb = 0,
+                warmupReps = 0,
+                programMode = "Old School",
+            ).also { normalized ->
+                playerSets = playerSets.toMutableList().also { list -> list[index] = normalized }
+            }
+        } else draftSet
 
         Log.i(TAG, "confirmReady: launching set $index (${set.exerciseName}, ${set.weightPerCableLb}lb)")
 
@@ -1412,19 +1432,35 @@ class WorkoutSessionEngine(
             lastTelemetryTimestamp = System.currentTimeMillis(),
         )
 
-        Log.i(TAG, "STARTSET_DISPATCH  setId=set_$index  warmupTarget=${set.warmupReps}" +
-            "  workingTarget=${set.targetReps}  curId=${engineState.currentSetId}" +
-            "  curPhase=${engineState.phase}  CALLER=confirmReady")
-        val setResult = SessionReducer.reduce(engineState, SessionEvent.StartSet(set, "set_$index"))
-        engineState = setResult.newState
-        _state.value = _state.value.copy(
-            setPhase             = engineState.phase,
-            warmupRepsCompleted  = engineState.warmupRepsCompleted,
-            workingRepsCompleted = engineState.workingRepsCompleted,
-        )
-        Log.i(TAG, "STARTSET_RESULT  setId=set_$index  newPhase=${engineState.phase}" +
-            "  warmupTarget=${engineState.warmupTarget}  workingTarget=${engineState.workingTarget}")
-        executeEffects(setResult.effects.filterNot { it is SessionEffect.UiEmit })
+        if (set.isOffMachineTimer) {
+            engineState = EngineState(
+                phase = SetPhase.WORKING,
+                currentSetId = "set_$index",
+                setDef = set,
+                counter = RepCounterFromMachine.configure(warmupTarget = 0, workingTarget = 0),
+                loadKg = 0f,
+            )
+            _state.value = _state.value.copy(
+                setPhase             = engineState.phase,
+                warmupRepsCompleted  = 0,
+                workingRepsCompleted = 0,
+            )
+            Log.i(TAG, "confirmReady: starting off-machine timer for set $index (${set.exerciseName}, ${set.targetDurationSec}s)")
+        } else {
+            Log.i(TAG, "STARTSET_DISPATCH  setId=set_$index  warmupTarget=${set.warmupReps}" +
+                "  workingTarget=${set.targetReps}  curId=${engineState.currentSetId}" +
+                "  curPhase=${engineState.phase}  CALLER=confirmReady")
+            val setResult = SessionReducer.reduce(engineState, SessionEvent.StartSet(set, "set_$index"))
+            engineState = setResult.newState
+            _state.value = _state.value.copy(
+                setPhase             = engineState.phase,
+                warmupRepsCompleted  = engineState.warmupRepsCompleted,
+                workingRepsCompleted = engineState.workingRepsCompleted,
+            )
+            Log.i(TAG, "STARTSET_RESULT  setId=set_$index  newPhase=${engineState.phase}" +
+                "  warmupTarget=${engineState.warmupTarget}  workingTarget=${engineState.workingTarget}")
+            executeEffects(setResult.effects.filterNot { it is SessionEffect.UiEmit })
+        }
 
         // Duration-based auto-complete with countdown.
         // The timer must NOT start until warmup reps are done — otherwise those
@@ -1507,7 +1543,9 @@ class WorkoutSessionEngine(
         Log.i(TAG, "completeCurrentPlayerSet: set $currentPlayerIndex done — warmup=${set.warmupReps} working=$workingReps reps (device total=$totalDeviceReps), ${durSec}s, ${set.weightPerCableLb}lb")
 
         // Send STOP through the adapter (skip if not connected is handled internally)
-        bleAdapter.execute(BleCommand.Stop, "AUTO_STOP[${currentPlayerIndex}]")
+        if (!set.isOffMachineTimer) {
+            bleAdapter.execute(BleCommand.Stop, "AUTO_STOP[${currentPlayerIndex}]")
+        }
 
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.ExerciseComplete(

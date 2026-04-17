@@ -1,19 +1,17 @@
 package com.example.vitruvianredux.presentation.components
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
@@ -25,25 +23,21 @@ import com.example.vitruvianredux.presentation.ui.MotionTokens
  *
  * Guarantees identical visual treatment:
  * - **Shape**: [AppDimens.Corner.md] (16 dp)
- * - **Elevation**: [AppDimens.Elevation.card] (2 dp)
- * - **Glass edge**: subtle top-lit gradient border for depth
+ * - **Elevation**: none
+ * - **Border**: 1 dp outline
  */
 @Composable
 fun AppCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    borderColor: Color = MaterialTheme.colorScheme.outline,
     content: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(AppDimens.Corner.md)
-    val glassBorder = Modifier.border(
-        width = 0.5.dp,
-        brush = Brush.verticalGradient(
-            listOf(
-                Color.White.copy(alpha = 0.07f),
-                Color.Transparent,
-            )
-        ),
-        shape = shape,
+    val outlineBorder = BorderStroke(1.dp, borderColor)
+    val cardColors = CardDefaults.cardColors(
+        containerColor = containerColor
     )
 
     if (onClick != null) {
@@ -54,21 +48,24 @@ fun AppCard(
             animationSpec = MotionTokens.SnapSpring,
             label = "appCardScale",
         )
-        ElevatedCard(
+        androidx.compose.material3.Card(
             modifier = modifier
-                .then(glassBorder)
                 .graphicsLayer(scaleX = scale, scaleY = scale)
                 .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
-            shape     = shape,
-            elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
+            shape = shape,
+            colors = cardColors,
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = outlineBorder
         ) {
             content()
         }
     } else {
-        ElevatedCard(
-            modifier  = modifier.then(glassBorder),
-            shape     = shape,
-            elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
+        androidx.compose.material3.Card(
+            modifier = modifier,
+            shape = shape,
+            colors = cardColors,
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = outlineBorder
         ) {
             content()
         }

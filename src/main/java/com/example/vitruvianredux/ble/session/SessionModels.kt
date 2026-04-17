@@ -71,6 +71,8 @@ data class PlayerSetParams(
     val videoUrl: String? = null,
     val targetReps: Int? = 10,
     val targetDurationSec: Int? = null,
+    /** True when the set should run as an off-machine timer and never start the trainer. */
+    val isOffMachineTimer: Boolean = false,
     val weightPerCableLb: Int = 40,
     val restAfterSec: Int = 60,
     /** Reps completed in warm-up phase (before working reps are counted). */

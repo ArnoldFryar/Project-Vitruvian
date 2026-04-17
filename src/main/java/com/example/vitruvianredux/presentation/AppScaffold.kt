@@ -374,6 +374,7 @@ private fun AppTopBar(
         color          = MaterialTheme.colorScheme.background,
         tonalElevation = 0.dp,
     ) {
+        Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -385,11 +386,11 @@ private fun AppTopBar(
             Column {
                 Text(
                     text       = title,
-                    style      = MaterialTheme.typography.headlineMedium,
+                    style      = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(text = stringResource(R.string.project_tagline),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.combinedClickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -413,6 +414,7 @@ private fun AppTopBar(
                 is BleConnectionState.Connected -> {
                     FilledTonalButton(
                         onClick = onDisconnectClick,
+                        shape   = MaterialTheme.shapes.medium,
                         colors  = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor   = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -428,6 +430,7 @@ private fun AppTopBar(
                     FilledTonalButton(
                         onClick = {},
                         enabled = false,
+                        shape   = MaterialTheme.shapes.medium,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Icon(AppIcons.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting), modifier = Modifier.size(AppDimens.Icon.sm))
@@ -439,6 +442,7 @@ private fun AppTopBar(
                 else -> {
                     Button(
                         onClick        = onConnectClick,
+                        shape          = MaterialTheme.shapes.medium,
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     ) {
                         Icon(AppIcons.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.sm))
@@ -448,6 +452,12 @@ private fun AppTopBar(
                 }
             }
         }
+        // Bottom hairline grounds the header against page content
+        Divider(
+            color     = MaterialTheme.colorScheme.outline,
+            thickness = AppDimens.Stroke.hairline,
+        )
+        } // Column
     }
 }
 

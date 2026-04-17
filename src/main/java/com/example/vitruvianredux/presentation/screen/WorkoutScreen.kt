@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import coil.compose.SubcomposeAsyncImage
@@ -38,8 +39,12 @@ import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.model.ExerciseSortOrder
 import com.example.vitruvianredux.model.ExerciseVideo
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AppCard
+import com.example.vitruvianredux.presentation.components.AppTonalButton
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPreviewDialog
+import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.components.ShimmerBox
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -47,6 +52,8 @@ import kotlinx.serialization.json.Json
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private val jsonParser = Json { ignoreUnknownKeys = true }
+
+private const val WORKOUT_GUIDE_TEXT = "Use the library when you want exercise-specific setup, filters, and video previews. Use Just Lift for a fast freeform session."
 
 
 @Composable
@@ -150,12 +157,19 @@ fun WorkoutScreen(
 
             // Workout Library header
             item {
-                Text(
-                    text     = "Workout Library",
-                    style    = MaterialTheme.typography.headlineSmall,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = AppDimens.Spacing.md),
-                )
+                Column(modifier = Modifier.padding(bottom = AppDimens.Spacing.md)) {
+                    Text(
+                        text       = "Pick an exercise",
+                        style      = MaterialTheme.typography.headlineSmall,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
+                    Text(
+                        text  = "Search the library for guided setup, or jump into Just Lift for a freeform session.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             // â”€â”€ Active session banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -167,6 +181,16 @@ fun WorkoutScreen(
                 )
             }
 
+            item {
+                WorkoutModeGuide(
+                    onOpenJustLift = {
+                        WiringRegistry.hit(A_WORKOUT_JUSTLIFT_OPEN)
+                        WiringRegistry.recordOutcome(A_WORKOUT_JUSTLIFT_OPEN, ActualOutcome.SheetOpened("just_lift"))
+                        showJustLift = true
+                    },
+                )
+                Spacer(Modifier.height(AppDimens.Spacing.md))
+            }
             // â”€â”€ Search · Chips · Sort — grouped control block â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
@@ -257,7 +281,7 @@ fun WorkoutScreen(
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
             }
 
-            // â”€â”€ Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Content ────────────────────────────────────────────────
             when {
                 loadError != null -> item {
                     ExerciseEmptyState(
@@ -284,7 +308,7 @@ fun WorkoutScreen(
             }
         }
 
-        // â”€â”€ JustLift FAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── JustLift FAB ───────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -298,6 +322,62 @@ fun WorkoutScreen(
     }
 }
 
+@Composable
+private fun WorkoutModeGuide(
+    onOpenJustLift: () -> Unit,
+) {
+    AppCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Text(
+                text = "Choose how you want to train",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = WORKOUT_GUIDE_TEXT,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm)) {
+                WorkoutModeBadge(title = "Library", subtitle = "guided")
+                WorkoutModeBadge(title = "Just Lift", subtitle = "freeform")
+            }
+            Text(
+                text = "Tap a card for details. Long press a card to preview the movement.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            AppTonalButton(
+                text = "Open Just Lift",
+                icon = AppIcons.PlayArrow,
+                onClick = onOpenJustLift,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WorkoutModeBadge(
+    title: String,
+    subtitle: String,
+) {
+    Surface(
+        shape = RoundedCornerShape(AppDimens.Corner.pill),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Text(
+            text = "$title = $subtitle",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 6.dp),
+        )
+    }
+}
 // â”€â”€â”€ Exercise card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -310,7 +390,10 @@ private fun ExerciseCard(
 ) {
     // Use group labels ("Arms", "Legs") as concise tags on the card
     // Limit to 1 visible tag + overflow count — the content column is narrow
-    val tags        = exercise.groupLabels
+    val tags        = buildList {
+        if (exercise.source == ExerciseSource.CUSTOM) add("Custom")
+        addAll(exercise.groupLabels)
+    }
     val visibleTags = tags.take(1)
     val overflow    = tags.size - visibleTags.size
     // Equipment: show first item only with an overflow indicator if there are more
@@ -318,24 +401,23 @@ private fun ExerciseCard(
     val visibleEquip    = allEquipment.take(1)
     val equipOverflow   = allEquipment.size - visibleEquip.size
 
-    ElevatedCard(
+    AppCard(
         modifier  = Modifier.fillMaxWidth().combinedClickable(
             onClick     = onClick,
             onLongClick = onLongPress,
         ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
     ) {
         Row(
             modifier              = Modifier
                 .fillMaxWidth()
-                .padding(AppDimens.Spacing.md),
+                .padding(AppDimens.Spacing.sm_md),
             verticalAlignment     = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
             // â”€â”€ Thumbnail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Box(
                 modifier         = Modifier
-                    .size(120.dp)
+                    .size(96.dp)
                     .clip(RoundedCornerShape(AppDimens.Corner.sm))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
@@ -348,7 +430,7 @@ private fun ExerciseCard(
                     error = {
                         Icon(
                             imageVector        = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
-                            tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                            tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier           = Modifier.size(36.dp),
                         )
                     },
@@ -358,71 +440,74 @@ private fun ExerciseCard(
 
             // â”€â”€ Name + muscle-group tags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Column(
-                modifier            = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                modifier            = Modifier
+                    .weight(1f)
+                    .height(96.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text       = exercise.name.trim(),
                     style      = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines   = 1,
+                    overflow   = TextOverflow.Ellipsis,
                 )
-                // "Custom" badge for user-created exercises
-                if (exercise.source == ExerciseSource.CUSTOM) {
-                    SuggestionChip(
-                        onClick = {},
-                        label   = { Text("Custom", style = MaterialTheme.typography.labelSmall) },
-                        colors  = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            labelColor     = MaterialTheme.colorScheme.onTertiaryContainer,
-                        ),
-                    )
-                }
-                if (tags.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-                        visibleTags.forEach { t ->
-                            SuggestionChip(
-                                onClick = {},
-                                label   = { Text(t, style = MaterialTheme.typography.labelSmall) },
-                            )
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                    if (tags.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                            visibleTags.forEach { t ->
+                                SuggestionChip(
+                                    onClick = {},
+                                    label   = { Text(t, style = MaterialTheme.typography.labelSmall) },
+                                    colors  = if (t == "Custom") {
+                                        SuggestionChipDefaults.suggestionChipColors(
+                                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                            labelColor     = MaterialTheme.colorScheme.onTertiaryContainer,
+                                        )
+                                    } else {
+                                        SuggestionChipDefaults.suggestionChipColors()
+                                    },
+                                )
+                            }
+                            if (overflow > 0) {
+                                SuggestionChip(
+                                    onClick = {},
+                                    label   = { Text("+$overflow", style = MaterialTheme.typography.labelSmall) },
+                                )
+                            }
                         }
-                        if (overflow > 0) {
-                            SuggestionChip(
-                                onClick = {},
-                                label   = { Text("+$overflow", style = MaterialTheme.typography.labelSmall) },
-                            )
-                        }
+                    } else {
+                        Spacer(Modifier.height(AppDimens.Component.chipHeight))
                     }
-                }
-                // Equipment / accessory labels
-                if (visibleEquip.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-                        visibleEquip.forEach { equip ->
-                            SuggestionChip(
-                                onClick = {},
-                                label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
-                            )
+
+                    if (visibleEquip.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                            visibleEquip.forEach { equip ->
+                                SuggestionChip(
+                                    onClick = {},
+                                    label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
+                                )
+                            }
+                            if (equipOverflow > 0) {
+                                SuggestionChip(
+                                    onClick = {},
+                                    label   = { Text("+$equipOverflow", style = MaterialTheme.typography.labelSmall) },
+                                )
+                            }
                         }
-                        if (equipOverflow > 0) {
-                            SuggestionChip(
-                                onClick = {},
-                                label   = { Text("+$equipOverflow", style = MaterialTheme.typography.labelSmall) },
-                            )
-                        }
+                    } else {
+                        Spacer(Modifier.height(AppDimens.Component.chipHeight))
                     }
                 }
             }
 
             // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Button(
-                onClick        = onStart,
-                shape          = RoundedCornerShape(AppDimens.Corner.sm),
-                contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md_sm, vertical = 6.dp),
-                colors         = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                ),
-            ) {
-                Text("Start", style = MaterialTheme.typography.labelMedium)
-            }
+            AppTonalButton(
+                text = "Start",
+                onClick = onStart,
+                modifier = Modifier.widthIn(min = 104.dp, max = 132.dp),
+                fullWidth = false,
+            )
         }
     }
 }
@@ -440,6 +525,8 @@ private fun ExerciseDetailSheet(
         onDismissRequest = onDismiss,
         sheetState       = sheetState,
         windowInsets     = WindowInsets(0),
+        containerColor   = MaterialTheme.colorScheme.surface,
+        tonalElevation   = 0.dp,
     ) {
         Column(
             modifier            = Modifier
@@ -466,7 +553,7 @@ private fun ExerciseDetailSheet(
                     error = {
                         Icon(
                             imageVector        = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
-                            tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                            tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier           = Modifier.size(56.dp),
                         )
                     },
@@ -498,16 +585,11 @@ private fun ExerciseDetailSheet(
                 )
             }
 
-            Button(
-                onClick  = { onStart(); onDismiss() },
+            GradientButton(
+                text = "Start",
                 modifier = Modifier.fillMaxWidth(),
-                shape    = RoundedCornerShape(AppDimens.Corner.lg),
-                colors   = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                ),
-            ) {
-                Text("Start", fontWeight = FontWeight.SemiBold)
-            }
+                onClick = { onStart(); onDismiss() },
+            )
         }
     }
 }
@@ -516,15 +598,22 @@ private fun ExerciseDetailSheet(
 
 @Composable
 private fun ExerciseSkeletonCard() {
-    ElevatedCard(
-        modifier  = Modifier
+    Card(
+        modifier = Modifier
             .fillMaxWidth()
             .height(AppDimens.Component.onboardingIcon),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.selector),
-        colors    = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
-    ) {}
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
+        ShimmerBox(modifier = Modifier.fillMaxSize())
+    }
 }
 
 @Composable
@@ -539,7 +628,7 @@ private fun ExerciseEmptyState(message: String, onRetry: (() -> Unit)? = null) {
         Icon(
             imageVector        = AppIcons.SentimentDissatisfied, contentDescription = stringResource(R.string.cd_empty_state),
             modifier           = Modifier.size(AppDimens.Icon.xxl),
-            tint               = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+            tint               = MaterialTheme.colorScheme.primaryContainer,
         )
         Text(
             text      = message,
@@ -575,14 +664,18 @@ private fun ActiveSessionBanner(
 
     when (phase) {
         is SessionPhase.InSet -> {
-            ElevatedCard(
+            Card(
                 modifier  = Modifier
                     .fillMaxWidth()
                     .padding(bottom = AppDimens.Spacing.sm),
-                colors    = CardDefaults.elevatedCardColors(
+                colors    = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                 ),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.raised),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border    = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.outlineVariant,
+                ),
             ) {
                 Column(
                     modifier            = Modifier
@@ -599,7 +692,7 @@ private fun ActiveSessionBanner(
                             Text(
                                 text  = "Active Set",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                             Text(
                                 text       = phase.exerciseName,
@@ -637,7 +730,7 @@ private fun ActiveSessionBanner(
                             Text(
                                 text  = "reps",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -650,7 +743,7 @@ private fun ActiveSessionBanner(
                             Text(
                                 text  = "target",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
                     }
@@ -659,12 +752,17 @@ private fun ActiveSessionBanner(
         }
 
         is SessionPhase.Stopped -> {
-            ElevatedCard(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = AppDimens.Spacing.sm),
-                colors   = CardDefaults.elevatedCardColors(
+                colors   = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.outlineVariant,
                 ),
             ) {
                 Row(
@@ -689,18 +787,24 @@ private fun ActiveSessionBanner(
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
-                    TextButton(onClick = onDismiss) { Text("Dismiss") }
+                    TextButton(
+onClick = onDismiss) { Text("Dismiss") }
                 }
             }
         }
 
         is SessionPhase.Error -> {
-            ElevatedCard(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = AppDimens.Spacing.sm),
-                colors   = CardDefaults.elevatedCardColors(
+                colors   = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.outlineVariant,
                 ),
             ) {
                 Row(
@@ -725,7 +829,8 @@ private fun ActiveSessionBanner(
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
                     }
-                    TextButton(onClick = onDismiss) { Text("Dismiss") }
+                    TextButton(
+onClick = onDismiss) { Text("Dismiss") }
                 }
             }
         }

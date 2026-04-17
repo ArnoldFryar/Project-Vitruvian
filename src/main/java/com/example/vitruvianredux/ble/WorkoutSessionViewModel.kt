@@ -332,6 +332,7 @@ class WorkoutSessionViewModel(
     fun setPlayerExercise(exercise: Exercise?) {
         _playerExercise.value = exercise
         if (exercise != null) {
+            val isBodyweight = exercise.isBodyweightOnly
             sessionStartMs = System.currentTimeMillis()
             engine.startPlayerWorkout(
                 listOf(
@@ -339,11 +340,12 @@ class WorkoutSessionViewModel(
                         exerciseName      = exercise.name,
                         thumbnailUrl      = exercise.thumbnailUrl,
                         videoUrl          = exercise.videoUrl,
-                        targetReps        = 10,
-                        targetDurationSec = null,
-                        weightPerCableLb  = 40,
+                        targetReps        = if (isBodyweight) null else 10,
+                        targetDurationSec = if (isBodyweight) 30 else null,
+                        isOffMachineTimer = isBodyweight,
+                        weightPerCableLb  = if (isBodyweight) 0 else 40,
                         restAfterSec      = 0,
-                        warmupReps        = 3,
+                        warmupReps        = if (isBodyweight) 0 else 3,
                         programMode       = "Old School",
                         muscleGroups      = exercise.muscleGroups,
                         numCables         = exercise.numCables,
@@ -490,17 +492,19 @@ class WorkoutSessionViewModel(
             com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
     ) {
         _playerExercise.value = exercise
+        val isBodyweight = exercise.isBodyweightOnly
         val sets = listOf(
             PlayerSetParams(
                 exerciseName      = exercise.name,
                 thumbnailUrl      = exercise.thumbnailUrl,
                 videoUrl          = exercise.videoUrl,
-                targetReps        = targetReps,
-                targetDurationSec = targetDurationSec,
-                weightPerCableLb  = weightPerCableLb,
+                targetReps        = if (isBodyweight) null else targetReps,
+                targetDurationSec = if (isBodyweight) (targetDurationSec ?: 30) else targetDurationSec,
+                isOffMachineTimer = isBodyweight,
+                weightPerCableLb  = if (isBodyweight) 0 else weightPerCableLb,
                 restAfterSec      = restAfterSec,
-                warmupReps        = warmupReps,
-                programMode       = programMode,
+                warmupReps        = if (isBodyweight) 0 else warmupReps,
+                programMode       = if (isBodyweight) "Old School" else programMode,
                 progressionRegressionLb = progressionRegressionLb,
                 echoLevel         = echoLevel,
                 eccentricLoadPct  = eccentricLoadPct,

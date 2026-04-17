@@ -214,7 +214,11 @@ fun SyncScreen(
                         qrGenError = "QR generation failed: ${e.message}"
                     }
                 }
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                ) {
                     Column(
                         modifier = Modifier.padding(AppDimens.Spacing.md).fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -242,7 +246,10 @@ fun SyncScreen(
             }
 
             if (lanState is LanSyncState.Discovering) {
-                Card {
+                Card(
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                ) {
                     Row(modifier = Modifier.padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm)) {
                         CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = AppDimens.Stroke.medium)
                         Column {
@@ -258,7 +265,11 @@ fun SyncScreen(
             }
 
             if (hubUrl != null) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                ) {
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Ready to Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text("Hub: $hubUrl", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -300,7 +311,8 @@ fun SyncScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            OutlinedButton(onClick = { showQrScanner = true }, modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(
+onClick = { showQrScanner = true }, modifier = Modifier.fillMaxWidth()) {
                                 Icon(AppIcons.QrCodeScanner, contentDescription = stringResource(R.string.cd_scan_qr), modifier = Modifier.size(AppDimens.Icon.md))
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text("Scan Hub QR Code")
@@ -311,7 +323,11 @@ fun SyncScreen(
             }
 
             if (isPairing) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                ) {
                     Row(modifier = Modifier.padding(AppDimens.Spacing.md), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm), verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = AppDimens.Stroke.medium)
                         Text("Pairing with hub\u2026", style = MaterialTheme.typography.bodyMedium)
@@ -319,14 +335,19 @@ fun SyncScreen(
                 }
             }
             if (pairingError != null) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                ) {
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Pairing Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(pairingError!!, style = MaterialTheme.typography.bodySmall)
                         // Only allow re-scanning once the hub has been found — avoids scanning
                         // random QR codes from the environment when no pairing QR is on screen.
                         if (hubUrl != null) {
-                            OutlinedButton(onClick = { showQrScanner = true; pairingError = null }, modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(
+onClick = { showQrScanner = true; pairingError = null }, modifier = Modifier.fillMaxWidth()) {
                                 Icon(AppIcons.QrCodeScanner, contentDescription = stringResource(R.string.cd_scan_qr), modifier = Modifier.size(AppDimens.Icon.sm))
                                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                                 Text("Scan Again")
@@ -344,7 +365,11 @@ fun SyncScreen(
 
             if (lastSyncResult != null) LanSyncResultCard(lastSyncResult!!)
             if (syncError != null) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                ) {
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
                         Text("Sync Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(syncError!!, style = MaterialTheme.typography.bodySmall)
@@ -353,11 +378,16 @@ fun SyncScreen(
             }
 
             if (lanState is LanSyncState.Error) {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                ) {
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Network Error", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text((lanState as LanSyncState.Error).message, style = MaterialTheme.typography.bodySmall)
-                        OutlinedButton(onClick = { lanSyncManager.reset() }, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+onClick = { lanSyncManager.reset() }, modifier = Modifier.fillMaxWidth()) {
                             Text("Reset")
                         }
                     }
@@ -370,7 +400,11 @@ fun SyncScreen(
 @Composable
 private fun LanSyncResultCard(result: SyncResult) {
     val ext = LocalExtendedColors.current
-    Card(colors = CardDefaults.cardColors(containerColor = ext.statusReady.copy(alpha = 0.12f))) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = ext.statusReady),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+    ) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
             Text("Sync Complete", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = ext.statusReady)
             Text("Pulled: ${result.pullPrograms} programs, ${result.pullSessions} sessions", style = MaterialTheme.typography.bodySmall)

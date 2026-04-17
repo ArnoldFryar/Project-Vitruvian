@@ -44,7 +44,7 @@ fun DialogContainer(
     content: @Composable () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(AppDimens.Corner.md)
+    val shape = RoundedCornerShape(AppDimens.Corner.lg)
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -71,16 +71,7 @@ fun DialogContainer(
                     }
                     .clip(shape)
                     .background(cs.surface, shape)
-                    .border(
-                        width = 0.5.dp,
-                        brush = Brush.verticalGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.07f),
-                                Color.Transparent,
-                            )
-                        ),
-                        shape = shape,
-                    )
+                    .border(1.dp, cs.outlineVariant, shape)
                     .padding(vertical = AppDimens.Spacing.sm),
             ) {
                 content()

@@ -155,7 +155,7 @@ fun TrainingMomentumCard(
                 Text(
                     "Last workout: $lastWorkoutLabel",
                     style = MaterialTheme.typography.bodySmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = cs.onSurfaceVariant,
                 )
                 Text(
                     trendMessage,
@@ -188,7 +188,7 @@ private fun StreakBlock(
         )
         Text(text = stringResource(R.string.metric_day_streak),
             style = MaterialTheme.typography.titleSmall,
-            color = cs.onSurfaceVariant.copy(alpha = 0.7f),
+            color = cs.onSurfaceVariant,
         )
     }
 }
@@ -212,14 +212,14 @@ private fun WeeklyProgressBlock(
             Text(
                 text     = " / $goal",
                 style    = MaterialTheme.typography.titleMedium,
-                color    = cs.onSurfaceVariant.copy(alpha = 0.7f),
+                color    = cs.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
             )
         }
         Text(
             text  = "Sessions this week",
             style = MaterialTheme.typography.titleSmall,
-            color = cs.onSurfaceVariant.copy(alpha = 0.7f),
+            color = cs.onSurfaceVariant,
         )
 
         Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -250,7 +250,7 @@ private fun SegmentedProgressBar(
                     .clip(RoundedCornerShape(3.dp))
                     .background(
                         if (i < completed) cs.primary
-                        else cs.surfaceVariant.copy(alpha = 0.4f),
+                        else cs.surfaceVariant,
                     ),
             )
         }
@@ -300,10 +300,10 @@ private fun DayStrip(
                     fontWeight = if (isToday || isScheduled) FontWeight.Bold else FontWeight.Normal,
                     color      = when {
                         isToday               -> cs.primary
-                        isScheduled && isFuture -> cs.primary.copy(alpha = 0.35f)
-                        isScheduled           -> cs.primary.copy(alpha = 0.75f)
-                        isFuture              -> cs.onSurfaceVariant.copy(alpha = 0.4f)
-                        else                  -> cs.onSurfaceVariant.copy(alpha = 0.65f)
+                        isScheduled && isFuture -> cs.secondary
+                        isScheduled           -> cs.primary
+                        isFuture              -> cs.onSurfaceVariant
+                        else                  -> cs.onSurfaceVariant
                     },
                 )
 
@@ -321,22 +321,21 @@ private fun DayStrip(
                                 // solid primary — scheduled and done
                                 hasWorkout && isScheduled  -> Modifier.background(cs.primary)
                                 // solid smaller muted — bonus unscheduled workout
-                                hasWorkout && !isScheduled -> Modifier.background(cs.primary.copy(alpha = 0.45f))
-                                // empty scheduled future — faint outline only (no fill)
-                                isScheduled && isFuture    -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.15f))
-                                // missed scheduled past — no fill (border added below)
-                                isMissed                   -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.10f))
-                                // nothing
-                                isFuture                   -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.15f))
-                                else                       -> Modifier.background(cs.surfaceVariant.copy(alpha = 0.35f))
+                                hasWorkout && !isScheduled -> Modifier.background(cs.primaryContainer)
+                                // empty scheduled future — visible fill plus outline
+                                isScheduled && isFuture    -> Modifier.background(cs.secondaryContainer)
+                                // missed scheduled past — quiet fill, ring added below
+                                isMissed                   -> Modifier.background(cs.surface)
+                                isFuture                   -> Modifier.background(cs.surfaceVariant)
+                                else                       -> Modifier.background(cs.outlineVariant)
                             })
                             .then(when {
                                 // today always gets a ring
                                 isToday && !isFuture       -> Modifier.border(1.5.dp, cs.primary, CircleShape)
                                 // missed scheduled = hollow primary ring
-                                isMissed                   -> Modifier.border(1.5.dp, cs.primary.copy(alpha = 0.55f), CircleShape)
-                                // scheduled future = faint ring
-                                isScheduled && isFuture    -> Modifier.border(AppDimens.Stroke.thin, cs.primary.copy(alpha = 0.3f), CircleShape)
+                                isMissed                   -> Modifier.border(1.5.dp, cs.primary.copy(alpha = 0.70f), CircleShape)
+                                // scheduled future = visible ring
+                                isScheduled && isFuture    -> Modifier.border(AppDimens.Stroke.thin, cs.secondary.copy(alpha = 0.75f), CircleShape)
                                 else                       -> Modifier
                             }),
                     )

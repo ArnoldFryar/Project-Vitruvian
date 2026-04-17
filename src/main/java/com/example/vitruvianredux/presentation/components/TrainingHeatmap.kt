@@ -13,6 +13,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -69,6 +71,7 @@ fun TrainingHeatmap(
     val today   = LocalDate.now()
     val cs      = MaterialTheme.colorScheme
     val density = LocalDensity.current
+    val isDark  = cs.background.luminance() < 0.5f
 
     // ── Sessions grouped by local day ────────────────────────────────────────
     val sessionsByDay = remember(allLogs) {
@@ -78,10 +81,10 @@ fun TrainingHeatmap(
     }
 
     // ── Colour scale — well-stepped alphas for clear intensity levels ─────────
-    val colorEmpty = cs.surfaceVariant.copy(alpha = 0.30f)
-    val color1     = cs.primary.copy(alpha = 0.28f)
-    val color2     = cs.primary.copy(alpha = 0.52f)
-    val color3     = cs.primary.copy(alpha = 0.76f)
+    val colorEmpty = if (isDark) cs.surfaceVariant else cs.outlineVariant
+    val color1     = lerp(colorEmpty, cs.primary, 0.30f)
+    val color2     = lerp(colorEmpty, cs.primary, 0.52f)
+    val color3     = lerp(colorEmpty, cs.primary, 0.74f)
     val color4     = cs.primary
 
     // ── Fixed pixel metrics (row geometry) ───────────────────────────────────
@@ -90,7 +93,7 @@ fun TrainingHeatmap(
     val monthH         = with(density) { MONTH_ROW_HEIGHT.toPx() }
     val cornerR        = with(density) { CELL_CORNER.toPx() }
     val idealColStepPx = with(density) { (CELL_SIZE + CELL_GAP).toPx() }
-    val todayStrokePx  = with(density) { 1.5.dp.toPx() }
+    val todayStrokePx  = with(density) { 2.dp.toPx() }
 
     val gridOriginX = dowW + gapPx          // left edge of first cell column
     val gridOriginY = monthH + gapPx        // top edge of first cell row
@@ -101,7 +104,7 @@ fun TrainingHeatmap(
     val textMeasurer = rememberTextMeasurer()
     val labelStyle   = MaterialTheme.typography.labelSmall.copy(
         fontSize = 9.sp,
-        color    = cs.onSurfaceVariant.copy(alpha = 0.6f),
+        color    = cs.onSurfaceVariant,
     )
 
     // ── Tap state ────────────────────────────────────────────────────────────
@@ -157,7 +160,7 @@ fun TrainingHeatmap(
             Text(
                 "Training frequency over the last $monthsLabel",
                 style    = MaterialTheme.typography.bodySmall,
-                color    = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                color    = cs.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = AppDimens.Spacing.xs_sm),
             )
 
@@ -245,7 +248,7 @@ fun TrainingHeatmap(
                 Text(
                     "Less",
                     style = MaterialTheme.typography.labelSmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = cs.onSurfaceVariant,
                 )
                 listOf(colorEmpty, color1, color2, color3, color4).forEach { c ->
                     Box(
@@ -258,7 +261,7 @@ fun TrainingHeatmap(
                 Text(
                     "More",
                     style = MaterialTheme.typography.labelSmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = cs.onSurfaceVariant,
                 )
             }
 
@@ -272,7 +275,7 @@ fun TrainingHeatmap(
                         append("$activeDays active day${if (activeDays != 1) "s" else ""}")
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = cs.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = cs.onSurfaceVariant,
                 )
             }
         }
@@ -288,6 +291,8 @@ fun TrainingHeatmap(
         }
         AlertDialog(
             onDismissRequest = { selectedDay = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title = {
                 Text(
                     dateFmt.format(d),
@@ -345,7 +350,8 @@ fun TrainingHeatmap(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { selectedDay = null }) { Text(stringResource(R.string.complete_done)) }
+                TextButton(
+onClick = { selectedDay = null }) { Text(stringResource(R.string.complete_done)) }
             },
         )
     }

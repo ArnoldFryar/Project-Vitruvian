@@ -41,7 +41,7 @@ fun AppEmptyState(
             Icon(
                 imageVector = icon, contentDescription = stringResource(R.string.cd_empty_state),
                 modifier = Modifier.size(AppDimens.Icon.hero),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                tint = MaterialTheme.colorScheme.primary,
             )
             Text(
                 text = headline,
@@ -60,12 +60,11 @@ fun AppEmptyState(
             }
             if (actionLabel != null && onAction != null) {
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
-                FilledTonalButton(
+                AppTonalButton(
+                    text = actionLabel,
                     onClick = onAction,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(actionLabel, fontWeight = FontWeight.SemiBold)
-                }
+                )
             }
         }
     }

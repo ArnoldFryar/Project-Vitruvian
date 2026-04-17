@@ -37,6 +37,9 @@ import coil.compose.AsyncImage
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayer
 import androidx.compose.foundation.clickable
 import com.example.vitruvianredux.ble.protocol.EchoLevel
+import com.example.vitruvianredux.presentation.components.AppOutlinedButton
+import com.example.vitruvianredux.presentation.components.AppTonalButton
+import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
@@ -101,6 +104,7 @@ internal fun SetReadyContent(
     onEccentricPctChange: (Int) -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
+    val usesRepsMode = !isBodyweight && isRepsMode
 
     val pbMap           by PersonalBestStore.summariesFlow.collectAsState()
     val prLb             = pbMap[exerciseName.lowercase().trim()]?.bestWeightLb ?: 0
@@ -153,7 +157,7 @@ internal fun SetReadyContent(
                         Text(
                             "You've hit the top of your rep range 2 sessions in a row. Try $progressionSuggestionLb lb.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -191,14 +195,14 @@ internal fun SetReadyContent(
                         Text(
                             "You've missed the rep floor 2 sessions in a row. Try $progressionDeloadLb lb.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
                         )
                     }
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
                     FilledTonalButton(
                         onClick = { onAcceptProgression(progressionDeloadLb) },
                         colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
                         ),
                     ) {
                         Text("Try $progressionDeloadLb lb",
@@ -225,6 +229,31 @@ internal fun SetReadyContent(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (!isBodyweight) {
+                ReadyInfoPill(label = "Mode", value = selectedMode)
+            }
+            ReadyInfoPill(
+                label = "Plan",
+                value = when {
+                    isOpenEnded -> "Open set"
+                    usesRepsMode -> "$targetReps reps"
+                    else -> "$targetDuration sec"
+                },
+            )
+            if (!isBodyweight) {
+                ReadyInfoPill(
+                    label = "Load",
+                    value = if (isEchoMode) "Adaptive"
+                            else "${resistanceLb.roundToInt()} lb / cable",
+                )
+            }
+        }
 
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
@@ -259,7 +288,7 @@ internal fun SetReadyContent(
                     Icon(
                         imageVector = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         modifier = Modifier.size(AppDimens.Icon.hero),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -268,7 +297,7 @@ internal fun SetReadyContent(
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
         // â”€â”€ Adjustable settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (!isOpenEnded) {
+        if (!isOpenEnded && !isBodyweight) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
@@ -295,7 +324,7 @@ internal fun SetReadyContent(
         ) {
             SelectorCard(modifier = if (isBodyweight) Modifier.fillMaxWidth() else Modifier.weight(1f)) {
                 AnimatedContent(
-                    targetState = if (isOpenEnded) 0 else if (isRepsMode) 1 else 2,
+                    targetState = if (isOpenEnded) 0 else if (usesRepsMode) 1 else 2,
                     transitionSpec = { fadeIn(tween(170)) togetherWith fadeOut(tween(120)) },
                     label = "setReadyPickerContent",
                 ) { pickerState ->
@@ -522,7 +551,7 @@ internal fun SetReadyContent(
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
         Divider(
-            color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+            color    = MaterialTheme.colorScheme.outlineVariant,
             modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs),
         )
 
@@ -532,7 +561,10 @@ internal fun SetReadyContent(
         Surface(
             shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
             color          = MaterialTheme.colorScheme.surfaceVariant,
-            tonalElevation = AppDimens.Elevation.selector,
+            border         = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                MaterialTheme.colorScheme.outline,
+            ),
         ) {
             Row(
                 modifier = Modifier
@@ -574,28 +606,15 @@ internal fun SetReadyContent(
             ),
             label = "goScale",
         )
-        Button(
-            onClick            = onGo,
-            interactionSource  = goInteraction,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(68.dp)
-                .graphicsLayer {
-                    scaleX      = goScale
-                    scaleY      = goScale
-                    shadowElevation = 12f
-                },
-            shape  = RoundedCornerShape(AppDimens.Corner.md_sm),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-            elevation = ButtonDefaults.buttonElevation(
-                defaultElevation  = 6.dp,
-                pressedElevation  = AppDimens.Elevation.card,
-            ),
-        ) {
-            Icon(AppIcons.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.xl))
-            Spacer(Modifier.width(AppDimens.Spacing.sm))
-            Text("GO", fontWeight = FontWeight.Black, fontSize = 22.sp, letterSpacing = AppDimens.LetterSpacing.spaced)
-        }
+        GradientButton(
+            text = "GO",
+            icon = AppIcons.PlayArrow,
+            onClick = onGo,
+            modifier = Modifier.graphicsLayer {
+                scaleX = goScale
+                scaleY = goScale
+            },
+        )
 
         // â”€â”€ Secondary actions — visually subordinate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.lg))
@@ -604,58 +623,66 @@ internal fun SetReadyContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
         ) {
-            TextButton(
-                onClick  = onSkipSet,
+            AppOutlinedButton(
+                text = "Skip Set",
+                icon = AppIcons.SkipNext,
+                onClick = onSkipSet,
                 modifier = Modifier.weight(1f),
-                colors   = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                ),
-            ) {
-                Icon(AppIcons.SkipNext, contentDescription = stringResource(R.string.cd_skip_next), modifier = Modifier.size(AppDimens.Icon.sm))
-                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text("Skip Set", fontWeight = FontWeight.Normal, fontSize = 13.sp)
-            }
+            )
 
-            TextButton(
-                onClick  = onSkipExercise,
+            AppOutlinedButton(
+                text = "Skip Exercise",
+                icon = AppIcons.SkipNext,
+                onClick = onSkipExercise,
                 modifier = Modifier.weight(1f),
-                colors   = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                ),
-            ) {
-                Icon(AppIcons.SkipNext, contentDescription = stringResource(R.string.cd_skip_next), modifier = Modifier.size(AppDimens.Icon.sm))
-                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text("Skip Exercise", fontWeight = FontWeight.Normal, fontSize = 13.sp)
-            }
+            )
         }
 
-        TextButton(
-            onClick  = onAddSet,
-            modifier = Modifier.fillMaxWidth(),
-            colors   = ButtonDefaults.textButtonColors(
-                contentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-            ),
-        ) {
-            Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.sm))
-            Spacer(Modifier.width(AppDimens.Spacing.xs))
-            Text("Add Set", fontWeight = FontWeight.Medium, fontSize = 13.sp)
-        }
+        AppTonalButton(
+            text = "Add Set",
+            icon = AppIcons.Add,
+            onClick = onAddSet,
+        )
 
         if (isOpenEnded && onFinishWorkout != null) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
-            OutlinedButton(
-                onClick  = onFinishWorkout,
-                modifier = Modifier.fillMaxWidth(),
-                colors   = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-            ) {
-                Icon(AppIcons.CheckCircle, contentDescription = "Finish", modifier = Modifier.size(AppDimens.Icon.sm))
-                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text("Finish Workout", fontWeight = FontWeight.Medium)
-            }
+            AppOutlinedButton(
+                text = "Finish Workout",
+                icon = AppIcons.CheckCircle,
+                onClick = onFinishWorkout,
+            )
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
+    }
+}
+
+@Composable
+private fun ReadyInfoPill(label: String, value: String) {
+    Surface(
+        shape = RoundedCornerShape(AppDimens.Corner.pill),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outlineVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "$label:",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }

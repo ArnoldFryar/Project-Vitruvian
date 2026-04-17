@@ -23,6 +23,8 @@ import com.example.vitruvianredux.ble.ExpectedOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
+import com.example.vitruvianredux.presentation.ui.theme.Success
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -129,7 +131,15 @@ private fun SummaryCard(
     opCoverage: Float,
     highlightOn: Boolean,
 ) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    val palette = rememberAuditPalette()
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -166,11 +176,11 @@ private fun SummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
                 StatChip(label = stringResource(R.string.audit_total),   value = "$totalActions", color = MaterialTheme.colorScheme.onSurface)
-                StatChip(label = stringResource(R.string.audit_tapped),  value = "$hitCount",     color = Color(0xFF2196F3))
+                StatChip(label = stringResource(R.string.audit_tapped),  value = "$hitCount",     color = palette.tap)
                 StatChip(label = stringResource(R.string.audit_operational), value = "$opCount",
-                    color = if (opCount == totalActions) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error)
+                    color = if (opCount == totalActions) palette.success else MaterialTheme.colorScheme.error)
                 StatChip(label = stringResource(R.string.audit_gap), value = "${totalActions - opCount}",
-                    color = if (opCount == totalActions) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error)
+                    color = if (opCount == totalActions) palette.success else MaterialTheme.colorScheme.error)
             }
 
             // Tap-coverage sub-bar
@@ -180,7 +190,7 @@ private fun SummaryCard(
             LinearProgressIndicator(
                 progress   = tapCoverage,
                 modifier   = Modifier.fillMaxWidth().height(4.dp),
-                color      = Color(0xFF2196F3),
+                color      = palette.tap,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
 
@@ -213,8 +223,31 @@ private fun StatChip(label: String, value: String, color: Color) {
     }
 }
 
+private data class AuditPalette(
+    val success: Color,
+    val warning: Color,
+    val tap: Color,
+    val successTint: Color,
+    val warningTint: Color,
+)
+
+@Composable
+private fun rememberAuditPalette(): AuditPalette {
+    val cs = MaterialTheme.colorScheme
+    return remember(cs) {
+        AuditPalette(
+            success = Success,
+            warning = AccentAmber,
+            tap = cs.primary,
+            successTint = Success.copy(alpha = 0.10f),
+            warningTint = AccentAmber.copy(alpha = 0.12f),
+        )
+    }
+}
+
 @Composable
 private fun ScreenSectionHeader(screen: String, actions: List<ActionStat>) {
+    val palette = rememberAuditPalette()
     val op    = actions.count { it.isOperational }
     val total = actions.size
     Row(
@@ -233,7 +266,7 @@ private fun ScreenSectionHeader(screen: String, actions: List<ActionStat>) {
         Text(
             text  = "$op / $total Ã¢Å“â€œ",
             style = MaterialTheme.typography.labelSmall,
-            color = if (op == total) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (op == total) palette.success else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
     Divider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -241,6 +274,7 @@ private fun ScreenSectionHeader(screen: String, actions: List<ActionStat>) {
 
 @Composable
 private fun ActionStatRow(stat: ActionStat) {
+    val palette = rememberAuditPalette()
     val fmt     = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
     val wasHit  = stat.count > 0
     val isOp    = stat.isOperational
@@ -248,8 +282,8 @@ private fun ActionStatRow(stat: ActionStat) {
 
     // Row bg tint: green if operational, amber if tapped-but-not-operational, red if never tapped
     val rowTint = when {
-        isOp                  -> Color(0xFF4CAF50).copy(alpha = 0.06f)
-        wasHit && hasContract -> Color(0xFFFF9800).copy(alpha = 0.08f)
+        isOp                  -> palette.successTint
+        wasHit && hasContract -> palette.warningTint
         else                  -> Color.Transparent
     }
 
@@ -274,8 +308,8 @@ private fun ActionStatRow(stat: ActionStat) {
                     },
                     contentDescription = stringResource(R.string.cd_audit_status),
                     tint = when {
-                        isOp   -> Color(0xFF4CAF50)
-                        wasHit -> Color(0xFFFF9800)
+                        isOp   -> palette.success
+                        wasHit -> palette.warning
                         else   -> MaterialTheme.colorScheme.error
                     },
                     modifier = Modifier.size(AppDimens.Icon.md),
@@ -293,7 +327,7 @@ private fun ActionStatRow(stat: ActionStat) {
                         style      = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
                         fontSize   = 9.sp,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -342,9 +376,9 @@ private fun ActionStatRow(stat: ActionStat) {
                     ContractChip(
                         label   = "got: $actualLabel",
                         color   = when {
-                            isOp   -> Color(0xFF4CAF50).copy(alpha = 0.2f)
-                            wasHit -> Color(0xFFFF9800).copy(alpha = 0.2f)
-                            else   -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                            isOp   -> palette.success.copy(alpha = 0.2f)
+                            wasHit -> palette.warning.copy(alpha = 0.2f)
+                            else   -> MaterialTheme.colorScheme.errorContainer
                         },
                         onColor = MaterialTheme.colorScheme.onSurface,
                     )
@@ -392,7 +426,7 @@ private fun ActualOutcome.shortLabel(): String = when (this) {
 
 @Composable
 private fun coverageColor(coverage: Float): Color = when {
-    coverage >= 0.9f -> Color(0xFF4CAF50)
-    coverage >= 0.6f -> Color(0xFFFF9800)
+    coverage >= 0.9f -> Success
+    coverage >= 0.6f -> AccentAmber
     else             -> MaterialTheme.colorScheme.error
 }

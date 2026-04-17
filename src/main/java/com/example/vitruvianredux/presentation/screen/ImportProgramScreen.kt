@@ -164,6 +164,8 @@ fun ImportProgramScreen(
     disambiguating?.let { state ->
         AlertDialog(
             onDismissRequest = { disambiguating = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title = { Text(stringResource(R.string.import_select_exercise)) },
             text = {
                 LazyColumn {
@@ -206,7 +208,8 @@ fun ImportProgramScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { disambiguating = null }) { Text(stringResource(R.string.common_cancel)) }
+                TextButton(
+onClick = { disambiguating = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -215,13 +218,16 @@ fun ImportProgramScreen(
     showOverwriteDialog?.let { prompt ->
         AlertDialog(
             onDismissRequest = { showOverwriteDialog = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title = { Text(stringResource(R.string.import_already_exists_title)) },
             text = {
                 Text("A program named \"${prompt.existing.name}\" already exists. " +
                         "Import as a new copy or replace it?")
             },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(
+onClick = {
                     // Replace: reuse existing id
                     val saved = ProgramImporter.toSavedProgram(prompt.resolved)
                         .copy(id = prompt.existing.id)
@@ -241,7 +247,8 @@ fun ImportProgramScreen(
             },
             dismissButton = {
                 Row {
-                    TextButton(onClick = {
+                    TextButton(
+onClick = {
                         // Import as new copy
                         val saved = ProgramImporter.toSavedProgram(prompt.resolved)
                         ProgramStore.addProgram(saved)
@@ -257,7 +264,8 @@ fun ImportProgramScreen(
                         importDone = true
                     }) { Text(stringResource(R.string.import_new_copy)) }
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
-                    TextButton(onClick = { showOverwriteDialog = null }) { Text(stringResource(R.string.common_cancel)) }
+                    TextButton(
+onClick = { showOverwriteDialog = null }) { Text(stringResource(R.string.common_cancel)) }
                 }
             },
         )
@@ -295,9 +303,14 @@ private fun PasteInputContent(
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
         // Instruction card
-        ElevatedCard(
+        Card(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                MaterialTheme.colorScheme.outline,
+            ),
         ) {
             Row(
                 modifier = Modifier.padding(AppDimens.Spacing.md),
@@ -307,7 +320,7 @@ private fun PasteInputContent(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(AppIcons.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
@@ -384,11 +397,16 @@ private fun PreviewContent(
     ) {
         // Summary header
         item {
-            ElevatedCard(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = AppDimens.Spacing.md),
                 shape = MaterialTheme.shapes.medium,
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.outline,
+                ),
             ) {
                 Row(
                     modifier = Modifier.padding(AppDimens.Spacing.md),
@@ -439,12 +457,17 @@ private fun PreviewContent(
             Spacer(Modifier.height(AppDimens.Spacing.sm))
 
             if (!allResolved) {
-                ElevatedCard(
+                Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.md_sm),
-                    colors = CardDefaults.elevatedCardColors(
+                    colors = CardDefaults.cardColors(
                         containerColor = Warning.copy(alpha = 0.08f),
                     ),
                     shape = MaterialTheme.shapes.medium,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        AppDimens.Stroke.thin,
+                        MaterialTheme.colorScheme.outline,
+                    ),
                 ) {
                     Row(
                         modifier = Modifier.padding(AppDimens.Spacing.md_sm),
@@ -488,9 +511,14 @@ private fun ProgramPreviewCard(
     onToggle: () -> Unit,
     onDisambiguate: (exerciseIndex: Int) -> Unit,
 ) {
-    ElevatedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         // Header
         Row(
@@ -536,7 +564,7 @@ private fun ProgramPreviewCard(
                 if (idx < program.exercises.lastIndex) {
                     Divider(
                         modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.outlineVariant,
                     )
                 }
             }
@@ -644,7 +672,7 @@ private fun ErrorContent(
             modifier = Modifier
                 .size(AppDimens.Icon.hero)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.error.copy(alpha = 0.10f)),
+                .background(MaterialTheme.colorScheme.errorContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(AppIcons.ErrorOutline, contentDescription = stringResource(R.string.cd_warning), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(AppDimens.Icon.xl))

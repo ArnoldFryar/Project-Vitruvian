@@ -40,7 +40,10 @@ fun ExerciseVideoPreviewDialog(
                 .wrapContentHeight(),
             shape    = RoundedCornerShape(AppDimens.Corner.lg),
             color    = MaterialTheme.colorScheme.surface,
-            tonalElevation = AppDimens.Elevation.raised,
+            border   = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                MaterialTheme.colorScheme.outline,
+            ),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
 
@@ -87,14 +90,14 @@ fun ExerciseVideoPreviewDialog(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
                                 AppIcons.VideocamOff, contentDescription = stringResource(R.string.cd_video_unavailable),
-                                tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                tint     = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(AppDimens.Icon.xxl),
                             )
                             Spacer(Modifier.height(AppDimens.Spacing.sm))
                             Text(
                                 "No video available",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

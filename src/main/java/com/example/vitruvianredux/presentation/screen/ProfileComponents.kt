@@ -12,6 +12,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -57,7 +58,10 @@ internal fun ProfileSection(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = AppDimens.Elevation.raised,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column(Modifier
             .animateContentSize(tween(MotionTokens.STANDARD_MS))
@@ -99,13 +103,20 @@ internal fun PressScaleCard(
         animationSpec = MotionTokens.SnapSpring,
         label = "cardAlpha",
     )
-    ElevatedCard(
+    Surface(
         modifier = modifier
+            .border(
+                width = AppDimens.Stroke.thin,
+                color = MaterialTheme.colorScheme.outline,
+                shape = MaterialTheme.shapes.medium,
+            )
             .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
-        shape   = MaterialTheme.shapes.medium,
-        content = content,
-    )
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(content = content)
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -132,7 +143,8 @@ internal fun VolumeDetailSheet(
     val maxDay = dailyVolumes.maxOfOrNull { it.third } ?: 1.0
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface) {
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text("Volume \u2014 Last 7 Days", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
@@ -160,7 +172,7 @@ internal fun VolumeDetailSheet(
                                 .fillMaxHeight()
                                 .fillMaxWidth(fraction.coerceAtLeast(0.02f)),
                             shape = MaterialTheme.shapes.small,
-                            color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
                         ) {}
                     }
                     Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -192,7 +204,8 @@ internal fun SessionsDetailSheet(
     val dateFmt = DateTimeFormatter.ofPattern("EEE, MMM d")
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface) {
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text("Sessions \u2014 Last 7 Days", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
@@ -215,7 +228,10 @@ internal fun SessionsDetailSheet(
                         modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.xs),
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = AppDimens.Elevation.selector,
+                        border = androidx.compose.foundation.BorderStroke(
+                            AppDimens.Stroke.thin,
+                            MaterialTheme.colorScheme.outline,
+                        ),
                     ) {
                         Column(Modifier.padding(AppDimens.Spacing.md_sm)) {
                             Text(dateFmt.format(workout.date),
@@ -283,7 +299,8 @@ internal fun StreakDetailSheet(
     val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface) {
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text(stringResource(R.string.metric_day_streak), style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
@@ -337,7 +354,7 @@ internal fun StreakDetailSheet(
                                 shape = CircleShape,
                                 color = when {
                                     hasWorkout -> MaterialTheme.colorScheme.primary
-                                    isToday    -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                    isToday    -> MaterialTheme.colorScheme.primaryContainer
                                     else       -> MaterialTheme.colorScheme.surfaceVariant
                                 },
                             ) {

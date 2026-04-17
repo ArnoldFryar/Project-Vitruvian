@@ -16,7 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -39,7 +39,9 @@ import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.util.loadExercises
+import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import java.time.DayOfWeek
 
@@ -100,11 +102,24 @@ fun ProgramEditorScreen(
                 draftItems = picked.map { ex ->
                     existingById[ex.id.ifBlank { ex.name }] ?: run {
                         val suggested = ProgressionEngine.suggestedStartingWeightLb(ex.name)
-                        ProgramItemDraft(
-                            exerciseId     = ex.id.ifBlank { ex.name },
-                            exerciseName   = ex.name,
-                            targetWeightLb = suggested ?: 30,
-                        )
+                        if (ex.isBodyweightOnly) {
+                            ProgramItemDraft(
+                                exerciseId     = ex.id.ifBlank { ex.name },
+                                exerciseName   = ex.name,
+                                mode           = ExerciseMode.TIME,
+                                reps           = null,
+                                durationSec    = 30,
+                                targetWeightLb = 0,
+                                programMode    = "Old School",
+                            )
+                        } else {
+                            ProgramItemDraft(
+                                exerciseId     = ex.id.ifBlank { ex.name },
+                                exerciseName   = ex.name,
+                                targetWeightLb = suggested ?: 30,
+                                programMode    = "Old School",
+                            )
+                        }
                     }
                 }
                 showPicker = false
@@ -114,8 +129,10 @@ fun ProgramEditorScreen(
     }
 
     editingItem?.let { item ->
+        val editingExercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
         EditExerciseSheet(
             item      = item,
+            exercise  = editingExercise,
             onSave    = { updated ->
                 draftItems  = draftItems.map { if (it.exerciseId == updated.exerciseId) updated else it }
                 editingItem = null
@@ -128,11 +145,14 @@ fun ProgramEditorScreen(
     val estimatedMins = draftItems.sumOf { item ->
         item.sets * (item.restTimerSec / 60.0 + 1.5)
     }.toInt().coerceAtLeast(if (draftItems.isEmpty()) 0 else 1)
+    val daysLabel = formatScheduledDays(scheduledDays).ifBlank { "Not scheduled" }
 
     // ── Schedule Days dialog ─────────────────────────────────────────────────
     if (showDaysDialog) {
         AlertDialog(
             onDismissRequest = { showDaysDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             title            = { Text("Workout Days") },
             text             = {
                 DayOfWeekSelector(
@@ -143,7 +163,8 @@ fun ProgramEditorScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showDaysDialog = false }) { Text("Done") }
+                TextButton(
+onClick = { showDaysDialog = false }) { Text("Done") }
             },
         )
     }
@@ -223,6 +244,47 @@ fun ProgramEditorScreen(
                 }
             }
 
+            item(key = "__days__") {
+                Surface(
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surface)
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 20.dp, bottom = 16.dp),
+                    shape = RoundedCornerShape(AppDimens.Corner.md),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            AppIcons.CalendarMonth,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(AppDimens.Icon.md),
+                        )
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Workout days",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                daysLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+                        TextButton(onClick = { showDaysDialog = true }) {
+                            Text("Edit")
+                        }
+                    }
+                }
+            }
+
             item(key = "__scale_pbs__") {
                 Row(
                     modifier          = Modifier
@@ -276,17 +338,16 @@ fun ProgramEditorScreen(
 
             items(draftItems, key = { it.exerciseId }) { item ->
                 ReorderableItem(reorderState, key = item.exerciseId) { isDragging ->
-                    val elevation by animateDpAsState(
-                        targetValue = if (isDragging) 8.dp else 1.dp,
-                        label       = "cardElevation",
-                    )
                     val exercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
                     EditorExerciseCard(
                         item     = item,
                         exercise = exercise,
                         onEdit   = { editingItem = item },
                         onRemove = { draftItems = draftItems.filter { it.exerciseId != item.exerciseId } },
-                        modifier = Modifier.shadow(elevation, RoundedCornerShape(16.dp)),
+                        modifier = Modifier.graphicsLayer(
+                            scaleX = if (isDragging) 1.02f else 1f,
+                            scaleY = if (isDragging) 1.02f else 1f,
+                        ),
                     )
                 }
             }
@@ -338,11 +399,15 @@ fun ProgramEditorScreen(
 
         Surface(
             modifier        = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
-            shadowElevation = 12.dp,
+            shadowElevation = 0.dp,
             color           = MaterialTheme.colorScheme.surface,
+            border          = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                MaterialTheme.colorScheme.outlineVariant,
+            ),
         ) {
             GradientButton(
-                text     = if (draftItems.isEmpty()) "Add Exercises" else "Add Exercises (${draftItems.size})",
+                text     = if (draftItems.isEmpty()) "Choose Exercises" else "Manage Exercises (${draftItems.size})",
                 icon     = AppIcons.Add,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -363,6 +428,7 @@ private fun EditorExerciseCard(
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val isBodyweight = exercise?.isBodyweightOnly == true
 
     Card(
         modifier  = modifier
@@ -370,7 +436,11 @@ private fun EditorExerciseCard(
             .padding(horizontal = 12.dp, vertical = 6.dp),
         shape     = RoundedCornerShape(16.dp),
         colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -437,7 +507,7 @@ private fun EditorExerciseCard(
                         }
                     }
 
-                    val modeText = item.programMode.ifBlank { null }
+                    val modeText = item.programMode.ifBlank { null }?.takeUnless { isBodyweight }
                     if (modeText != null) {
                         Text(
                             modeText,
@@ -456,11 +526,18 @@ private fun EditorExerciseCard(
                         fontSize      = 9.sp,
                     )
                     val headerColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    val weightLabel = if ((exercise?.numCables ?: 2) == 1) "WEIGHT" else "PER CABLE"
-                    Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp)) {
-                        Text("SET",       style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
-                        Text("REPS",      style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
-                        Text(weightLabel, style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
+                    if (isBodyweight) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp)) {
+                            Text("SET", style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
+                            Text("REPS", style = headerStyle, color = headerColor, modifier = Modifier.weight(1f))
+                        }
+                    } else {
+                        val weightLabel = if ((exercise?.numCables ?: 2) == 1) "WEIGHT" else "PER CABLE"
+                        Row(modifier = Modifier.fillMaxWidth().padding(end = 8.dp)) {
+                            Text("SET",       style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
+                            Text("REPS",      style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
+                            Text(weightLabel, style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
+                        }
                     }
                     Divider(
                         modifier = Modifier.padding(vertical = 4.dp).padding(end = 8.dp),
@@ -491,22 +568,24 @@ private fun EditorExerciseCard(
                                 color    = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(0.55f),
                             )
-                            Text(repsText,                  style = boldStyle, modifier = Modifier.weight(0.8f))
-                            Text("${item.targetWeightLb}", style = boldStyle, modifier = Modifier.weight(1.2f))
+                            Text(repsText, style = boldStyle, modifier = Modifier.weight(if (isBodyweight) 1f else 0.8f))
+                            if (!isBodyweight) {
+                                Text("${item.targetWeightLb}", style = boldStyle, modifier = Modifier.weight(1.2f))
+                            }
                         }
                     }
                 }
             }
 
-            if (item.restTimerSec > 0 || item.programMode.isNotBlank()) {
+            if (item.restTimerSec > 0 || (!isBodyweight && item.programMode.isNotBlank())) {
                 Divider(
-                    color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    color    = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 12.dp),
                 )
                 Row(
                     modifier              = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -524,7 +603,7 @@ private fun EditorExerciseCard(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    val modeFooter = item.programMode.ifBlank { null }
+                    val modeFooter = item.programMode.ifBlank { null }?.takeUnless { isBodyweight }
                     if (modeFooter != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(AppIcons.FitnessCenter, null, Modifier.size(14.dp),

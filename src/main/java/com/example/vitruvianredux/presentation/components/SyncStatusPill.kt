@@ -40,7 +40,10 @@ fun SyncStatusPill(
         modifier       = if (onClick != null) modifier.clickable(onClick = onClick) else modifier,
         shape          = RoundedCornerShape(AppDimens.Corner.pill),
         color          = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-        tonalElevation = AppDimens.Elevation.card,
+        border         = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Row(
             modifier              = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.xs),

@@ -22,6 +22,7 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramItemDraft
+import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
@@ -34,9 +35,11 @@ fun ProgramItemCard(
     item: ProgramItemDraft,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
+    exercise: Exercise? = null,
     modifier: Modifier = Modifier,
 ) {
-    ElevatedCard(
+    val isBodyweight = exercise?.isBodyweightOnly == true
+    Card(
         onClick  = {
             WiringRegistry.hit(A_PROGRAMS_ITEM_EDIT)
             WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_EDIT, ActualOutcome.SheetOpened("edit_item"))
@@ -46,7 +49,11 @@ fun ProgramItemCard(
             .fillMaxWidth()
             .animateContentSize(tween(MotionTokens.STANDARD_MS, easing = MotionTokens.EnterEasing)),
         shape    = RoundedCornerShape(AppDimens.Corner.md),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Row(
             modifier          = Modifier
@@ -54,17 +61,15 @@ fun ProgramItemCard(
                 .padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.md_sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Drag handle
             Icon(
                 AppIcons.DragHandle,
                 contentDescription = "Drag to reorder",
                 modifier = Modifier
                     .size(AppDimens.Icon.lg)
                     .padding(end = AppDimens.Spacing.sm),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            // Main content
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     item.exerciseName.trim(),
@@ -74,34 +79,32 @@ fun ProgramItemCard(
                 )
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
 
-                // â”€â”€ Metadata badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                 ) {
-                    // Mode badge (colored by resistance mode)
-                    MetadataBadge(
-                        text         = item.programMode,
-                        containerColor = programModeColor(item.programMode),
-                        contentColor   = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                    // Sets x Reps/Duration
+                    if (!isBodyweight) {
+                        MetadataBadge(
+                            text           = item.programMode,
+                            containerColor = programModeColor(item.programMode),
+                            contentColor   = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
                     MetadataBadge(
                         text = when (item.mode) {
-                            ExerciseMode.REPS -> "${item.sets} \u00d7 ${item.reps ?: "-"} reps"
-                            ExerciseMode.TIME -> "${item.sets} \u00d7 ${item.durationSec ?: "-"}s"
+                            ExerciseMode.REPS -> "${item.sets} × ${item.reps ?: "-"} reps"
+                            ExerciseMode.TIME -> "${item.sets} × ${item.durationSec ?: "-"}s"
                         },
                     )
-                    // Weight
-                    MetadataBadge(text = "${item.targetWeightLb} lb")
-                    // Rest timer
+                    if (!isBodyweight) {
+                        MetadataBadge(text = "${item.targetWeightLb} lb")
+                    }
                     if (item.restTimerSec > 0) {
                         MetadataBadge(text = "${item.restTimerSec}s rest")
                     }
                 }
             }
 
-            // Remove button
             IconButton(
                 onClick  = {
                     WiringRegistry.hit(A_PROGRAMS_ITEM_REMOVE)

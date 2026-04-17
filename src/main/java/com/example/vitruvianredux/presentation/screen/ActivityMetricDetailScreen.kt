@@ -51,6 +51,12 @@ fun ActivityMetricDetailScreen(
     }
 }
 
+private fun formatWeekRange(
+    weekStart: LocalDate,
+    weekEnd: LocalDate,
+    formatter: DateTimeFormatter,
+): String = "${formatter.format(weekStart)} - ${formatter.format(weekEnd)}"
+
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  VOLUME SCREEN
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -98,7 +104,10 @@ private fun VolumeContent(onBack: () -> Unit) {
                     Surface(
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = AppDimens.Elevation.selector,
+                        border = androidx.compose.foundation.BorderStroke(
+                            AppDimens.Stroke.thin,
+                            MaterialTheme.colorScheme.outline,
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.padding(AppDimens.Spacing.md)) {
@@ -148,7 +157,10 @@ private fun VolumeContent(onBack: () -> Unit) {
                     Surface(
                         shape = MaterialTheme.shapes.medium,
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = AppDimens.Elevation.selector,
+                        border = androidx.compose.foundation.BorderStroke(
+                            AppDimens.Stroke.thin,
+                            MaterialTheme.colorScheme.outline,
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(Modifier.padding(AppDimens.Spacing.md)) {
@@ -201,7 +213,10 @@ private fun VolumeContent(onBack: () -> Unit) {
                         shape = MaterialTheme.shapes.medium,
                         color = if (isCurrentWeek) MaterialTheme.colorScheme.primaryContainer
                                 else MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = AppDimens.Elevation.selector,
+                        border = androidx.compose.foundation.BorderStroke(
+                            AppDimens.Stroke.thin,
+                            if (isCurrentWeek) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        ),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -210,14 +225,14 @@ private fun VolumeContent(onBack: () -> Unit) {
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    "${weekFmt.format(weekStart)} â€“ ${weekFmt.format(weekEnd)}",
+                                    formatWeekRange(weekStart, weekEnd, weekFmt),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = if (isCurrentWeek) FontWeight.Bold else FontWeight.Normal,
                                 )
                                 if (isCurrentWeek) {
                                     Text(stringResource(R.string.metric_current_week),
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     )
                                 }
                             }
@@ -239,7 +254,10 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.card,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
@@ -251,7 +269,7 @@ private fun VolumeEmptyState(totalSessionCount: Int) {
                 AppIcons.ShowChart,
                     contentDescription = stringResource(R.string.cd_performance_chart),
                 modifier = Modifier.size(AppDimens.Icon.xxl),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                tint = MaterialTheme.colorScheme.primaryContainer,
             )
             Text(stringResource(R.string.metric_volume_empty),
                 style = MaterialTheme.typography.titleSmall,
@@ -328,7 +346,10 @@ private fun StreakContent(onBack: () -> Unit) {
                 Surface(
                     shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = AppDimens.Elevation.card,
+                    border = androidx.compose.foundation.BorderStroke(
+                        AppDimens.Stroke.thin,
+                        MaterialTheme.colorScheme.outline,
+                    ),
                     modifier = Modifier.padding(AppDimens.Spacing.xl),
                 ) {
                     Column(
@@ -340,7 +361,7 @@ private fun StreakContent(onBack: () -> Unit) {
                             AppIcons.LocalFireDepartment,
                             contentDescription = stringResource(R.string.cd_calories),
                             modifier = Modifier.size(AppDimens.Icon.xxl),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                            tint = MaterialTheme.colorScheme.primaryContainer,
                         )
                         Text(stringResource(R.string.metric_streak_empty),
                             style = MaterialTheme.typography.titleMedium,
@@ -397,7 +418,10 @@ private fun StreakContent(onBack: () -> Unit) {
                 Surface(
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = AppDimens.Elevation.selector,
+                    border = androidx.compose.foundation.BorderStroke(
+                        AppDimens.Stroke.thin,
+                        MaterialTheme.colorScheme.outline,
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(AppDimens.Spacing.md)) {
@@ -444,7 +468,7 @@ private fun StreakContent(onBack: () -> Unit) {
                                                 shape = CircleShape,
                                                 color = when {
                                                     hasWorkout -> MaterialTheme.colorScheme.primary
-                                                    isToday    -> MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                                    isToday    -> MaterialTheme.colorScheme.primaryContainer
                                                     else       -> MaterialTheme.colorScheme.surface
                                                 },
                                             ) {
@@ -481,7 +505,10 @@ private fun StreakContent(onBack: () -> Unit) {
                 Surface(
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = AppDimens.Elevation.selector,
+                    border = androidx.compose.foundation.BorderStroke(
+                        AppDimens.Stroke.thin,
+                        MaterialTheme.colorScheme.outline,
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(Modifier.padding(AppDimens.Spacing.md)) {
@@ -496,13 +523,13 @@ private fun StreakContent(onBack: () -> Unit) {
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    "${weekFmt.format(weekStart)} â€“ ${weekFmt.format(weekEnd)}",
+                                    formatWeekRange(weekStart, weekEnd, weekFmt),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.weight(1f),
                                 )
                                 Text(
-                                    "$count session${if (count != 1) "s" else ""}",
+                                        formatWeekRange(weekStart, weekEnd, weekFmt),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = if (isCurrentWeek) FontWeight.Bold else FontWeight.Normal,
                                 )
@@ -543,7 +570,10 @@ private fun StreakCard(
         shape = MaterialTheme.shapes.medium,
         color = if (highlight) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = if (highlight) 3.dp else 1.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.md),
@@ -560,7 +590,7 @@ private fun StreakCard(
                 label,
                 style = MaterialTheme.typography.labelMedium,
                 color = if (highlight)
-                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                    MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

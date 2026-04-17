@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -16,6 +17,7 @@ import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.navigation.Route
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.AppDimens
 
 private data class NavItem(
     val route: Route,
@@ -33,7 +35,7 @@ fun BottomBar(nav: NavController) {
         NavItem(Route.ActivityHistory, AppIcons.BarChart,      AppIcons.BarChart,      "History"),
         NavItem(Route.Profile,         AppIcons.Person,        AppIcons.Person,        "Profile"),
     )
-    // Map route â†’ wiring ID
+    // Map route → wiring ID
     val navHitIds = mapOf(
         Route.Activity        to A_NAV_ACTIVITY,
         Route.Workout         to A_NAV_WORKOUT,
@@ -43,14 +45,15 @@ fun BottomBar(nav: NavController) {
     )
     val backStack = nav.currentBackStackEntryAsState()
     val startDestination = Route.Activity.path
-    val accentLine = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+    // Use the proper outline token for the separator — replaces the ghost-level primary tint
+    val separatorColor = MaterialTheme.colorScheme.outline
     NavigationBar(
         modifier = Modifier.drawBehind {
             drawLine(
-                color       = accentLine,
+                color       = separatorColor,
                 start       = Offset(0f, 0f),
                 end         = Offset(size.width, 0f),
-                strokeWidth = 1f,
+                strokeWidth = AppDimens.Stroke.hairline.toPx(),
             )
         },
         containerColor = MaterialTheme.colorScheme.surface,
@@ -77,11 +80,18 @@ fun BottomBar(nav: NavController) {
                         contentDescription = item.label,
                     )
                 },
-                label = { Text(item.label, style = MaterialTheme.typography.labelSmall) },
+                // Active label is SemiBold; inactive is Normal — intentional weight hierarchy
+                label = {
+                    Text(
+                        item.label,
+                        style      = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    selectedIconColor   = MaterialTheme.colorScheme.primary,
+                    selectedTextColor   = MaterialTheme.colorScheme.primary,
+                    indicatorColor      = MaterialTheme.colorScheme.primaryContainer,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),

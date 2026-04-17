@@ -26,6 +26,7 @@ import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgressionEngine
+import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
@@ -44,6 +45,7 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
 @Composable
 fun EditExerciseSheet(
     item: ProgramItemDraft,
+    exercise: Exercise? = null,
     onSave: (ProgramItemDraft) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -55,13 +57,14 @@ fun EditExerciseSheet(
     val suggestedWeightLb = remember(item.exerciseName) {
         ProgressionEngine.suggestedStartingWeightLb(item.exerciseName)
     }
+    val isBodyweight = exercise?.isBodyweightOnly == true
 
-    var mode          by remember { mutableStateOf(item.mode) }
+    var mode          by remember { mutableStateOf(if (isBodyweight) ExerciseMode.TIME else item.mode) }
     var sets          by remember { mutableIntStateOf(item.sets) }
     var reps          by remember { mutableIntStateOf(item.reps ?: 10) }
     var durationSec   by remember { mutableIntStateOf(item.durationSec ?: 30) }
-    var weightKg      by remember { mutableFloatStateOf(UnitConversions.lbToKg(item.targetWeightLb.toDouble()).toFloat()) }
-    var programMode   by remember { mutableStateOf(if (item.programMode == "TUT Beast") "TUT" else item.programMode) }
+    var weightKg      by remember { mutableFloatStateOf(if (isBodyweight) 0f else UnitConversions.lbToKg(item.targetWeightLb.toDouble()).toFloat()) }
+    var programMode   by remember { mutableStateOf(if (isBodyweight) "Old School" else if (item.programMode == "TUT Beast") "TUT" else item.programMode) }
     var isBeastMode   by remember { mutableStateOf(item.programMode == "TUT Beast") }
     var progRegLb     by remember { mutableIntStateOf(item.progressionRegressionLb) }
     var restTimerSec  by remember { mutableIntStateOf(item.restTimerSec) }
@@ -77,6 +80,8 @@ fun EditExerciseSheet(
         onDismissRequest = onDismiss,
         sheetState       = sheetState,
         windowInsets     = WindowInsets(0),
+        containerColor   = MaterialTheme.colorScheme.surface,
+        tonalElevation   = 0.dp,
     ) {
         Column(
             modifier = Modifier
@@ -112,7 +117,7 @@ fun EditExerciseSheet(
                 }
             }
 
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
             Column(
                 modifier            = Modifier
@@ -124,40 +129,41 @@ fun EditExerciseSheet(
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
 
-                // â”€â”€ Section: Resistance Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                SectionHeader("Resistance Mode")
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                ) {
-                    listOf("Old School", "TUT", "Pump", "Echo", "Eccentric Only").forEach { m ->
-                        FilterChip(
-                            selected = programMode == m,
-                            onClick  = { programMode = m },
-                            label    = { Text(m) },
-                        )
-                    }
-                }
-
-                AnimatedVisibility(visible = programMode == "TUT") {
+                if (!isBodyweight) {
+                    SectionHeader("Resistance Mode")
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(AppDimens.Corner.sm))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment     = Alignment.CenterVertically,
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
-                        Column {
-                            Text(stringResource(R.string.edit_beast_mode), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                            Text(stringResource(R.string.edit_beast_mode_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        listOf("Old School", "TUT", "Pump", "Echo", "Eccentric Only").forEach { m ->
+                            FilterChip(
+                                selected = programMode == m,
+                                onClick  = { programMode = m },
+                                label    = { Text(m) },
+                            )
                         }
-                        Switch(checked = isBeastMode, onCheckedChange = { isBeastMode = it })
                     }
-                }
 
-                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    AnimatedVisibility(visible = programMode == "TUT") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment     = Alignment.CenterVertically,
+                        ) {
+                            Column {
+                                Text(stringResource(R.string.edit_beast_mode), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.edit_beast_mode_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = isBeastMode, onCheckedChange = { isBeastMode = it })
+                        }
+                    }
+
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
 
                 // â”€â”€ Section: Target â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Target")
@@ -268,80 +274,80 @@ fun EditExerciseSheet(
                     }
                 }
 
-                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                if (!isBodyweight) {
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                // â”€â”€ Section: Resistance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                SectionHeader("Resistance")
-                SelectorCard(modifier = Modifier.fillMaxWidth()) {
-                    ResistanceTumbler(
-                        valueKg         = weightKg,
-                        onValueKgChange = { weightKg = it },
-                        modifier        = Modifier.fillMaxWidth(),
-                        surfaceColor    = MaterialTheme.colorScheme.surfaceVariant,
-                    )
-                }
-                if (suggestedWeightLb != null) {
-                    Text(
-                        "Suggested starting weight: ${suggestedWeightLb} lb",
-                        style  = MaterialTheme.typography.bodySmall,
-                        color  = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = AppDimens.Spacing.xs),
-                    )
-                }
-                if (prLb > 0) {
-                    val currentLb = (weightKg * UnitConversions.LB_PER_KG).roundToInt()
-                    val isNewPr   = currentLb >= prLb
-                    val pct       = (currentLb.toFloat() / prLb * 100f).roundToInt().coerceIn(0, 999)
-                    Surface(
-                        shape    = RoundedCornerShape(50),
-                        color    = if (isNewPr) MaterialTheme.colorScheme.secondaryContainer
-                                   else        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
-                        modifier = Modifier.padding(start = AppDimens.Spacing.xs, top = AppDimens.Spacing.xxs),
-                    ) {
-                        Row(
-                            modifier              = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.xs),
-                            verticalAlignment     = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                    SectionHeader("Resistance")
+                    SelectorCard(modifier = Modifier.fillMaxWidth()) {
+                        ResistanceTumbler(
+                            valueKg         = weightKg,
+                            onValueKgChange = { weightKg = it },
+                            modifier        = Modifier.fillMaxWidth(),
+                            surfaceColor    = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+                    }
+                    if (suggestedWeightLb != null) {
+                        Text(
+                            "Suggested starting weight: ${suggestedWeightLb} lb",
+                            style  = MaterialTheme.typography.bodySmall,
+                            color  = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = AppDimens.Spacing.xs),
+                        )
+                    }
+                    if (prLb > 0) {
+                        val currentLb = (weightKg * UnitConversions.LB_PER_KG).roundToInt()
+                        val isNewPr   = currentLb >= prLb
+                        val pct       = (currentLb.toFloat() / prLb * 100f).roundToInt().coerceIn(0, 999)
+                        Surface(
+                            shape    = RoundedCornerShape(50),
+                            color    = if (isNewPr) MaterialTheme.colorScheme.secondaryContainer
+                                       else        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
+                            modifier = Modifier.padding(start = AppDimens.Spacing.xs, top = AppDimens.Spacing.xxs),
                         ) {
-                            if (isNewPr) {
-                                Icon(
-                                    imageVector        = AppIcons.Star, contentDescription = stringResource(R.string.cd_personal_record),
-                                    modifier           = Modifier.size(11.dp),
-                                    tint               = MaterialTheme.colorScheme.secondary,
+                            Row(
+                                modifier              = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.xs),
+                                verticalAlignment     = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                            ) {
+                                if (isNewPr) {
+                                    Icon(
+                                        imageVector        = AppIcons.Star, contentDescription = stringResource(R.string.cd_personal_record),
+                                        modifier           = Modifier.size(11.dp),
+                                        tint               = MaterialTheme.colorScheme.secondary,
+                                    )
+                                }
+                                Text(
+                                    text       = if (isNewPr) "New PR weight!" else "$pct% of PR",
+                                    style      = MaterialTheme.typography.labelSmall,
+                                    fontWeight = if (isNewPr) FontWeight.Bold else FontWeight.Medium,
+                                    color      = if (isNewPr) MaterialTheme.colorScheme.secondary
+                                                 else        MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Text(
-                                text       = if (isNewPr) "New PR weight!" else "$pct% of PR",
-                                style      = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (isNewPr) FontWeight.Bold else FontWeight.Medium,
-                                color      = if (isNewPr) MaterialTheme.colorScheme.secondary
-                                             else        MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
                     }
-                }
 
-                // Progression / Regression
-                SelectorCard(
-                    title    = stringResource(R.string.edit_progression),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    SmoothValuePicker(
-                        value         = progRegLb.toFloat(),
-                        onValueChange = { progRegLb = it.toInt() },
-                        range         = -10f..10f,
-                        step          = 1f,
-                        unitLabel     = stringResource(R.string.unit_lb),
-                        formatLabel   = { v -> val i = v.toInt(); if (i > 0) "+$i" else "$i" },
-                        compact       = true,
-                        visibleItemCount = 3,
-                        itemHeight    = 32.dp,
-                        surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier      = Modifier.width(140.dp),
-                    )
-                }
+                    SelectorCard(
+                        title    = stringResource(R.string.edit_progression),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        SmoothValuePicker(
+                            value         = progRegLb.toFloat(),
+                            onValueChange = { progRegLb = it.toInt() },
+                            range         = -10f..10f,
+                            step          = 1f,
+                            unitLabel     = stringResource(R.string.unit_lb),
+                            formatLabel   = { v -> val i = v.toInt(); if (i > 0) "+$i" else "$i" },
+                            compact       = true,
+                            visibleItemCount = 3,
+                            itemHeight    = 32.dp,
+                            surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier      = Modifier.width(140.dp),
+                        )
+                    }
 
-                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
 
                 // â”€â”€ Section: Superset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Superset")
@@ -375,7 +381,7 @@ fun EditExerciseSheet(
                     }
                 }
 
-                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // â”€â”€ Section: Recovery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Recovery")
@@ -418,18 +424,21 @@ fun EditExerciseSheet(
                         onClick = {
                             WiringRegistry.hit(A_PROGRAMS_EDIT_SAVE)
                             WiringRegistry.recordOutcome(A_PROGRAMS_EDIT_SAVE, ActualOutcome.StateChanged("editSaved"))
+                            val normalizedWeightLb = if (isBodyweight) 0 else (weightKg * UnitConversions.LB_PER_KG).roundToInt()
+                            val normalizedProgramMode = if (isBodyweight) "Old School" else if (programMode == "TUT" && isBeastMode) "TUT Beast" else programMode
+                            val normalizedMode = if (isBodyweight) ExerciseMode.TIME else mode
                             onSave(item.copy(
-                                mode                    = mode,
+                                mode                    = normalizedMode,
                                 sets                    = sets,
-                                reps                    = if (mode == ExerciseMode.REPS) reps else null,
-                                durationSec             = if (mode == ExerciseMode.TIME) durationSec else null,
-                                targetWeightLb          = (weightKg * UnitConversions.LB_PER_KG).roundToInt(),
-                                programMode             = if (programMode == "TUT" && isBeastMode) "TUT Beast" else programMode,
+                                reps                    = if (normalizedMode == ExerciseMode.REPS) reps else null,
+                                durationSec             = if (normalizedMode == ExerciseMode.TIME) durationSec else null,
+                                targetWeightLb          = normalizedWeightLb,
+                                programMode             = normalizedProgramMode,
                                 progressionRegressionLb = progRegLb,
                                 restTimerSec            = restTimerSec,
                                 circuitGroup            = if (isSuperset) circuitGroup else null,
-                                repRangeMin             = if (mode == ExerciseMode.REPS && useRepRange) repRangeMin else null,
-                                repRangeMax             = if (mode == ExerciseMode.REPS && useRepRange) repRangeMax else null,
+                                repRangeMin             = if (normalizedMode == ExerciseMode.REPS && useRepRange) repRangeMin else null,
+                                repRangeMax             = if (normalizedMode == ExerciseMode.REPS && useRepRange) repRangeMax else null,
                             ))
                         },
                         modifier = Modifier.weight(1f),

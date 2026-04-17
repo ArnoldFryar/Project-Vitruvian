@@ -5,7 +5,6 @@ package com.example.vitruvianredux.presentation.screen
 import com.vitruvian.trainer.R
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,21 +28,19 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
-import kotlin.math.sin
-import kotlin.random.Random
 import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.presentation.components.AppOutlinedButton
+import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
@@ -71,48 +68,7 @@ fun WorkoutCompleteContent(
     val ext = LocalExtendedColors.current
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
 
-    // â”€â”€ Confetti animation state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    val confettiProgress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        confettiProgress.animateTo(1f, tween(durationMillis = 2000, easing = LinearEasing))
-    }
-    val confettiColors = remember {
-        listOf(
-            Color(0xFF00E5FF), Color(0xFFFFD740), Color(0xFFFF4081),
-            Color(0xFF69F0AE), Color(0xFFB388FF), Color(0xFFFF6E40),
-        )
-    }
-    data class ConfettiPiece(val x: Float, val startY: Float, val speed: Float, val drift: Float, val color: Color, val size: Float)
-    val pieces = remember {
-        List(40) {
-            ConfettiPiece(
-                x = Random.nextFloat(),
-                startY = -Random.nextFloat() * 0.3f,
-                speed = 0.6f + Random.nextFloat() * 0.5f,
-                drift = (Random.nextFloat() - 0.5f) * 0.15f,
-                color = confettiColors[it % confettiColors.size],
-                size = 4f + Random.nextFloat() * 6f,
-            )
-        }
-    }
-
     Box(modifier = modifier.fillMaxSize()) {
-        // â”€â”€ Confetti canvas layer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val t = confettiProgress.value
-            val fadeOut = if (t > 0.7f) 1f - ((t - 0.7f) / 0.3f) else 1f
-            pieces.forEach { p ->
-                val px = (p.x + p.drift * t) * size.width
-                val py = (p.startY + p.speed * t) * size.height
-                val wobble = sin(t * 10f + p.x * 20f).toFloat() * 3f
-                drawRect(
-                    color = p.color.copy(alpha = fadeOut * 0.8f),
-                    topLeft = Offset(px + wobble, py),
-                    size = Size(p.size, p.size * 1.5f),
-                )
-            }
-        }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -140,19 +96,19 @@ fun WorkoutCompleteContent(
                     scaleX = trophyScale.value
                     scaleY = trophyScale.value
                 },
-            tint               = ext.accentCyan,
+            tint               = MaterialTheme.colorScheme.primary,
         )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text       = "Great Workout!",
+                text       = "Workout complete",
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
             )
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
-                text  = "You crushed it. Here's your summary.",
+                text  = "Review the session, save your notes, and move on when you're ready.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -173,8 +129,8 @@ fun WorkoutCompleteContent(
                         alpha  = prReveal.value
                     },
                 shape     = RoundedCornerShape(AppDimens.Corner.pill),
-                color     = ext.accentAmber.copy(alpha = 0.15f),
-                border    = BorderStroke(1.dp, ext.accentAmber.copy(alpha = 0.5f)),
+                color     = ext.accentAmber.copy(alpha = 0.16f),
+                border    = BorderStroke(1.dp, ext.accentAmber.copy(alpha = 0.4f)),
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
@@ -308,7 +264,7 @@ fun WorkoutCompleteContent(
                         Text(
                             name,
                             style = MaterialTheme.typography.labelSmall,
-                            color = cs.onSurface.copy(alpha = 0.6f),
+                            color = cs.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                         )
                         Text(
@@ -356,46 +312,23 @@ fun WorkoutCompleteContent(
             onValueChange = onNotesChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Workout notes (optional)") },
-            placeholder = { Text("How did it go? Any PRs?", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) },
+            placeholder = { Text("How did it go? Any PRs?", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             minLines = 2,
             maxLines = 5,
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         )
 
         // â”€â”€ Action buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Button(
-            onClick   = onSaveAndExit,
-            modifier  = Modifier
-                .fillMaxWidth()
-                .height(AppDimens.Component.buttonHeightLg),
-            shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
-            colors    = ButtonDefaults.buttonColors(
-                containerColor = cs.primary,
-                contentColor   = cs.onPrimary,
-            ),
-        ) {
-            Icon(AppIcons.Save, contentDescription = stringResource(R.string.cd_save), modifier = Modifier.size(AppDimens.Icon.md))
-            Spacer(Modifier.width(AppDimens.Spacing.sm))
-            Text(
-                text       = "Done",
-                style      = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        GradientButton(
+            text = "Save and Exit",
+            icon = AppIcons.Save,
+            onClick = onSaveAndExit,
+        )
 
-        OutlinedButton(
-            onClick   = onDismiss,
-            modifier  = Modifier
-                .fillMaxWidth()
-                .height(AppDimens.Component.buttonHeightLg),
-            shape     = RoundedCornerShape(AppDimens.Corner.md_sm),
-        ) {
-            Text(
-                text       = "Exit Without Saving",
-                style      = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-        }
+        AppOutlinedButton(
+            text = "Exit Without Saving",
+            onClick = onDismiss,
+        )
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
     }
@@ -431,8 +364,10 @@ private fun StatTile(
         },
         shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.card,
-        border = GlassBorder,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column(
             modifier            = Modifier
@@ -453,12 +388,12 @@ private fun StatTile(
             Text(
                 text  = unit,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text  = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -35,15 +34,17 @@ fun StatCard(
     value: String,
     label: String,
     modifier: Modifier = Modifier,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    compact: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
-    val shape = RoundedCornerShape(AppDimens.Corner.sm)
-    val color = MaterialTheme.colorScheme.surfaceVariant
-    val glassBorder = Modifier.border(
-        width = 0.5.dp,
-        brush = Brush.verticalGradient(
-            listOf(Color.White.copy(alpha = 0.07f), Color.Transparent)
-        ),
+    val cs = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(if (compact) AppDimens.Corner.md_sm else AppDimens.Corner.sm)
+    val color = if (compact) cs.surface else cs.surfaceVariant
+    // Explicit 1dp border replaces the dark-mode-only glassBorder (was invisible in light mode)
+    val cardBorder = Modifier.border(
+        width = AppDimens.Stroke.thin,
+        color = cs.outline,
         shape = shape,
     )
 
@@ -62,50 +63,66 @@ fun StatCard(
         )
         Surface(
             modifier = modifier
-                .then(glassBorder)
+                .then(cardBorder)
                 .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
                 .clickable(interactionSource = interactionSource, indication = null) { onClick() },
             shape = shape,
             color = color,
-            tonalElevation = AppDimens.Elevation.selector,
         ) {
-            StatCardContent(icon = icon, value = value, label = label)
+            StatCardContent(icon = icon, value = value, label = label, accentColor = accentColor, compact = compact)
         }
     } else {
         Surface(
-            modifier = modifier.then(glassBorder),
+            modifier = modifier.then(cardBorder),
             shape = shape,
             color = color,
-            tonalElevation = AppDimens.Elevation.selector,
         ) {
-            StatCardContent(icon = icon, value = value, label = label)
+            StatCardContent(icon = icon, value = value, label = label, accentColor = accentColor, compact = compact)
         }
     }
 }
 
 @Composable
-private fun StatCardContent(icon: ImageVector, value: String, label: String) {
+private fun StatCardContent(
+    icon: ImageVector,
+    value: String,
+    label: String,
+    accentColor: Color,
+    compact: Boolean,
+) {
+    val cs = MaterialTheme.colorScheme
     Column(
         modifier            = Modifier
             .fillMaxWidth()
-            .padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.md),
+            .padding(
+                horizontal = if (compact) AppDimens.Spacing.xs_sm else AppDimens.Spacing.sm,
+                vertical = if (compact) AppDimens.Spacing.sm_md else AppDimens.Spacing.md,
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
     ) {
-        Icon(
-            imageVector       = icon, contentDescription = null /* decorative: value text beside */,
-            tint              = MaterialTheme.colorScheme.primary,
-            modifier          = Modifier.size(AppDimens.Icon.md),
-        )
+        Surface(
+            shape = RoundedCornerShape(AppDimens.Corner.pill),
+            color = accentColor.copy(alpha = if (compact) 0.14f else 0.12f),
+        ) {
+            Icon(
+                imageVector       = icon, contentDescription = null /* decorative: value text beside */,
+                tint              = accentColor,
+                modifier          = Modifier
+                    .padding(if (compact) AppDimens.Spacing.xs_sm else AppDimens.Spacing.sm)
+                    .size(if (compact) AppDimens.Icon.sm else AppDimens.Icon.md),
+            )
+        }
         Text(
             text       = value,
-            style      = MaterialTheme.typography.headlineSmall,
+            style      = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
+            color      = cs.onSurface,
         )
         Text(
             text  = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.labelSmall,
+            color = cs.onSurfaceVariant,
         )
     }
 }

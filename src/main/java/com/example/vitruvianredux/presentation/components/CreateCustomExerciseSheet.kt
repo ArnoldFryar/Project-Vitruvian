@@ -52,6 +52,8 @@ fun CreateCustomExerciseSheet(
         onDismissRequest = onDismiss,
         sheetState       = sheetState,
         windowInsets     = WindowInsets(0),
+        containerColor   = MaterialTheme.colorScheme.surface,
+        tonalElevation   = 0.dp,
     ) {
         Column(
             modifier = Modifier

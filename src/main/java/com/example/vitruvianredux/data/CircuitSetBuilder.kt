@@ -65,6 +65,25 @@ object CircuitSetBuilder {
     }
 
     private fun makeParams(item: ProgramItemDraft, ex: Exercise?, restAfterSec: Int): PlayerSetParams =
+        if (ex?.isBodyweightOnly == true) {
+            PlayerSetParams(
+                exerciseName            = item.exerciseName,
+                thumbnailUrl            = ex.thumbnailUrl,
+                videoUrl                = ex.videoUrl,
+                targetReps              = null,
+                targetDurationSec       = item.durationSec ?: 30,
+                isOffMachineTimer       = true,
+                weightPerCableLb        = 0,
+                restAfterSec            = restAfterSec,
+                warmupReps              = 0,
+                programMode             = "Old School",
+                progressionRegressionLb = item.progressionRegressionLb,
+                muscleGroups            = ex.muscleGroups,
+                numCables               = ex.numCables,
+                repRangeMin             = null,
+                repRangeMax             = null,
+            )
+        } else {
         PlayerSetParams(
             exerciseName            = item.exerciseName,
             thumbnailUrl            = ex?.thumbnailUrl,
@@ -81,4 +100,5 @@ object CircuitSetBuilder {
             repRangeMin             = item.repRangeMin,
             repRangeMax             = item.repRangeMax,
         )
+        }
 }

@@ -65,7 +65,7 @@ fun FatigueTrendGraph(
             Text(
                 text       = "Rep Quality Trend",
                 style      = MaterialTheme.typography.labelSmall,
-                color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                color      = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // ── Sparkline ────────────────────────────────────────────────────

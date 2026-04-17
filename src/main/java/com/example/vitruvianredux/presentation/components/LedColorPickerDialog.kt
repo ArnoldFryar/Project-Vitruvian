@@ -74,7 +74,10 @@ fun LedColorPickerDialog(
                 .wrapContentHeight(),
             shape          = RoundedCornerShape(AppDimens.Corner.lg),
             color          = cs.surface,
-            tonalElevation = AppDimens.Elevation.raised,
+            border         = androidx.compose.foundation.BorderStroke(
+                AppDimens.Stroke.thin,
+                cs.outline,
+            ),
         ) {
             Column(
                 modifier              = Modifier.padding(AppDimens.Spacing.lg),
@@ -200,7 +203,7 @@ private fun LedPresetCard(
                 ),
             shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
             color          = cs.surfaceVariant,
-            tonalElevation = if (isSelected) 4.dp else 1.dp,
+                tonalElevation = 0.dp,
         ) {
             Column(
                 modifier            = Modifier.padding(

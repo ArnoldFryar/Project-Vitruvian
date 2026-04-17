@@ -166,6 +166,14 @@ fun ProfileScreen(
     val lifetimePoints = remember(allLogs) {
         allLogs.sumOf { AnalyticsStore.sessionPoints(it.totalVolumeKg, it.avgQualityScore) }
     }
+    val rank = remember(lifetimePoints) {
+        when {
+            lifetimePoints >= 5000 -> "Elite"
+            lifetimePoints >= 1000 -> "Advanced"
+            lifetimePoints >= 250 -> "Intermediate"
+            else -> "Beginner"
+        }
+    }
     val currentStreak = remember(allLogs, history) {
         val fromAnalytics = AnalyticsStore.currentStreak()
         if (fromAnalytics > 0 || allLogs.isNotEmpty()) fromAnalytics
@@ -241,7 +249,7 @@ fun ProfileScreen(
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)),
+                border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
                 modifier = Modifier.size(64.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -268,28 +276,29 @@ fun ProfileScreen(
                         modifier = Modifier.size(AppDimens.Icon.sm),
                     )
                 }
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = LocalExtendedColors.current.gold.copy(alpha = 0.12f),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs_sm, vertical = AppDimens.Spacing.xxs),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.primary),
                     ) {
-                        Icon(
-                            AppIcons.Star,
-                            contentDescription = null,
-                            tint = LocalExtendedColors.current.gold,
-                            modifier = Modifier.size(AppDimens.Icon.xs),
-                        )
-                        Text(
-                            "$weekPoints pts",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = LocalExtendedColors.current.gold,
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(AppIcons.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(10.dp))
+                            Text(rank, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
                     }
+                    Text(
+                        "$lifetimePoints pts",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
             // BLE connect/disconnect compact button
@@ -329,701 +338,6 @@ fun ProfileScreen(
             ProfileStatCard(modifier = Modifier.weight(1f), value = weekSessions.toString(),     label = stringResource(R.string.profile_stat_sessions), onClick = { showSessionsDetail = true })
             ProfileStatCard(modifier = Modifier.weight(1f), value = "$currentStreak d",          label = stringResource(R.string.profile_stat_streak),   onClick = { showStreakDetail = true })
         }
-        // -- Lifetime points card
-        if (lifetimePoints > 0) {
-            Spacer(Modifier.height(AppDimens.Spacing.sm))
-            Surface(
-                modifier       = Modifier.fillMaxWidth(),
-                shape          = MaterialTheme.shapes.medium,
-                color          = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                tonalElevation = AppDimens.Elevation.raised,
-            ) {
-                Row(
-                    modifier          = Modifier.padding(AppDimens.Spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Lifetime Training Points",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            lifetimePoints.toString(),
-                            style      = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color      = MaterialTheme.colorScheme.primary,
-                        )
-                        val rank = when {
-                            lifetimePoints >= 5000 -> "Elite"
-                            lifetimePoints >= 1000 -> "Advanced"
-                            lifetimePoints >= 250 -> "Intermediate"
-                            else -> "Beginner"
-                        }
-                        Text(
-                            rank,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                        )
-                    }
-                    Icon(
-                        AppIcons.Star,
-                        contentDescription = null,
-                        tint     = LocalExtendedColors.current.gold,
-                        modifier = Modifier.size(AppDimens.Icon.xxl),
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
-
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Volume chart ï¿½ with week navigation
-        //  Real data from WorkoutHistoryStore
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-        ProfileSection(title = stringResource(R.string.metric_volume)) {
-            var selectedTab by remember { mutableIntStateOf(0) }
-            val tabs = listOf("Week", "Month", "Year")
-
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = Color.Transparent,
-                contentColor = cs.primary,
-                divider = {},
-            ) {
-                tabs.forEachIndexed { i, label ->
-                    Tab(
-                        selected = selectedTab == i,
-                        onClick = {
-                            selectedTab = i
-                        },
-                        text = { Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal) },
-                    )
-                }
-            }
-            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
-
-            val today = LocalDate.now()
-            // Period offset for navigation (0 = current, 1 = previous, etc.)
-            var periodOffset by remember { mutableIntStateOf(0) }
-            // Reset offset when switching tabs
-            LaunchedEffect(selectedTab) { periodOffset = 0 }
-
-            when (selectedTab) {
-                0 -> {
-                    // â”€â”€ Week view: Monâ€“Sun, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                    val monday = today.with(java.time.DayOfWeek.MONDAY).minusWeeks(periodOffset.toLong())
-                    val sunday = monday.plusDays(6)
-                    val rangeFmt = DateTimeFormatter.ofPattern("d MMMM")
-                    val yearFmt = DateTimeFormatter.ofPattern("yyyy")
-
-                    // Navigation row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
-                            Icon(AppIcons.KeyboardArrowLeft, "Previous week", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "${rangeFmt.format(monday)} - ${rangeFmt.format(sunday)}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            if (monday.year != today.year) {
-                                Text(yearFmt.format(monday), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        IconButton(
-                            onClick = { if (periodOffset > 0) periodOffset-- },
-                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
-                            enabled = periodOffset > 0,
-                        ) {
-                            Icon(AppIcons.KeyboardArrowRight, "Next week",
-                                tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-                        }
-                    }
-                    Spacer(Modifier.height(AppDimens.Spacing.xs))
-
-                    // Compute daily volume for that week
-                    val weekDays = (0L..6L).map { monday.plusDays(it) }
-                    val volumeData = remember(history, monday) {
-                        WorkoutHistoryStore.dailyVolume(monday, sunday)
-                    }
-                    val sessionData = remember(history, monday) {
-                        WorkoutHistoryStore.dailySessions(monday, sunday)
-                    }
-                    val volumeMap = volumeData.toMap()
-                    val sessionMap = sessionData.toMap()
-                    val dayVolumes = weekDays.map { volumeMap[it] ?: 0.0 }
-                    val daySessions = weekDays.map { sessionMap[it] ?: 0 }
-                    val weekTotal = dayVolumes.sum()
-                    val maxVal = dayVolumes.maxOrNull()?.takeIf { it > 0 } ?: 1.0
-
-                    // Total volume display
-                    val totalDisplay = UnitConversions.formatVolumeFromKg(weekTotal, unitSystem)
-                    Text(
-                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = cs.primary,
-                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
-                    val hasAnyActivity = dayVolumes.any { it > 0.0 } || daySessions.any { it > 0 }
-                    if (!hasAnyActivity) {
-                        Text(stringResource(R.string.profile_empty_week),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-                        val barColor = cs.primary
-                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
-                        // Minimum stub height for sessions with no tracked volume (4dp in px)
-                        val minStubPx = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }
-
-                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
-                            val totalBars = 7
-                            val barWidth = (size.width / totalBars) * 0.55f
-                            val gap = (size.width / totalBars)
-                            dayVolumes.forEachIndexed { i, v ->
-                                val x = i * gap + (gap - barWidth) / 2
-                                drawRoundRect(
-                                    color = bgColor,
-                                    topLeft = Offset(x, 0f),
-                                    size = Size(barWidth, size.height),
-                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
-                                )
-                                val barH = ((v / maxVal) * size.height).toFloat()
-                                if (barH > 0) {
-                                    drawRoundRect(
-                                        color = if (i == todayIndex) barColor else barColor.copy(alpha = 0.7f),
-                                        topLeft = Offset(x, size.height - barH),
-                                        size = Size(barWidth, barH),
-                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
-                                    )
-                                } else if (daySessions[i] > 0) {
-                                    // Session happened but no tracked volume (e.g. Just Lift, warmup-only).
-                                    // Draw a minimal stub so the day doesn't appear empty.
-                                    drawRoundRect(
-                                        color = barColor.copy(alpha = 0.35f),
-                                        topLeft = Offset(x, size.height - minStubPx),
-                                        size = Size(barWidth, minStubPx),
-                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
-                                    )
-                                }
-                            }
-                        }
-                        // Day labels
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEachIndexed { i, label ->
-                                Text(
-                                    label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (i == todayIndex) cs.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                )
-                            }
-                        }
-                    }
-                }
-                1 -> {
-                    // â”€â”€ Month view: ~30 days, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                    val refMonth = today.minusMonths(periodOffset.toLong())
-                    val monthStart = refMonth.withDayOfMonth(1)
-                    val monthEnd = refMonth.withDayOfMonth(refMonth.lengthOfMonth())
-                    val monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy")
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
-                            Icon(AppIcons.KeyboardArrowLeft, "Previous month", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Text(monthFmt.format(refMonth), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        IconButton(
-                            onClick = { if (periodOffset > 0) periodOffset-- },
-                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
-                            enabled = periodOffset > 0,
-                        ) {
-                            Icon(AppIcons.KeyboardArrowRight, "Next month",
-                                tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-                        }
-                    }
-                    Spacer(Modifier.height(AppDimens.Spacing.xs))
-
-                    val volumeData = remember(history, monthStart) {
-                        WorkoutHistoryStore.dailyVolume(monthStart, monthEnd)
-                    }
-                    val monthTotal = volumeData.sumOf { it.second }
-                    val totalDisplay = UnitConversions.formatVolumeFromKg(monthTotal, unitSystem)
-                    Text(
-                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = cs.primary,
-                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
-                    // Aggregate by week
-                    val weeklyBuckets = volumeData.groupBy { (d, _) -> d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR) }
-                        .entries.sortedBy { it.key }
-                        .map { it.value.sumOf { p -> p.second } }
-                    val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1.0
-
-                    if (weeklyBuckets.all { it == 0.0 }) {
-                        Text(stringResource(R.string.profile_empty_month), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        val barColor = cs.primary
-                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
-                            val totalBars = weeklyBuckets.size
-                            val barWidth = (size.width / totalBars.coerceAtLeast(1)) * 0.55f
-                            val gap = size.width / totalBars.coerceAtLeast(1)
-                            weeklyBuckets.forEachIndexed { i, v ->
-                                val x = i * gap + (gap - barWidth) / 2
-                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                                val barH = ((v / maxVal) * size.height).toFloat()
-                                if (barH > 0) drawRoundRect(color = barColor, topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                            }
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            weeklyBuckets.indices.forEach { i ->
-                                Text("W${i + 1}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                            }
-                        }
-                    }
-                }
-                2 -> {
-                    // â”€â”€ Year view: 12 months, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                    val refYear = today.year - periodOffset
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
-                            Icon(AppIcons.KeyboardArrowLeft, "Previous year", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Text("$refYear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        IconButton(
-                            onClick = { if (periodOffset > 0) periodOffset-- },
-                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
-                            enabled = periodOffset > 0,
-                        ) {
-                            Icon(AppIcons.KeyboardArrowRight, "Next year",
-                                tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
-                        }
-                    }
-                    Spacer(Modifier.height(AppDimens.Spacing.xs))
-
-                    val yearStart = LocalDate.of(refYear, 1, 1)
-                    val yearEnd = LocalDate.of(refYear, 12, 31).let { if (it.isAfter(today)) today else it }
-                    val volumeData = remember(history, refYear) {
-                        WorkoutHistoryStore.dailyVolume(yearStart, yearEnd)
-                    }
-                    val yearTotal = volumeData.sumOf { it.second }
-                    val totalDisplay = UnitConversions.formatVolumeFromKg(yearTotal, unitSystem)
-                    Text(
-                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = cs.primary,
-                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
-                    val monthlyBuckets = (1..12).map { m ->
-                        volumeData.filter { it.first.monthValue == m }.sumOf { it.second }
-                    }
-                    val maxVal = monthlyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1.0
-                    val monthLabels = listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D")
-
-                    if (monthlyBuckets.all { it == 0.0 }) {
-                        Text(stringResource(R.string.profile_empty_year), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        val barColor = cs.primary
-                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
-                            val totalBars = 12
-                            val barWidth = (size.width / totalBars) * 0.55f
-                            val gap = size.width / totalBars
-                            monthlyBuckets.forEachIndexed { i, v ->
-                                val x = i * gap + (gap - barWidth) / 2
-                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                                val barH = ((v / maxVal) * size.height).toFloat()
-                                if (barH > 0) drawRoundRect(color = barColor, topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                            }
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            monthLabels.forEachIndexed { i, label ->
-                                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
-
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Sessions chart — navigable (same style as Volume)
-        //  Real data from WorkoutHistoryStore
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        ProfileSection(title = stringResource(R.string.profile_stat_sessions)) {
-            var selectedTab by remember { mutableIntStateOf(0) }
-            val tabs = listOf("Week", "Month", "Year")
-
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = Color.Transparent,
-                contentColor = cs.primary,
-                divider = {},
-            ) {
-                tabs.forEachIndexed { i, label ->
-                    Tab(
-                        selected = selectedTab == i,
-                        onClick = { selectedTab = i },
-                        text = { Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal) },
-                    )
-                }
-            }
-            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
-
-            val today = LocalDate.now()
-            var periodOffset by remember { mutableIntStateOf(0) }
-            LaunchedEffect(selectedTab) { periodOffset = 0 }
-
-            val sessColor = MaterialTheme.colorScheme.secondary
-            val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-
-            when (selectedTab) {
-                0 -> {
-                    val monday = today.with(java.time.DayOfWeek.MONDAY).minusWeeks(periodOffset.toLong())
-                    val sunday = monday.plusDays(6)
-                    val rangeFmt = DateTimeFormatter.ofPattern("d MMMM")
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(AppIcons.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        Text("${rangeFmt.format(monday)} - ${rangeFmt.format(sunday)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(AppIcons.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
-                    }
-
-                    val sessionData = remember(history, monday) { WorkoutHistoryStore.dailySessions(monday, sunday) }
-                    val sessionMap = sessionData.toMap()
-                    val weekDays = (0L..6L).map { monday.plusDays(it) }
-                    val dayValues = weekDays.map { sessionMap[it] ?: 0 }
-                    val weekTotal = dayValues.sum()
-                    Text("$weekTotal session${if (weekTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
-                    val maxSessions = dayValues.maxOrNull()?.takeIf { it > 0 } ?: 1
-                    val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
-                    if (dayValues.all { it == 0 }) {
-                        Text(stringResource(R.string.profile_sessions_empty_week), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
-                            val totalBars = 7; val barWidth = (size.width / totalBars) * 0.55f; val gap = size.width / totalBars
-                            dayValues.forEachIndexed { i, v ->
-                                val x = i * gap + (gap - barWidth) / 2
-                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                                val barH = (v.toFloat() / maxSessions) * size.height
-                                if (barH > 0) drawRoundRect(color = if (i == todayIndex) sessColor else sessColor.copy(alpha = 0.7f), topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                            }
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEachIndexed { i, label ->
-                                Text(label, style = MaterialTheme.typography.labelSmall, color = if (i == todayIndex) sessColor else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                            }
-                        }
-                    }
-                }
-                1 -> {
-                    val refMonth = today.minusMonths(periodOffset.toLong())
-                    val monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy")
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(AppIcons.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        Text(monthFmt.format(refMonth), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(AppIcons.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
-                    }
-                    val monthStart = refMonth.withDayOfMonth(1); val monthEnd = refMonth.withDayOfMonth(refMonth.lengthOfMonth())
-                    val sessionData = remember(history, monthStart) { WorkoutHistoryStore.dailySessions(monthStart, monthEnd) }
-                    val weeklyBuckets = sessionData.groupBy { (d, _) -> d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR) }.entries.sortedBy { it.key }.map { it.value.sumOf { p -> p.second } }
-                    val monthTotal = sessionData.sumOf { it.second }
-                    Text("$monthTotal session${if (monthTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
-                    val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
-                    if (weeklyBuckets.all { it == 0 }) {
-                        Text(stringResource(R.string.profile_sessions_empty_month), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
-                            val totalBars = weeklyBuckets.size; val barWidth = (size.width / totalBars.coerceAtLeast(1)) * 0.55f; val gap = size.width / totalBars.coerceAtLeast(1)
-                            weeklyBuckets.forEachIndexed { i, v ->
-                                val x = i * gap + (gap - barWidth) / 2
-                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                                val barH = (v.toFloat() / maxVal) * size.height
-                                if (barH > 0) drawRoundRect(color = sessColor, topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                            }
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            weeklyBuckets.indices.forEach { i -> Text("W${i + 1}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
-                        }
-                    }
-                }
-                2 -> {
-                    val refYear = today.year - periodOffset
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(AppIcons.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-                        Text("$refYear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(AppIcons.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)) }
-                    }
-                    val yearStart = LocalDate.of(refYear, 1, 1); val yearEnd = LocalDate.of(refYear, 12, 31).let { if (it.isAfter(today)) today else it }
-                    val sessionData = remember(history, refYear) { WorkoutHistoryStore.dailySessions(yearStart, yearEnd) }
-                    val monthlyBuckets = (1..12).map { m -> sessionData.filter { it.first.monthValue == m }.sumOf { it.second } }
-                    val yearTotal = sessionData.sumOf { it.second }
-                    Text("$yearTotal session${if (yearTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
-                    val maxVal = monthlyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
-                    if (monthlyBuckets.all { it == 0 }) {
-                        Text(stringResource(R.string.profile_sessions_empty_year), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
-                            val totalBars = 12; val barWidth = (size.width / totalBars) * 0.55f; val gap = size.width / totalBars
-                            monthlyBuckets.forEachIndexed { i, v ->
-                                val x = i * gap + (gap - barWidth) / 2
-                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                                val barH = (v.toFloat() / maxVal) * size.height
-                                if (barH > 0) drawRoundRect(color = sessColor, topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
-                            }
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D").forEach { label -> Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
-
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        //  Muscle Groups donut chart — real data with date filter
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-        ProfileSection(title = "Muscle Groups") {
-            val periodOptions = listOf("Last 7 days" to 7, "Last 14 days" to 14, "Last 30 days" to 30, "All time" to null)
-            var selectedPeriodIdx by remember { mutableIntStateOf(2) } // default: 30 days
-            var expanded by remember { mutableStateOf(false) }
-            val selectedDays = periodOptions[selectedPeriodIdx].second
-
-            // Dropdown selector
-            Box {
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = AppDimens.Elevation.card,
-                    modifier = Modifier.clickable { expanded = true },
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.xs_sm),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(periodOptions[selectedPeriodIdx].first, style = MaterialTheme.typography.labelMedium, color = cs.primary)
-                        Icon(AppIcons.ArrowDropDown, contentDescription = stringResource(R.string.cd_period_dropdown), tint = cs.primary, modifier = Modifier.size(AppDimens.Icon.md))
-                    }
-                }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    periodOptions.forEachIndexed { i, (label, _) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            onClick = { selectedPeriodIdx = i; expanded = false },
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
-
-            val distribution = remember(history, selectedDays, exerciseLookup.value) {
-                // Weighted distribution: count muscle groups per exercise, not per workout
-                val lookup = exerciseLookup.value
-                val cutoff = if (selectedDays != null) LocalDate.now().minusDays((selectedDays - 1).toLong()) else null
-                val filtered = if (cutoff != null) history.filter { it.date >= cutoff } else history
-                val counts = mutableMapOf<String, Int>()
-                for (record in filtered) {
-                    if (lookup.isNotEmpty()) {
-                        // Use catalog to properly weight per exercise
-                        for (exName in record.exerciseNames) {
-                            val groups = lookup[exName.uppercase()]
-                            if (groups != null) {
-                                for (g in groups) counts[g.uppercase()] = (counts[g.uppercase()] ?: 0) + 1
-                            }
-                        }
-                    } else {
-                        // Fallback: use stored muscle groups (flat count)
-                        for (g in record.muscleGroups) counts[g.uppercase()] = (counts[g.uppercase()] ?: 0) + 1
-                    }
-                }
-                counts
-            }
-            val total = distribution.values.sum().toFloat().coerceAtLeast(1f)
-
-            if (distribution.isEmpty()) {
-                Text(
-                    "Complete a workout to see muscle group data",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                // Pick up to top 5 groups, rest lumped into "Other"
-                val palette = listOf(
-                    BrandCyan,
-                    MaterialTheme.colorScheme.secondary,
-                    AccentCyan,
-                    Gold,
-                    MaterialTheme.colorScheme.tertiary,
-                    LocalExtendedColors.current.accentRed,
-                )
-                val sorted = distribution.entries.sortedByDescending { it.value }
-                val top5 = sorted.take(5)
-                val otherCount = sorted.drop(5).sumOf { it.value }
-                val sliceEntries = top5.mapIndexed { i, (name, count) ->
-                    Triple(name.lowercase().replaceFirstChar { it.uppercaseChar() }, count, palette[i])
-                } + if (otherCount > 0) listOf(Triple("Other", otherCount, palette[5])) else emptyList()
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Donut chart with center label
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(100.dp)) {
-                        Canvas(modifier = Modifier.matchParentSize()) {
-                            val strokeW = 26f
-                            val gapDeg = if (sliceEntries.size > 1) 2f else 0f
-                            val stroke = Stroke(width = strokeW, cap = StrokeCap.Butt)
-                            var startAngle = -90f
-                            sliceEntries.forEach { (_, count, color) ->
-                                val sweep = ((count / total) * 360f) - gapDeg
-                                drawArc(
-                                    color = color,
-                                    startAngle = startAngle + gapDeg / 2f,
-                                    sweepAngle = sweep.coerceAtLeast(1f),
-                                    useCenter = false,
-                                    style = stroke,
-                                    topLeft = Offset(strokeW / 2f, strokeW / 2f),
-                                    size = Size(size.width - strokeW, size.height - strokeW),
-                                )
-                                startAngle += sweep + gapDeg
-                            }
-                        }
-                        Text(
-                            sliceEntries.firstOrNull()?.first?.let {
-                                if (it.length > 6) it.take(5) + "." else it
-                            } ?: "",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    Spacer(Modifier.width(AppDimens.Spacing.md))
-                    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm)) {
-                        sliceEntries.forEach { (name, count, color) ->
-                            val pct = ((count / total) * 100).toInt()
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(shape = CircleShape, color = color, modifier = Modifier.size(10.dp)) {}
-                                Spacer(Modifier.width(AppDimens.Spacing.sm))
-                                Text(name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                                Text("$pct%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
-
-        // -----------------------------------------------------------
-        //  Consistency heatmap ï¿½ GitHub-style training calendar
-        // -----------------------------------------------------------
-        ProfileSection(title = "Training Momentum") {
-            TrainingMomentumCard(allLogs = allLogs, scheduledDays = effectiveScheduledDays)
-
-            Spacer(Modifier.height(AppDimens.Spacing.md))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-            Spacer(Modifier.height(AppDimens.Spacing.sm))
-
-            // -- Training schedule day picker ---------------------------
-            Text(stringResource(R.string.profile_training_days),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
-            )
-            if (fromPrograms.isNotEmpty()) {
-                Text(stringResource(R.string.profile_training_days_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
-                )
-            }
-            val allDays = remember {
-                listOf(
-                    DayOfWeek.MONDAY    to "M",
-                    DayOfWeek.TUESDAY   to "T",
-                    DayOfWeek.WEDNESDAY to "W",
-                    DayOfWeek.THURSDAY  to "T",
-                    DayOfWeek.FRIDAY    to "F",
-                    DayOfWeek.SATURDAY  to "S",
-                    DayOfWeek.SUNDAY    to "S",
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                allDays.forEach { (day, label) ->
-                    val selected = scheduledDays.contains(day)
-                    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-                    Surface(
-                        shape = CircleShape,
-                        color = if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clickable(
-                                interactionSource = interactionSource,
-                                indication = null,
-                            ) {
-                                val updated = if (selected) scheduledDays - day else scheduledDays + day
-                                ProfileStore.setScheduledDays(updated)
-                            },
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Text(
-                                text       = label,
-                                style      = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color      = if (selected) MaterialTheme.colorScheme.onPrimary
-                                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
@@ -1035,7 +349,7 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = AppDimens.Elevation.raised,
+            border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Row(
                 modifier = Modifier
@@ -1168,12 +482,13 @@ fun ProfileScreen(
                             val sessionHasPrs = com.example.vitruvianredux.data.PrTracker.sessionHasPrs(prResult, session.id)
 
                             // -- Session card --
-                            ElevatedCard(
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = AppDimens.Spacing.sm)
                                     .clickable { expanded = !expanded },
-                                elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                                border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                             ) {
                                 Column(modifier = Modifier
                                     .animateContentSize(tween(MotionTokens.STANDARD_MS))
@@ -1343,9 +658,10 @@ fun ProfileScreen(
                         val workoutTitle = record.programName ?: if (record.exerciseNames.size <= 1) "Quick Lift" else
                             record.exerciseNames.take(2).joinToString(", ") +
                                 if (record.exerciseNames.size > 2) " +${record.exerciseNames.size - 2}" else ""
-                        ElevatedCard(
+                        Card(
                             modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.sm),
-                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md_sm2),
@@ -1374,10 +690,695 @@ fun ProfileScreen(
         } // end Column (AnimatedVisibility)
         } // end AnimatedVisibility
 
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+        // -----------------------------------------------------------
+        //  Consistency heatmap ï¿½ GitHub-style training calendar
+        // -----------------------------------------------------------
+        ProfileSection(title = "Training Momentum") {
+            TrainingMomentumCard(allLogs = allLogs, scheduledDays = effectiveScheduledDays)
+
+            Spacer(Modifier.height(AppDimens.Spacing.md))
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+            // -- Training schedule day picker ---------------------------
+            Text(stringResource(R.string.profile_training_days),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
+            )
+            if (fromPrograms.isNotEmpty()) {
+                Text(stringResource(R.string.profile_training_days_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
+                )
+            }
+            val allDays = remember {
+                listOf(
+                    DayOfWeek.MONDAY    to "M",
+                    DayOfWeek.TUESDAY   to "T",
+                    DayOfWeek.WEDNESDAY to "W",
+                    DayOfWeek.THURSDAY  to "T",
+                    DayOfWeek.FRIDAY    to "F",
+                    DayOfWeek.SATURDAY  to "S",
+                    DayOfWeek.SUNDAY    to "S",
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                allDays.forEach { (day, label) ->
+                    val selected = scheduledDays.contains(day)
+                    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    Surface(
+                        shape = CircleShape,
+                        color = if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                            ) {
+                                val updated = if (selected) scheduledDays - day else scheduledDays + day
+                                ProfileStore.setScheduledDays(updated)
+                            },
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text       = label,
+                                style      = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color      = if (selected) MaterialTheme.colorScheme.onPrimary
+                                             else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
+
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        //  Volume chart ï¿½ with week navigation
+        //  Real data from WorkoutHistoryStore
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+        ProfileSection(title = stringResource(R.string.metric_volume)) {
+            var selectedTab by remember { mutableIntStateOf(0) }
+            val tabs = listOf("Week", "Month", "Year")
+
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = Color.Transparent,
+                contentColor = cs.primary,
+                divider = {},
+            ) {
+                tabs.forEachIndexed { i, label ->
+                    Tab(
+                        selected = selectedTab == i,
+                        onClick = {
+                            selectedTab = i
+                        },
+                        text = { Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+
+            val today = LocalDate.now()
+            // Period offset for navigation (0 = current, 1 = previous, etc.)
+            var periodOffset by remember { mutableIntStateOf(0) }
+            // Reset offset when switching tabs
+            LaunchedEffect(selectedTab) { periodOffset = 0 }
+
+            when (selectedTab) {
+                0 -> {
+                    // â”€â”€ Week view: Monâ€“Sun, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    val monday = today.with(java.time.DayOfWeek.MONDAY).minusWeeks(periodOffset.toLong())
+                    val sunday = monday.plusDays(6)
+                    val rangeFmt = DateTimeFormatter.ofPattern("d MMMM")
+                    val yearFmt = DateTimeFormatter.ofPattern("yyyy")
+
+                    // Navigation row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
+                            Icon(AppIcons.KeyboardArrowLeft, "Previous week", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "${rangeFmt.format(monday)} - ${rangeFmt.format(sunday)}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            if (monday.year != today.year) {
+                                Text(yearFmt.format(monday), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        IconButton(
+                            onClick = { if (periodOffset > 0) periodOffset-- },
+                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
+                            enabled = periodOffset > 0,
+                        ) {
+                            Icon(AppIcons.KeyboardArrowRight, "Next week",
+                                tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
+
+                    // Compute daily volume for that week
+                    val weekDays = (0L..6L).map { monday.plusDays(it) }
+                    val volumeData = remember(history, monday) {
+                        WorkoutHistoryStore.dailyVolume(monday, sunday)
+                    }
+                    val sessionData = remember(history, monday) {
+                        WorkoutHistoryStore.dailySessions(monday, sunday)
+                    }
+                    val volumeMap = volumeData.toMap()
+                    val sessionMap = sessionData.toMap()
+                    val dayVolumes = weekDays.map { volumeMap[it] ?: 0.0 }
+                    val daySessions = weekDays.map { sessionMap[it] ?: 0 }
+                    val weekTotal = dayVolumes.sum()
+                    val maxVal = dayVolumes.maxOrNull()?.takeIf { it > 0 } ?: 1.0
+
+                    // Total volume display
+                    val totalDisplay = UnitConversions.formatVolumeFromKg(weekTotal, unitSystem)
+                    Text(
+                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = cs.primary,
+                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+                    val hasAnyActivity = dayVolumes.any { it > 0.0 } || daySessions.any { it > 0 }
+                    if (!hasAnyActivity) {
+                        Text(stringResource(R.string.profile_empty_week),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                        val barColor = cs.primary
+                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
+                        // Minimum stub height for sessions with no tracked volume (4dp in px)
+                        val minStubPx = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }
+
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
+                            val totalBars = 7
+                            val barWidth = (size.width / totalBars) * 0.55f
+                            val gap = (size.width / totalBars)
+                            dayVolumes.forEachIndexed { i, v ->
+                                val x = i * gap + (gap - barWidth) / 2
+                                drawRoundRect(
+                                    color = bgColor,
+                                    topLeft = Offset(x, 0f),
+                                    size = Size(barWidth, size.height),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
+                                )
+                                val barH = ((v / maxVal) * size.height).toFloat()
+                                if (barH > 0) {
+                                    drawRoundRect(
+                                        color = if (i == todayIndex) barColor else barColor.copy(alpha = 0.7f),
+                                        topLeft = Offset(x, size.height - barH),
+                                        size = Size(barWidth, barH),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
+                                    )
+                                } else if (daySessions[i] > 0) {
+                                    // Session happened but no tracked volume (e.g. Just Lift, warmup-only).
+                                    // Draw a minimal stub so the day doesn't appear empty.
+                                    drawRoundRect(
+                                        color = barColor.copy(alpha = 0.35f),
+                                        topLeft = Offset(x, size.height - minStubPx),
+                                        size = Size(barWidth, minStubPx),
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
+                                    )
+                                }
+                            }
+                        }
+                        // Day labels
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEachIndexed { i, label ->
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (i == todayIndex) cs.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                )
+                            }
+                        }
+                    }
+                }
+                1 -> {
+                    // â”€â”€ Month view: ~30 days, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    val refMonth = today.minusMonths(periodOffset.toLong())
+                    val monthStart = refMonth.withDayOfMonth(1)
+                    val monthEnd = refMonth.withDayOfMonth(refMonth.lengthOfMonth())
+                    val monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy")
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
+                            Icon(AppIcons.KeyboardArrowLeft, "Previous month", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(monthFmt.format(refMonth), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+                        IconButton(
+                            onClick = { if (periodOffset > 0) periodOffset-- },
+                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
+                            enabled = periodOffset > 0,
+                        ) {
+                            Icon(AppIcons.KeyboardArrowRight, "Next month",
+                                tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
+
+                    val volumeData = remember(history, monthStart) {
+                        WorkoutHistoryStore.dailyVolume(monthStart, monthEnd)
+                    }
+                    val monthTotal = volumeData.sumOf { it.second }
+                    val totalDisplay = UnitConversions.formatVolumeFromKg(monthTotal, unitSystem)
+                    Text(
+                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = cs.primary,
+                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+                    // Aggregate by week
+                    val weeklyBuckets = volumeData.groupBy { (d, _) -> d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR) }
+                        .entries.sortedBy { it.key }
+                        .map { it.value.sumOf { p -> p.second } }
+                    val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1.0
+
+                    if (weeklyBuckets.all { it == 0.0 }) {
+                        Text(stringResource(R.string.profile_empty_month), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        val barColor = cs.primary
+                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
+                            val totalBars = weeklyBuckets.size
+                            val barWidth = (size.width / totalBars.coerceAtLeast(1)) * 0.55f
+                            val gap = size.width / totalBars.coerceAtLeast(1)
+                            weeklyBuckets.forEachIndexed { i, v ->
+                                val x = i * gap + (gap - barWidth) / 2
+                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                                val barH = ((v / maxVal) * size.height).toFloat()
+                                if (barH > 0) drawRoundRect(color = barColor, topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            weeklyBuckets.indices.forEach { i ->
+                                Text("W${i + 1}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            }
+                        }
+                    }
+                }
+                2 -> {
+                    // â”€â”€ Year view: 12 months, navigable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                    val refYear = today.year - periodOffset
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) {
+                            Icon(AppIcons.KeyboardArrowLeft, "Previous year", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text("$refYear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+                        IconButton(
+                            onClick = { if (periodOffset > 0) periodOffset-- },
+                            modifier = Modifier.size(AppDimens.Icon.xxl_sm),
+                            enabled = periodOffset > 0,
+                        ) {
+                            Icon(AppIcons.KeyboardArrowRight, "Next year",
+                                tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
+
+                    val yearStart = LocalDate.of(refYear, 1, 1)
+                    val yearEnd = LocalDate.of(refYear, 12, 31).let { if (it.isAfter(today)) today else it }
+                    val volumeData = remember(history, refYear) {
+                        WorkoutHistoryStore.dailyVolume(yearStart, yearEnd)
+                    }
+                    val yearTotal = volumeData.sumOf { it.second }
+                    val totalDisplay = UnitConversions.formatVolumeFromKg(yearTotal, unitSystem)
+                    Text(
+                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = cs.primary,
+                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+                    val monthlyBuckets = (1..12).map { m ->
+                        volumeData.filter { it.first.monthValue == m }.sumOf { it.second }
+                    }
+                    val maxVal = monthlyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1.0
+                    val monthLabels = listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D")
+
+                    if (monthlyBuckets.all { it == 0.0 }) {
+                        Text(stringResource(R.string.profile_empty_year), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        val barColor = cs.primary
+                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
+                            val totalBars = 12
+                            val barWidth = (size.width / totalBars) * 0.55f
+                            val gap = size.width / totalBars
+                            monthlyBuckets.forEachIndexed { i, v ->
+                                val x = i * gap + (gap - barWidth) / 2
+                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                                val barH = ((v / maxVal) * size.height).toFloat()
+                                if (barH > 0) drawRoundRect(color = barColor, topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            monthLabels.forEachIndexed { i, label ->
+                                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        //  Sessions chart — navigable (same style as Volume)
+        //  Real data from WorkoutHistoryStore
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        ProfileSection(title = stringResource(R.string.profile_stat_sessions)) {
+            var selectedTab by remember { mutableIntStateOf(0) }
+            val tabs = listOf("Week", "Month", "Year")
+
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = Color.Transparent,
+                contentColor = cs.primary,
+                divider = {},
+            ) {
+                tabs.forEachIndexed { i, label ->
+                    Tab(
+                        selected = selectedTab == i,
+                        onClick = { selectedTab = i },
+                        text = { Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+
+            val today = LocalDate.now()
+            var periodOffset by remember { mutableIntStateOf(0) }
+            LaunchedEffect(selectedTab) { periodOffset = 0 }
+
+            val sessColor = MaterialTheme.colorScheme.secondary
+            val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+
+            when (selectedTab) {
+                0 -> {
+                    val monday = today.with(java.time.DayOfWeek.MONDAY).minusWeeks(periodOffset.toLong())
+                    val sunday = monday.plusDays(6)
+                    val rangeFmt = DateTimeFormatter.ofPattern("d MMMM")
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(AppIcons.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Text("${rangeFmt.format(monday)} - ${rangeFmt.format(sunday)}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(AppIcons.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+
+                    val sessionData = remember(history, monday) { WorkoutHistoryStore.dailySessions(monday, sunday) }
+                    val sessionMap = sessionData.toMap()
+                    val weekDays = (0L..6L).map { monday.plusDays(it) }
+                    val dayValues = weekDays.map { sessionMap[it] ?: 0 }
+                    val weekTotal = dayValues.sum()
+                    Text("$weekTotal session${if (weekTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+                    val maxSessions = dayValues.maxOrNull()?.takeIf { it > 0 } ?: 1
+                    val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
+                    if (dayValues.all { it == 0 }) {
+                        Text(stringResource(R.string.profile_sessions_empty_week), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
+                            val totalBars = 7; val barWidth = (size.width / totalBars) * 0.55f; val gap = size.width / totalBars
+                            dayValues.forEachIndexed { i, v ->
+                                val x = i * gap + (gap - barWidth) / 2
+                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                                val barH = (v.toFloat() / maxSessions) * size.height
+                                if (barH > 0) drawRoundRect(color = if (i == todayIndex) sessColor else sessColor.copy(alpha = 0.7f), topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEachIndexed { i, label ->
+                                Text(label, style = MaterialTheme.typography.labelSmall, color = if (i == todayIndex) sessColor else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            }
+                        }
+                    }
+                }
+                1 -> {
+                    val refMonth = today.minusMonths(periodOffset.toLong())
+                    val monthFmt = DateTimeFormatter.ofPattern("MMMM yyyy")
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(AppIcons.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Text(monthFmt.format(refMonth), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(AppIcons.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                    val monthStart = refMonth.withDayOfMonth(1); val monthEnd = refMonth.withDayOfMonth(refMonth.lengthOfMonth())
+                    val sessionData = remember(history, monthStart) { WorkoutHistoryStore.dailySessions(monthStart, monthEnd) }
+                    val weeklyBuckets = sessionData.groupBy { (d, _) -> d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR) }.entries.sortedBy { it.key }.map { it.value.sumOf { p -> p.second } }
+                    val monthTotal = sessionData.sumOf { it.second }
+                    Text("$monthTotal session${if (monthTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+                    val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
+                    if (weeklyBuckets.all { it == 0 }) {
+                        Text(stringResource(R.string.profile_sessions_empty_month), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
+                            val totalBars = weeklyBuckets.size; val barWidth = (size.width / totalBars.coerceAtLeast(1)) * 0.55f; val gap = size.width / totalBars.coerceAtLeast(1)
+                            weeklyBuckets.forEachIndexed { i, v ->
+                                val x = i * gap + (gap - barWidth) / 2
+                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                                val barH = (v.toFloat() / maxVal) * size.height
+                                if (barH > 0) drawRoundRect(color = sessColor, topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            weeklyBuckets.indices.forEach { i -> Text("W${i + 1}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+                        }
+                    }
+                }
+                2 -> {
+                    val refYear = today.year - periodOffset
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        IconButton(onClick = { periodOffset++ }, modifier = Modifier.size(AppDimens.Icon.xxl_sm)) { Icon(AppIcons.KeyboardArrowLeft, "Previous", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        Text("$refYear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+                        IconButton(onClick = { if (periodOffset > 0) periodOffset-- }, modifier = Modifier.size(AppDimens.Icon.xxl_sm), enabled = periodOffset > 0) { Icon(AppIcons.KeyboardArrowRight, "Next", tint = if (periodOffset > 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                    val yearStart = LocalDate.of(refYear, 1, 1); val yearEnd = LocalDate.of(refYear, 12, 31).let { if (it.isAfter(today)) today else it }
+                    val sessionData = remember(history, refYear) { WorkoutHistoryStore.dailySessions(yearStart, yearEnd) }
+                    val monthlyBuckets = (1..12).map { m -> sessionData.filter { it.first.monthValue == m }.sumOf { it.second } }
+                    val yearTotal = sessionData.sumOf { it.second }
+                    Text("$yearTotal session${if (yearTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+                    val maxVal = monthlyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
+                    if (monthlyBuckets.all { it == 0 }) {
+                        Text(stringResource(R.string.profile_sessions_empty_year), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
+                            val totalBars = 12; val barWidth = (size.width / totalBars) * 0.55f; val gap = size.width / totalBars
+                            monthlyBuckets.forEachIndexed { i, v ->
+                                val x = i * gap + (gap - barWidth) / 2
+                                drawRoundRect(color = bgColor, topLeft = Offset(x, 0f), size = Size(barWidth, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                                val barH = (v.toFloat() / maxVal) * size.height
+                                if (barH > 0) drawRoundRect(color = sessColor, topLeft = Offset(x, size.height - barH), size = Size(barWidth, barH), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f))
+                            }
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D").forEach { label -> Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        //  Muscle Groups donut chart — real data with date filter
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        ProfileSection(title = "Muscle Groups") {
+            val periodOptions = listOf("Last 7 days" to 7, "Last 14 days" to 14, "Last 30 days" to 30, "All time" to null)
+            var selectedPeriodIdx by remember { mutableIntStateOf(2) } // default: 30 days
+            var expanded by remember { mutableStateOf(false) }
+            val selectedDays = periodOptions[selectedPeriodIdx].second
+
+            // Dropdown selector
+            Box {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.clickable { expanded = true },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.xs_sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(periodOptions[selectedPeriodIdx].first, style = MaterialTheme.typography.labelMedium, color = cs.primary)
+                        Icon(AppIcons.ArrowDropDown, contentDescription = stringResource(R.string.cd_period_dropdown), tint = cs.primary, modifier = Modifier.size(AppDimens.Icon.md))
+                    }
+                }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    periodOptions.forEachIndexed { i, (label, _) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = { selectedPeriodIdx = i; expanded = false },
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+
+            val distribution = remember(history, selectedDays, exerciseLookup.value) {
+                // Weighted distribution: count muscle groups per exercise, not per workout
+                val lookup = exerciseLookup.value
+                val cutoff = if (selectedDays != null) LocalDate.now().minusDays((selectedDays - 1).toLong()) else null
+                val filtered = if (cutoff != null) history.filter { it.date >= cutoff } else history
+                val counts = mutableMapOf<String, Int>()
+                for (record in filtered) {
+                    if (lookup.isNotEmpty()) {
+                        // Use catalog to properly weight per exercise
+                        for (exName in record.exerciseNames) {
+                            val groups = lookup[exName.uppercase()]
+                            if (groups != null) {
+                                for (g in groups) counts[g.uppercase()] = (counts[g.uppercase()] ?: 0) + 1
+                            }
+                        }
+                    } else {
+                        // Fallback: use stored muscle groups (flat count)
+                        for (g in record.muscleGroups) counts[g.uppercase()] = (counts[g.uppercase()] ?: 0) + 1
+                    }
+                }
+                counts
+            }
+            val total = distribution.values.sum().toFloat().coerceAtLeast(1f)
+
+            if (distribution.isEmpty()) {
+                Text(
+                    "Complete a workout to see muscle group data",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                // Pick up to top 5 groups, rest lumped into "Other"
+                val palette = listOf(
+                    BrandCyan,
+                    MaterialTheme.colorScheme.secondary,
+                    AccentCyan,
+                    Gold,
+                    MaterialTheme.colorScheme.tertiary,
+                    LocalExtendedColors.current.accentRed,
+                )
+                val sorted = distribution.entries.sortedByDescending { it.value }
+                val top5 = sorted.take(5)
+                val otherCount = sorted.drop(5).sumOf { it.value }
+                val sliceEntries = top5.mapIndexed { i, (name, count) ->
+                    Triple(name.lowercase().replaceFirstChar { it.uppercaseChar() }, count, palette[i])
+                } + if (otherCount > 0) listOf(Triple("Other", otherCount, palette[5])) else emptyList()
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Donut chart with center label
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(100.dp)) {
+                        Canvas(modifier = Modifier.matchParentSize()) {
+                            val strokeW = 26f
+                            val gapDeg = if (sliceEntries.size > 1) 2f else 0f
+                            val stroke = Stroke(width = strokeW, cap = StrokeCap.Butt)
+                            var startAngle = -90f
+                            sliceEntries.forEach { (_, count, color) ->
+                                val sweep = ((count / total) * 360f) - gapDeg
+                                drawArc(
+                                    color = color,
+                                    startAngle = startAngle + gapDeg / 2f,
+                                    sweepAngle = sweep.coerceAtLeast(1f),
+                                    useCenter = false,
+                                    style = stroke,
+                                    topLeft = Offset(strokeW / 2f, strokeW / 2f),
+                                    size = Size(size.width - strokeW, size.height - strokeW),
+                                )
+                                startAngle += sweep + gapDeg
+                            }
+                        }
+                        Text(
+                            sliceEntries.firstOrNull()?.first?.let {
+                                if (it.length > 6) it.take(5) + "." else it
+                            } ?: "",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Spacer(Modifier.width(AppDimens.Spacing.md))
+                    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm)) {
+                        sliceEntries.forEach { (name, count, color) ->
+                            val pct = ((count / total) * 100).toInt()
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(shape = CircleShape, color = color, modifier = Modifier.size(10.dp)) {}
+                                Spacer(Modifier.width(AppDimens.Spacing.sm))
+                                Text(name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                                Text("$pct%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
+        Text(
+            "ANALYTICS",
+            style = MaterialTheme.typography.labelSmall,
+            letterSpacing = 1.2.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
+        )
+        PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToAnalytics) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    AppIcons.BarChart, contentDescription = "Analytics Dashboard",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(AppDimens.Icon.lg),
+                )
+                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Analytics Dashboard",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                    Text(
+                        "View detailed workout analytics",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(AppIcons.KeyboardArrowRight, contentDescription = "Open", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
+
+        // ══════════════════════════════════════════════════════════════════════════════════════════════
         //  Settings
-        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         Text(stringResource(R.string.cd_settings),
             style    = MaterialTheme.typography.titleSmall,
             color    = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1387,7 +1388,7 @@ fun ProfileScreen(
             "PREFERENCES",
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.2.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
         )
         PressScaleCard(modifier = Modifier.fillMaxWidth()) {
@@ -1506,7 +1507,7 @@ fun ProfileScreen(
                                     Spacer(Modifier.height(AppDimens.Spacing.xs))
                                     Surface(
                                         shape = MaterialTheme.shapes.small,
-                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                        color = MaterialTheme.colorScheme.primaryContainer,
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
@@ -1581,7 +1582,7 @@ fun ProfileScreen(
                                             if (voice.isNetworkConnectionRequired) {
                                                 Text(stringResource(R.string.settings_voice_requires_internet),
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                                             }
                                         }
                                         IconButton(
@@ -1748,49 +1749,13 @@ fun ProfileScreen(
 
         // â”€â”€ Debug tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // -- Cloud Account --------------------------------------------
-        Spacer(Modifier.height(AppDimens.Spacing.md))
-        Text(
-            "ANALYTICS",
-            style = MaterialTheme.typography.labelSmall,
-            letterSpacing = 1.2.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
-            modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
-        )
-        PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToAnalytics) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    AppIcons.BarChart, contentDescription = "Analytics Dashboard",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(AppDimens.Icon.lg),
-                )
-                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        "Analytics Dashboard",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                    Text(
-                        "View detailed workout analytics",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Icon(AppIcons.KeyboardArrowRight, contentDescription = "Open", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-
         // -- Cloud Account --------------------------------------------
         Spacer(Modifier.height(AppDimens.Spacing.md))
         Text(
             "ACCOUNT & SYNC",
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.2.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
         )
         if (com.example.vitruvianredux.cloud.SupabaseProvider.isInitialized) {
@@ -1977,7 +1942,7 @@ fun ProfileScreen(
             "OFFLINE STORAGE",
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.2.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
         )
         run {
@@ -2059,7 +2024,7 @@ fun ProfileScreen(
             "DEVICE",
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.2.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
         )
         PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDevice) {
@@ -2098,7 +2063,6 @@ fun ProfileScreen(
         }
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     //  Detail bottom sheets â€“ triggered by tapping stat tiles
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 

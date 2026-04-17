@@ -43,13 +43,13 @@ fun AuditBadge(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .zIndex(100f)
-                    .background(Color(0xDD003070), RoundedCornerShape(3.dp))
+                    .background(Color(0xDD5A1814), RoundedCornerShape(3.dp))
                     .padding(horizontal = 3.dp, vertical = 1.dp),
             ) {
                 Text(
                     text       = actionId,
                     fontSize   = 6.sp,
-                    color      = Color(0xFFCCEEFF),
+                    color      = Color(0xFFF1D7A0),
                     fontFamily = FontFamily.Monospace,
                     maxLines   = 1,
                     softWrap   = false,

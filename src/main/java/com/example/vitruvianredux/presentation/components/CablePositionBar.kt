@@ -172,7 +172,7 @@ fun CablePositionBar(
                 .weight(1f)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(AppDimens.Corner.md))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             val barWidth = size.width
             val barHeight = size.height

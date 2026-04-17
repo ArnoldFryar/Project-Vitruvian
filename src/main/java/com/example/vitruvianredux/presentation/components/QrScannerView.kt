@@ -118,7 +118,8 @@ fun QrScannerView(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
-                    Button(onClick = { camLauncher.launch(Manifest.permission.CAMERA) }) {
+                    Button(
+onClick = { camLauncher.launch(Manifest.permission.CAMERA) }) {
                         Text("Grant Permission")
                     }
                 }

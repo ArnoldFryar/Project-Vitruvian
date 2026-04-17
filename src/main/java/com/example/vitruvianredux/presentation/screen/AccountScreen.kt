@@ -151,6 +151,11 @@ private fun SignedInContent(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Row(
             modifier = Modifier.padding(AppDimens.Spacing.md),
@@ -171,14 +176,21 @@ private fun SignedInContent(
                 Text(
                     email,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
         }
     }
 
     // Sync card
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
             Text(stringResource(R.string.cd_cloud_sync), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -262,7 +274,14 @@ private fun SignInContent() {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
@@ -418,7 +437,14 @@ private fun VitruvianConnectionSection() {
 
     Divider()
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),

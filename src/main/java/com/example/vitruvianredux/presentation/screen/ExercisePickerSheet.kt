@@ -89,6 +89,8 @@ fun ExercisePickerSheet(
         onDismissRequest = onDismiss,
         sheetState       = sheetState,
         windowInsets     = WindowInsets(0),
+        containerColor   = MaterialTheme.colorScheme.surface,
+        tonalElevation   = 0.dp,
     ) {
         Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
             // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -108,6 +110,13 @@ fun ExercisePickerSheet(
                     Text("Done (${selectedKeys.size})")
                 }
             }
+
+            Text(
+                text = "Tap to add, tap again to remove, and long press any exercise to preview it. Selection order becomes workout order.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
+            )
 
             // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             OutlinedTextField(
@@ -169,9 +178,9 @@ fun ExercisePickerSheet(
                     )
                     val shimmerBrush = Brush.linearGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surfaceVariant,
                         ),
                         start = Offset(translateAnim - 200f, 0f),
                         end = Offset(translateAnim, 0f),
@@ -225,7 +234,7 @@ fun ExercisePickerSheet(
                             onClick   = { showCreateSheet = true },
                             modifier  = Modifier.fillMaxWidth(),
                             colors    = CardDefaults.outlinedCardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             ),
                         ) {
                             Row(
@@ -269,7 +278,7 @@ fun ExercisePickerSheet(
                         }
 
                         @OptIn(ExperimentalFoundationApi::class)
-                        ElevatedCard(
+                        Card(
                             modifier  = Modifier.fillMaxWidth().combinedClickable(
                                 onClick     = {
                                     selectedKeys = if (isSelected) selectedKeys - ex.stableKey
@@ -277,10 +286,16 @@ fun ExercisePickerSheet(
                                 },
                                 onLongClick = { videoPreviewExercise = ex },
                             ),
-                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = AppDimens.Elevation.card),
-                            colors    = if (isSelected) CardDefaults.elevatedCardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                            ) else CardDefaults.elevatedCardColors(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            border    = androidx.compose.foundation.BorderStroke(
+                                width = if (isSelected) AppDimens.Stroke.medium else AppDimens.Stroke.thin,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            ),
+                            colors    = if (isSelected) CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ) else CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                            ),
                         ) {
                             Row(
                                 modifier              = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
@@ -303,7 +318,7 @@ fun ExercisePickerSheet(
                                         error = {
                                             Icon(
                                                 imageVector        = AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
-                                                tint               = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                                                tint               = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier           = Modifier.size(36.dp),
                                             )
                                         },

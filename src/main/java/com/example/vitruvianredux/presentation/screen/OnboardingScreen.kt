@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -156,7 +157,7 @@ fun OnboardingScreen(
                             .clip(CircleShape)
                             .background(
                                 if (isSelected) PAGES[currentPage].accentColor
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                                else MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                     )
                 }
@@ -164,6 +165,7 @@ fun OnboardingScreen(
 
             // â”€â”€ Primary CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             val isLastPage = currentPage == PAGES.lastIndex
+            val ctaContentColor = if (PAGES[currentPage].accentColor.luminance() > 0.42f) Surface0 else Color.White
             Button(
                 onClick = {
                     if (isLastPage) onComplete()
@@ -176,7 +178,7 @@ fun OnboardingScreen(
                 shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PAGES[currentPage].accentColor,
-                    contentColor   = Surface0,
+                    contentColor   = ctaContentColor,
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
             ) {
@@ -195,7 +197,7 @@ fun OnboardingScreen(
                 ) {
                     Text(stringResource(R.string.common_skip),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
@@ -312,7 +314,7 @@ private fun OnboardingPageContent(
         Text(
             text       = page.subtitle,
             style      = MaterialTheme.typography.bodyLarge,
-            color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            color      = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign  = TextAlign.Center,
             lineHeight = 26.sp,
         )

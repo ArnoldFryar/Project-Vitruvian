@@ -80,6 +80,14 @@ data class Exercise(
             else -> 2
         }
 
+    /**
+     * Bodyweight movements may still use support props like a bench, but they
+     * should not expose resistance or mode controls because they don't use the
+     * trainer as the load source.
+     */
+    val isBodyweightOnly: Boolean
+        get() = equipment.none { it.uppercase(Locale.ROOT) in LOAD_BEARING_ATTACHMENTS }
+
     companion object {
         /**
          * Bilateral exercises that still use a single combined cable load
@@ -89,6 +97,17 @@ data class Exercise(
         private val SINGLE_CABLE_EXERCISES: Set<String> = setOf(
             "pull through",
             "kneeling pull through",
+        )
+
+        private val LOAD_BEARING_ATTACHMENTS: Set<String> = setOf(
+            "BAR",
+            "BELT",
+            "BLACK_CABLES",
+            "GREY_CABLES",
+            "HANDLES",
+            "ROPE",
+            "SHORT_BAR",
+            "STRAPS",
         )
     }
 

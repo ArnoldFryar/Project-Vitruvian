@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import java.time.DayOfWeek
@@ -27,14 +28,18 @@ fun DayOfWeekSelector(
     selected: Set<DayOfWeek>,
     onToggle: (DayOfWeek) -> Unit,
     modifier: Modifier = Modifier,
+    title: String? = "Workout Days",
+    buttonSize: Dp = 40.dp,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            "Workout Days",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
-        )
+        if (title != null) {
+            Text(
+                title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -44,7 +49,7 @@ fun DayOfWeekSelector(
                 FilledIconToggleButton(
                     checked = isSelected,
                     onCheckedChange = { onToggle(day) },
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(buttonSize),
                     shape = CircleShape,
                     colors = IconButtonDefaults.filledIconToggleButtonColors(
                         checkedContainerColor = MaterialTheme.colorScheme.primary,

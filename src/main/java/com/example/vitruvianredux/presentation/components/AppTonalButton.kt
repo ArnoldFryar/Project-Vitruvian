@@ -1,13 +1,17 @@
 package com.example.vitruvianredux.presentation.components
 
-import com.vitruvian.trainer.R
-
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -20,63 +24,63 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 
 /**
- * Full-width gradient pill button.
+ * Tonal (secondary action) button — sits below GradientButton in visual hierarchy.
  *
- * The gradient runs from [MaterialTheme.colorScheme.primary] to
- * [MaterialTheme.colorScheme.secondary] when enabled; fades to a muted surface
- * when [enabled] is false so the disabled state is visually obvious.
+ * - Fill: `primaryContainer` → `onPrimaryContainer` text
+ * - Height: 48 dp, shape: [AppDimens.Corner.md]
+ * - Press scale: [MotionTokens.PRESS_SCALE_TONAL] (0.975f) with bouncy spring release
+ * - No ripple — programmatic scale + alpha feedback only
  *
  * Usage:
- *   GradientButton(text = "Start Workout", icon = Icons.Default.PlayArrow) { … }
- *   GradientButton(text = "Saving…", enabled = false) { }
+ * ```
+ * AppTonalButton("Customize Program", Icons.Default.Tune) { … }
+ * ```
  */
 @Composable
-fun GradientButton(
+fun AppTonalButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
     enabled: Boolean = true,
+    fullWidth: Boolean = true,
 ) {
     val cs = MaterialTheme.colorScheme
-    val gradient = if (enabled) {
-        Brush.horizontalGradient(listOf(cs.primary, cs.secondary))
-    } else {
-        Brush.horizontalGradient(
-            listOf(
-                cs.onSurface.copy(alpha = 0.12f),
-                cs.onSurface.copy(alpha = 0.12f),
-            )
-        )
-    }
-    val contentColor = if (enabled) cs.onPrimary else cs.onSurface.copy(alpha = 0.38f)
+    val containerColor = if (enabled) cs.primaryContainer else cs.surfaceVariant
+    val contentColor   = if (enabled) cs.onPrimaryContainer else cs.onSurfaceVariant
+
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val pressScale by animateFloatAsState(
-        targetValue   = if (isPressed && enabled) MotionTokens.PRESS_SCALE_PRIMARY else 1f,
+
+    val scale by animateFloatAsState(
+        targetValue   = if (isPressed && enabled) MotionTokens.PRESS_SCALE_TONAL else 1f,
         animationSpec = if (isPressed) MotionTokens.SnapSpring else MotionTokens.BounceSpring,
-        label = "btnScale",
+        label         = "tonalBtnScale",
     )
+    val alpha by animateFloatAsState(
+        targetValue   = if (isPressed && enabled) MotionTokens.PRESS_ALPHA else 1f,
+        animationSpec = MotionTokens.SnapSpring,
+        label         = "tonalBtnAlpha",
+    )
+
     val shape = RoundedCornerShape(AppDimens.Corner.md)
 
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         Box(
             modifier = modifier
-                .fillMaxWidth()
-                .graphicsLayer(scaleX = pressScale, scaleY = pressScale)
+                .then(if (fullWidth) Modifier.fillMaxWidth() else Modifier)
+                .height(AppDimens.Component.buttonHeight)
+                .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
                 .clip(shape)
-                .background(gradient)
+                .background(containerColor)
                 .clickable(
                     interactionSource = interactionSource,
                     indication        = null,
@@ -84,7 +88,7 @@ fun GradientButton(
                     role              = Role.Button,
                     onClick           = onClick,
                 )
-                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md),
+                .padding(horizontal = AppDimens.Spacing.md),
             contentAlignment = Alignment.Center,
         ) {
             Row(
@@ -93,9 +97,10 @@ fun GradientButton(
             ) {
                 if (icon != null) {
                     Icon(
-                        imageVector       = icon, contentDescription = null /* decorative: label text beside */,
-                        tint              = contentColor,
-                        modifier          = Modifier.size(AppDimens.Icon.md),
+                        imageVector     = icon,
+                        contentDescription = null,
+                        tint            = contentColor,
+                        modifier        = Modifier.size(AppDimens.Icon.md),
                     )
                 }
                 Text(

@@ -154,13 +154,22 @@ private fun WorkoutHistoryCard(
         else -> "Workout"
     }
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(AppDimens.Corner.md),
-        color = cs.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.card,
-    ) {
-        Column(modifier = Modifier.animateContentSize(tween(MotionTokens.STANDARD_MS))) {
+    Row(modifier = Modifier.fillMaxWidth().animateContentSize(tween(MotionTokens.STANDARD_MS))) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(28.dp).padding(top = AppDimens.Spacing.md)
+        ) {
+            Box(Modifier.size(10.dp).clip(androidx.compose.foundation.shape.CircleShape).background(cs.primary))
+            Spacer(Modifier.height(4.dp))
+            Box(Modifier.width(2.dp).weight(1f).background(cs.outlineVariant))
+        }
+        Surface(
+            modifier = Modifier.weight(1f).padding(bottom = AppDimens.Spacing.md),
+            shape = RoundedCornerShape(AppDimens.Corner.md),
+            color = cs.surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, cs.outlineVariant),
+        ) {
+        Column {
             // â”€â”€ Tappable header (toggle expand/collapse) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Column(
                 modifier = Modifier
@@ -271,7 +280,7 @@ private fun WorkoutHistoryCard(
             Text(
                 timeStr,
                 style = MaterialTheme.typography.labelSmall,
-                color = cs.onSurfaceVariant.copy(alpha = 0.6f),
+                color = cs.onSurfaceVariant,
             )
 
             } // end header column
@@ -289,7 +298,7 @@ private fun WorkoutHistoryCard(
                 ) {
                 Spacer(Modifier.height(AppDimens.Spacing.md_sm))
                 Divider(
-                    color = cs.outlineVariant.copy(alpha = 0.4f),
+                    color = cs.outlineVariant,
                     thickness = 0.5.dp,
                 )
                 Spacer(Modifier.height(AppDimens.Spacing.md_sm))
@@ -349,7 +358,7 @@ private fun WorkoutHistoryCard(
                                 Icon(
                                     AppIcons.ChevronRight,
                                     contentDescription = "View detail",
-                                    tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                                    tint = cs.onSurfaceVariant,
                                     modifier = Modifier.size(AppDimens.Icon.sm),
                                 )
                             }
@@ -393,7 +402,7 @@ private fun WorkoutHistoryCard(
                                 Icon(
                                     AppIcons.ChevronRight,
                                     contentDescription = "View detail",
-                                    tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                                    tint = cs.onSurfaceVariant,
                                     modifier = Modifier.size(AppDimens.Icon.sm),
                                 )
                             }
@@ -402,7 +411,7 @@ private fun WorkoutHistoryCard(
                 } else {
                     Text(stringResource(R.string.profile_no_exercise_data),
                         style = MaterialTheme.typography.bodySmall,
-                        color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                        color = cs.onSurfaceVariant,
                     )
                 }
 
@@ -412,7 +421,7 @@ private fun WorkoutHistoryCard(
                     onClick = onClick,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(AppDimens.Corner.sm),
-                    color = cs.primary.copy(alpha = 0.08f),
+                    color = cs.primaryContainer,
                 ) {
                     Text(stringResource(R.string.history_view_full),
                         style = MaterialTheme.typography.labelMedium,
@@ -427,7 +436,8 @@ private fun WorkoutHistoryCard(
                 } // end expanded Column
             } // end if (expanded)
         } // end outer Column (animateContentSize)
-    } // end Surface
+        } // end Surface
+    } // end Row
 } // end WorkoutHistoryCard
 
 /** Compact stat pill used in the history card stats grid. */

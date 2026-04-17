@@ -32,7 +32,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
  *   highlight that emulates a beveled hardware-panel surface.  The overlay is
  *   kept intentionally dark and low-contrast so text legibility is never
  *   compromised.
- * - **Elevation**: tonalElevation = 1 dp via Surface
+ * - **Elevation**: none
  *
  * Two layout modes:
  * - **[title] provided** → inline row: title on the left, selector on the right.
@@ -85,7 +85,10 @@ fun SelectorCard(
         modifier       = modifier,
         shape          = shape,
         color          = surfaceColor,
-        tonalElevation = AppDimens.Elevation.selector,
+        border         = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Box(
             modifier = Modifier

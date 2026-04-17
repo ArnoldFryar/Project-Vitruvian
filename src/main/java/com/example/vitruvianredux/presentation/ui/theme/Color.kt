@@ -5,13 +5,17 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 // ── Brand ──────────────────────────────────────────────────────────────
-val BrandCyan     = Color(0xFF22D3EE)   // electric cyan — primary accent
-val BrandRed      = Color(0xFFFF4D4D)   // hard red — working set / eccentric phase
+val BrandOxblood  = Color(0xFF7A1E1A)
+val BrandBrass    = Color(0xFFC08A2E)
+val BrandClay     = Color(0xFFA8553E)
+val BrandCyan     = BrandOxblood       // legacy token name — primary accent
+val BrandRed      = Color(0xFFD45B4A)  // destructive / emergency actions
+val WorkoutActive = Color(0xFF9B452C)  // active working state
 
 // ── Premium accent system ──────────────────────────────────────────────
-val AccentCyan    = Color(0xFF06D6A0)   // success / positive metrics
-val AccentAmber   = Color(0xFFFFBE0B)   // warmup / caution highlights
-val AccentRed     = Color(0xFFEF476F)   // stop / destructive
+val AccentCyan    = BrandBrass         // legacy token name — highlight accent
+val AccentAmber   = Color(0xFFD9A441)  // warmup / caution highlights
+val AccentRed     = BrandClay          // stop / destructive
 
 // ── Neutral ────────────────────────────────────────────────────────────
 val Gray50   = Color(0xFFF7F7F8)
@@ -28,11 +32,11 @@ val Black    = Color(0xFF000000)
 val White    = Color(0xFFFFFFFF)
 
 // ── Dark surface layering (navy-tinted for premium depth) ─────────────
-val Surface0  = Color(0xFF080C14)   // deepest — near-black with navy
-val Surface1  = Color(0xFF0F1318)   // primary surface
-val Surface2  = Color(0xFF171C24)   // elevated cards
-val Surface3  = Color(0xFF1F2734)   // modal / sheet backgrounds
-val Surface4  = Color(0xFF283244)   // high-elevation overlays
+val Surface0  = Color(0xFF120E0D)   // deepest — near-black with warm cast
+val Surface1  = Color(0xFF191312)   // primary surface
+val Surface2  = Color(0xFF221A18)   // elevated cards
+val Surface3  = Color(0xFF2B211E)   // modal / sheet backgrounds
+val Surface4  = Color(0xFF362926)   // high-elevation overlays
 
 // ── Semantic ───────────────────────────────────────────────────────────
 val Success         = Color(0xFF34C759)
@@ -51,7 +55,7 @@ val StatusError        = Color(0xFFF44336)
 val StatusDisconnected = Color(0xFFB0BEC5)
 val StatusConnecting   = Color(0xFFFF9800)
 val StatusReady        = Color(0xFF4CAF50)
-val StatusConnected    = Color(0xFF22D3EE)   // matches primary accent
+val StatusConnected    = BrandBrass
 
 // ── Extended color tokens (available via LocalExtendedColors) ──────────
 @Immutable
@@ -65,9 +69,9 @@ data class ExtendedColors(
     val accentAmber: Color = AccentAmber,
     val accentRed: Color = AccentRed,
     val warmupColor: Color = AccentAmber,
-    val workingColor: Color = BrandRed,
-    val restColor: Color = AccentCyan,
-    val repCounterGlow: Color = BrandCyan.copy(alpha = 0.18f),
+    val workingColor: Color = WorkoutActive,
+    val restColor: Color = BrandBrass,
+    val repCounterGlow: Color = WorkoutActive.copy(alpha = 0.18f),
     val gold: Color = Gold,
     val statusError: Color = StatusError,
     val statusDisconnected: Color = StatusDisconnected,

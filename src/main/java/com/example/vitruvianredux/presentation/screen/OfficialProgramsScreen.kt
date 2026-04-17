@@ -101,7 +101,11 @@ private fun RoutineCard(routine: VitRoutine, onClick: () -> Unit) {
         modifier  = Modifier
             .fillMaxWidth()
             .padding(bottom = AppDimens.Spacing.sm),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Row(
             modifier = Modifier.padding(AppDimens.Spacing.md),

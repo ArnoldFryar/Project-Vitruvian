@@ -74,7 +74,7 @@ fun SessionDetailScreen(
                     Icon(
                         AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
                         modifier = Modifier.size(AppDimens.Icon.xxl),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         "Session not found",
@@ -85,10 +85,11 @@ fun SessionDetailScreen(
                     Text(
                         "This session may have been deleted.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(AppDimens.Spacing.sm))
-                    OutlinedButton(onClick = onBack) {
+                    OutlinedButton(
+onClick = onBack) {
                         Text("Go Back")
                     }
                 }
@@ -262,8 +263,10 @@ fun SessionDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                             color = cs.surfaceVariant,
-                            tonalElevation = AppDimens.Elevation.card,
-                            border = GlassBorder,
+                            border = androidx.compose.foundation.BorderStroke(
+                                AppDimens.Stroke.thin,
+                                cs.outline,
+                            ),
                         ) {
                             Row(
                                 modifier = Modifier
@@ -276,7 +279,7 @@ fun SessionDetailScreen(
                                         .width(3.dp)
                                         .height(28.dp)
                                         .clip(RoundedCornerShape(AppDimens.Corner.micro))
-                                        .background(cs.primary.copy(alpha = 0.5f))
+                                        .background(cs.primaryContainer)
                                 )
                                 Spacer(Modifier.width(AppDimens.Spacing.sm))
                                 Column(modifier = Modifier.weight(1f)) {
@@ -294,7 +297,7 @@ fun SessionDetailScreen(
                                 Icon(
                                     AppIcons.ChevronRight,
                                     contentDescription = "View exercise data",
-                                    tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                                    tint = cs.onSurfaceVariant,
                                     modifier = Modifier.size(AppDimens.Icon.sm),
                                 )
                             }
@@ -307,8 +310,10 @@ fun SessionDetailScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                             color = cs.surfaceVariant,
-                            tonalElevation = AppDimens.Elevation.card,
-                            border = GlassBorder,
+                            border = androidx.compose.foundation.BorderStroke(
+                                AppDimens.Stroke.thin,
+                                cs.outline,
+                            ),
                         ) {
                             Row(
                                 modifier = Modifier
@@ -330,7 +335,7 @@ fun SessionDetailScreen(
                                 Icon(
                                     AppIcons.ChevronRight,
                                     contentDescription = "View exercise data",
-                                    tint = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                                    tint = cs.onSurfaceVariant,
                                     modifier = Modifier.size(AppDimens.Icon.sm),
                                 )
                             }
@@ -396,19 +401,16 @@ fun SessionDetailScreen(
 
 // â”€â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-private val GlassBorder = BorderStroke(
-    0.5.dp,
-    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.07f), Color.Transparent)),
-)
-
 @Composable
 private fun SdCard(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.card,
-        border = GlassBorder,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column(Modifier.padding(AppDimens.Spacing.md), content = content)
     }
@@ -450,8 +452,10 @@ private fun SdStatTile(
         modifier = modifier,
         shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.card,
-        border = GlassBorder,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
     ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.md_sm),

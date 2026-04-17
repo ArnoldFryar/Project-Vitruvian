@@ -24,6 +24,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.ble.session.NextStep
+import com.example.vitruvianredux.presentation.components.AppCard
+import com.example.vitruvianredux.presentation.components.AppOutlinedButton
+import com.example.vitruvianredux.presentation.components.AppTonalButton
+import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendGraph
 import com.example.vitruvianredux.presentation.repquality.RepQuality
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -42,11 +46,11 @@ fun RestScreenContent(
     repScores: List<RepQuality> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
-    val totalSeconds = remember { secondsRemaining.coerceAtLeast(1) }
+    val totalSeconds = remember(next) { secondsRemaining.coerceAtLeast(1) }
     val progress = (secondsRemaining.toFloat() / totalSeconds).coerceIn(0f, 1f)
     val ext = LocalExtendedColors.current
 
-    val ringColor     = ext.accentCyan
+    val ringColor     = ext.restColor
     val trackColor    = MaterialTheme.colorScheme.surfaceVariant
     val surfaceColor  = MaterialTheme.colorScheme.background
 
@@ -61,11 +65,11 @@ fun RestScreenContent(
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
         ) {
             // â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Text(text = stringResource(R.string.justlift_rest),
+            Text(text = "Recover",
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
                 letterSpacing = AppDimens.LetterSpacing.display,
-                color      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                color      = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             // â”€â”€ Circular countdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -112,7 +116,7 @@ fun RestScreenContent(
                     )
                     Text(text = stringResource(R.string.unit_sec),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -128,55 +132,37 @@ fun RestScreenContent(
                 is NextStep.WorkoutDone -> Surface(
                     modifier = Modifier.fillMaxWidth(0.85f),
                     shape    = RoundedCornerShape(AppDimens.Corner.md_sm),
-                    color    = ext.accentCyan.copy(alpha = 0.12f),
-                    border   = androidx.compose.foundation.BorderStroke(1.dp, ext.accentCyan.copy(alpha = 0.3f)),
+                    color    = MaterialTheme.colorScheme.primaryContainer,
+                    border   = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Text(text = stringResource(R.string.rest_last_warning),
                         style      = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color      = ext.accentCyan,
+                        color      = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier   = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
                     )
                 }
             }
 
             // â”€â”€ Skip rest (primary action) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Button(
-                onClick  = onSkip,
-                modifier = Modifier
-                    .fillMaxWidth(0.72f)
-                    .height(AppDimens.Component.buttonHeight),
-                shape = RoundedCornerShape(AppDimens.Corner.sm),
-            ) {
-                Icon(AppIcons.SkipNext, contentDescription = stringResource(R.string.cd_skip_next),
-                    modifier = Modifier.size(AppDimens.Icon.md))
-                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text(stringResource(R.string.cd_skip_rest), fontWeight = FontWeight.SemiBold)
-            }
+            GradientButton(
+                text = if (next is NextStep.WorkoutDone) "Finish Workout" else "Start Next Set",
+                icon = if (next is NextStep.WorkoutDone) AppIcons.CheckCircle else AppIcons.PlayArrow,
+                onClick = onSkip,
+                modifier = Modifier.fillMaxWidth(0.78f),
+            )
 
-            // â”€â”€ Secondary actions row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-                TextButton(
-                    onClick = onSkipExercise,
-                    colors  = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                    ),
-                ) {
-                    Text(stringResource(R.string.rest_skip_exercise), fontWeight = FontWeight.Medium)
-                }
-                Text(
-                    "·",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                )
-                TextButton(
+            if (next is NextStep.NextSet) {
+                AppTonalButton(
+                    text = stringResource(R.string.rest_edit_sets),
                     onClick = onEditUpcomingSets,
-                    colors  = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                    ),
-                ) {
-                    Text(stringResource(R.string.rest_edit_sets), fontWeight = FontWeight.Medium)
-                }
+                    modifier = Modifier.fillMaxWidth(0.78f),
+                )
+                AppOutlinedButton(
+                    text = stringResource(R.string.rest_skip_exercise),
+                    onClick = onSkipExercise,
+                    modifier = Modifier.fillMaxWidth(0.78f),
+                )
             }
         }
     }
@@ -187,12 +173,7 @@ private fun NextExerciseCard(
     next: NextStep.NextSet,
     accentColor: androidx.compose.ui.graphics.Color,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(0.85f),
-        shape    = RoundedCornerShape(AppDimens.Corner.md_sm),
-        color    = MaterialTheme.colorScheme.surfaceVariant,
-        border   = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.25f)),
-    ) {
+    AppCard(modifier = Modifier.fillMaxWidth(0.85f)) {
         Row(
             modifier            = Modifier.padding(AppDimens.Spacing.md_sm),
             verticalAlignment   = Alignment.CenterVertically,
@@ -203,7 +184,7 @@ private fun NextExerciseCard(
                 modifier         = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(AppDimens.Corner.sm))
-                    .background(accentColor.copy(alpha = 0.12f)),
+                    .background(accentColor.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center,
             ) {
                 if (next.thumbnailUrl != null) {
@@ -240,7 +221,7 @@ private fun NextExerciseCard(
                 Text(
                     text  = "Set ${next.setIndex + 1} of ${next.totalSets}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

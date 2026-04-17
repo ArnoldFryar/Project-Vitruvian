@@ -347,10 +347,11 @@ fun ExerciseDataScreen(
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                 ) {
                     Icon(AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
-                        Modifier.size(AppDimens.Icon.xxl), tint = cs.onSurfaceVariant.copy(alpha = 0.4f))
+                        Modifier.size(AppDimens.Icon.xxl), tint = cs.onSurfaceVariant)
                     Text(stringResource(R.string.exercise_data_not_found),
                         style = MaterialTheme.typography.titleMedium, color = cs.onSurfaceVariant)
-                    OutlinedButton(onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
+                    OutlinedButton(
+onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                 }
             }
             return@Scaffold
@@ -488,7 +489,7 @@ fun ExerciseDataScreen(
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                             Column {
                                 Text(stringResource(R.string.exercise_stat_relative_strength), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
-                                Text(stringResource(R.string.exercise_stat_relative_help), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant.copy(alpha = 0.6f))
+                                Text(stringResource(R.string.exercise_stat_relative_help), style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
                             }
                             val rsColor = when {
                                 relStrength >= 1.5 -> Success
@@ -514,7 +515,7 @@ fun ExerciseDataScreen(
                         bestSetIndex = bestSetResult?.setIndex,
                         accentColor  = cs.primary,
                         dimColor     = cs.primary.copy(alpha = 0.45f),
-                        trackColor   = cs.outlineVariant.copy(alpha = 0.2f),
+                        trackColor   = cs.outlineVariant,
                         labelColor   = cs.onSurfaceVariant,
                         modifier     = Modifier.fillMaxWidth(),
                     )
@@ -776,7 +777,7 @@ private fun CompareRow(label: String, current: String, previous: String, directi
         val (icon, tint) = when (direction) {
             TrendDir.UP   -> AppIcons.ArrowDropUp   to Success
             TrendDir.DOWN -> AppIcons.ArrowDropDown to Error
-            TrendDir.FLAT -> AppIcons.Remove        to cs.onSurfaceVariant.copy(alpha = 0.5f)
+            TrendDir.FLAT -> AppIcons.Remove        to cs.onSurfaceVariant
         }
         Icon(icon, contentDescription = direction.name, tint = tint, modifier = Modifier.size(AppDimens.Icon.lg))
     }
@@ -820,7 +821,7 @@ private fun PolishedLoadChart(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text("0 $unitLabel", style = MaterialTheme.typography.labelSmall,
-                color = labelColor.copy(alpha = 0.45f))
+                color = labelColor)
             Text("${formatChartValue(maxW)} $unitLabel", style = MaterialTheme.typography.labelSmall,
                 color = labelColor.copy(alpha = 0.70f))
         }
@@ -922,7 +923,7 @@ private fun SessionProgressionChart(
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text("${formatChartValue(maxW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.70f))
-                Text("${formatChartValue(minW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.45f))
+                Text("${formatChartValue(minW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor)
             }
 
         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
@@ -937,7 +938,7 @@ private fun SessionProgressionChart(
                 val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
                 if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
-            drawPath(path, color = lineColor.copy(alpha = 0.75f),
+            drawPath(path, color = lineColor,
                 style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
 
             displayWeights.forEachIndexed { idx, weight ->
@@ -945,7 +946,7 @@ private fun SessionProgressionChart(
                 val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
                 val isLatest = idx == displayWeights.lastIndex
                 drawCircle(
-                    color  = if (isLatest) lineColor else lineColor.copy(alpha = 0.55f),
+                    color  = if (isLatest) lineColor else lineColor,
                     radius = if (isLatest) 5.dp.toPx() else 3.5.dp.toPx(),
                     center = Offset(x, y),
                 )
@@ -958,7 +959,7 @@ private fun SessionProgressionChart(
             Text(
                 dateFmt.format(Instant.ofEpochMilli(points.first().first).atZone(zone)),
                 style = MaterialTheme.typography.labelSmall,
-                color = labelColor.copy(alpha = 0.55f),
+                color = labelColor,
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Start,
             )
@@ -967,7 +968,7 @@ private fun SessionProgressionChart(
                 Text(
                     dateFmt.format(Instant.ofEpochMilli(points[midIdx].first).atZone(zone)),
                     style = MaterialTheme.typography.labelSmall,
-                    color = labelColor.copy(alpha = 0.55f),
+                    color = labelColor,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Center,
                 )
@@ -975,7 +976,7 @@ private fun SessionProgressionChart(
             Text(
                 dateFmt.format(Instant.ofEpochMilli(points.last().first).atZone(zone)),
                 style = MaterialTheme.typography.labelSmall,
-                color = labelColor.copy(alpha = 0.55f),
+                color = labelColor,
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.End,
             )
@@ -1034,13 +1035,13 @@ private fun SetTable(
                     Text(
                         "${idx + 1}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                        color = cs.onSurfaceVariant,
                         modifier = Modifier.width(40.dp),
                     )
                     Text(
                         "skipped",
                         style = MaterialTheme.typography.bodySmall,
-                        color = cs.onSurfaceVariant.copy(alpha = 0.5f),
+                        color = cs.onSurfaceVariant,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                         modifier = Modifier.weight(1f),
                     )
@@ -1080,7 +1081,7 @@ private fun SetTable(
                     if (hasQuality) {
                         val q = set.avgQualityScore
                         val qColor = when {
-                            q == null -> cs.onSurfaceVariant.copy(alpha = 0.35f)
+                            q == null -> cs.onSurfaceVariant
                             q >= 80 -> cs.primary
                             q >= 60 -> Warning
                             else -> cs.error
@@ -1097,7 +1098,7 @@ private fun SetTable(
                 }
             }
             if (idx < sets.size - 1) {
-                Divider(color = cs.outlineVariant.copy(alpha = 0.35f), thickness = 0.5.dp)
+                Divider(color = cs.outlineVariant, thickness = 0.5.dp)
             }
         }
     }
@@ -1146,7 +1147,7 @@ private fun QualityBreakdownCard(sets: List<AnalyticsStore.ExerciseSetLog>) {
 @Composable
 private fun QualityScoreCell(score: Int?, modifier: Modifier = Modifier) {
     val color = when {
-        score == null -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.30f)
+        score == null -> MaterialTheme.colorScheme.onSurfaceVariant
         score >= 80   -> Success
         score >= 60   -> Warning
         else          -> Error
@@ -1171,15 +1172,9 @@ private fun EdsCard(content: @Composable ColumnScope.() -> Unit) {
         modifier       = Modifier.fillMaxWidth(),
         shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
         color          = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.card,
-        border = androidx.compose.foundation.BorderStroke(
-            width = 0.5.dp,
-            brush = Brush.verticalGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.07f),
-                    Color.Transparent,
-                )
-            ),
+        border         = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
         ),
     ) {
         Column(Modifier.padding(AppDimens.Spacing.md), content = content)
@@ -1217,15 +1212,9 @@ private fun EdsStatTile(label: String, value: String, modifier: Modifier = Modif
         modifier       = modifier,
         shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
         color          = cs.surfaceVariant,
-        tonalElevation = AppDimens.Elevation.card,
-        border = androidx.compose.foundation.BorderStroke(
-            width = 0.5.dp,
-            brush = Brush.verticalGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.07f),
-                    Color.Transparent,
-                )
-            ),
+        border         = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            cs.outline,
         ),
     ) {
         Column(

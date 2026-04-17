@@ -47,6 +47,8 @@ fun TemplatePreviewScreen(
     if (showConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
             icon = { Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add)) },
             title = { Text("Use Template") },
             text = {
@@ -59,7 +61,8 @@ fun TemplatePreviewScreen(
                 )
             },
             confirmButton = {
-                Button(onClick = {
+                Button(
+onClick = {
                     showConfirmDialog = false
                     val ids = TemplateRepository.useTemplate(template)
                     // Navigate to the first created program
@@ -69,7 +72,8 @@ fun TemplatePreviewScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showConfirmDialog = false }) {
+                TextButton(
+onClick = { showConfirmDialog = false }) {
                     Text("Cancel")
                 }
             },
@@ -88,7 +92,12 @@ fun TemplatePreviewScreen(
             )
         },
         bottomBar = {
-            Surface(tonalElevation = AppDimens.Elevation.raised) {
+            Surface(
+                border = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.outline,
+                ),
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -150,7 +159,7 @@ fun TemplatePreviewScreen(
                     item(key = "day_divider_$dayIndex") {
                         Divider(
                             modifier = Modifier.padding(vertical = AppDimens.Spacing.sm),
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                         )
                     }
                 }
@@ -168,14 +177,19 @@ fun TemplatePreviewScreen(
 private fun TemplateOverviewCard(template: WorkoutTemplate) {
     val cs = MaterialTheme.colorScheme
 
-    ElevatedCard(
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            cs.outline,
+        ),
     ) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
             // Category badge
             Surface(
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                color = MaterialTheme.colorScheme.primaryContainer,
                 shape = MaterialTheme.shapes.small,
             ) {
                 Text(
@@ -321,7 +335,7 @@ private fun ExerciseRow(index: Int, name: String, detail: String, restSec: Int) 
                 modifier = Modifier
                     .size(24.dp)
                     .clip(CircleShape)
-                    .background(cs.primary.copy(alpha = 0.12f)),
+                    .background(cs.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -347,7 +361,7 @@ private fun ExerciseRow(index: Int, name: String, detail: String, restSec: Int) 
             if (restSec > 0) {
                 Spacer(Modifier.width(AppDimens.Spacing.sm))
                 Surface(
-                    color = cs.primary.copy(alpha = 0.10f),
+                    color = cs.primaryContainer,
                     shape = MaterialTheme.shapes.small,
                 ) {
                     Text(

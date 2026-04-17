@@ -97,9 +97,9 @@ fun TemplateLibraryScreen(
                     )
                     val shimmerBrush = Brush.linearGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surfaceVariant,
                         ),
                         start = Offset(translateAnim - 200f, 0f),
                         end = Offset(translateAnim, 0f),
@@ -114,7 +114,7 @@ fun TemplateLibraryScreen(
                         repeat(5) {
                             Surface(
                                 shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
                             ) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
@@ -154,7 +154,7 @@ fun TemplateLibraryScreen(
                             Icon(
                                 AppIcons.GridView, contentDescription = stringResource(R.string.cd_grid_view),
                                 modifier = Modifier.size(AppDimens.Icon.hero),
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                                tint = MaterialTheme.colorScheme.primaryContainer,
                             )
                             Text(
                                 "No templates available",
@@ -227,7 +227,7 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
             modifier = Modifier
                 .size(AppDimens.Icon.xxl_sm)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -250,7 +250,7 @@ private fun CategoryHeader(category: String, icon: ImageVector) {
             modifier = Modifier
                 .weight(1f)
                 .padding(start = AppDimens.Spacing.md_sm),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            color = MaterialTheme.colorScheme.outlineVariant,
         )
     }
 }
@@ -271,12 +271,17 @@ private fun TemplateCard(
         label = "templateCardScale",
     )
 
-    ElevatedCard(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer(scaleX = scale, scaleY = scale)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
         shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            cs.outline,
+        ),
     ) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
             Row(

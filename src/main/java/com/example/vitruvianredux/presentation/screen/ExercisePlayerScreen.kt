@@ -23,6 +23,9 @@ import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AppCard
+import com.example.vitruvianredux.presentation.components.AppOutlinedButton
+import com.example.vitruvianredux.presentation.components.AppTonalButton
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.data.AnalyticsStore
@@ -58,7 +61,6 @@ fun ExercisePlayerScreen(
     val phase = sessionState.sessionPhase
 
     // â”€â”€ Local player UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    var selectedTab    by rememberSaveable { mutableIntStateOf(0) }
     var isRepsMode     by rememberSaveable { mutableStateOf(true) }
     var targetReps     by rememberSaveable { mutableIntStateOf(10) }
     var targetDuration by rememberSaveable { mutableIntStateOf(30) }
@@ -123,6 +125,18 @@ fun ExercisePlayerScreen(
         is SessionPhase.Paused          -> PlayerView.PAUSED
         is SessionPhase.Reconnecting    -> PlayerView.RECONNECTING
         else                            -> PlayerView.ACTIVE
+    }
+    val isBodyweight = remember(exercise) { exercise?.isBodyweightOnly == true }
+    val effectiveResistanceLb = if (isBodyweight) 0f else resistanceLb
+    val effectiveSelectedMode = if (isBodyweight) "Old School" else selectedMode
+
+    LaunchedEffect(isBodyweight) {
+        if (isBodyweight) {
+            isRepsMode = false
+            warmupReps = 0
+            resistanceLb = 0f
+            selectedMode = "Old School"
+        }
     }
 
     if (showDebugPanel) {
@@ -321,7 +335,6 @@ fun ExercisePlayerScreen(
                                 )
                             else null
                         }
-                        val isBodyweight = remember(exercise) { exercise?.equipment?.isEmpty() == true }
                         SetReadyContent(
                             exerciseName      = readyPhase.exerciseName,
                             setIndex          = readyPhase.setIndex,
@@ -332,7 +345,7 @@ fun ExercisePlayerScreen(
                             targetReps        = targetReps,
                             targetDuration    = targetDuration,
                             warmupReps        = warmupReps,
-                            resistanceLb      = resistanceLb,
+                            resistanceLb      = effectiveResistanceLb,
                             isRepsMode        = isRepsMode,
                             isOpenEnded       = isOpenEnded,
                             showSetsStepper   = isOpenEnded || isExerciseMenuLaunch,
@@ -362,11 +375,12 @@ fun ExercisePlayerScreen(
                                                 exerciseName      = readyPhase.exerciseName,
                                                 thumbnailUrl      = readyPhase.thumbnailUrl,
                                                 videoUrl          = readyPhase.videoUrl,
-                                                targetReps        = if (isRepsMode) targetReps else null,
-                                                targetDurationSec = if (!isRepsMode) targetDuration else null,
-                                                weightPerCableLb  = resistanceLb.roundToInt(),
-                                                warmupReps        = warmupReps,
-                                                programMode       = selectedMode,
+                                                targetReps        = if (isBodyweight) null else if (isRepsMode) targetReps else null,
+                                                targetDurationSec = if (isBodyweight) targetDuration else if (!isRepsMode) targetDuration else null,
+                                                isOffMachineTimer = isBodyweight,
+                                                weightPerCableLb  = if (isBodyweight) 0 else effectiveResistanceLb.roundToInt(),
+                                                warmupReps        = if (isBodyweight) 0 else warmupReps,
+                                                programMode       = effectiveSelectedMode,
                                                 muscleGroups      = exercise?.muscleGroups ?: emptyList(),
                                             )
                                         }
@@ -378,7 +392,7 @@ fun ExercisePlayerScreen(
                                     workoutVM.confirmReady(
                                         targetRepsOverride     = if (!isOpenEnded && isRepsMode) targetReps else null,
                                         targetDurationOverride = if (!isOpenEnded && !isRepsMode) targetDuration else null,
-                                        weightOverride         = resistanceLb.roundToInt(),
+                                        weightOverride         = effectiveResistanceLb.roundToInt(),
                                         warmupOverride         = warmupReps,
                                     )
                                 }
@@ -399,8 +413,8 @@ fun ExercisePlayerScreen(
                             progressionSuggestionLb = (progressionSuggestion as? ProgressionResult.Increase)?.newWeightLb,
                             progressionDeloadLb     = (progressionSuggestion as? ProgressionResult.Deload)?.newWeightLb,
                             onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
-                            isEchoMode          = (selectedMode == "Echo"),
-                            selectedMode        = selectedMode,
+                            isEchoMode          = (effectiveSelectedMode == "Echo"),
+                            selectedMode        = effectiveSelectedMode,
                             onModeSelect        = { selectedMode = it },
                             isBeastMode         = isBeastMode,
                             onBeastModeChange   = { isBeastMode = it },
@@ -420,8 +434,7 @@ fun ExercisePlayerScreen(
                         sessionState          = sessionState,
                         isReady               = isReady,
                         bleState              = sessionState.connectionState,
-                        selectedTab           = selectedTab,
-                        onTabSelected         = { selectedTab = it },
+                        isBodyweight          = isBodyweight,
                         isRepsMode            = isRepsMode,
                         onToggleMode          = { reps ->
                             isRepsMode = reps
@@ -436,9 +449,9 @@ fun ExercisePlayerScreen(
                         onWarmupRepsChange       = { warmupReps = it.coerceIn(0, 20) },
                         targetDuration           = targetDuration,
                         onTargetDurationChange = { targetDuration = (it).coerceIn(5, 300) },
-                        resistanceLb          = resistanceLb,
+                        resistanceLb          = effectiveResistanceLb,
                         onResistanceChange    = { resistanceLb = it.coerceIn(0f, ResistanceLimits.maxPerHandleLb.toFloat()) },
-                        selectedMode          = selectedMode,
+                        selectedMode          = effectiveSelectedMode,
                         isBeastMode           = isBeastMode,
                         onBeastModeChange     = { isBeastMode = it },
                         modeExpanded          = modeExpanded,
@@ -458,7 +471,7 @@ fun ExercisePlayerScreen(
                                     workoutVM.stopPlayerSet()
                                 }
                                 else -> {
-                                    if (!isReady) {
+                                    if (!isReady && !isBodyweight) {
                                         WiringRegistry.hit(A_PLAYER_START_SET)
                                         WiringRegistry.recordOutcome(A_PLAYER_START_SET, ActualOutcome.Blocked("not_ready"))
                                         scope.launch {
@@ -477,11 +490,11 @@ fun ExercisePlayerScreen(
                                     WiringRegistry.recordOutcome(A_PLAYER_START_SET, ActualOutcome.BleWriteAttempt("START"))
                                     workoutVM.startPlayerSet(
                                         exercise           = exercise ?: return@ActivePlayerContent,
-                                        targetReps         = if (isRepsMode) targetReps else null,
-                                        targetDurationSec  = if (!isRepsMode) targetDuration else null,
-                                        weightPerCableLb   = resistanceLb.roundToInt(),
+                                        targetReps         = if (isBodyweight) null else if (isRepsMode) targetReps else null,
+                                        targetDurationSec  = if (isBodyweight) targetDuration else if (!isRepsMode) targetDuration else null,
+                                        weightPerCableLb   = effectiveResistanceLb.roundToInt(),
                                         warmupReps         = warmupReps,
-                                        programMode        = if (selectedMode == "TUT" && isBeastMode) "TUT Beast" else selectedMode,
+                                        programMode        = if (isBodyweight) "Old School" else if (selectedMode == "TUT" && isBeastMode) "TUT Beast" else selectedMode,
                                         echoLevel          = echoLevel,
                                         eccentricLoadPct   = eccentricPct,
                                     )
@@ -506,10 +519,6 @@ fun ExercisePlayerScreen(
                             // Use the same draft value so the count matches what
                             // the user saw on the SetReady screen before lifting.
                             totalSets          = targetSets,
-                            selectedMode       = selectedMode,
-                            modeExpanded       = modeExpanded,
-                            onModeSelect       = { mode -> selectedMode = mode; modeExpanded = false },
-                            onModeExpandChange = { modeExpanded = it },
                             onResume           = { workoutVM.resumePlayerWorkout() },
                             onStop             = { workoutVM.panicStop(); onBack() },
                             modifier           = Modifier.fillMaxSize(),
@@ -524,26 +533,41 @@ fun ExercisePlayerScreen(
                             modifier           = Modifier.fillMaxSize(),
                             contentAlignment   = androidx.compose.ui.Alignment.Center,
                         ) {
-                            Column(
-                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
-                                modifier            = Modifier.padding(AppDimens.Spacing.xl),
+                            AppCard(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(AppDimens.Spacing.xl),
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(56.dp),
-                                )
-                                Text(
-                                    text  = "Reconnecting to machine\u2026",
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    text      = "${reconnectPhase.secondsLeft}s",
-                                    style     = MaterialTheme.typography.displaySmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color     = MaterialTheme.colorScheme.primary,
-                                )
-                                TextButton(onClick = { workoutVM.panicStop(); onBack() }) {
-                                    Text("Cancel workout")
+                                Column(
+                                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                                    modifier = Modifier.padding(AppDimens.Spacing.xl),
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(56.dp))
+                                    Text(
+                                        text = "Reconnecting to machine",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                    Text(
+                                        text = "Holding your workout state while we retry the connection.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Text(
+                                        text = "${reconnectPhase.secondsLeft}s",
+                                        style = MaterialTheme.typography.displaySmall,
+                                        fontWeight = FontWeight.Black,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                    AppTonalButton(
+                                        text = "Open Repair",
+                                        onClick = onNavigateToRepair,
+                                    )
+                                    AppOutlinedButton(
+                                        text = "Cancel Workout",
+                                        onClick = { workoutVM.panicStop(); onBack() },
+                                    )
                                 }
                             }
                         }
