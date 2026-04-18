@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     theme_mode  TEXT DEFAULT 'SYSTEM',
     just_lift_defaults JSONB DEFAULT '{}'::jsonb,
     led_colors  JSONB DEFAULT '{}'::jsonb,
+    goals       JSONB DEFAULT '{}'::jsonb,
     device_id   TEXT DEFAULT '',
     updated_at  BIGINT NOT NULL DEFAULT 0
 );

@@ -92,3 +92,6 @@ scrape_output/
 /routines_padded.json
 /routines_response.json
 /prebuilt_routines.json
+
+# Supabase CLI temp state
+/supabase/.temp/

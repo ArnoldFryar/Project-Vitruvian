@@ -28,6 +28,7 @@ import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.util.UnitConversions
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -131,11 +132,14 @@ internal fun VolumeDetailSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val today = LocalDate.now()
-    val last7 = (6 downTo 0).map { today.minusDays(it.toLong()) }
+    val weekStart = today.with(DayOfWeek.MONDAY)
+    val thisWeek = generateSequence(weekStart) { current ->
+        current.plusDays(1).takeIf { !it.isAfter(today) }
+    }.toList()
     val dayFmt = DateTimeFormatter.ofPattern("EEE")
 
     // Per-day volume
-    val dailyVolumes = last7.map { day ->
+    val dailyVolumes = thisWeek.map { day ->
         val vol = history.filter { it.date == day }.sumOf { it.totalVolumeKg }
         Triple(day, dayFmt.format(day), vol)
     }
@@ -146,7 +150,7 @@ internal fun VolumeDetailSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
-            Text("Volume \u2014 Last 7 Days", style = MaterialTheme.typography.titleMedium,
+            Text("Volume \u2014 This Week", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
@@ -197,9 +201,9 @@ internal fun SessionsDetailSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val today = LocalDate.now()
-    val cutoff = today.minusDays(6)
+    val weekStart = today.with(DayOfWeek.MONDAY)
     val recentWorkouts = history
-        .filter { it.date >= cutoff }
+        .filter { !it.date.isBefore(weekStart) }
         .sortedByDescending { it.date }
     val dateFmt = DateTimeFormatter.ofPattern("EEE, MMM d")
 
@@ -207,7 +211,7 @@ internal fun SessionsDetailSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
-            Text("Sessions \u2014 Last 7 Days", style = MaterialTheme.typography.titleMedium,
+            Text("Sessions \u2014 This Week", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(

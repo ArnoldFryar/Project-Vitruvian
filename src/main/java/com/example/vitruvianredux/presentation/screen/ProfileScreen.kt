@@ -137,6 +137,7 @@ fun ProfileScreen(
             .atStartOfDay(java.time.ZoneId.systemDefault())
             .toInstant().toEpochMilli()
     }
+    val thisWeekStartDate = remember { LocalDate.now().with(DayOfWeek.MONDAY) }
     val weekVolumeKgFromRoom by roomDb.sessionLogDao()
         .currentWeekVolumeKgFlow(thisWeekStartMs)
         .collectAsState(initial = 0.0)
@@ -147,18 +148,28 @@ fun ProfileScreen(
     // â”€â”€ Real 7-day stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Room Flow is primary; fall back to shared-prefs stores for devices where Room
     // may lag behind shared-prefs data (migration period).
-    val weekVolumeKg = remember(weekVolumeKgFromRoom, allLogs, history) {
+    val weekVolumeKg = remember(weekVolumeKgFromRoom, allLogs, history, thisWeekStartDate) {
+        val analyticsWeekVolumeKg = if (allLogs.isNotEmpty()) {
+            AnalyticsStore.weeklyVolumesKg(1).lastOrNull()?.second ?: 0.0
+        } else 0.0
+        val historyWeekVolumeKg = history
+            .filter { !it.date.isBefore(thisWeekStartDate) }
+            .sumOf { it.totalVolumeKg }
         when {
-            weekVolumeKgFromRoom > 0.0 -> weekVolumeKgFromRoom
-            allLogs.isNotEmpty()       -> AnalyticsStore.weeklyVolumesKg(1).lastOrNull()?.second ?: 0.0
-            else                       -> WorkoutHistoryStore.recentVolumeKg(7)
+            analyticsWeekVolumeKg > 0.0 -> analyticsWeekVolumeKg
+            historyWeekVolumeKg > 0.0   -> historyWeekVolumeKg
+            else                        -> weekVolumeKgFromRoom
         }
     }
-    val weekSessions = remember(weekSessionsFromRoom, allLogs, history) {
+    val weekSessions = remember(weekSessionsFromRoom, allLogs, history, thisWeekStartDate) {
+        val analyticsWeekSessions = if (allLogs.isNotEmpty()) {
+            AnalyticsStore.sessionsPerWeek(1).lastOrNull()?.second ?: 0
+        } else 0
+        val historyWeekSessions = history.count { !it.date.isBefore(thisWeekStartDate) }
         when {
-            weekSessionsFromRoom > 0 -> weekSessionsFromRoom
-            allLogs.isNotEmpty()     -> AnalyticsStore.sessionsPerWeek(1).lastOrNull()?.second ?: 0
-            else                     -> WorkoutHistoryStore.recentSessions(7)
+            analyticsWeekSessions > 0 -> analyticsWeekSessions
+            historyWeekSessions > 0   -> historyWeekSessions
+            else                      -> weekSessionsFromRoom
         }
     }
     val weekPoints = remember(allLogs, thisWeekStartMs) {
