@@ -434,6 +434,7 @@ onClick = { showDiscardDialog = false }) {
                                 val ex = exerciseCatalog[draft.exerciseId]
                                 List(draft.sets) {
                                     PlayerSetParams(
+                                        exerciseId              = ex?.stableKey ?: draft.exerciseId,
                                         exerciseName            = draft.exerciseName,
                                         thumbnailUrl            = ex?.thumbnailUrl,
                                         videoUrl                = ex?.videoUrl,
@@ -444,6 +445,8 @@ onClick = { showDiscardDialog = false }) {
                                         progressionRegressionLb = draft.progressionRegressionLb,
                                         restAfterSec            = draft.restTimerSec,
                                         muscleGroups            = ex?.muscleGroups ?: emptyList(),
+                                        muscles                 = ex?.muscles ?: emptyList(),
+                                        numCables               = ex?.numCables ?: 2,
                                     )
                                 }
                             }

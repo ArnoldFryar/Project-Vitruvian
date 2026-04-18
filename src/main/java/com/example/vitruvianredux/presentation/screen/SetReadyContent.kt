@@ -73,6 +73,8 @@ internal fun SetReadyContent(
     onAutoPlayChange: (Boolean) -> Unit,
     onGo: () -> Unit,
     onSkipSet: () -> Unit,
+    onRepeatPreviousSet: () -> Unit = {},
+    canRepeatPreviousSet: Boolean = false,
     onSkipExercise: () -> Unit,
     onAddSet: () -> Unit = {},
     /** When non-null and isOpenEnded, shows a "Finish Workout" button to end the just-lift session. */
@@ -638,11 +640,26 @@ internal fun SetReadyContent(
             )
         }
 
-        AppTonalButton(
-            text = "Add Set",
-            icon = AppIcons.Add,
-            onClick = onAddSet,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            if (canRepeatPreviousSet) {
+                AppTonalButton(
+                    text = "Repeat Last Set",
+                    icon = AppIcons.Repeat,
+                    onClick = onRepeatPreviousSet,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            AppTonalButton(
+                text = "Add Set",
+                icon = AppIcons.Add,
+                onClick = onAddSet,
+                modifier = if (canRepeatPreviousSet) Modifier.weight(1f) else Modifier.fillMaxWidth(),
+            )
+        }
 
         if (isOpenEnded && onFinishWorkout != null) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))

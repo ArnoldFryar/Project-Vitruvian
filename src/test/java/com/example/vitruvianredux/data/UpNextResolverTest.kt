@@ -3,6 +3,7 @@ package com.example.vitruvianredux.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.DayOfWeek
 import java.time.LocalDate
 
 class UpNextResolverTest {
@@ -123,5 +124,70 @@ class UpNextResolverTest {
     fun `history without program name eg free workout falls back to first program`() {
         val history = listOf(record(LocalDate.of(2026, 3, 10), programName = null))
         assertEquals(programA, UpNextResolver.resolveUpNextWorkout(programs, history, null))
+    }
+
+    @Test
+    fun `completed friday workout advances to saturday scheduled workout not monday by list order`() {
+        val friday = LocalDate.of(2026, 4, 17)
+        val mondayProgram = programA.copy(scheduledDays = setOf(DayOfWeek.MONDAY), sortOrder = 0)
+        val saturdayProgram = programB.copy(scheduledDays = setOf(DayOfWeek.SATURDAY), sortOrder = 1)
+        val sundayProgram = programC.copy(scheduledDays = setOf(DayOfWeek.SUNDAY), sortOrder = 2)
+        val fridayProgram = SavedProgram(
+            id = "d",
+            name = "Program D",
+            exerciseCount = 5,
+            sortOrder = 3,
+            scheduledDays = setOf(DayOfWeek.FRIDAY),
+        )
+
+        val scheduledPrograms = listOf(mondayProgram, saturdayProgram, sundayProgram, fridayProgram)
+        val history = listOf(record(friday, "Program D"))
+
+        assertEquals(
+            saturdayProgram,
+            UpNextResolver.resolveUpNextWorkout(
+                programs = scheduledPrograms,
+                workoutHistory = history,
+                activeProgramId = null,
+                referenceDate = friday,
+            ),
+        )
+    }
+
+    @Test
+    fun `completed only scheduled workout today wraps to next weeks same day`() {
+        val friday = LocalDate.of(2026, 4, 17)
+        val fridayProgram = programA.copy(scheduledDays = setOf(DayOfWeek.FRIDAY), sortOrder = 0)
+        val unscheduledProgram = programB.copy(sortOrder = 1)
+        val history = listOf(record(friday, "Program A"))
+
+        assertEquals(
+            fridayProgram,
+            UpNextResolver.resolveUpNextWorkout(
+                programs = listOf(fridayProgram, unscheduledProgram),
+                workoutHistory = history,
+                activeProgramId = null,
+                referenceDate = friday,
+            ),
+        )
+    }
+
+    @Test
+    fun `pending scheduled workout later today beats future scheduled workout`() {
+        val tuesday = LocalDate.of(2026, 4, 14)
+        val completedToday = programA.copy(scheduledDays = setOf(DayOfWeek.TUESDAY), sortOrder = 0)
+        val pendingToday = programB.copy(scheduledDays = setOf(DayOfWeek.TUESDAY), sortOrder = 1)
+        val tomorrow = programC.copy(scheduledDays = setOf(DayOfWeek.WEDNESDAY), sortOrder = 2)
+        val history = listOf(record(tuesday, "Program A"))
+
+        assertEquals(
+            pendingToday,
+            UpNextResolver.resolveUpNextWorkout(
+                programs = listOf(completedToday, pendingToday, tomorrow),
+                workoutHistory = history,
+                activeProgramId = null,
+                referenceDate = tuesday,
+            ),
+        )
     }
 }

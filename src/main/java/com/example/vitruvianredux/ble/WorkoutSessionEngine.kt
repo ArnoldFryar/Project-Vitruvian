@@ -1123,7 +1123,10 @@ class WorkoutSessionEngine(
         // Record a skipped-set marker before advancing
         playerSets.getOrNull(currentPlayerIndex)?.let { s ->
             skippedStatsList.add(ExerciseStats(
+                exerciseId       = s.exerciseId,
                 exerciseName     = s.exerciseName,
+                muscleGroups     = s.muscleGroups,
+                muscles          = s.muscles,
                 setIndex         = currentPlayerIndex,
                 weightPerCableLb = s.weightPerCableLb,
                 numCables        = s.numCables,
@@ -1137,6 +1140,63 @@ class WorkoutSessionEngine(
         } else {
             finishWorkout()
         }
+    }
+
+    /**
+     * Replays the immediately previous set by inserting a clone of it before the
+     * current queue position, then launching that inserted copy.
+     *
+     * This preserves monotonic set indices for stats/history instead of rewinding
+     * to a previously completed index.
+     */
+    fun repeatPreviousSet() {
+        val phase = _state.value.sessionPhase
+        val sourceIndex = currentPlayerIndex - 1
+        if (sourceIndex < 0) {
+            Log.w(TAG, "repeatPreviousSet: no previous set to repeat")
+            return
+        }
+
+        val sourceSet = playerSets.getOrNull(sourceIndex)
+        if (sourceSet == null) {
+            Log.w(TAG, "repeatPreviousSet: missing source set at index $sourceIndex")
+            return
+        }
+
+        when (phase) {
+            is SessionPhase.ExerciseActive -> {
+                playerJob?.cancel()
+                awaitingEccentricFinish = false
+                eccentricTimeoutJob?.cancel()
+                durationTimerStarted = false
+                sourceSet.takeUnless { it.isOffMachineTimer }?.let {
+                    bleAdapter.execute(BleCommand.Stop, "REPEAT_PREVIOUS_STOP")
+                }
+            }
+            is SessionPhase.SetReady -> {
+                // No machine state to unwind.
+            }
+            is SessionPhase.Resting -> {
+                restJob?.cancel()
+            }
+            else -> {
+                Log.w(TAG, "repeatPreviousSet: not in a repeatable phase ($phase)")
+                return
+            }
+        }
+
+        val insertionIndex = currentPlayerIndex.coerceIn(0, playerSets.size)
+        val updatedSets = playerSets.toMutableList().apply {
+            add(insertionIndex, sourceSet.copy())
+        }
+        playerSets = updatedSets
+        currentPlayerIndex = insertionIndex
+
+        Log.i(
+            TAG,
+            "repeatPreviousSet: inserted copy of index $sourceIndex at $insertionIndex (total=${playerSets.size})",
+        )
+        launchPlayerSet(insertionIndex)
     }
 
     /**
@@ -1190,7 +1250,10 @@ class WorkoutSessionEngine(
         for (i in currentPlayerIndex until nextIndex) {
             playerSets.getOrNull(i)?.let { s ->
                 skippedStatsList.add(ExerciseStats(
+                    exerciseId       = s.exerciseId,
                     exerciseName     = s.exerciseName,
+                    muscleGroups     = s.muscleGroups,
+                    muscles          = s.muscles,
                     setIndex         = i,
                     weightPerCableLb = s.weightPerCableLb,
                     numCables        = s.numCables,
@@ -1522,7 +1585,10 @@ class WorkoutSessionEngine(
         val hPeakForce = heuristic?.let { maxOf(it.left.concentric.kgMax, it.right.concentric.kgMax) } ?: 0f
         val isEcho = set.programMode == "Echo"
         val stats  = ExerciseStats(
+            exerciseId           = set.exerciseId,
             exerciseName         = set.exerciseName,
+            muscleGroups         = set.muscleGroups,
+            muscles              = set.muscles,
             setIndex             = currentPlayerIndex,
             repsCompleted        = workingReps,
             warmupRepsCompleted  = set.warmupReps,

@@ -185,7 +185,10 @@ object SessionReducer {
         if (state.phase != SetPhase.WORKING) return Result(state)
         val set   = state.setDef ?: return Result(state)
         val stats = ExerciseStats(
+            exerciseId        = set.exerciseId,
             exerciseName        = set.exerciseName,
+            muscleGroups      = set.muscleGroups,
+            muscles           = set.muscles,
             setIndex            = 0,               // engine fills actual index before persisting
             repsCompleted       = state.workingRepsCompleted,
             warmupRepsCompleted = state.warmupTarget,

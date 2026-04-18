@@ -229,7 +229,10 @@ fun AppScaffold() {
                             .distinctBy { it.setIndex }
                         val exerciseSets = completedStats.map { es ->
                             AnalyticsStore.ExerciseSetLog(
+                                exerciseId      = es.exerciseId,
                                 exerciseName    = es.exerciseName,
+                                muscleGroups    = es.muscleGroups,
+                                muscles         = es.muscles,
                                 setIndex        = es.setIndex,
                                 reps            = es.repsCompleted,
                                 weightLb        = es.weightPerCableLb * es.numCables,

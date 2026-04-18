@@ -825,6 +825,24 @@ internal fun ActivePlayerContent(
                                 modifier = Modifier.weight(1f),
                             )
                         }
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                        ) {
+                            AppOutlinedButton(
+                                text = "Skip Set",
+                                icon = AppIcons.SkipNext,
+                                onClick = onSkipSet,
+                                modifier = Modifier.weight(1f),
+                            )
+                            AppOutlinedButton(
+                                text = "Skip Exercise",
+                                icon = AppIcons.SkipNext,
+                                onClick = onSkipExercise,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
 
                     // â•â•â•â•â•â•â• EXPANDED SETTINGS (visible when sheet pulled up) â•

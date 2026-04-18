@@ -37,6 +37,8 @@ import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.components.ProgramPreviewCard
+import com.example.vitruvianredux.presentation.components.ProgramPreviewChip
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.util.loadExercises
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -128,9 +130,10 @@ onClick = { showDeleteDialog = false }) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                         .background(heroBrush)
                         .statusBarsPadding()
-                        .padding(start = 20.dp, end = 20.dp, top = 56.dp, bottom = 24.dp),
+                        .padding(start = 20.dp, end = 20.dp, top = 56.dp, bottom = 28.dp),
                 ) {
                     Column {
                         Text(
@@ -145,10 +148,30 @@ onClick = { showDeleteDialog = false }) {
                         )
                         Spacer(Modifier.height(14.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            ProgramPillChip("$totalSets sets")
-                            ProgramPillChip("${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}")
-                            if (estimatedMins > 0) ProgramPillChip("about $estimatedMins min")
-                            if (daysLabel.isNotBlank()) ProgramPillChip(daysLabel)
+                            ProgramPreviewChip(
+                                label = "$totalSets sets",
+                                containerColor = Color.White.copy(alpha = 0.22f),
+                                contentColor = Color.White,
+                            )
+                            ProgramPreviewChip(
+                                label = "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}",
+                                containerColor = Color.White.copy(alpha = 0.22f),
+                                contentColor = Color.White,
+                            )
+                            if (estimatedMins > 0) {
+                                ProgramPreviewChip(
+                                    label = "about $estimatedMins min",
+                                    containerColor = Color.White.copy(alpha = 0.22f),
+                                    contentColor = Color.White,
+                                )
+                            }
+                            if (daysLabel.isNotBlank()) {
+                                ProgramPreviewChip(
+                                    label = daysLabel,
+                                    containerColor = Color.White.copy(alpha = 0.22f),
+                                    contentColor = Color.White,
+                                )
+                            }
                         }
                         Spacer(Modifier.height(10.dp))
                         Text(
@@ -258,170 +281,133 @@ onClick = { showDeleteDialog = false }) {
 // ─── Sub-composables ──────────────────────────────────────────────────────────
 
 @Composable
-private fun ProgramPillChip(label: String) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = Color.White.copy(alpha = 0.22f),
-    ) {
-        Text(
-            label,
-            style      = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color      = Color.White,
-            modifier   = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-        )
-    }
-}
-
-@Composable
 private fun ProgramItemCard(item: ProgramItemDraft, exercise: Exercise?) {
     val isBodyweight = exercise?.isBodyweightOnly == true
-    Card(
-        modifier  = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        shape     = RoundedCornerShape(16.dp),
-        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
-    ) {
-        Column {
-            Row(modifier = Modifier.fillMaxWidth()) {
-
-                // ── Exercise image ────────────────────────────────────────
-                Box(
+    ProgramPreviewCard(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        footerContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        footerContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        imageContent = {
+            val thumbUrl = exercise?.thumbnailUrl
+            if (!thumbUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = thumbUrl,
+                    contentDescription = item.exerciseName,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .width(140.dp)
-                        .height(160.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    val thumbUrl = exercise?.thumbnailUrl
-                    if (!thumbUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model              = thumbUrl,
-                            contentDescription = item.exerciseName,
-                            contentScale       = ContentScale.Crop,
-                            modifier           = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)),
-                        )
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)),
+                )
+            }
+        },
+        detailsContent = {
+            Text(
+                item.exerciseName,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            val modeText = item.programMode.ifBlank { null }?.takeUnless { isBodyweight }
+            if (modeText != null) {
+                ProgramPreviewChip(
+                    label = modeText,
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 8.dp),
+                )
+            } else {
+                Spacer(Modifier.height(10.dp))
+            }
+
+            val headerStyle = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.8.sp,
+                fontSize = 9.sp,
+            )
+            val headerColor = MaterialTheme.colorScheme.onSurfaceVariant
+            if (isBodyweight) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text("SET", style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
+                    Text("REPS", style = headerStyle, color = headerColor, modifier = Modifier.weight(1f))
+                }
+            } else {
+                val weightLabel = if ((exercise?.numCables ?: 2) == 1) "WEIGHT" else "PER CABLE"
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text("SET", style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
+                    Text("REPS", style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
+                    Text(weightLabel, style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
+                }
+            }
+            Divider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
+
+            val boldStyle = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.ExtraBold)
+            val numStyle = MaterialTheme.typography.bodySmall
+            val repsText = when (item.mode) {
+                ExerciseMode.REPS -> {
+                    if (item.repRangeMin != null && item.repRangeMax != null) {
+                        "${item.repRangeMin}–${item.repRangeMax}"
+                    } else {
+                        "${item.reps ?: "-"}"
                     }
                 }
-
-                // ── Right: name + set table ───────────────────────────────
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
+                ExerciseMode.TIME -> "${item.durationSec ?: "-"}s"
+            }
+            repeat(item.sets) { setIdx ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        item.exerciseName,
-                        style      = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines   = 2,
-                        overflow   = TextOverflow.Ellipsis,
+                        "${setIdx + 1}",
+                        style = numStyle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(0.55f),
                     )
-
-                    // Mode chip
-                    val modeText = item.programMode.ifBlank { null }?.takeUnless { isBodyweight }
-                    if (modeText != null) {
-                        Text(
-                            modeText,
-                            style    = MaterialTheme.typography.labelSmall,
-                            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 10.sp,
-                            modifier = Modifier.padding(top = 3.dp, bottom = 6.dp),
-                        )
-                    } else {
-                        Spacer(Modifier.height(6.dp))
-                    }
-
-                    // Column headers
-                    val headerStyle = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight    = FontWeight.SemiBold,
-                        letterSpacing = 0.8.sp,
-                        fontSize      = 9.sp,
-                    )
-                    val headerColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    if (isBodyweight) {
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Text("SET",  style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
-                            Text("REPS", style = headerStyle, color = headerColor, modifier = Modifier.weight(1f))
-                        }
-                    } else {
-                        val weightLabel = if ((exercise?.numCables ?: 2) == 1) "WEIGHT" else "PER CABLE"
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Text("SET",        style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
-                            Text("REPS",       style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
-                            Text(weightLabel,  style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
-                        }
-                    }
-                    Divider(modifier = Modifier.padding(vertical = 4.dp), color = MaterialTheme.colorScheme.outlineVariant)
-
-                    // Set rows
-                    val boldStyle = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.ExtraBold)
-                    val numStyle  = MaterialTheme.typography.bodySmall
-                    val repsText  = when (item.mode) {
-                        ExerciseMode.REPS -> {
-                            if (item.repRangeMin != null && item.repRangeMax != null)
-                                "${item.repRangeMin}–${item.repRangeMax}"
-                            else
-                                "${item.reps ?: "-"}"
-                        }
-                        ExerciseMode.TIME -> "${item.durationSec ?: "-"}s"
-                    }
-                    repeat(item.sets) { setIdx ->
-                        Row(
-                            modifier          = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("${setIdx + 1}", style = numStyle,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(0.55f))
-                            Text(repsText, style = boldStyle, modifier = Modifier.weight(if (isBodyweight) 1f else 0.8f))
-                            if (!isBodyweight) {
-                                Text("${item.targetWeightLb}", style = boldStyle, modifier = Modifier.weight(1.2f))
-                            }
-                        }
+                    Text(repsText, style = boldStyle, modifier = Modifier.weight(if (isBodyweight) 1f else 0.8f))
+                    if (!isBodyweight) {
+                        Text("${item.targetWeightLb}", style = boldStyle, modifier = Modifier.weight(1.2f))
                     }
                 }
             }
-
-            // ── Footer: rest + mode ───────────────────────────────────────
-            if (item.restTimerSec > 0 || (!isBodyweight && item.programMode.isNotBlank())) {
-                Divider(color = MaterialTheme.colorScheme.outlineVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp))
-                Row(
-                    modifier              = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    if (item.restTimerSec > 0) {
-                        val restMin = item.restTimerSec / 60
-                        val restSec = item.restTimerSec % 60
-                        val restStr = buildString {
-                            if (restMin > 0) append("${restMin}m ")
-                            if (restSec > 0) append("${restSec}s")
-                        }.trim()
-                        Icon(AppIcons.Timer, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$restStr rest", style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (item.programMode.isNotBlank()) Spacer(Modifier.width(12.dp))
-                    }
-                    if (!isBodyweight && item.programMode.isNotBlank()) {
-                        Icon(AppIcons.FitnessCenter, null, Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(item.programMode, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+        },
+        footerContent = if (item.restTimerSec > 0 || (!isBodyweight && item.programMode.isNotBlank())) {
+            {
+                if (item.restTimerSec > 0) {
+                    val restMin = item.restTimerSec / 60
+                    val restSec = item.restTimerSec % 60
+                    val restStr = buildString {
+                        if (restMin > 0) append("${restMin}m ")
+                        if (restSec > 0) append("${restSec}s")
+                    }.trim()
+                    Icon(AppIcons.Timer, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "$restStr rest",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (item.programMode.isNotBlank()) Spacer(Modifier.width(12.dp))
+                }
+                if (!isBodyweight && item.programMode.isNotBlank()) {
+                    Icon(
+                        AppIcons.FitnessCenter,
+                        null,
+                        Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        item.programMode,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-        }
-    }
+        } else {
+            null
+        },
+    )
 }
 

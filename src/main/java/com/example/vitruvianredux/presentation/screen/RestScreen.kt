@@ -41,6 +41,8 @@ fun RestScreenContent(
     secondsRemaining: Int,
     next: NextStep,
     onSkip: () -> Unit,
+    onRepeatPreviousSet: () -> Unit = {},
+    canRepeatPreviousSet: Boolean = false,
     onSkipExercise: () -> Unit = {},
     onEditUpcomingSets: () -> Unit = {},
     repScores: List<RepQuality> = emptyList(),
@@ -151,6 +153,15 @@ fun RestScreenContent(
                 onClick = onSkip,
                 modifier = Modifier.fillMaxWidth(0.78f),
             )
+
+            if (canRepeatPreviousSet) {
+                AppTonalButton(
+                    text = "Repeat Last Set",
+                    icon = AppIcons.Repeat,
+                    onClick = onRepeatPreviousSet,
+                    modifier = Modifier.fillMaxWidth(0.78f),
+                )
+            }
 
             if (next is NextStep.NextSet) {
                 AppTonalButton(

@@ -182,14 +182,15 @@ class SessionReducerTest {
         assertEquals(0f, snap.stats.volumeKg)
     }
 
-    @Test fun `VolumeAdd on rep 6 carries WORKING phase loadKg and reps=1 (per-rep emission)`() {
+    @Test fun `VolumeAdd on rep 6 carries WORKING phase loadKg and a 3-rep delta`() {
         val s0    = workingState(makeSet())
         val result = SessionReducer.reduce(s0, SessionEvent.MachineRepDetected(6))
-        // One VolumeAdd per rep — reps=1, not bulk.
+        // This helper jumps from total reps 3 -> 6 in one reducer call, so the reducer emits
+        // a single working-phase delta covering the 3 completed working reps.
         val vol   = result.effects.filterIsInstance<SessionEffect.VolumeAdd>().single()
         assertEquals(SetPhase.WORKING, vol.phase)
-        assertEquals(WorkoutParameters.lbsToKg(40), vol.loadKg, 0.001f)
-        assertEquals("per-rep emission: reps must be 3", 3, vol.reps)
+        assertEquals(WorkoutParameters.lbsToKg(40) * 2, vol.loadKg, 0.001f)
+        assertEquals("delta emission: reps must be 3", 3, vol.reps)
     }
 
     // ── WorkingComplete dispatched directly ───────────────────────────────────
@@ -325,7 +326,7 @@ class SessionReducerTest {
     @Test fun `StartSet stores loadKg in kg not lb`() {
         // 40 lb * 0.45359237 ≈ 18.14 kg
         val result = SessionReducer.reduce(idle, SessionEvent.StartSet(makeSet(workingReps = 3), "s"))
-        assertEquals(WorkoutParameters.lbsToKg(40), result.newState.loadKg, 0.001f)
+        assertEquals(WorkoutParameters.lbsToKg(40) * 2, result.newState.loadKg, 0.001f)
         assertFalse("loadKg must not equal input lb value", result.newState.loadKg == 40f)
     }
 

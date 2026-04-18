@@ -650,7 +650,10 @@ object CloudSyncRepository {
         val arr = JSONArray()
         sets.forEach { s ->
             arr.put(JSONObject().apply {
+                if (s.exerciseId.isNotEmpty()) put("exerciseId", s.exerciseId)
                 put("exerciseName", s.exerciseName)
+                if (s.muscleGroups.isNotEmpty()) put("muscleGroups", JSONArray(s.muscleGroups))
+                if (s.muscles.isNotEmpty()) put("muscles", JSONArray(s.muscles))
                 put("setIndex", s.setIndex)
                 put("reps", s.reps)
                 put("weightLb", s.weightLb)
@@ -673,7 +676,14 @@ object CloudSyncRepository {
             (0 until arr.length()).map { i ->
                 val obj = arr.getJSONObject(i)
                 AnalyticsStore.ExerciseSetLog(
+                    exerciseId = obj.optString("exerciseId", ""),
                     exerciseName = obj.optString("exerciseName", ""),
+                    muscleGroups = obj.optJSONArray("muscleGroups")?.let { groups ->
+                        (0 until groups.length()).map { groups.getString(it) }
+                    } ?: emptyList(),
+                    muscles = obj.optJSONArray("muscles")?.let { muscles ->
+                        (0 until muscles.length()).map { muscles.getString(it) }
+                    } ?: emptyList(),
                     setIndex = obj.optInt("setIndex", 0),
                     reps = obj.optInt("reps", 0),
                     weightLb = obj.optInt("weightLb", 0),

@@ -4,7 +4,10 @@ import com.example.vitruvianredux.ble.protocol.CableSample
 
 /** Per-set statistics captured during a player-mode set. */
 data class ExerciseStats(
+    val exerciseId: String = "",
     val exerciseName: String = "",
+    val muscleGroups: List<String> = emptyList(),
+    val muscles: List<String> = emptyList(),
     val setIndex: Int = 0,
     /** Working reps only (warmup reps excluded). */
     val repsCompleted: Int = 0,
@@ -66,6 +69,7 @@ sealed class NextStep {
 
 /** Parameters for one set in a player-mode workout. */
 data class PlayerSetParams(
+    val exerciseId: String = "",
     val exerciseName: String,
     val thumbnailUrl: String? = null,
     val videoUrl: String? = null,
@@ -90,6 +94,8 @@ data class PlayerSetParams(
         com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
     /** Muscle groups for this exercise, e.g. ["CHEST", "ARMS"]. Used for workout history tracking. */
     val muscleGroups: List<String> = emptyList(),
+    /** Specific muscles for this exercise, e.g. ["biceps", "forearms"]. */
+    val muscles: List<String> = emptyList(),
     /** Number of cables used for this exercise (1 or 2). Default 2 covers most Vitruvian movements. */
     val numCables: Int = 2,
     /** Double-progression rep range lower bound (null → legacy exact-reps mode). */

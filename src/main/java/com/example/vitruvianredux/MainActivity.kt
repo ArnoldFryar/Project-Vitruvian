@@ -32,6 +32,7 @@ import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.HistorySeedManager
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.AppScaffold
+import com.example.vitruvianredux.presentation.util.loadAllExercises
 import com.example.vitruvianredux.sync.SyncServiceLocator
 import com.vitruvian.trainer.BuildConfig
 import kotlinx.coroutines.Dispatchers
@@ -94,6 +95,11 @@ class MainActivity : ComponentActivity() {
             WorkoutHistoryStore.init(applicationContext)
             AnalyticsStore.init(applicationContext)
             HistorySeedManager.seed(applicationContext)
+            runCatching {
+                AnalyticsStore.backfillExerciseSetSnapshots(loadAllExercises(applicationContext))
+            }.onFailure {
+                timber.log.Timber.tag("AnalyticsStore").w(it, "exercise snapshot backfill failed")
+            }
             PersonalBestStore.init(lifecycleScope)
             ActivityStatsStore.seedFromAnalytics()
             SessionLogRepository.init(applicationContext)

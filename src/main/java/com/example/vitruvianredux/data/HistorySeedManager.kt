@@ -65,7 +65,14 @@ object HistorySeedManager {
             val sets = (0 until setsArr.length()).map { si ->
                 val so = setsArr.getJSONObject(si)
                 AnalyticsStore.ExerciseSetLog(
+                    exerciseId      = so.optString("exerciseId", ""),
                     exerciseName    = so.getString("exerciseName"),
+                    muscleGroups    = so.optJSONArray("muscleGroups")?.let { groups ->
+                        (0 until groups.length()).map { groups.getString(it) }
+                    } ?: emptyList(),
+                    muscles         = so.optJSONArray("muscles")?.let { muscles ->
+                        (0 until muscles.length()).map { muscles.getString(it) }
+                    } ?: emptyList(),
                     setIndex        = so.getInt("setIndex"),
                     reps            = so.getInt("reps"),
                     weightLb        = so.getInt("weightLb"),

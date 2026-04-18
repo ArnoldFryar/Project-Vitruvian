@@ -24,6 +24,8 @@ import com.example.vitruvianredux.data.VitruvianLibrary
 import com.example.vitruvianredux.data.VitSetGroup
 import com.example.vitruvianredux.data.VitSet
 import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.components.ProgramPreviewCard
+import com.example.vitruvianredux.presentation.components.ProgramPreviewChip
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
@@ -68,8 +70,10 @@ fun OfficialProgramDetailScreen(
             item(key = "hero") {
                 Column(
                     modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                         .background(MaterialTheme.colorScheme.surface)
-                        .padding(start = 20.dp, end = 20.dp, top = 64.dp, bottom = 20.dp),
+                        .padding(start = 20.dp, end = 20.dp, top = 64.dp, bottom = 24.dp),
                 ) {
                     Text(
                         routine.name,
@@ -103,8 +107,18 @@ fun OfficialProgramDetailScreen(
 
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PillChip("$totalSets sets")
-                        if (routine.totalExercises > 0) PillChip("${routine.totalExercises} exercises")
+                        ProgramPreviewChip(
+                            label = "$totalSets sets",
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                        if (routine.totalExercises > 0) {
+                            ProgramPreviewChip(
+                                label = "${routine.totalExercises} exercises",
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(16.dp))
@@ -217,146 +231,96 @@ fun OfficialProgramDetailScreen(
 // ─── Sub-composables ──────────────────────────────────────────────────────────
 
 @Composable
-private fun PillChip(label: String) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.tertiaryContainer,
-    ) {
-        Text(
-            label,
-            style      = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color      = MaterialTheme.colorScheme.onTertiaryContainer,
-            modifier   = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-        )
-    }
-}
-
-@Composable
 private fun ExerciseDetailCard(group: VitSetGroup, weightFactor: Float) {
-    Card(
-        modifier  = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        shape     = RoundedCornerShape(16.dp),
-        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
-    ) {
-        Column {
-            Row(modifier = Modifier.fillMaxWidth()) {
-
-                // ── Large exercise image ──────────────────────────────────────
-                Box(
+    ProgramPreviewCard(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+        footerContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        footerContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        imageContent = {
+            if (!group.exercise.thumbnailUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = group.exercise.thumbnailUrl,
+                    contentDescription = group.exercise.name,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .width(140.dp)
-                        .height(160.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)),
+                )
+            }
+        },
+        detailsContent = {
+            Text(
+                group.exercise.name.ifBlank { "Unknown" },
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            if (group.exercise.muscleGroups.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.padding(top = 6.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    if (!group.exercise.thumbnailUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model              = group.exercise.thumbnailUrl,
-                            contentDescription = group.exercise.name,
-                            contentScale       = ContentScale.Crop,
-                            modifier           = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)),
+                    group.exercise.muscleGroups.take(2).forEach { mg ->
+                        ProgramPreviewChip(
+                            label = mg.lowercase().replaceFirstChar { it.uppercaseChar() }.replace('_', ' '),
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
                 }
-
-                // ── Right side: name + set table ──────────────────────────────
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 12.dp),
-                ) {
-                    Text(
-                        group.exercise.name.ifBlank { "Unknown" },
-                        style      = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines   = 2,
-                        overflow   = TextOverflow.Ellipsis,
-                    )
-
-                    if (group.exercise.muscleGroups.isNotEmpty()) {
-                        Row(
-                            modifier              = Modifier.padding(top = 3.dp, bottom = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            group.exercise.muscleGroups.take(2).forEach { mg ->
-                                Text(
-                                    mg.lowercase().replaceFirstChar { it.uppercaseChar() }.replace('_', ' '),
-                                    style    = MaterialTheme.typography.labelSmall,
-                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 10.sp,
-                                )
-                            }
-                        }
-                    } else {
-                        Spacer(Modifier.height(6.dp))
-                    }
-
-                    // Column headers
-                    val headerStyle = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight    = FontWeight.SemiBold,
-                        letterSpacing = 0.8.sp,
-                        fontSize      = 9.sp,
-                    )
-                    val headerColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Text("SET",       style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
-                        Text("REPS",      style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
-                        Text("PER CABLE", style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
-                    }
-                    Divider(
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        color    = MaterialTheme.colorScheme.outlineVariant,
-                    )
-
-                    group.sets.forEachIndexed { setIdx, set ->
-                        SetRow(index = setIdx + 1, set = set, weightFactor = weightFactor)
-                    }
-                }
+            } else {
+                Spacer(Modifier.height(10.dp))
             }
 
-            // ── Footer: rest time + training type ─────────────────────────────
+            val headerStyle = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.8.sp,
+                fontSize = 9.sp,
+            )
+            val headerColor = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text("SET", style = headerStyle, color = headerColor, modifier = Modifier.weight(0.55f))
+                Text("REPS", style = headerStyle, color = headerColor, modifier = Modifier.weight(0.8f))
+                Text("PER CABLE", style = headerStyle, color = headerColor, modifier = Modifier.weight(1.2f))
+            }
+            Divider(
+                modifier = Modifier.padding(vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+
+            group.sets.forEachIndexed { setIdx, set ->
+                SetRow(index = setIdx + 1, set = set, weightFactor = weightFactor)
+            }
+        },
+        footerContent = {
             val restText = group.sets.firstOrNull()?.displayRest?.takeIf { it.isNotBlank() }
-            val setType  = group.sets.firstOrNull()?.type
+            val setType = group.sets.firstOrNull()?.type
                 ?.takeIf { it.isNotBlank() }
                 ?.lowercase()?.replaceFirstChar { it.uppercaseChar() }
 
-            if (restText != null || setType != null) {
-                Divider(
-                    color    = MaterialTheme.colorScheme.outlineVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp),
+            if (restText != null) {
+                Icon(AppIcons.Timer, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "$restText rest",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Row(
-                    modifier              = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer)
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    if (restText != null) {
-                        Icon(AppIcons.Timer, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$restText rest", style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (setType != null) Spacer(Modifier.width(12.dp))
-                    }
-                    if (setType != null) {
-                        Icon(AppIcons.FitnessCenter, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(setType, style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+                if (setType != null) Spacer(Modifier.width(12.dp))
             }
-        }
-    }
+            if (setType != null) {
+                Icon(AppIcons.FitnessCenter, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    setType,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+    )
 }
 
 @Composable

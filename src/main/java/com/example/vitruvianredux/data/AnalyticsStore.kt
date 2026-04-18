@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import com.example.vitruvianredux.ble.protocol.CableSample
+import com.example.vitruvianredux.model.Exercise
 import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDate
@@ -37,7 +38,10 @@ object AnalyticsStore {
 
     /** Per-set breakdown captured during a workout. */
     data class ExerciseSetLog(
+        val exerciseId: String = "",
         val exerciseName: String,
+        val muscleGroups: List<String> = emptyList(),
+        val muscles: List<String> = emptyList(),
         val setIndex: Int,
         val reps: Int,
         val weightLb: Int,
@@ -115,6 +119,23 @@ object AnalyticsStore {
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         _logs.value = load()
         Timber.tag("analytics").i("init: loaded ${_logs.value.size} session log(s)")
+    }
+
+    fun backfillExerciseSetSnapshots(exercises: List<Exercise>): Int {
+        if (exercises.isEmpty() || _logs.value.isEmpty()) return 0
+        val catalog = MuscleHeatmap.buildCatalogLookup(exercises)
+        var changed = 0
+        val updatedLogs = _logs.value.map { log ->
+            val backfilled = MuscleHeatmap.backfill(log, catalog)
+            if (backfilled != log) changed++
+            backfilled
+        }
+        if (changed > 0) {
+            _logs.value = updatedLogs
+            persist()
+            Timber.tag(TAG).i("backfilled exercise snapshots for $changed session log(s)")
+        }
+        return changed
     }
 
     // ── Write API ────────────────────────────────────────────────────────────
@@ -348,7 +369,10 @@ object AnalyticsStore {
                     put("exerciseSets", JSONArray().also { setsArr ->
                         for (s in log.exerciseSets) {
                             setsArr.put(JSONObject().apply {
+                                if (s.exerciseId.isNotEmpty()) put("exerciseId", s.exerciseId)
                                 put("exerciseName", s.exerciseName)
+                                if (s.muscleGroups.isNotEmpty()) put("muscleGroups", JSONArray(s.muscleGroups))
+                                if (s.muscles.isNotEmpty()) put("muscles", JSONArray(s.muscles))
                                 put("setIndex", s.setIndex)
                                 put("reps", s.reps)
                                 put("weightLb", s.weightLb)
@@ -405,7 +429,14 @@ object AnalyticsStore {
                         (0 until setsArr.length()).map { si ->
                             val so = setsArr.getJSONObject(si)
                             ExerciseSetLog(
+                                exerciseId      = so.optString("exerciseId", ""),
                                 exerciseName    = so.getString("exerciseName"),
+                                muscleGroups    = so.optJSONArray("muscleGroups")?.let { groups ->
+                                    (0 until groups.length()).map { groups.getString(it) }
+                                } ?: emptyList(),
+                                muscles         = so.optJSONArray("muscles")?.let { muscles ->
+                                    (0 until muscles.length()).map { muscles.getString(it) }
+                                } ?: emptyList(),
                                 setIndex        = so.getInt("setIndex"),
                                 reps            = so.getInt("reps"),
                                 weightLb        = so.getInt("weightLb"),

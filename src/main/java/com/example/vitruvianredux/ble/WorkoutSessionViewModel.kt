@@ -13,7 +13,11 @@ import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.HandleState
 import com.example.vitruvianredux.ble.session.NextStep
 import com.example.vitruvianredux.data.TtsVoiceStore
+import com.example.vitruvianredux.data.VoiceCoachingSettings
+import com.example.vitruvianredux.data.VoiceCoachingStore
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.coaching.ModeProfile
+import com.example.vitruvianredux.presentation.repquality.RepQuality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,6 +66,9 @@ class WorkoutSessionViewModel(
 
     /** The currently selected voice name (empty = engine default). */
     val selectedVoiceName: StateFlow<String> = TtsVoiceStore.voiceNameFlow
+
+    /** Persisted workout audio and coaching preferences. */
+    val voiceCoachingSettings: StateFlow<VoiceCoachingSettings> = VoiceCoachingStore.settingsFlow
 
     /** True when the BLE client is fully ready (connected + writeChar + notifications). */
     val bleIsReady: StateFlow<Boolean> = engine.bleClient.isReady
@@ -150,6 +157,11 @@ class WorkoutSessionViewModel(
     private var lastSetPhase: com.example.vitruvianredux.ble.session.SetPhase? = null
     /** Tracks the last rest-countdown second we spoke so we don't repeat. */
     private var lastSpokenRestSecond = -1
+    private var lastSpokenDurationWarningSecond = -1
+    private var lastAudioSessionPhase: SessionPhase? = null
+    private val audioArbiter = WorkoutAudioArbiter()
+    private val currentSetVoiceQualities = mutableListOf<RepQuality>()
+    private var bestConcentricWattMaxForSet: Float? = null
 
     /**
      * Passive desync watchdog — observes BLE metrics, rep counter, and session
@@ -176,6 +188,12 @@ class WorkoutSessionViewModel(
         viewModelScope.launch {
             state.collect { currentState ->
                 val phase = currentState.setPhase
+                val sessionPhase = currentState.sessionPhase
+
+                if (sessionPhase != lastAudioSessionPhase) {
+                    handleAudioPhaseTransition(lastAudioSessionPhase, sessionPhase)
+                    lastAudioSessionPhase = sessionPhase
+                }
 
                 // Reset spoken counter when transitioning INTO working phase
                 // or when the working rep count resets (new set)
@@ -192,13 +210,12 @@ class WorkoutSessionViewModel(
                     phase == com.example.vitruvianredux.ble.session.SetPhase.COMPLETE) {
                     val workingRep = currentState.workingRepsCompleted
                     if (workingRep > lastSpokenWorkingRep && workingRep > 0) {
-                        speakRep(workingRep)
+                        speakEvent(WorkoutAudioEvent.RepCount(workingRep))
                         lastSpokenWorkingRep = workingRep
                     }
                 }
 
                 // ── Capture per-set stats for "Save Changes" feature ─────
-                val sessionPhase = currentState.sessionPhase
                 if (sessionPhase is SessionPhase.ExerciseComplete &&
                     _completedExerciseStats.none { it.setIndex == sessionPhase.stats.setIndex }) {
                     // Attach accumulated rep quality averages to the engine's stats
@@ -229,11 +246,25 @@ class WorkoutSessionViewModel(
                     val sec = sessionPhase.secondsRemaining
                     if (sec in 1..10 && sec != lastSpokenRestSecond) {
                         lastSpokenRestSecond = sec
-                        speakCountdown(sec)
+                        speakEvent(WorkoutAudioEvent.RestCountdown(sec))
                     }
                 } else {
                     // Reset when we leave the Resting phase
                     lastSpokenRestSecond = -1
+                }
+
+                if (
+                    sessionPhase is SessionPhase.ExerciseActive &&
+                    sessionPhase.targetDurationSec != null &&
+                    sessionPhase.targetReps == null
+                ) {
+                    val sec = currentState.durationCountdownSec
+                    if ((sec == 10 || sec == 5) && sec != lastSpokenDurationWarningSecond) {
+                        lastSpokenDurationWarningSecond = sec
+                        speakEvent(WorkoutAudioEvent.DurationEnding(sec))
+                    }
+                } else {
+                    lastSpokenDurationWarningSecond = -1
                 }
             }
         }
@@ -308,15 +339,45 @@ class WorkoutSessionViewModel(
         if (voice != null) tts?.voice = voice
     }
 
-    private fun speakRep(rep: Int) {
+    private fun speakEvent(event: WorkoutAudioEvent) {
         if (isTtsInitialized && soundEnabled.value) {
-            tts?.speak(rep.toString(), TextToSpeech.QUEUE_FLUSH, null, "rep_$rep")
+            val utterance = audioArbiter.nextUtterance(event, voiceCoachingSettings.value) ?: return
+            tts?.speak(utterance.text, utterance.queueMode, null, utterance.utteranceId)
         }
     }
 
-    private fun speakCountdown(seconds: Int) {
-        if (isTtsInitialized && soundEnabled.value) {
-            tts?.speak(seconds.toString(), TextToSpeech.QUEUE_FLUSH, null, "rest_$seconds")
+    private fun handleAudioPhaseTransition(previous: SessionPhase?, current: SessionPhase) {
+        when {
+            current is SessionPhase.SetReady && previous !is SessionPhase.SetReady -> {
+                currentSetVoiceQualities.clear()
+                bestConcentricWattMaxForSet = null
+                audioArbiter.resetSet()
+                speakEvent(WorkoutAudioEvent.Ready)
+            }
+
+            current is SessionPhase.ExerciseActive && previous !is SessionPhase.ExerciseActive -> {
+                currentSetVoiceQualities.clear()
+                bestConcentricWattMaxForSet = null
+                audioArbiter.resetSet()
+                speakEvent(WorkoutAudioEvent.SetStarted)
+            }
+
+            current is SessionPhase.Resting && previous !is SessionPhase.Resting -> {
+                speakEvent(WorkoutAudioEvent.SetComplete)
+            }
+
+            current is SessionPhase.Reconnecting && previous !is SessionPhase.Reconnecting -> {
+                speakEvent(WorkoutAudioEvent.ConnectionLost)
+            }
+
+            current is SessionPhase.WorkoutComplete ||
+                current is SessionPhase.Idle ||
+                current is SessionPhase.Stopped ||
+                current is SessionPhase.Error -> {
+                currentSetVoiceQualities.clear()
+                bestConcentricWattMaxForSet = null
+                audioArbiter.resetSession()
+            }
         }
     }
 
@@ -337,6 +398,7 @@ class WorkoutSessionViewModel(
             engine.startPlayerWorkout(
                 listOf(
                     PlayerSetParams(
+                        exerciseId        = exercise.stableKey,
                         exerciseName      = exercise.name,
                         thumbnailUrl      = exercise.thumbnailUrl,
                         videoUrl          = exercise.videoUrl,
@@ -348,6 +410,7 @@ class WorkoutSessionViewModel(
                         warmupReps        = if (isBodyweight) 0 else 3,
                         programMode       = "Old School",
                         muscleGroups      = exercise.muscleGroups,
+                        muscles           = exercise.muscles,
                         numCables         = exercise.numCables,
                     )
                 )
@@ -495,6 +558,7 @@ class WorkoutSessionViewModel(
         val isBodyweight = exercise.isBodyweightOnly
         val sets = listOf(
             PlayerSetParams(
+                exerciseId        = exercise.stableKey,
                 exerciseName      = exercise.name,
                 thumbnailUrl      = exercise.thumbnailUrl,
                 videoUrl          = exercise.videoUrl,
@@ -512,6 +576,7 @@ class WorkoutSessionViewModel(
                 stallDetectionEnabled = stallDetectionEnabled,
                 repCountTiming    = repCountTiming,
                 muscleGroups      = exercise.muscleGroups,
+                muscles           = exercise.muscles,
                 numCables         = exercise.numCables,
             )
         )
@@ -539,6 +604,9 @@ class WorkoutSessionViewModel(
 
     /** Skip the current set and advance to the next set (same or different exercise). */
     fun skipSet() = engine.skipSet()
+
+    /** Insert a copy of the previously completed/planned set before the current one and launch it. */
+    fun repeatPreviousSet() = engine.repeatPreviousSet()
 
     /** Confirm ready — the user taps "Go" from the SetReady screen to start the BLE set. */
     fun confirmReady(
@@ -597,6 +665,11 @@ class WorkoutSessionViewModel(
         sessionTags       = emptySet()
         _completedExerciseStats.clear()
         _currentSetRepQualities.clear()
+        currentSetVoiceQualities.clear()
+        bestConcentricWattMaxForSet = null
+        lastSpokenRestSecond = -1
+        lastSpokenDurationWarningSecond = -1
+        audioArbiter.resetSession()
         soundEnabled.value = true   // Restore default so every new workout starts with audio on
         engine.resetAfterWorkout()
     }
@@ -607,8 +680,29 @@ class WorkoutSessionViewModel(
      * Accumulated scores are averaged and attached to [ExerciseStats] when
      * the set completes.
      */
-    fun recordRepQuality(quality: com.example.vitruvianredux.presentation.repquality.RepQuality) {
+    fun recordRepQuality(quality: RepQuality, mode: String) {
         _currentSetRepQualities.add(quality)
+
+        val profile = ModeProfile.forMode(mode)
+        val currentHeuristic = machineHeuristic.value
+        val cue = VoiceCoachingEvaluator.evaluate(
+            quality = quality,
+            profile = profile,
+            recentQualities = currentSetVoiceQualities,
+            machineHeuristic = currentHeuristic,
+            bestConcentricWattMax = bestConcentricWattMaxForSet,
+        )
+        currentSetVoiceQualities.add(quality)
+
+        val currentWattMax = VoiceCoachingEvaluator.currentConcentricWattMax(currentHeuristic)
+        if (currentWattMax != null) {
+            bestConcentricWattMaxForSet = maxOf(bestConcentricWattMaxForSet ?: currentWattMax, currentWattMax)
+        }
+
+        if (cue != null) {
+            val repIndex = state.value.workingRepsCompleted.coerceAtLeast(currentSetVoiceQualities.size)
+            speakEvent(WorkoutAudioEvent.Coaching(cue, repIndex))
+        }
     }
 
     /**

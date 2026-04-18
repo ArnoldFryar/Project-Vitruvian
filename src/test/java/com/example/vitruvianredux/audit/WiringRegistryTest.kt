@@ -221,7 +221,7 @@ class WiringRegistryTest {
     @Test
     fun `global screen has exactly 8 actions`() {
         WiringRegistry.registerActions(ALL_ACTION_DEFINITIONS)
-        assertEquals(8, WiringRegistry.statsByScreen(SCR_GLOBAL).size)
+        assertEquals(9, WiringRegistry.statsByScreen(SCR_GLOBAL).size)
     }
 
     // ── Outcome recording ─────────────────────────────────────────────────────

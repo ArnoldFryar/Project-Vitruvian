@@ -33,10 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.caverock.androidsvg.SVG
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.MuscleHeatmap
 import com.example.vitruvianredux.data.PrTracker
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
-import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
 import com.example.vitruvianredux.presentation.ui.theme.AccentRed
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -48,7 +49,7 @@ import com.example.vitruvianredux.presentation.ui.theme.Success
 import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.presentation.ui.theme.WarningContainer
 import com.example.vitruvianredux.presentation.ui.theme.WarningOnContainer
-import com.example.vitruvianredux.presentation.util.loadExercises
+import com.example.vitruvianredux.presentation.util.loadAllExercises
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
 import java.time.ZoneId
@@ -70,15 +71,11 @@ fun AnalyticsDashboardScreen(
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val context = LocalContext.current
 
-    // Load exercise catalog to derive muscle groups from allLogs exercise names.
-    // This is more reliable than WorkoutHistoryStore.muscleGroupDistribution() which
-    // may return empty data if records were imported before the muscleGroups field existed.
-    var catalogByName by remember { mutableStateOf<Map<String, List<String>>>(emptyMap()) }
+    var catalogLookup by remember { mutableStateOf<MuscleHeatmap.CatalogLookup?>(null) }
     LaunchedEffect(Unit) {
-        catalogByName = try {
-            withContext(Dispatchers.IO) { loadExercises(context) }
-                .associate { it.name.trim().lowercase() to it.muscleGroups }
-        } catch (_: Exception) { emptyMap() }
+        catalogLookup = try {
+            MuscleHeatmap.buildCatalogLookup(withContext(Dispatchers.IO) { loadAllExercises(context) })
+        } catch (_: Exception) { null }
     }
 
 
@@ -107,6 +104,16 @@ fun AnalyticsDashboardScreen(
             val hPad    = if (isTablet) AppDimens.Spacing.xl else AppDimens.Spacing.md
             val colGap  = AppDimens.Spacing.md
 
+            if (allLogs.isEmpty()) {
+                AppEmptyState(
+                    icon = AppIcons.BarChart,
+                    headline = "No analytics yet",
+                    description = "Complete a workout and this dashboard will start showing volume, frequency, PRs, and muscle trends.",
+                    modifier = Modifier.fillMaxSize(),
+                )
+                return@BoxWithConstraints
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -124,7 +131,7 @@ fun AnalyticsDashboardScreen(
                             VolumePerSessionChart(allLogs, unitSystem)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
-                            WeeklyFrequencyChart()
+                            WeeklyFrequencyChart(allLogs)
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
@@ -137,7 +144,7 @@ fun AnalyticsDashboardScreen(
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
-                            MuscleSilhouetteSection(allLogs, catalogByName)
+                            MuscleSilhouetteSection(allLogs, catalogLookup)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
                             PersonalRecordsSection(allLogs, unitSystem)
@@ -154,9 +161,9 @@ fun AnalyticsDashboardScreen(
                 } else {
                     // ── Phone: single column ──────────────────────────────
                     VolumePerSessionChart(allLogs, unitSystem)
-                    WeeklyFrequencyChart()
+                    WeeklyFrequencyChart(allLogs)
                     MostTrainedExercises(allLogs)
-                    MuscleSilhouetteSection(allLogs, catalogByName)
+                    MuscleSilhouetteSection(allLogs, catalogLookup)
                     ModeBreakdownSection(allLogs)
                     PersonalRecordsSection(allLogs, unitSystem)
                     RecentPrsSection(allLogs, unitSystem)
@@ -185,6 +192,14 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
 
     val cs = MaterialTheme.colorScheme
     val unitLabel = UnitConversions.unitLabel(unitSystem)
+    val heaviestLiftLabel = if (heaviestLift > 0) {
+        UnitConversions.formatWeightFromKg(
+            UnitConversions.lbToKg(heaviestLift.toDouble()),
+            unitSystem,
+        )
+    } else {
+        null
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
         SectionHeader("Overview")
@@ -197,8 +212,8 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
             StatCard("Volume", UnitConversions.formatVolumeFromKg(totalVolume, unitSystem) + " $unitLabel", BrandBrass, cardMod)
             StatCard("Reps", "$totalReps", Success, cardMod)
             StatCard("Avg Duration", formatDuration(avgDuration), cs.secondary, cardMod)
-            if (heaviestLift > 0) {
-                StatCard("Heaviest", "$heaviestLift lb", AccentAmber, cardMod)
+            if (heaviestLiftLabel != null) {
+                StatCard("Heaviest", heaviestLiftLabel, AccentAmber, cardMod)
             }
         }
     }
@@ -315,8 +330,8 @@ private fun VolumePerSessionChart(logs: List<AnalyticsStore.SessionLog>, unitSys
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun WeeklyFrequencyChart() {
-    val data = remember { AnalyticsStore.sessionsPerWeek(12) }
+private fun WeeklyFrequencyChart(logs: List<AnalyticsStore.SessionLog>) {
+    val data = remember(logs) { AnalyticsStore.sessionsPerWeek(12) }
     if (data.isEmpty()) return
     val maxCount = data.maxOf { it.second }.coerceAtLeast(1)
     val cs = MaterialTheme.colorScheme
@@ -454,29 +469,16 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
 //  Muscle Silhouette Heatmap (SVG-based)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Maps each SVG muscle-group ID in muscles.svg to its WorkoutHistoryStore key. */
-private val SVG_MUSCLE_MAP = mapOf(
-    "upper_pecs" to "CHEST",  "middle_pecs" to "CHEST",  "lower_pecs" to "CHEST",
-    "lats" to "BACK",         "rhomboids" to "BACK",     "lower_back" to "BACK",
-    "lower_traps" to "BACK",
-    "front_delts" to "SHOULDERS", "side_delts" to "SHOULDERS",
-    "rear_delts" to "SHOULDERS",  "upper_traps" to "SHOULDERS", "neck" to "SHOULDERS",
-    "biceps" to "ARMS",   "triceps" to "ARMS",   "forearms" to "ARMS",
-    "upper_abs" to "CORE", "lower_abs" to "CORE", "obliques" to "CORE",
-    "quads" to "LEGS",        "hamstrings" to "LEGS",  "calves" to "LEGS",
-    "glutes" to "LEGS",       "hip_abductor" to "LEGS", "hip_adductor" to "LEGS",
-)
-
 private fun buildStyledMuscleSvg(
     rawSvg: String,
-    distribution: Map<String, Int>,
-    maxVal: Int,
+    distribution: Map<String, Double>,
+    maxVal: Double,
     viewBox: String,
 ): String {
-    fun intensityColor(group: String): String {
-        val count = distribution[group] ?: 0
-        if (count == 0) return "#221A18"
-        val v = (count.toFloat() / maxVal).coerceIn(0f, 1f)
+    fun intensityColor(regionId: String): String {
+        val count = distribution[regionId] ?: 0.0
+        if (count == 0.0) return "#221A18"
+        val v = (count / maxVal).toFloat().coerceIn(0f, 1f)
         val alpha = 0.15f + v * 0.75f
         // Pre-blend brass over a warm charcoal base — AndroidSVG doesn't support rgba().
         val r = (18 * (1 - alpha) + 192 * alpha).toInt()
@@ -505,8 +507,8 @@ private fun buildStyledMuscleSvg(
 
     // Inject fill directly on each <path> inside each muscle group.
     // Presentation attributes on <path> are effective now that CSS no longer sets fill.
-    for ((groupId, muscleGroup) in SVG_MUSCLE_MAP) {
-        val color = intensityColor(muscleGroup)
+    for (groupId in MuscleHeatmap.svgRegionToGroup.keys) {
+        val color = intensityColor(groupId)
         val startTag = "<g id=\"$groupId\">"
         val startIdx = svg.indexOf(startTag)
         if (startIdx < 0) continue
@@ -526,8 +528,8 @@ private fun buildStyledMuscleSvg(
 
 private suspend fun renderMuscleSvgBitmap(
     context: Context,
-    distribution: Map<String, Int>,
-    maxVal: Int,
+    distribution: Map<String, Double>,
+    maxVal: Double,
     viewBox: String,
     widthPx: Int = 480,
 ): ImageBitmap = withContext(Dispatchers.IO) {
@@ -553,28 +555,21 @@ private enum class HeatmapPeriod(val label: String, val days: Int?) {
 @Composable
 private fun MuscleSilhouetteSection(
     allLogs: List<AnalyticsStore.SessionLog>,
-    catalogByName: Map<String, List<String>>,
+    catalogLookup: MuscleHeatmap.CatalogLookup?,
 ) {
     val context = LocalContext.current
     var period by remember { mutableStateOf(HeatmapPeriod.WEEK) }
 
-    val distribution = remember(allLogs, catalogByName, period) {
-        val cutoffMs = period.days?.let {
-            System.currentTimeMillis() - it * 24 * 60 * 60 * 1000L
-        }
-        val filtered = if (cutoffMs != null) allLogs.filter { it.endTimeMs >= cutoffMs } else allLogs
-        if (catalogByName.isNotEmpty()) {
-            filtered
-                .flatMap { it.exerciseNames }
-                .flatMap { name -> catalogByName[name.trim().lowercase()] ?: emptyList() }
-                .groupingBy { it.uppercase() }
-                .eachCount()
-        } else {
-            WorkoutHistoryStore.muscleGroupDistribution(period.days)
-        }
+    val distribution = remember(allLogs, catalogLookup, period) {
+        MuscleHeatmap.regionDistribution(allLogs, period.days, catalogLookup)
+            .ifEmpty {
+                MuscleHeatmap.expandBroadGroupDistribution(
+                    WorkoutHistoryStore.muscleGroupDistribution(period.days),
+                )
+            }
     }
 
-    val maxVal = distribution.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+    val maxVal = distribution.values.maxOrNull()?.coerceAtLeast(1.0) ?: 1.0
 
     val bitmaps by produceState<Pair<ImageBitmap, ImageBitmap>?>(null, distribution) {
         val front = renderMuscleSvgBitmap(context, distribution, maxVal, "-20 -20 1800 3240")
@@ -875,7 +870,7 @@ private fun RecentPrsSection(
     if (events.isEmpty()) return
 
     val isLb = unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB
-    val now = remember { System.currentTimeMillis() }
+    val now = System.currentTimeMillis()
 
     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
         SectionHeader("Recent PRs")

@@ -29,11 +29,17 @@ object UpNextResolver {
         programs: List<SavedProgram>,
         workoutHistory: List<WorkoutHistoryStore.WorkoutRecord>,
         activeProgramId: String? = null,
+        referenceDate: LocalDate = LocalDate.now(),
     ): SavedProgram? {
         if (programs.isEmpty()) return null
 
-        val today = LocalDate.now()
+        val today = referenceDate
         val todayDayOfWeek = today.dayOfWeek
+        val completedTodayNames = workoutHistory
+            .asSequence()
+            .filter { it.date == today }
+            .mapNotNull { it.programName }
+            .toSet()
 
         // a. Active program + history → advance to the next program in sequence (cyclic).
         //    Rationale: the user is mid-workout on the active program; the card should
@@ -51,33 +57,31 @@ object UpNextResolver {
             return programs.firstOrNull { it.id == activeProgramId } ?: programs.first()
         }
 
-        // c. Check if any program is explicitly scheduled for today and NOT yet completed today.
+        // c. Prefer the earliest pending scheduled workout from today forward.
         val scheduledToday = programs.filter { it.scheduledDays.contains(todayDayOfWeek) }
         if (scheduledToday.isNotEmpty()) {
-            // Find which (if any) of today's scheduled programs haven't been done yet today.
-            val completedTodayNames = workoutHistory
-                .filter { it.date == today }
-                .mapNotNull { it.programName }
-                .toSet()
-
             val pendingToday = scheduledToday.filter { it.name !in completedTodayNames }
             if (pendingToday.isNotEmpty()) {
-                // Return the first pending scheduled program for today.
                 return pendingToday.minByOrNull { it.sortOrder }
             }
         }
 
+        findNextScheduledWorkout(
+            programs = programs,
+            completedTodayNames = completedTodayNames,
+            today = today,
+        )?.let { return it }
+
         // d. No active program, but history exists → most recently used program.
-        //    If the last workout was completed today, advance to the next program in sequence
-        //    so the card reflects what comes after the session the user just finished.
+        //    If the last workout was completed today and nothing is scheduled next,
+        //    advance to the next program in sequence as a best-effort fallback.
         if (workoutHistory.isNotEmpty()) {
             val lastRecord = workoutHistory.maxByOrNull { it.date }
             val lastProgramName = lastRecord?.programName
             if (lastProgramName != null) {
                 val lastProgram = programs.firstOrNull { it.name == lastProgramName }
                 if (lastProgram != null) {
-                    if (lastRecord?.date == today) {
-                        // Today's workout is done — show the next one in the rotation.
+                    if (lastRecord.date == today) {
                         val lastIndex = programs.indexOfFirst { it.id == lastProgram.id }
                         return programs[(lastIndex + 1) % programs.size]
                     }
@@ -89,5 +93,32 @@ object UpNextResolver {
 
         // e. No history at all → first available program.
         return programs.first()
+    }
+
+    private fun findNextScheduledWorkout(
+        programs: List<SavedProgram>,
+        completedTodayNames: Set<String>,
+        today: LocalDate,
+    ): SavedProgram? {
+        val scheduledPrograms = programs.filter { it.scheduledDays.isNotEmpty() }
+        if (scheduledPrograms.isEmpty()) return null
+
+        return (0L..7L)
+            .asSequence()
+            .map { today.plusDays(it) }
+            .mapNotNull { date ->
+                val scheduledForDate = scheduledPrograms.filter { date.dayOfWeek in it.scheduledDays }
+                if (scheduledForDate.isEmpty()) {
+                    null
+                } else {
+                    val pendingForDate = if (date == today) {
+                        scheduledForDate.filter { it.name !in completedTodayNames }
+                    } else {
+                        scheduledForDate
+                    }
+                    pendingForDate.minByOrNull { it.sortOrder }
+                }
+            }
+            .firstOrNull()
     }
 }

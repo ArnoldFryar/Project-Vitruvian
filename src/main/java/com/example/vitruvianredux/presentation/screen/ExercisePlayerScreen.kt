@@ -129,6 +129,11 @@ fun ExercisePlayerScreen(
     val isBodyweight = remember(exercise) { exercise?.isBodyweightOnly == true }
     val effectiveResistanceLb = if (isBodyweight) 0f else resistanceLb
     val effectiveSelectedMode = if (isBodyweight) "Old School" else selectedMode
+    val canRepeatPreviousSet = when (phase) {
+        is SessionPhase.SetReady -> phase.setIndex > 0
+        is SessionPhase.Resting -> workoutVM.completedExerciseStats.isNotEmpty()
+        else -> false
+    }
 
     LaunchedEffect(isBodyweight) {
         if (isBodyweight) {
@@ -238,6 +243,8 @@ fun ExercisePlayerScreen(
                             secondsRemaining = restPhase.secondsRemaining,
                             next             = restPhase.next,
                             onSkip           = { WiringRegistry.hit(A_PLAYER_REST_SKIP); WiringRegistry.recordOutcome(A_PLAYER_REST_SKIP, ActualOutcome.StateChanged("restSkipped")); workoutVM.skipRest() },
+                            onRepeatPreviousSet = { workoutVM.repeatPreviousSet() },
+                            canRepeatPreviousSet = canRepeatPreviousSet,
                             onSkipExercise   = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                             onEditUpcomingSets = { showEditUpcomingSets = true },
                             repScores        = fatigueHistory,
@@ -299,7 +306,10 @@ fun ExercisePlayerScreen(
                             prCount      = prCount,
                             exerciseSets = workoutVM.completedExerciseStats.map { es ->
                                 com.example.vitruvianredux.data.AnalyticsStore.ExerciseSetLog(
+                                    exerciseId = es.exerciseId,
                                     exerciseName = es.exerciseName,
+                                    muscleGroups = es.muscleGroups,
+                                    muscles      = es.muscles,
                                     setIndex     = es.setIndex,
                                     reps         = es.repsCompleted,
                                     weightLb     = es.weightPerCableLb * es.numCables,
@@ -372,6 +382,7 @@ fun ExercisePlayerScreen(
                                     workoutVM.startPlayerWorkout(
                                         List(targetSets) {
                                             PlayerSetParams(
+                                                exerciseId        = exercise?.stableKey.orEmpty(),
                                                 exerciseName      = readyPhase.exerciseName,
                                                 thumbnailUrl      = readyPhase.thumbnailUrl,
                                                 videoUrl          = readyPhase.videoUrl,
@@ -382,6 +393,8 @@ fun ExercisePlayerScreen(
                                                 warmupReps        = if (isBodyweight) 0 else warmupReps,
                                                 programMode       = effectiveSelectedMode,
                                                 muscleGroups      = exercise?.muscleGroups ?: emptyList(),
+                                                muscles           = exercise?.muscles ?: emptyList(),
+                                                numCables         = exercise?.numCables ?: 2,
                                             )
                                         }
                                     )
@@ -398,6 +411,8 @@ fun ExercisePlayerScreen(
                                 }
                             },
                             onSkipSet      = { workoutVM.skipSet() },
+                            onRepeatPreviousSet = { workoutVM.repeatPreviousSet() },
+                            canRepeatPreviousSet = canRepeatPreviousSet,
                             onSkipExercise = { workoutVM.skipExercise() },
                             onFinishWorkout = if (isOpenEnded && workoutVM.completedExerciseStats.isNotEmpty()) {
                                 { workoutVM.finishWorkout() }
@@ -505,7 +520,7 @@ fun ExercisePlayerScreen(
                         onSkipSet              = { workoutVM.skipSet() },
                         onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
-                        onRepQualityScored     = { quality -> workoutVM.recordRepQuality(quality) },
+                        onRepQualityScored     = { quality -> workoutVM.recordRepQuality(quality, effectiveSelectedMode) },
                         machineHeuristic       = machineHeuristic,
                     )
                 }
