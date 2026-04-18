@@ -53,6 +53,10 @@ data class SessionLog(
     @ColumnInfo(name = "total_volume_kg")
     val totalVolumeKg: Double?,
 
+    /** Average rep quality score across the workout (0-100), or null if unavailable. */
+    @ColumnInfo(name = "avg_quality_score")
+    val avgQualityScore: Int? = null,
+
     /** Epoch millis when this record was inserted into the database. */
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),

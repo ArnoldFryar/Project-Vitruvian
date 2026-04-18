@@ -4,7 +4,12 @@ import android.net.Uri
 import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -17,6 +22,77 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.vitruvianredux.data.VideoCache
+
+@Stable
+class ExerciseVideoPlayerState internal constructor(
+    internal val exoPlayer: ExoPlayer,
+)
+
+@Composable
+fun rememberExerciseVideoPlayerState(videoUrl: String?): ExerciseVideoPlayerState {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val resolvedUri = remember(videoUrl) {
+        videoUrl?.let { VideoCache.getLocalUri(it) ?: Uri.parse(it) }
+    }
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            repeatMode = Player.REPEAT_MODE_ONE
+            volume = 0f
+            playWhenReady = true
+        }
+    }
+    var loadedUri by remember { mutableStateOf<Uri?>(null) }
+
+    LaunchedEffect(exoPlayer, resolvedUri) {
+        if (resolvedUri != null && loadedUri != resolvedUri) {
+            exoPlayer.setMediaItem(MediaItem.fromUri(resolvedUri))
+            exoPlayer.prepare()
+            loadedUri = resolvedUri
+        }
+        if (resolvedUri != null) {
+            exoPlayer.playWhenReady = true
+            if (exoPlayer.playbackState == Player.STATE_READY && !exoPlayer.isPlaying) {
+                exoPlayer.play()
+            }
+        }
+    }
+
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY && !exoPlayer.isPlaying) {
+                    exoPlayer.play()
+                }
+            }
+        }
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+            exoPlayer.release()
+        }
+    }
+
+    DisposableEffect(lifecycleOwner, exoPlayer) {
+        val observer = object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                exoPlayer.playWhenReady = true
+                if (loadedUri != null) {
+                    exoPlayer.play()
+                }
+            }
+
+            override fun onPause(owner: LifecycleOwner) {
+                exoPlayer.playWhenReady = false
+                exoPlayer.pause()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    return remember(exoPlayer) { ExerciseVideoPlayerState(exoPlayer) }
+}
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 /**
@@ -36,60 +112,21 @@ fun ExerciseVideoPlayer(
     videoUrl: String,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val playerState = rememberExerciseVideoPlayerState(videoUrl)
 
-    // Resolve to a local file URI when the video has been cached offline;
-    // fall back to the remote URL when no local copy exists.
-    val resolvedUri: Uri = remember(videoUrl) {
-        VideoCache.getLocalUri(videoUrl) ?: Uri.parse(videoUrl)
-    }
+    ExerciseVideoPlayer(
+        playerState = playerState,
+        modifier = modifier,
+    )
+}
 
-    val exoPlayer = remember(resolvedUri) {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(resolvedUri))
-            repeatMode    = Player.REPEAT_MODE_ONE
-            volume        = 0f
-            playWhenReady = true
-            prepare()
-        }
-    }
-
-    // Re-kick play() whenever the player reaches STATE_READY (belt-and-suspenders).
-    // This catches the case where the player prepared asynchronously while the
-    // composable was hidden during an AnimatedContent transition, then emerged
-    // in a technically-ready-but-not-playing state.
-    DisposableEffect(exoPlayer) {
-        val listener = object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY && !exoPlayer.isPlaying) {
-                    exoPlayer.play()
-                }
-            }
-        }
-        exoPlayer.addListener(listener)
-        onDispose {
-            exoPlayer.removeListener(listener)
-            exoPlayer.release()
-        }
-    }
-
-    // Pause / resume with the host activity lifecycle so we don't burn CPU
-    // when the app is backgrounded, and reliably resume when it returns.
-    DisposableEffect(lifecycleOwner, exoPlayer) {
-        val observer = object : DefaultLifecycleObserver {
-            override fun onResume(owner: LifecycleOwner) {
-                exoPlayer.playWhenReady = true
-                exoPlayer.play()
-            }
-            override fun onPause(owner: LifecycleOwner) {
-                exoPlayer.playWhenReady = false
-                exoPlayer.pause()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+fun ExerciseVideoPlayer(
+    playerState: ExerciseVideoPlayerState,
+    modifier: Modifier = Modifier,
+) {
+    val exoPlayer = playerState.exoPlayer
 
     AndroidView(
         factory = { ctx ->

@@ -16,8 +16,11 @@ import com.example.vitruvianredux.data.TtsVoiceStore
 import com.example.vitruvianredux.data.VoiceCoachingSettings
 import com.example.vitruvianredux.data.VoiceCoachingStore
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.coaching.CoachingCueEngine
 import com.example.vitruvianredux.presentation.coaching.ModeProfile
+import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.repquality.RepQuality
+import com.example.vitruvianredux.presentation.repquality.RepQualityTracker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -144,12 +147,12 @@ class WorkoutSessionViewModel(
     val completedExerciseStats: List<ExerciseStats>
         get() = (_completedExerciseStats + engine.skippedStats).sortedBy { it.setIndex }
 
-    /**
-     * Per-rep quality scores accumulated during the current set.
-     * The UI calls [recordRepQuality] after scoring each rep; scores are
-     * averaged and attached to [ExerciseStats] when the set completes.
-     */
-    private val _currentSetRepQualities = mutableListOf<com.example.vitruvianredux.presentation.repquality.RepQuality>()
+    /** Most recent scored rep for the current set. */
+    private val _lastRepQuality = MutableStateFlow<RepQuality?>(null)
+    val lastRepQuality: StateFlow<RepQuality?> = _lastRepQuality.asStateFlow()
+
+    /** ViewModel-owned rep-quality tracker so scoring does not depend on Compose visibility. */
+    private val repQualityTracker = RepQualityTracker()
 
     private var tts: TextToSpeech? = null
     private var isTtsInitialized = false
@@ -159,6 +162,7 @@ class WorkoutSessionViewModel(
     private var lastSpokenRestSecond = -1
     private var lastSpokenDurationWarningSecond = -1
     private var lastAudioSessionPhase: SessionPhase? = null
+    private var lastRepQualitySessionPhase: SessionPhase? = null
     private val audioArbiter = WorkoutAudioArbiter()
     private val currentSetVoiceQualities = mutableListOf<RepQuality>()
     private var bestConcentricWattMaxForSet: Float? = null
@@ -195,6 +199,20 @@ class WorkoutSessionViewModel(
                     lastAudioSessionPhase = sessionPhase
                 }
 
+                if (sessionPhase != lastRepQualitySessionPhase) {
+                    handleRepQualityPhaseTransition(lastRepQualitySessionPhase, sessionPhase)
+                    lastRepQualitySessionPhase = sessionPhase
+                }
+
+                val scoredQuality = repQualityTracker.onSessionState(currentState)
+                if (scoredQuality != null) {
+                    _lastRepQuality.value = scoredQuality
+                    FatigueTrendAnalyzer.recordRep(scoredQuality)
+                    val currentMode = (sessionPhase as? SessionPhase.ExerciseActive)?.programMode ?: "Old School"
+                    recordRepQuality(scoredQuality, currentMode)
+                    CoachingCueEngine.evaluate(scoredQuality, ModeProfile.forMode(currentMode))
+                }
+
                 // Reset spoken counter when transitioning INTO working phase
                 // or when the working rep count resets (new set)
                 if (phase != lastSetPhase) {
@@ -218,19 +236,17 @@ class WorkoutSessionViewModel(
                 // ── Capture per-set stats for "Save Changes" feature ─────
                 if (sessionPhase is SessionPhase.ExerciseComplete &&
                     _completedExerciseStats.none { it.setIndex == sessionPhase.stats.setIndex }) {
-                    // Attach accumulated rep quality averages to the engine's stats
-                    val enriched = if (_currentSetRepQualities.isNotEmpty()) {
-                        val rqs = _currentSetRepQualities.toList()
+                    val aggregate = repQualityTracker.consumeCurrentSetAggregate()
+                    val enriched = if (aggregate != null) {
                         sessionPhase.stats.copy(
-                            avgQualityScore = rqs.map { it.score }.average().toInt(),
-                            avgRom          = rqs.map { it.rom }.average().toInt(),
-                            avgTempo        = rqs.map { it.tempo }.average().toInt(),
-                            avgSymmetry     = rqs.map { it.symmetry }.average().toInt(),
-                            avgSmoothness   = rqs.map { it.smoothness }.average().toInt(),
+                            avgQualityScore = aggregate.avgQualityScore,
+                            avgRom          = aggregate.avgRom,
+                            avgTempo        = aggregate.avgTempo,
+                            avgSymmetry     = aggregate.avgSymmetry,
+                            avgSmoothness   = aggregate.avgSmoothness,
                         )
                     } else sessionPhase.stats
                     _completedExerciseStats.add(enriched)
-                    _currentSetRepQualities.clear()
                 }
 
                 // ── Rest countdown — speak final 10 seconds ──────────────
@@ -381,6 +397,34 @@ class WorkoutSessionViewModel(
         }
     }
 
+    private fun handleRepQualityPhaseTransition(previous: SessionPhase?, current: SessionPhase) {
+        when {
+            current is SessionPhase.SetReady && previous !is SessionPhase.SetReady -> {
+                repQualityTracker.clearInFlightRep()
+                _lastRepQuality.value = null
+                FatigueTrendAnalyzer.clearSet()
+                CoachingCueEngine.dismiss()
+            }
+
+            current is SessionPhase.ExerciseActive && previous !is SessionPhase.ExerciseActive -> {
+                repQualityTracker.clearInFlightRep()
+                _lastRepQuality.value = null
+                FatigueTrendAnalyzer.clearSet()
+                CoachingCueEngine.dismiss()
+            }
+
+            current is SessionPhase.WorkoutComplete ||
+                current is SessionPhase.Idle ||
+                current is SessionPhase.Stopped ||
+                current is SessionPhase.Error -> {
+                repQualityTracker.discardCurrentSet()
+                _lastRepQuality.value = null
+                FatigueTrendAnalyzer.clearSet()
+                CoachingCueEngine.dismiss()
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         tts?.stop()
@@ -395,6 +439,10 @@ class WorkoutSessionViewModel(
         if (exercise != null) {
             val isBodyweight = exercise.isBodyweightOnly
             sessionStartMs = System.currentTimeMillis()
+            repQualityTracker.discardCurrentSet()
+            _lastRepQuality.value = null
+            currentSetVoiceQualities.clear()
+            bestConcentricWattMaxForSet = null
             engine.startPlayerWorkout(
                 listOf(
                     PlayerSetParams(
@@ -436,7 +484,10 @@ class WorkoutSessionViewModel(
     fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
         sessionStartMs = System.currentTimeMillis()
         _completedExerciseStats.clear()
-        _currentSetRepQualities.clear()
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
+        currentSetVoiceQualities.clear()
+        bestConcentricWattMaxForSet = null
         return engine.startPlayerWorkout(sets)
     }
 
@@ -452,6 +503,10 @@ class WorkoutSessionViewModel(
         activeDayName     = null   // Day/split support can be wired here in future
         sessionStartMs    = System.currentTimeMillis()
         _completedExerciseStats.clear()
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
+        currentSetVoiceQualities.clear()
+        bestConcentricWattMaxForSet = null
         return engine.startPlayerWorkout(sets, programName = activeProgramName)
     }
 
@@ -555,6 +610,10 @@ class WorkoutSessionViewModel(
             com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
     ) {
         _playerExercise.value = exercise
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
+        currentSetVoiceQualities.clear()
+        bestConcentricWattMaxForSet = null
         val isBodyweight = exercise.isBodyweightOnly
         val sets = listOf(
             PlayerSetParams(
@@ -603,7 +662,15 @@ class WorkoutSessionViewModel(
     fun skipRest() = engine.skipRest()
 
     /** Skip the current set and advance to the next set (same or different exercise). */
-    fun skipSet() = engine.skipSet()
+    fun skipSet() {
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
+        currentSetVoiceQualities.clear()
+        bestConcentricWattMaxForSet = null
+        FatigueTrendAnalyzer.clearSet()
+        CoachingCueEngine.dismiss()
+        engine.skipSet()
+    }
 
     /** Insert a copy of the previously completed/planned set before the current one and launch it. */
     fun repeatPreviousSet() = engine.repeatPreviousSet()
@@ -617,7 +684,15 @@ class WorkoutSessionViewModel(
     ) = engine.confirmReady(targetRepsOverride, targetDurationOverride, weightOverride, warmupOverride)
 
     /** Skip the current exercise entirely and advance to the next different exercise. */
-    fun skipExercise() = engine.skipExercise()
+    fun skipExercise() {
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
+        currentSetVoiceQualities.clear()
+        bestConcentricWattMaxForSet = null
+        FatigueTrendAnalyzer.clearSet()
+        CoachingCueEngine.dismiss()
+        engine.skipExercise()
+    }
 
     /**
      * Insert one additional set identical to the current set (with the user's live overrides)
@@ -664,7 +739,8 @@ class WorkoutSessionViewModel(
         sessionNotes      = ""
         sessionTags       = emptySet()
         _completedExerciseStats.clear()
-        _currentSetRepQualities.clear()
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
         bestConcentricWattMaxForSet = null
         lastSpokenRestSecond = -1
@@ -676,13 +752,9 @@ class WorkoutSessionViewModel(
 
     /**
      * Record a single rep's quality score for the current set.
-     * Called from the presentation layer after [RepQualityCalculator.score].
-     * Accumulated scores are averaged and attached to [ExerciseStats] when
-     * the set completes.
+     * Called after the ViewModel-owned tracker scores a completed rep.
      */
     fun recordRepQuality(quality: RepQuality, mode: String) {
-        _currentSetRepQualities.add(quality)
-
         val profile = ModeProfile.forMode(mode)
         val currentHeuristic = machineHeuristic.value
         val cue = VoiceCoachingEvaluator.evaluate(

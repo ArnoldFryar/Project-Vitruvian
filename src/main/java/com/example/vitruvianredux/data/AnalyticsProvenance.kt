@@ -70,9 +70,9 @@ object AnalyticsProvenance {
         ),
         MetricInfo(
             "quality_score", Source.DEVICE,
-            "BLE SAMPLE UUID telemetry → RepQualityCalculator.score()",
+            "BLE SAMPLE UUID telemetry → RepQualityTracker → RepQualityCalculator.score()",
             Confidence.MEDIUM,
-            "Requires player screen visible; ≥4 telemetry frames minimum",
+            "Requires ≥4 telemetry frames; tracked in WorkoutSessionViewModel rather than a visible composable",
         ),
         MetricInfo(
             "quality_subscores", Source.DEVICE,

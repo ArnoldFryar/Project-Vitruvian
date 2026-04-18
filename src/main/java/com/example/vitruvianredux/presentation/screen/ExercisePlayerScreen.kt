@@ -26,6 +26,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.AppTonalButton
+import com.example.vitruvianredux.presentation.components.rememberExerciseVideoPlayerState
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.data.AnalyticsStore
@@ -58,7 +59,25 @@ fun ExercisePlayerScreen(
     val machineVersion     by workoutVM.machineVersion.collectAsState()
     val machineHeuristic   by workoutVM.machineHeuristic.collectAsState()
     val machineUpdateState by workoutVM.machineUpdateState.collectAsState()
+    val lastRepQuality     by workoutVM.lastRepQuality.collectAsState()
     val phase = sessionState.sessionPhase
+    val phaseVideoUrl = when (phase) {
+        is SessionPhase.SetReady -> phase.videoUrl
+        is SessionPhase.ExerciseActive -> phase.videoUrl
+        is SessionPhase.ExerciseComplete -> phase.videoUrl
+        is SessionPhase.Paused -> phase.videoUrl
+        else -> null
+    }
+    var stickyVideoUrl by remember { mutableStateOf<String?>(null) }
+    val preferredVideoUrl = phaseVideoUrl ?: exercise?.videoUrl
+
+    LaunchedEffect(preferredVideoUrl) {
+        if (preferredVideoUrl != null) {
+            stickyVideoUrl = preferredVideoUrl
+        }
+    }
+
+    val sharedVideoPlayerState = rememberExerciseVideoPlayerState(preferredVideoUrl ?: stickyVideoUrl)
 
     // â”€â”€ Local player UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var isRepsMode     by rememberSaveable { mutableStateOf(true) }
@@ -266,6 +285,10 @@ fun ExercisePlayerScreen(
                                 programName = workoutVM.activeProgramName,
                                 dayName     = workoutVM.activeDayName,
                                 startTimeMs = workoutVM.sessionStartMs,
+                                avgQualityScore = workoutVM.completedExerciseStats
+                                    .mapNotNull { it.avgQualityScore }
+                                    .takeIf { it.isNotEmpty() }
+                                    ?.average()?.toInt(),
                             )
                         }
                         val hasProgramChanges = workoutVM.activeProgramId != null
@@ -350,6 +373,7 @@ fun ExercisePlayerScreen(
                             setIndex          = readyPhase.setIndex,
                             totalSets         = if (isOpenEnded || isExerciseMenuLaunch) targetSets
                                                else readyPhase.totalSets,
+                            sharedVideoPlayerState = sharedVideoPlayerState,
                             videoUrl          = readyPhase.videoUrl,
                             thumbnailUrl      = readyPhase.thumbnailUrl,
                             targetReps        = targetReps,
@@ -447,6 +471,7 @@ fun ExercisePlayerScreen(
                         exercise              = exercise,
                         phase                 = phase,
                         sessionState          = sessionState,
+                        sharedVideoPlayerState = sharedVideoPlayerState,
                         isReady               = isReady,
                         bleState              = sessionState.connectionState,
                         isBodyweight          = isBodyweight,
@@ -520,7 +545,7 @@ fun ExercisePlayerScreen(
                         onSkipSet              = { workoutVM.skipSet() },
                         onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
-                        onRepQualityScored     = { quality -> workoutVM.recordRepQuality(quality, effectiveSelectedMode) },
+                        lastRepQuality         = lastRepQuality,
                         machineHeuristic       = machineHeuristic,
                     )
                 }

@@ -59,7 +59,7 @@ Every major metric currently computed, stored, or displayed in the app:
 | **Weekly volume** | `AnalyticsStore.weeklyVolumesKg()` → sum per week bucket | No | Yes (aggregation) | **High** | Same duplicate risk as above |
 | **Muscle distribution** | Exercise catalog lookup → count per muscle group per workout | No | Yes | **Medium** | Relies on catalog availability; stale catalog = inaccurate |
 | **Training heatmap** | `AnalyticsStore.last30DaysActivity()` / WorkoutHistory dates | No | Yes | **High** | Same duplicate risk |
-| **Lift quality** | `RepQualityCalculator.score(telemetryFrames)` — app-computed from BLE SAMPLE UUID cable data | **Partial** — raw cable pos/vel from device; scoring algorithm is app logic | Yes | **Medium** | Requires ≥4 frames; only fires when player screen is visible; 100% app-interpreted |
+| **Lift quality** | `RepQualityTracker` in `WorkoutSessionViewModel` → `RepQualityCalculator.score(telemetryFrames)` from BLE SAMPLE UUID cable data | **Partial** — raw cable pos/vel from device; scoring algorithm is app logic | Yes | **Medium** | Requires ≥4 frames; tracked in the ViewModel rather than the visible player composable; 100% app-interpreted |
 | **Quality sub-scores** | Same as above, broken into ROM/tempo/symmetry/smoothness | Partial | Yes | **Medium** | Stored but not displayed; untested by user feedback |
 | **Calories** | `(totalVolumeKg / 0.45359237 × 0.04).toInt()` | **No** — rough placeholder formula | Yes | **Low** | Not validated; not shown in-app; exported to Health Connect |
 | **Points** | Two conflicting formulas (see §4) | **No** | Yes | **Low** | Arbitrary; inconsistent between screens |
@@ -201,9 +201,9 @@ Both use `LaunchedEffect` with different keys. If the screen recomposes while th
 ### GAP-7: avgForce / peakForce — Dead Fields (Severity: LOW)
 **Problem:** `ExerciseStats.avgForce` and `peakForce` default to `0f` and are never assigned meaningful values anywhere in the codebase. Force telemetry from BLE SAMPLE packets is consumed for quality scoring but not aggregated.
 
-### GAP-8: Quality Scores Depend on UI Visibility (Severity: MEDIUM)
-**Problem:** `RepQualityCalculator` runs in `ActivePlayerContent` (a Composable). Telemetry frames are collected in a `remember { mutableListOf<TelemetryFrame>() }`. If the screen is not visible (e.g., device screen off, app backgrounded), frames are not collected and quality is `null`.  
-**Impact:** Quality data is inherently unreliable — it requires the player screen to be actively composed during every rep.
+### GAP-8: Quality Scores Depend on UI Visibility (Resolved)
+**Previous problem:** `RepQualityCalculator` ran in `ActivePlayerContent` and depended on a composable-owned telemetry buffer. If the screen was not visible, quality could be lost.
+**Current state:** Rep telemetry and scoring now live in `WorkoutSessionViewModel` via `RepQualityTracker`, so recomposition and screen-visibility changes no longer drop rep-quality capture while the session remains alive.
 
 ### GAP-9: startTimeMs Reconstruction (Severity: LOW)
 **Problem:** `AnalyticsStore.buildLog()` reconstructs `startTimeMs = endMs - (durationSec × 1000)`. This is an approximation — it doesn't account for time between the actual session start and the call to `System.currentTimeMillis()` at recording time. The `WorkoutSessionRecorder` in ExercisePlayerScreen correctly passes `workoutVM.sessionStartMs`, but `AnalyticsRecorder` does not.

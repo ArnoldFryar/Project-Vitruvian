@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayer
+import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayerState
 import androidx.compose.foundation.clickable
 import com.example.vitruvianredux.ble.protocol.EchoLevel
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
@@ -55,6 +56,7 @@ internal fun SetReadyContent(
     exerciseName: String,
     setIndex: Int,
     totalSets: Int,
+    sharedVideoPlayerState: ExerciseVideoPlayerState,
     videoUrl: String?,
     thumbnailUrl: String?,
     targetReps: Int,
@@ -269,9 +271,9 @@ internal fun SetReadyContent(
             contentAlignment = Alignment.Center,
         ) {
             when {
-                videoUrl != null -> key(videoUrl, setIndex) {
+                videoUrl != null -> {
                     ExerciseVideoPlayer(
-                        videoUrl = videoUrl,
+                        playerState = sharedVideoPlayerState,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

@@ -29,6 +29,32 @@ object WorkoutSessionRecorder {
     /** Epoch ms of the last recorded session, used to prevent duplicate writes. */
     private var lastRecordedEndMs: Long = 0L
 
+    internal fun buildSessionLog(
+        stats: WorkoutStats,
+        endTimeMs: Long,
+        programName: String? = null,
+        dayName: String? = null,
+        startTimeMs: Long = 0L,
+        avgQualityScore: Int? = stats.avgQualityScore,
+    ): SessionLog {
+        val resolvedStart = if (startTimeMs > 0L) startTimeMs
+                            else endTimeMs - stats.durationSec * 1_000L
+        val volumeKg = stats.totalVolumeKg.toDouble().takeIf { it > 0.0 }
+
+        return SessionLog(
+            id              = UUID.randomUUID().toString(),
+            startTime       = resolvedStart,
+            endTime         = endTimeMs,
+            durationSeconds = stats.durationSec,
+            programName     = programName,
+            dayName         = dayName,
+            totalReps       = stats.totalReps,
+            totalVolumeKg   = volumeKg,
+            avgQualityScore = avgQualityScore,
+            createdAt       = endTimeMs,
+        )
+    }
+
     /**
      * Build a [SessionLog] from [stats] and hand it to [SessionLogRepository.saveSession].
      *
@@ -48,6 +74,7 @@ object WorkoutSessionRecorder {
         programName: String? = null,
         dayName: String? = null,
         startTimeMs: Long = 0L,
+        avgQualityScore: Int? = stats.avgQualityScore,
     ) {
         try {
             val endTimeMs     = System.currentTimeMillis()
@@ -57,20 +84,13 @@ object WorkoutSessionRecorder {
                 return
             }
             lastRecordedEndMs = endTimeMs
-            val resolvedStart = if (startTimeMs > 0L) startTimeMs
-                                else endTimeMs - stats.durationSec * 1_000L
-            val volumeKg      = stats.totalVolumeKg.toDouble().takeIf { it > 0.0 }
-
-            val log = SessionLog(
-                id              = UUID.randomUUID().toString(),
-                startTime       = resolvedStart,
-                endTime         = endTimeMs,
-                durationSeconds = stats.durationSec,
-                programName     = programName,
-                dayName         = dayName,
-                totalReps       = stats.totalReps,
-                totalVolumeKg   = volumeKg,
-                createdAt       = endTimeMs,
+            val log = buildSessionLog(
+                stats = stats,
+                endTimeMs = endTimeMs,
+                programName = programName,
+                dayName = dayName,
+                startTimeMs = startTimeMs,
+                avgQualityScore = avgQualityScore,
             )
 
             SessionLogRepository.saveSession(log)

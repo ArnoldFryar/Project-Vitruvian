@@ -46,6 +46,7 @@ import com.example.vitruvianredux.presentation.components.CablePositionBar
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
 import com.example.vitruvianredux.presentation.components.CountStepper
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayer
+import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayerState
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.AppTonalButton
 import com.example.vitruvianredux.presentation.components.GradientButton
@@ -57,15 +58,12 @@ import com.example.vitruvianredux.presentation.components.ValueStepper
 import com.example.vitruvianredux.presentation.components.WorkoutLiveContainer
 import com.example.vitruvianredux.presentation.coaching.CoachingCueBanner
 import com.example.vitruvianredux.presentation.coaching.CoachingCueEngine
-import com.example.vitruvianredux.presentation.coaching.ModeProfile
 import com.example.vitruvianredux.presentation.focus.LiftFocusController
 import com.example.vitruvianredux.presentation.mirror.MirrorModeController
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.repquality.RepQuality
 import com.example.vitruvianredux.presentation.repquality.RepQualityBadge
 import com.example.vitruvianredux.ble.MachineHeuristic
-import com.example.vitruvianredux.presentation.repquality.RepQualityCalculator
-import com.example.vitruvianredux.presentation.repquality.TelemetryFrame
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.data.PersonalBestStore
@@ -83,6 +81,7 @@ internal fun ActivePlayerContent(
     exercise: Exercise?,
     phase: SessionPhase,
     sessionState: com.example.vitruvianredux.ble.SessionState,
+    sharedVideoPlayerState: ExerciseVideoPlayerState,
     isReady: Boolean,
     bleState: com.example.vitruvianredux.ble.BleConnectionState,
     isBodyweight: Boolean,
@@ -113,7 +112,7 @@ internal fun ActivePlayerContent(
     onSkipSet: () -> Unit,
     onSkipExercise: () -> Unit,
     onDebugRepIncrement: () -> Unit,
-    onRepQualityScored: (com.example.vitruvianredux.presentation.repquality.RepQuality) -> Unit = {},
+    lastRepQuality: RepQuality?,
     machineHeuristic: MachineHeuristic? = null,
 ) {
     val isActive   = phase is SessionPhase.ExerciseActive
@@ -220,43 +219,6 @@ internal fun ActivePlayerContent(
         animationSpec = tween(300),
         label         = "pbChipFg",
     )
-
-    // â”€â”€ Rep quality scoring (presentation-only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    val repFrames = remember { mutableListOf<TelemetryFrame>() }
-    var lastRepQuality by remember { mutableStateOf<RepQuality?>(null) }
-    var lastScoredRep by remember { mutableIntStateOf(-1) }
-
-    LaunchedEffect(sessionState.leftCable, sessionState.rightCable) {
-        val l = sessionState.leftCable ?: return@LaunchedEffect
-        val r = sessionState.rightCable ?: return@LaunchedEffect
-        if (isActive) repFrames.add(TelemetryFrame(l, r))
-    }
-
-    LaunchedEffect(sessionState.workingRepsCompleted) {
-        val reps = sessionState.workingRepsCompleted
-        if (reps > 0 && reps != lastScoredRep && repFrames.size >= 4) {
-            val profile = ModeProfile.forMode(selectedMode)
-            val quality = RepQualityCalculator.score(repFrames.toList(), profile)
-            lastRepQuality = quality
-            if (quality != null) {
-                FatigueTrendAnalyzer.recordRep(quality)
-                CoachingCueEngine.evaluate(quality, profile)
-                onRepQualityScored(quality)
-            }
-            lastScoredRep = reps
-            repFrames.clear()
-        }
-    }
-
-    LaunchedEffect(isActive) {
-        if (isActive) {
-            repFrames.clear()
-            lastRepQuality = null
-            lastScoredRep = -1
-            FatigueTrendAnalyzer.clearSet()
-            CoachingCueEngine.dismiss()
-        }
-    }
 
     val scaffoldState = rememberBottomSheetScaffoldState()
 
@@ -989,11 +951,10 @@ internal fun ActivePlayerContent(
                         val videoUrl     = exercise?.videoUrl ?: (phase as? SessionPhase.ExerciseActive)?.videoUrl
                         val thumbnailUrl = exercise?.thumbnailUrl ?: (phase as? SessionPhase.ExerciseActive)?.thumbnailUrl
                         val contentDesc  = exercise?.name ?: (phase as? SessionPhase.ExerciseActive)?.exerciseName
-                        val setIndex     = (phase as? SessionPhase.ExerciseActive)?.setIndex ?: 0
                         when {
-                            videoUrl != null -> key(videoUrl, setIndex) {
+                            videoUrl != null -> {
                                 ExerciseVideoPlayer(
-                                    videoUrl = videoUrl,
+                                    playerState = sharedVideoPlayerState,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }

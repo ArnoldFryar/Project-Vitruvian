@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities  = [SessionLog::class, ExerciseHistoryEntity::class, SetHistoryEntity::class, CachedVideoEntity::class],
-    version   = 4,
+    version   = 5,
     exportSchema = true,
 )
 abstract class SessionLogDatabase : RoomDatabase() {
@@ -97,6 +97,12 @@ abstract class SessionLogDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE session_log ADD COLUMN avg_quality_score INTEGER DEFAULT NULL")
+            }
+        }
+
         /** Return the process-wide singleton, creating it on first call. */
         fun getInstance(context: Context): SessionLogDatabase =
             INSTANCE ?: synchronized(this) {
@@ -105,7 +111,7 @@ abstract class SessionLogDatabase : RoomDatabase() {
                     SessionLogDatabase::class.java,
                     DB_NAME,
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build().also { INSTANCE = it }
             }
     }
