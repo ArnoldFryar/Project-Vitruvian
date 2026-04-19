@@ -37,6 +37,7 @@ import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -277,10 +278,11 @@ private fun TemplateCard(
             .graphicsLayer(scaleX = scale, scaleY = scale)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
         shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = LocalExtendedColors.current.surface2),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            cs.outline,
+            cs.outlineVariant,
         ),
     ) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {

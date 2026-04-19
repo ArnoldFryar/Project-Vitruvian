@@ -22,6 +22,7 @@ import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.WorkoutTemplate
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -95,7 +96,7 @@ onClick = { showConfirmDialog = false }) {
             Surface(
                 border = androidx.compose.foundation.BorderStroke(
                     AppDimens.Stroke.thin,
-                    MaterialTheme.colorScheme.outline,
+                    MaterialTheme.colorScheme.outlineVariant,
                 ),
             ) {
                 Row(
@@ -180,10 +181,11 @@ private fun TemplateOverviewCard(template: WorkoutTemplate) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = LocalExtendedColors.current.surface2),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            cs.outline,
+            cs.outlineVariant,
         ),
     ) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
@@ -301,7 +303,7 @@ private fun DayHeader(dayNumber: Int, dayName: String, focus: String, exerciseCo
         }
 
         Surface(
-            color = cs.surfaceVariant,
+            color = LocalExtendedColors.current.surface2,
             shape = MaterialTheme.shapes.small,
         ) {
             Text(
@@ -322,7 +324,7 @@ private fun ExerciseRow(index: Int, name: String, detail: String, restSec: Int) 
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = cs.surfaceVariant,
+        color = LocalExtendedColors.current.surface2,
         shape = MaterialTheme.shapes.small,
         tonalElevation = 0.dp,
     ) {

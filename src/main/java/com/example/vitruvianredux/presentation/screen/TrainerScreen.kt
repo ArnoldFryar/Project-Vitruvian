@@ -36,6 +36,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.components.LedColorPickerDialog
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
@@ -115,10 +116,10 @@ fun TrainerScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = LocalExtendedColors.current.surface2,
                 border = androidx.compose.foundation.BorderStroke(
                     AppDimens.Stroke.thin,
-                    MaterialTheme.colorScheme.outline,
+                    MaterialTheme.colorScheme.outlineVariant,
                 ),
             ) {
                 Column(
@@ -166,10 +167,10 @@ fun TrainerScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
-            color = cs.surfaceVariant,
+            color = LocalExtendedColors.current.surface2,
             border = androidx.compose.foundation.BorderStroke(
                 AppDimens.Stroke.thin,
-                cs.outline,
+                cs.outlineVariant,
             ),
         ) {
             Column {
@@ -276,10 +277,10 @@ fun TrainerScreen(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium,
-            color = cs.surfaceVariant,
+            color = LocalExtendedColors.current.surface2,
             border = androidx.compose.foundation.BorderStroke(
                 AppDimens.Stroke.thin,
-                cs.outline,
+                cs.outlineVariant,
             ),
         ) {
             Column {
