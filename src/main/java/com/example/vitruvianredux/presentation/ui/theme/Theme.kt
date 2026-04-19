@@ -16,65 +16,65 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.example.vitruvianredux.presentation.ui.AppDimens
 
-// ── Light scheme — cool neutral paper with signal-green primary ────────
+// ── Light scheme — warm paper with polished-brass primary ──────────────
 private val LightColors = lightColorScheme(
-    primary              = Color(0xFF008F5C),
+    primary              = Color(0xFF8A5A1F),
     onPrimary            = White,
-    primaryContainer     = Color(0xFFCFF5E1),
-    onPrimaryContainer   = Color(0xFF002218),
-    secondary            = Color(0xFF8F6A12),
+    primaryContainer     = Color(0xFFF3DEB8),
+    onPrimaryContainer   = Color(0xFF2A1A04),
+    secondary            = Color(0xFF6B4A0F),
     onSecondary          = White,
-    secondaryContainer   = Color(0xFFFBE5B5),
+    secondaryContainer   = Color(0xFFF4E2BC),
     onSecondaryContainer = Color(0xFF2A1E00),
-    tertiary             = Color(0xFF305DB5),
+    tertiary             = Color(0xFFA84428),
     onTertiary           = White,
-    tertiaryContainer    = Color(0xFFDAE4FF),
-    onTertiaryContainer  = Color(0xFF001947),
-    background           = Color(0xFFF6F7F9),
-    onBackground         = Color(0xFF101216),
-    surface              = Color(0xFFFFFFFF),
-    onSurface            = Color(0xFF101216),
-    surfaceVariant       = Color(0xFFE6E8EE),
-    onSurfaceVariant     = Color(0xFF4F5665),
-    outline              = Color(0xFFC3C7D1),
-    outlineVariant       = Color(0xFFE1E4EA),
-    error                = Color(0xFFDC2626),
+    tertiaryContainer    = Color(0xFFFFD8CB),
+    onTertiaryContainer  = Color(0xFF3E0F02),
+    background           = LightSurface1,
+    onBackground         = Color(0xFF1A130C),
+    surface              = Color(0xFFFDFAF5),
+    onSurface            = Color(0xFF1A130C),
+    surfaceVariant       = LightSurface2,
+    onSurfaceVariant     = Color(0xFF5C4E3C),
+    outline              = Color(0xFF9A8A70),
+    outlineVariant       = Color(0xFFD8C9AE),
+    error                = Color(0xFFB3261E),
     onError              = White,
-    errorContainer       = Color(0xFFFFE0E3),
-    onErrorContainer     = Color(0xFF5C0008),
+    errorContainer       = Color(0xFFFFDAD6),
+    onErrorContainer     = Color(0xFF410002),
     scrim                = Black,
 )
 
-// ── Dark scheme — obsidian layered surfaces + signal-green primary ─────
+// ── Dark scheme — espresso obsidian + polished-brass primary ───────────
 private val DarkColors = darkColorScheme(
-    primary              = BrandOxblood,                 // signal green
-    onPrimary            = Color(0xFF00170E),
-    primaryContainer     = Color(0xFF00553A),
-    onPrimaryContainer   = Color(0xFFA8F3CE),
-    secondary            = BrandBrass,                   // amber
+    primary              = BrandOxblood,                 // polished brass
+    onPrimary            = Color(0xFF2A1A04),
+    primaryContainer     = Color(0xFF4D3510),
+    onPrimaryContainer   = Color(0xFFF3DEB8),
+    secondary            = BrandBrass,                   // champagne gold
     onSecondary          = Color(0xFF2A1E00),
-    secondaryContainer   = Color(0xFF4A3510),
-    onSecondaryContainer = Color(0xFFFFD285),
-    tertiary             = BrandClay,                    // cool blue
-    onTertiary           = Color(0xFF001947),
-    tertiaryContainer    = Color(0xFF20366A),
-    onTertiaryContainer  = Color(0xFFD6E1FF),
+    secondaryContainer   = Color(0xFF3E2E15),
+    onSecondaryContainer = Color(0xFFF3DDA8),
+    tertiary             = BrandClay,                    // warm ember
+    onTertiary           = Color(0xFF3E0F02),
+    tertiaryContainer    = Color(0xFF5A2112),
+    onTertiaryContainer  = Color(0xFFFFD8CB),
     background           = Surface0,
-    onBackground         = Color(0xFFECEDF0),
+    onBackground         = Color(0xFFF0E7DB),
     surface              = Surface1,
-    onSurface            = Color(0xFFECEDF0),
+    onSurface            = Color(0xFFF0E7DB),
     surfaceVariant       = Surface2,
-    onSurfaceVariant     = Color(0xFF9AA0AD),
-    outline              = Color(0xFF2A2F3A),
-    outlineVariant       = Color(0xFF1B1F28),
-    error                = Color(0xFFFF7A85),
+    onSurfaceVariant     = Color(0xFFB5A997),
+    outline              = Color(0xFF3A2F24),
+    outlineVariant       = Color(0xFF24201B),
+    error                = Color(0xFFE05B5B),
     onError              = Color(0xFF4A0009),
-    errorContainer       = Color(0xFF4A121A),
-    onErrorContainer     = Color(0xFFFFD0D4),
+    errorContainer       = Color(0xFF4A1616),
+    onErrorContainer     = Color(0xFFFFD6D6),
     scrim                = Black,
-    inverseSurface       = Color(0xFFECEDF0),
+    inverseSurface       = Color(0xFFF0E7DB),
     inverseOnSurface     = Surface0,
-    inversePrimary       = Color(0xFF008F5C),
+    inversePrimary       = Color(0xFF8A5A1F),
     surfaceTint          = BrandOxblood,
 )
 
@@ -123,7 +123,9 @@ fun VitruvianTheme(
         }
     }
 
-    CompositionLocalProvider(LocalExtendedColors provides ExtendedColors()) {
+    CompositionLocalProvider(
+        LocalExtendedColors provides if (darkTheme) DarkExtendedColors else LightExtendedColors
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography  = AppTypography,
