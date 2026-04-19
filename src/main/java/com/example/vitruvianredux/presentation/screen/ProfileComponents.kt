@@ -7,16 +7,21 @@ import com.vitruvian.trainer.R
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +32,7 @@ import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -39,15 +45,19 @@ internal fun ProfileSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val ext = LocalExtendedColors.current
+    val shape = MaterialTheme.shapes.medium
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
     ) {
-        Surface(
-            modifier = Modifier.width(3.dp).height(AppDimens.Icon.sm),
-            shape = MaterialTheme.shapes.extraSmall,
-            color = MaterialTheme.colorScheme.primary,
-        ) {}
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(AppDimens.Icon.sm)
+                .clip(MaterialTheme.shapes.extraSmall)
+                .background(MaterialTheme.colorScheme.primary),
+        )
         Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
         Text(
             title,
@@ -55,21 +65,16 @@ internal fun ProfileSection(
             fontWeight = FontWeight.SemiBold,
         )
     }
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
-    ) {
-        Column(Modifier
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape)
             .animateContentSize(tween(MotionTokens.STANDARD_MS))
-            .padding(AppDimens.Spacing.md)
-        ) {
-            content()
-        }
+            .padding(AppDimens.Spacing.md),
+    ) {
+        content()
     }
 }
 
@@ -104,17 +109,15 @@ internal fun PressScaleCard(
         animationSpec = MotionTokens.SnapSpring,
         label = "cardAlpha",
     )
-    Surface(
+    val ext = LocalExtendedColors.current
+    val shape = MaterialTheme.shapes.medium
+    Box(
         modifier = modifier
-            .border(
-                width = AppDimens.Stroke.thin,
-                color = MaterialTheme.colorScheme.outline,
-                shape = MaterialTheme.shapes.medium,
-            )
             .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape)
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Column(content = content)
     }
@@ -228,16 +231,17 @@ internal fun SessionsDetailSheet(
                     modifier = Modifier.padding(vertical = AppDimens.Spacing.lg))
             } else {
                 recentWorkouts.forEach { workout ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.xs),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = androidx.compose.foundation.BorderStroke(
-                            AppDimens.Stroke.thin,
-                            MaterialTheme.colorScheme.outline,
-                        ),
+                    val ext = LocalExtendedColors.current
+                    val rowShape = MaterialTheme.shapes.medium
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = AppDimens.Spacing.xs)
+                            .clip(rowShape)
+                            .background(ext.surface2)
+                            .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), rowShape)
+                            .padding(AppDimens.Spacing.md_sm),
                     ) {
-                        Column(Modifier.padding(AppDimens.Spacing.md_sm)) {
                             Text(dateFmt.format(workout.date),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary)
@@ -274,7 +278,6 @@ internal fun SessionsDetailSheet(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
                     }
                 }
             }

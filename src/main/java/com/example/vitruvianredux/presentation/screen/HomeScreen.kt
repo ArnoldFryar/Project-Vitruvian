@@ -304,9 +304,12 @@ private fun HomeMetaPill(
     background: Color,
     content: Color,
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.extraSmall,
-        color = background,
+    val shape = MaterialTheme.shapes.extraSmall
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(background)
+            .border(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant, shape),
     ) {
         Text(
             text = label,
@@ -331,16 +334,16 @@ private fun WorkoutCalendar(
     var displayMonth by remember { mutableStateOf(YearMonth.now()) }
     val today = LocalDate.now()
 
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = cs.surface,
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            cs.outline,
-        ),
+    val ext = LocalExtendedColors.current
+    val shape = MaterialTheme.shapes.medium
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .border(AppDimens.Stroke.thin, cs.outlineVariant, shape)
+            .padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.sm),
     ) {
-        Column(Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.sm)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -461,7 +464,6 @@ private fun WorkoutCalendar(
                 }
             }
         }
-    }
 }
 
 @Composable
