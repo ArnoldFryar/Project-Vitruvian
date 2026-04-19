@@ -247,6 +247,7 @@ fun ProgramsScreen(
 
             item(key = "import_group") {
                 AppCard(modifier = Modifier.fillMaxWidth()) {
+                    Column {
                     val importInteraction = remember { MutableInteractionSource() }
                     val importPressed by importInteraction.collectIsPressedAsState()
                     val importScale by animateFloatAsState(
@@ -296,6 +297,7 @@ fun ProgramsScreen(
                             Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+                    } // Column
                 }
                 Spacer(Modifier.height(AppDimens.Spacing.lg))
             }
