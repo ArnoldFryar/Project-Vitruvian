@@ -263,10 +263,10 @@ onClick = onBack) {
                             onClick = { onNavigateToExercise(name) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-                            color = cs.surfaceVariant,
+                            color = LocalExtendedColors.current.surface2,
                             border = androidx.compose.foundation.BorderStroke(
                                 AppDimens.Stroke.thin,
-                                cs.outline,
+                                cs.outlineVariant,
                             ),
                         ) {
                             Row(
@@ -310,10 +310,10 @@ onClick = onBack) {
                             onClick = { onNavigateToExercise(name) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-                            color = cs.surfaceVariant,
+                            color = LocalExtendedColors.current.surface2,
                             border = androidx.compose.foundation.BorderStroke(
                                 AppDimens.Stroke.thin,
-                                cs.outline,
+                                cs.outlineVariant,
                             ),
                         ) {
                             Row(

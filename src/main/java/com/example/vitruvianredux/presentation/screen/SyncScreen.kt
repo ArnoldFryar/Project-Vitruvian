@@ -217,7 +217,7 @@ fun SyncScreen(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(
                         modifier = Modifier.padding(AppDimens.Spacing.md).fillMaxWidth(),
@@ -248,7 +248,7 @@ fun SyncScreen(
             if (lanState is LanSyncState.Discovering) {
                 Card(
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Row(modifier = Modifier.padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm)) {
                         CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = AppDimens.Stroke.medium)
@@ -268,7 +268,7 @@ fun SyncScreen(
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Ready to Sync", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -324,9 +324,9 @@ onClick = { showQrScanner = true }, modifier = Modifier.fillMaxWidth()) {
 
             if (isPairing) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    colors = CardDefaults.cardColors(containerColor = LocalExtendedColors.current.surface2),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Row(modifier = Modifier.padding(AppDimens.Spacing.md), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm), verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(AppDimens.Icon.md), strokeWidth = AppDimens.Stroke.medium)
@@ -338,7 +338,7 @@ onClick = { showQrScanner = true }, modifier = Modifier.fillMaxWidth()) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Pairing Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -368,7 +368,7 @@ onClick = { showQrScanner = true; pairingError = null }, modifier = Modifier.fil
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md)) {
                         Text("Sync Failed", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -381,7 +381,7 @@ onClick = { showQrScanner = true; pairingError = null }, modifier = Modifier.fil
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         Text("Network Error", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -403,7 +403,7 @@ private fun LanSyncResultCard(result: SyncResult) {
     Card(
         colors = CardDefaults.cardColors(containerColor = ext.statusReady),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outline),
+        border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
             Text("Sync Complete", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = ext.statusReady)

@@ -70,7 +70,7 @@ fun DebugScreen(
         Surface(
             border = androidx.compose.foundation.BorderStroke(
                 AppDimens.Stroke.thin,
-                MaterialTheme.colorScheme.outline,
+                MaterialTheme.colorScheme.outlineVariant,
             ),
         ) {
             Column(
@@ -329,7 +329,7 @@ private fun AnalyticsProvenanceSection() {
     Surface(
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
+            MaterialTheme.colorScheme.outlineVariant,
         ),
     ) {
         Column(
