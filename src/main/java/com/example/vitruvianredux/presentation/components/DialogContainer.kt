@@ -26,15 +26,16 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * Shared container for picker-style dialogs.
  *
  * Provides a consistent look:
  * - Centered, 88 % width
- * - `surface` background with [AppDimens.Corner.md] radius
- * - Top-lit glass border for depth (matches [AppCard])
- * - Vertical padding of [AppDimens.Spacing.sm]
+ * - Premium vertical gradient surface (surface3 → surface2) with
+ *   [AppDimens.Corner.lg] radius so sheets read as elevated slabs.
+ * - Soft outline + scale-in reveal animation.
  *
  * The caller supplies the column content (title, rows, dividers).
  */
@@ -44,7 +45,9 @@ fun DialogContainer(
     content: @Composable () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
     val shape = RoundedCornerShape(AppDimens.Corner.lg)
+    val brush = Brush.verticalGradient(listOf(ext.surface3, ext.surface2))
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -70,7 +73,7 @@ fun DialogContainer(
                         alpha = p
                     }
                     .clip(shape)
-                    .background(cs.surface, shape)
+                    .background(brush, shape)
                     .border(1.dp, cs.outlineVariant, shape)
                     .padding(vertical = AppDimens.Spacing.sm),
             ) {

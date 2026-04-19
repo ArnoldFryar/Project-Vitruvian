@@ -50,13 +50,24 @@ fun GradientButton(
     enabled: Boolean = true,
 ) {
     val cs = MaterialTheme.colorScheme
+    // Premium vertical gradient — slightly lightened top face, slightly
+    // darkened base.  Reads as a single molded surface instead of a
+    // two-tone transition, which now plays nicely against the deep
+    // obsidian backgrounds.
     val gradient = if (enabled) {
-        Brush.horizontalGradient(listOf(cs.primary, cs.secondary))
+        Brush.verticalGradient(
+            listOf(
+                cs.primary.copy(alpha = 1f),
+                cs.primary.copy(red = (cs.primary.red * 0.88f).coerceIn(0f, 1f),
+                                green = (cs.primary.green * 0.88f).coerceIn(0f, 1f),
+                                blue = (cs.primary.blue * 0.88f).coerceIn(0f, 1f)),
+            )
+        )
     } else {
-        Brush.horizontalGradient(
+        Brush.verticalGradient(
             listOf(
                 cs.onSurface.copy(alpha = 0.12f),
-                cs.onSurface.copy(alpha = 0.12f),
+                cs.onSurface.copy(alpha = 0.08f),
             )
         )
     }
