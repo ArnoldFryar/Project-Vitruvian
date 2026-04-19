@@ -392,7 +392,7 @@ fun ProfileScreen(
                 )
             }
         }
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        Spacer(Modifier.height(AppDimens.Spacing.xs))
 
         AnimatedVisibility(
             visible = historyExpanded,
@@ -1393,11 +1393,6 @@ fun ProfileScreen(
 
         // ══════════════════════════════════════════════════════════════════════════════════════════════
         //  Settings
-        Text(stringResource(R.string.cd_settings),
-            style    = MaterialTheme.typography.titleSmall,
-            color    = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
-        )
         Text(
             "PREFERENCES",
             style = MaterialTheme.typography.labelSmall,
@@ -1895,7 +1890,6 @@ fun ProfileScreen(
             modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
         )
         if (com.example.vitruvianredux.cloud.SupabaseProvider.isInitialized) {
-            Spacer(Modifier.height(AppDimens.Spacing.sm))
             val sessionStatus by com.example.vitruvianredux.cloud.AuthRepository.sessionStatus
                 .collectAsState(initial = io.github.jan.supabase.gotrue.SessionStatus.NotAuthenticated(false))
             val isSignedIn = sessionStatus is io.github.jan.supabase.gotrue.SessionStatus.Authenticated
