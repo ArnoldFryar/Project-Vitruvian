@@ -34,6 +34,7 @@ import com.example.vitruvianredux.ble.SessionEventLog
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.theme.StatusConnected
 import com.example.vitruvianredux.presentation.ui.theme.StatusConnecting
 import com.example.vitruvianredux.presentation.ui.theme.StatusError
@@ -506,7 +507,7 @@ private fun OverallHealthCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
+            MaterialTheme.colorScheme.outlineVariant,
         ),
     ) {
         Row(
@@ -541,12 +542,14 @@ private fun RepairStepCard(step: WizardStep, enabled: Boolean) {
         StepStatus.FIXING  -> Triple(StatusConnected,    "Fixing",  AppIcons.Sync)
     }
 
+    val ext = LocalExtendedColors.current
     Card(
         modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = ext.surface2),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
+            MaterialTheme.colorScheme.outlineVariant,
         ),
     ) {
         Row(
@@ -640,19 +643,21 @@ private fun AutoRepairCard(
 ) {
     val isRunning = autoRepairState is AutoRepairState.Running
 
+    val ext = LocalExtendedColors.current
     Card(
         modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = ext.surface2),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
+            MaterialTheme.colorScheme.outlineVariant,
         ),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(AppDimens.Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {

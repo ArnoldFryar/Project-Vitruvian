@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -289,12 +290,12 @@ fun ExercisePickerSheet(
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                             border    = androidx.compose.foundation.BorderStroke(
                                 width = if (isSelected) AppDimens.Stroke.medium else AppDimens.Stroke.thin,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                             ),
                             colors    = if (isSelected) CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer
                             ) else CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
+                                containerColor = LocalExtendedColors.current.surface2,
                             ),
                         ) {
                             Row(

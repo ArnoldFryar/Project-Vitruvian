@@ -10,6 +10,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -145,11 +147,12 @@ fun EditExerciseSheet(
                     }
 
                     AnimatedVisibility(visible = programMode == "TUT") {
+                        val ext = LocalExtendedColors.current
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(AppDimens.Corner.sm))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
                                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment     = Alignment.CenterVertically,

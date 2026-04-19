@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1168,17 +1169,17 @@ private fun QualityScoreCell(score: Int?, modifier: Modifier = Modifier) {
 
 @Composable
 private fun EdsCard(content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        modifier       = Modifier.fillMaxWidth(),
-        shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
-        color          = MaterialTheme.colorScheme.surfaceVariant,
-        border         = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
-    ) {
-        Column(Modifier.padding(AppDimens.Spacing.md), content = content)
-    }
+    val ext = LocalExtendedColors.current
+    val shape = RoundedCornerShape(AppDimens.Corner.md_sm)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .border(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant, shape)
+            .padding(AppDimens.Spacing.md),
+        content = content,
+    )
 }
 
 @Composable
