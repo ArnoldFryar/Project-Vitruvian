@@ -6,6 +6,8 @@ import com.vitruvian.trainer.R
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +30,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -442,18 +445,21 @@ private fun StatTile(
             tween(durationMillis = 500, delayMillis = animDelay, easing = FastOutSlowInEasing),
         )
     }
-    Surface(
-        modifier  = modifier.graphicsLayer {
-            alpha  = reveal.value
-            scaleX = 0.85f + 0.15f * reveal.value
-            scaleY = 0.85f + 0.15f * reveal.value
-        },
-        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
+    val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
+    val shape = RoundedCornerShape(AppDimens.Corner.md_sm)
+    val gradient = Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
+    val accent = cs.primary
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                alpha  = reveal.value
+                scaleX = 0.85f + 0.15f * reveal.value
+                scaleY = 0.85f + 0.15f * reveal.value
+            }
+            .clip(shape)
+            .background(gradient)
+            .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), shape),
     ) {
         Column(
             modifier            = Modifier
@@ -461,25 +467,39 @@ private fun StatTile(
                 .padding(AppDimens.Spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
-            Icon(
-                imageVector        = icon, contentDescription = null /* decorative */,
-                modifier           = Modifier.size(AppDimens.Icon.md),
-                tint               = MaterialTheme.colorScheme.primary,
-            )
+            // Accent-tinted halo badge for the icon
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(percent = AppDimens.Corner.pill))
+                    .background(accent.copy(alpha = 0.14f))
+                    .border(
+                        BorderStroke(AppDimens.Stroke.thin, accent.copy(alpha = 0.28f)),
+                        RoundedCornerShape(percent = AppDimens.Corner.pill),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector        = icon, contentDescription = null /* decorative */,
+                    modifier           = Modifier.size(AppDimens.Icon.md),
+                    tint               = accent,
+                )
+            }
             Text(
                 text       = value,
                 style      = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
+                color      = cs.onSurface,
             )
             Text(
                 text  = unit,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = cs.onSurfaceVariant,
             )
             Text(
                 text  = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = cs.onSurfaceVariant,
             )
         }
     }

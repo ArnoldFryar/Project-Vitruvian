@@ -1,5 +1,8 @@
 package com.example.vitruvianredux.presentation.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -7,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * Unified container for every numeric selector in the app.
@@ -80,45 +83,43 @@ fun SelectorCard(
     surfaceColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     content: @Composable () -> Unit,
 ) {
+    val ext = LocalExtendedColors.current
+    val cs = MaterialTheme.colorScheme
     val shape = RoundedCornerShape(AppDimens.Corner.md_sm)
-    Surface(
-        modifier       = modifier,
-        shape          = shape,
-        color          = surfaceColor,
-        border         = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
+    // Premium gradient surface (surface2 → surface1) for a lit-tile look.
+    // `surfaceColor` is retained for call-site compatibility but is now used
+    // only as a fallback tint when Extended Colors are unavailable.
+    val gradient = Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(gradient)
+            .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), shape)
+            .selectorCardDepth(),
     ) {
-        Box(
-            modifier = Modifier
-                .clip(shape)
-                .selectorCardDepth(),
-        ) {
-            if (title.isNotBlank()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start  = AppDimens.Spacing.md_sm,
-                            end    = AppDimens.Spacing.xs,
-                            top    = AppDimens.Spacing.xs,
-                            bottom = AppDimens.Spacing.xs,
-                        ),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text       = title,
-                        style      = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        color      = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    content()
-                }
-            } else {
+        if (title.isNotBlank()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start  = AppDimens.Spacing.md_sm,
+                        end    = AppDimens.Spacing.xs,
+                        top    = AppDimens.Spacing.xs,
+                        bottom = AppDimens.Spacing.xs,
+                    ),
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text       = title,
+                    style      = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color      = cs.onSurfaceVariant,
+                )
                 content()
             }
+        } else {
+            content()
         }
     }
 }

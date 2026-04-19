@@ -678,9 +678,10 @@ internal fun SetReadyContent(
 
 @Composable
 private fun ReadyInfoPill(label: String, value: String) {
+    val ext = com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors.current
     Surface(
         shape = RoundedCornerShape(AppDimens.Corner.pill),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = ext.surface2,
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
             MaterialTheme.colorScheme.outlineVariant,
@@ -692,13 +693,14 @@ private fun ReadyInfoPill(label: String, value: String) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "$label:",
+                text = label.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium,
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
