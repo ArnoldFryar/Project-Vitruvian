@@ -6,6 +6,7 @@ import com.vitruvian.trainer.R
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -403,17 +404,17 @@ onClick = onBack) {
 
 @Composable
 private fun SdCard(content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
-    ) {
-        Column(Modifier.padding(AppDimens.Spacing.md), content = content)
-    }
+    val ext = LocalExtendedColors.current
+    val shape = RoundedCornerShape(AppDimens.Corner.md_sm)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape)
+            .padding(AppDimens.Spacing.md),
+        content = content,
+    )
 }
 
 @Composable
@@ -448,14 +449,13 @@ private fun SdStatTile(
     valueSuffix: String? = null,
     accentColor: Color? = null,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
+    val ext = LocalExtendedColors.current
+    val shape = RoundedCornerShape(AppDimens.Corner.md_sm)
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape),
     ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.md_sm),

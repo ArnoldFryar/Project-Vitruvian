@@ -6,7 +6,9 @@ import com.vitruvian.trainer.R
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -166,10 +169,14 @@ private fun WorkoutHistoryCard(
         Surface(
             modifier = Modifier.weight(1f).padding(bottom = AppDimens.Spacing.md),
             shape = RoundedCornerShape(AppDimens.Corner.md),
-            color = cs.surface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, cs.outlineVariant),
+            color = androidx.compose.ui.graphics.Color.Transparent,
         ) {
-        Column {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(AppDimens.Corner.md))
+                .background(Brush.verticalGradient(listOf(LocalExtendedColors.current.surface2, LocalExtendedColors.current.surface1)))
+                .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), RoundedCornerShape(AppDimens.Corner.md)),
+        ) {
             // â”€â”€ Tappable header (toggle expand/collapse) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Column(
                 modifier = Modifier
@@ -448,10 +455,13 @@ private fun MiniStat(
     modifier: Modifier = Modifier,
     iconTint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(AppDimens.Corner.sm),
-        color = MaterialTheme.colorScheme.surface,
+    val ext = LocalExtendedColors.current
+    val shape = RoundedCornerShape(AppDimens.Corner.sm)
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(ext.surface2)
+            .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape),
     ) {
         Row(
             modifier = Modifier.padding(

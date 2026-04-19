@@ -2,8 +2,11 @@ package com.example.vitruvianredux.presentation.screen
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -14,10 +17,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -221,14 +226,16 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
 
 @Composable
 private fun StatCard(label: String, value: String, accent: Color, modifier: Modifier = Modifier.width(120.dp)) {
-    Card(
-        shape = MaterialTheme.shapes.medium,
-        modifier = modifier,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
+    val ext = com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors.current
+    val shape = MaterialTheme.shapes.medium
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .border(
+                BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
+                shape,
+            ),
     ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.md_sm),
