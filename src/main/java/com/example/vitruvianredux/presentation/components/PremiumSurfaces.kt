@@ -210,7 +210,7 @@ fun PremiumSegmentedControl(
             .heightIn(min = 44.dp)
             .clip(shape)
             .background(ext.surface2)
-            .border(BorderStroke(AppDimens.Stroke.thin, cs.outline), shape)
+            .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), shape)
             .padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
