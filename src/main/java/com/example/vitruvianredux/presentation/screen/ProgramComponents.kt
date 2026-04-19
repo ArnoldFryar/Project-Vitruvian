@@ -6,6 +6,10 @@ import com.vitruvian.trainer.R
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +18,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -26,9 +32,10 @@ import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
-// â”€â”€ Premium program item card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Premium program item card ──────────────────────────────────────────────
 
 @Composable
 fun ProgramItemCard(
@@ -39,21 +46,22 @@ fun ProgramItemCard(
     modifier: Modifier = Modifier,
 ) {
     val isBodyweight = exercise?.isBodyweightOnly == true
-    Card(
-        onClick  = {
-            WiringRegistry.hit(A_PROGRAMS_ITEM_EDIT)
-            WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_EDIT, ActualOutcome.SheetOpened("edit_item"))
-            onEdit()
-        },
+    val ext = LocalExtendedColors.current
+    val cs = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(AppDimens.Corner.md)
+    val gradient = Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .animateContentSize(tween(MotionTokens.STANDARD_MS, easing = MotionTokens.EnterEasing)),
-        shape    = RoundedCornerShape(AppDimens.Corner.md),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
-        ),
+            .animateContentSize(tween(MotionTokens.STANDARD_MS, easing = MotionTokens.EnterEasing))
+            .clip(shape)
+            .background(gradient)
+            .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), shape)
+            .clickable(onClick = {
+                WiringRegistry.hit(A_PROGRAMS_ITEM_EDIT)
+                WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_EDIT, ActualOutcome.SheetOpened("edit_item"))
+                onEdit()
+            }),
     ) {
         Row(
             modifier          = Modifier
@@ -67,7 +75,7 @@ fun ProgramItemCard(
                 modifier = Modifier
                     .size(AppDimens.Icon.lg)
                     .padding(end = AppDimens.Spacing.sm),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = cs.onSurfaceVariant,
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -75,6 +83,7 @@ fun ProgramItemCard(
                     item.exerciseName.trim(),
                     style      = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
+                    color      = cs.onSurface,
                     maxLines   = 1,
                 )
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
@@ -87,7 +96,7 @@ fun ProgramItemCard(
                         MetadataBadge(
                             text           = item.programMode,
                             containerColor = programModeColor(item.programMode),
-                            contentColor   = MaterialTheme.colorScheme.onSecondaryContainer,
+                            contentColor   = cs.onSecondaryContainer,
                         )
                     }
                     MetadataBadge(
@@ -117,14 +126,14 @@ fun ProgramItemCard(
                     AppIcons.Close,
                     contentDescription = "Remove",
                     modifier = Modifier.size(AppDimens.Icon.sm),
-                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint     = cs.onSurfaceVariant,
                 )
             }
         }
     }
 }
 
-// â”€â”€ Metadata badge chip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Metadata badge chip ────────────────────────────────────────────────────
 
 @Composable
 private fun MetadataBadge(
@@ -132,15 +141,21 @@ private fun MetadataBadge(
     containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    Surface(
-        color        = containerColor,
-        contentColor = contentColor,
-        shape        = RoundedCornerShape(AppDimens.Corner.xs),
+    val ext = LocalExtendedColors.current
+    val resolvedBg = if (containerColor == MaterialTheme.colorScheme.surfaceVariant)
+        ext.surface2 else containerColor
+    val shape = RoundedCornerShape(AppDimens.Corner.xs)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(resolvedBg)
+            .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape),
     ) {
         Text(
             text     = text,
             style    = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Medium,
+            color    = contentColor,
             modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 3.dp),
         )
     }
