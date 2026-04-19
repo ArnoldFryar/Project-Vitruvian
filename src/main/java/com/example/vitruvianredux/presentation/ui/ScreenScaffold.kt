@@ -9,8 +9,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import com.example.vitruvianredux.presentation.components.PremiumGradientBackground
 import com.example.vitruvianredux.presentation.ui.AppDimens
 
 /**
@@ -57,11 +59,14 @@ fun ScreenScaffold(
         Modifier
     }
 
+    PremiumScreenBackdrop {
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)   // consume outer Scaffold insets (topBar + bottomBar)
             .then(scrollModifier),
+        // Transparent container — the backdrop above provides the base color.
+        containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
                 title = {
@@ -73,6 +78,10 @@ fun ScreenScaffold(
                 },
                 actions        = actions,
                 scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = Color.Transparent,
+                ),
                 // The outer AppScaffold already handled status-bar insets; zero them here
                 // to prevent the top bar from adding a second status-bar-height gap.
                 windowInsets   = WindowInsets(0),
@@ -102,5 +111,19 @@ fun ScreenScaffold(
                 content = content,
             )
         }
+    }
+    }
+}
+
+/**
+ * Premium ambient backdrop — base background + faint amber radial whisper
+ * applied behind the screen content so the scaffold reads as a lit stage
+ * instead of a flat sheet.
+ */
+@Composable
+private fun PremiumScreenBackdrop(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        PremiumGradientBackground(modifier = Modifier.matchParentSize())
+        content()
     }
 }

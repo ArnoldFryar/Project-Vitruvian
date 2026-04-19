@@ -37,8 +37,9 @@ fun SectionHeader(
         Column {
             Text(
                 text       = title,
-                style      = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style      = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color      = MaterialTheme.colorScheme.onSurface,
             )
             if (subtitle != null) {
                 Text(
