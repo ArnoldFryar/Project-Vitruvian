@@ -1212,10 +1212,10 @@ private fun EdsStatTile(label: String, value: String, modifier: Modifier = Modif
     Surface(
         modifier       = modifier,
         shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
-        color          = cs.surfaceVariant,
+        color          = LocalExtendedColors.current.surface2,
         border         = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            cs.outline,
+            cs.outlineVariant,
         ),
     ) {
         Column(

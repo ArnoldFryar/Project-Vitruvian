@@ -103,10 +103,10 @@ private fun VolumeContent(onBack: () -> Unit) {
                 item {
                     Surface(
                         shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        color = LocalExtendedColors.current.surface2,
                         border = androidx.compose.foundation.BorderStroke(
                             AppDimens.Stroke.thin,
-                            MaterialTheme.colorScheme.outline,
+                            MaterialTheme.colorScheme.outlineVariant,
                         ),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -156,10 +156,10 @@ private fun VolumeContent(onBack: () -> Unit) {
                     val maxVol = weeklyData.maxOfOrNull { it.second }?.coerceAtLeast(1.0) ?: 1.0
                     Surface(
                         shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        color = LocalExtendedColors.current.surface2,
                         border = androidx.compose.foundation.BorderStroke(
                             AppDimens.Stroke.thin,
-                            MaterialTheme.colorScheme.outline,
+                            MaterialTheme.colorScheme.outlineVariant,
                         ),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
@@ -253,10 +253,10 @@ private fun VolumeContent(onBack: () -> Unit) {
 private fun VolumeEmptyState(totalSessionCount: Int) {
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = LocalExtendedColors.current.surface2,
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
+            MaterialTheme.colorScheme.outlineVariant,
         ),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -345,10 +345,10 @@ private fun StreakContent(onBack: () -> Unit) {
             ) {
                 Surface(
                     shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = LocalExtendedColors.current.surface2,
                     border = androidx.compose.foundation.BorderStroke(
                         AppDimens.Stroke.thin,
-                        MaterialTheme.colorScheme.outline,
+                        MaterialTheme.colorScheme.outlineVariant,
                     ),
                     modifier = Modifier.padding(AppDimens.Spacing.xl),
                 ) {
@@ -417,10 +417,10 @@ private fun StreakContent(onBack: () -> Unit) {
             item {
                 Surface(
                     shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = LocalExtendedColors.current.surface2,
                     border = androidx.compose.foundation.BorderStroke(
                         AppDimens.Stroke.thin,
-                        MaterialTheme.colorScheme.outline,
+                        MaterialTheme.colorScheme.outlineVariant,
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -504,10 +504,10 @@ private fun StreakContent(onBack: () -> Unit) {
             item {
                 Surface(
                     shape = MaterialTheme.shapes.medium,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = LocalExtendedColors.current.surface2,
                     border = androidx.compose.foundation.BorderStroke(
                         AppDimens.Stroke.thin,
-                        MaterialTheme.colorScheme.outline,
+                        MaterialTheme.colorScheme.outlineVariant,
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
