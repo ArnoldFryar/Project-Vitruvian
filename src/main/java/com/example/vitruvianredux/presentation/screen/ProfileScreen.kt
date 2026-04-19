@@ -347,10 +347,10 @@ fun ProfileScreen(
         Text(stringResource(R.string.metric_current_week), style = MaterialTheme.typography.titleSmall,
              color = MaterialTheme.colorScheme.onSurfaceVariant,
              modifier = Modifier.padding(bottom = AppDimens.Spacing.sm))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-            ProfileStatCard(modifier = Modifier.weight(1f), value = "$volumeDisplay $unitLabel", label = stringResource(R.string.metric_volume),   onClick = { showVolumeDetail = true })
-            ProfileStatCard(modifier = Modifier.weight(1f), value = weekSessions.toString(),     label = stringResource(R.string.profile_stat_sessions), onClick = { showSessionsDetail = true })
-            ProfileStatCard(modifier = Modifier.weight(1f), value = "$currentStreak d",          label = stringResource(R.string.profile_stat_streak),   onClick = { showStreakDetail = true })
+        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = "$volumeDisplay $unitLabel", label = stringResource(R.string.metric_volume),   onClick = { showVolumeDetail = true })
+            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = weekSessions.toString(),     label = stringResource(R.string.profile_stat_sessions), onClick = { showSessionsDetail = true })
+            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = "$currentStreak d",          label = stringResource(R.string.profile_stat_streak),   onClick = { showStreakDetail = true })
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))

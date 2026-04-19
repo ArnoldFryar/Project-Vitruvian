@@ -118,6 +118,7 @@ internal fun PressScaleCard(
             .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
             .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape)
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
+        contentAlignment = Alignment.Center,
     ) {
         Column(content = content)
     }
