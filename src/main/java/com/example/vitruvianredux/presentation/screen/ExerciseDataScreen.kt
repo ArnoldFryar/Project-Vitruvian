@@ -844,8 +844,13 @@ private fun PolishedLoadChart(
                     color = trackColor, topLeft = Offset(left, 0f),
                     size = Size(barW, size.height), cornerRadius = CornerRadius(cornerR, cornerR),
                 )
+                val fill = if (idx == bestSetIndex) accentColor else dimColor
                 drawRoundRect(
-                    color = if (idx == bestSetIndex) accentColor else dimColor,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(fill, fill.copy(alpha = 0.72f)),
+                        startY = barTop,
+                        endY = size.height,
+                    ),
                     topLeft = Offset(left, barTop),
                     size = Size(barW, barH), cornerRadius = CornerRadius(cornerR, cornerR),
                 )
@@ -933,12 +938,41 @@ private fun SessionProgressionChart(
             val n = (points.size - 1).coerceAtLeast(1).toFloat()
             val range = (maxW - minW).coerceAtLeast(0.001f)
 
+            // Baseline hairline
+            drawLine(
+                color = lineColor.copy(alpha = 0.12f),
+                start = Offset(0f, h),
+                end = Offset(w, h),
+                strokeWidth = 1.dp.toPx(),
+            )
+
             val path = Path()
+            val area = Path()
             displayWeights.forEachIndexed { idx, weight ->
                 val x = idx / n * w
                 val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
-                if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                if (idx == 0) {
+                    path.moveTo(x, y)
+                    area.moveTo(x, h)
+                    area.lineTo(x, y)
+                } else {
+                    path.lineTo(x, y)
+                    area.lineTo(x, y)
+                }
+                if (idx == displayWeights.lastIndex) {
+                    area.lineTo(x, h)
+                    area.close()
+                }
             }
+            // Subtle area fill under the line
+            drawPath(
+                path = area,
+                brush = Brush.verticalGradient(
+                    colors = listOf(lineColor.copy(alpha = 0.32f), lineColor.copy(alpha = 0f)),
+                    startY = 0f,
+                    endY = h,
+                ),
+            )
             drawPath(path, color = lineColor,
                 style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
 
@@ -946,8 +980,15 @@ private fun SessionProgressionChart(
                 val x = idx / n * w
                 val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
                 val isLatest = idx == displayWeights.lastIndex
+                if (isLatest) {
+                    drawCircle(
+                        color = lineColor.copy(alpha = 0.22f),
+                        radius = 10.dp.toPx(),
+                        center = Offset(x, y),
+                    )
+                }
                 drawCircle(
-                    color  = if (isLatest) lineColor else lineColor,
+                    color  = lineColor,
                     radius = if (isLatest) 5.dp.toPx() else 3.5.dp.toPx(),
                     center = Offset(x, y),
                 )

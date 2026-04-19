@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -165,7 +166,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                     ) {
                         Column(Modifier.padding(AppDimens.Spacing.md)) {
                             val barColor = MaterialTheme.colorScheme.primary
-                            val bgBar = MaterialTheme.colorScheme.surface
+                            val bgBar = LocalExtendedColors.current.surface2
                             Canvas(Modifier.fillMaxWidth().height(AppDimens.Component.chartLarge)) {
                                 val gap = size.width / weeklyData.size
                                 val barW = gap * 0.55f
@@ -175,15 +176,19 @@ private fun VolumeContent(onBack: () -> Unit) {
                                         color = bgBar,
                                         topLeft = Offset(x, 0f),
                                         size = Size(barW, size.height),
-                                        cornerRadius = CornerRadius(8f),
+                                        cornerRadius = CornerRadius(10f),
                                     )
                                     val h = ((vol / maxVol) * size.height).toFloat()
                                     if (h > 0f) {
                                         drawRoundRect(
-                                            color = barColor,
+                                            brush = Brush.verticalGradient(
+                                                colors = listOf(barColor, barColor.copy(alpha = 0.72f)),
+                                                startY = size.height - h,
+                                                endY = size.height,
+                                            ),
                                             topLeft = Offset(x, size.height - h),
                                             size = Size(barW, h),
-                                            cornerRadius = CornerRadius(8f),
+                                            cornerRadius = CornerRadius(10f),
                                         )
                                     }
                                 }

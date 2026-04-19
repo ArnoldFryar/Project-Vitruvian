@@ -50,6 +50,7 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
 import com.example.vitruvianredux.presentation.ui.theme.BrandBrass
 import com.example.vitruvianredux.presentation.ui.theme.BrandClay
 import com.example.vitruvianredux.presentation.ui.theme.BrandOxblood
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.theme.Success
 import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.presentation.ui.theme.WarningContainer
@@ -269,7 +270,7 @@ private fun VolumePerSessionChart(logs: List<AnalyticsStore.SessionLog>, unitSys
 
     val maxVol = recent.maxOf { it.totalVolumeKg }.coerceAtLeast(1.0)
     val barColor = MaterialTheme.colorScheme.primary
-    val bgColor = MaterialTheme.colorScheme.surfaceVariant
+    val bgColor = LocalExtendedColors.current.surface2
     val highlightColor = MaterialTheme.colorScheme.primaryContainer
     val labelColor = MaterialTheme.colorScheme.onSurface
     val measurer = rememberTextMeasurer()
@@ -305,15 +306,20 @@ private fun VolumePerSessionChart(logs: List<AnalyticsStore.SessionLog>, unitSys
                     color = bgColor,
                     topLeft = Offset(x, 0f),
                     size = Size(barWidth, size.height),
-                    cornerRadius = CornerRadius(6f, 6f),
+                    cornerRadius = CornerRadius(10f, 10f),
                 )
                 val barH = ((session.totalVolumeKg / maxVol) * size.height).toFloat()
                 if (barH > 0) {
+                    val fill = if (isSelected) highlightColor else barColor
                     drawRoundRect(
-                        color = if (isSelected) highlightColor else barColor,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(fill, fill.copy(alpha = 0.72f)),
+                            startY = size.height - barH,
+                            endY = size.height,
+                        ),
                         topLeft = Offset(x, size.height - barH),
                         size = Size(barWidth, barH),
-                        cornerRadius = CornerRadius(6f, 6f),
+                        cornerRadius = CornerRadius(10f, 10f),
                     )
                 }
                 if (isSelected) {
@@ -344,7 +350,7 @@ private fun WeeklyFrequencyChart(logs: List<AnalyticsStore.SessionLog>) {
     val cs = MaterialTheme.colorScheme
     val barColor = cs.secondary
     val highlightColor = cs.primary
-    val bgColor = cs.surfaceVariant
+    val bgColor = LocalExtendedColors.current.surface2
     val textColor = cs.onSurfaceVariant
     val labelColor = cs.onSurface
     val measurer = rememberTextMeasurer()
@@ -382,15 +388,20 @@ private fun WeeklyFrequencyChart(logs: List<AnalyticsStore.SessionLog>) {
                     color = bgColor,
                     topLeft = Offset(x, 0f),
                     size = Size(barWidth, chartH),
-                    cornerRadius = CornerRadius(6f, 6f),
+                    cornerRadius = CornerRadius(10f, 10f),
                 )
                 val barH = ((count.toFloat() / maxCount) * chartH)
                 if (barH > 0) {
+                    val fill = if (isSelected) highlightColor else barColor
                     drawRoundRect(
-                        color = if (isSelected) highlightColor else barColor,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(fill, fill.copy(alpha = 0.72f)),
+                            startY = chartH - barH,
+                            endY = chartH,
+                        ),
                         topLeft = Offset(x, chartH - barH),
                         size = Size(barWidth, barH),
-                        cornerRadius = CornerRadius(6f, 6f),
+                        cornerRadius = CornerRadius(10f, 10f),
                     )
                 }
                 // Week label
@@ -449,14 +460,17 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
                     val fraction = count.toFloat() / maxCount
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawRoundRect(
-                            color = Success.copy(alpha = 0.2f),
+                            color = Success.copy(alpha = 0.18f),
                             size = Size(size.width, size.height),
-                            cornerRadius = CornerRadius(4f, 4f),
+                            cornerRadius = CornerRadius(6f, 6f),
                         )
                         drawRoundRect(
-                            color = Success,
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Success.copy(alpha = 0.85f), Success),
+                                endX = size.width * fraction,
+                            ),
                             size = Size(size.width * fraction, size.height),
-                            cornerRadius = CornerRadius(4f, 4f),
+                            cornerRadius = CornerRadius(6f, 6f),
                         )
                     }
                 }
@@ -720,14 +734,17 @@ private fun ModeBreakdownSection(logs: List<AnalyticsStore.SessionLog>) {
                     val fraction = count.toFloat() / maxSets
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawRoundRect(
-                            color = meta.color.copy(alpha = 0.2f),
+                            color = meta.color.copy(alpha = 0.18f),
                             size = Size(size.width, size.height),
-                            cornerRadius = CornerRadius(4f, 4f),
+                            cornerRadius = CornerRadius(6f, 6f),
                         )
                         drawRoundRect(
-                            color = meta.color,
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(meta.color.copy(alpha = 0.85f), meta.color),
+                                endX = size.width * fraction,
+                            ),
                             size = Size(size.width * fraction, size.height),
-                            cornerRadius = CornerRadius(4f, 4f),
+                            cornerRadius = CornerRadius(6f, 6f),
                         )
                     }
                 }
@@ -815,7 +832,10 @@ private fun PersonalRecordsSection(
                             cornerRadius = CornerRadius(4f, 4f),
                         )
                         drawRoundRect(
-                            color = accent,
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(accent.copy(alpha = 0.85f), accent),
+                                endX = size.width * fraction,
+                            ),
                             size = Size(size.width * fraction, size.height),
                             cornerRadius = CornerRadius(4f, 4f),
                         )
