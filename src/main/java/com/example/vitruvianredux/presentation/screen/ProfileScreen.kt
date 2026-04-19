@@ -1617,6 +1617,7 @@ fun ProfileScreen(
                     )
                 }
 
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
                 PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showCoachingDialog = true }) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
