@@ -439,71 +439,34 @@ fun JustLiftDialog(
                         .fillMaxWidth()
                         .padding(horizontal = AppDimens.Spacing.md),
                 ) {
-                    SettingsRow(
-                        icon = AppIcons.GridView,
-                        label = stringResource(R.string.justlift_mode),
-                        valueContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = selectedMode.label,
-                                    color = cs.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                                if (isEcho) {
-                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Box(
-                                        modifier = Modifier
-                                            .background(cs.tertiaryContainer, RoundedCornerShape(AppDimens.Corner.xs))
-                                            .padding(
-                                                horizontal = AppDimens.Spacing.sm,
-                                                vertical = AppDimens.Spacing.xxs,
-                                            ),
-                                    ) {
-                                        Text(
-                                            text = stringResource(R.string.justlift_beta_badge),
-                                            color = cs.onTertiaryContainer,
-                                            style = MaterialTheme.typography.labelSmall,
-                                        )
-                                    }
-                                }
-                                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                Icon(
-                                    AppIcons.KeyboardArrowDown,
-                                    contentDescription = stringResource(R.string.cd_dropdown),
-                                    tint = cs.onSurfaceVariant,
-                                    modifier = Modifier.size(AppDimens.Icon.md),
-                                )
-                            }
-                        },
-                        onClick = { showModeMenu = true },
-                    )
-                    if (showModeMenu) {
-                        ModePickerDialog(
-                            current = selectedMode,
-                            onSelect = { mode ->
-                                selectedMode = mode
-                                showModeMenu = false
-                            },
-                            onDismiss = { showModeMenu = false },
-                        )
-                    }
-
-                    Divider(
-                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
-                        color = cs.outlineVariant,
-                    )
-
-                    if (isEcho) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         SettingsRow(
-                            icon = AppIcons.SwapVert,
-                            label = stringResource(R.string.justlift_eccentric_title),
+                            icon = AppIcons.GridView,
+                            label = stringResource(R.string.justlift_mode),
                             valueContent = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = "$eccentricPct%",
+                                        text = selectedMode.label,
                                         color = cs.onSurfaceVariant,
                                         style = MaterialTheme.typography.bodyLarge,
                                     )
+                                    if (isEcho) {
+                                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                        Box(
+                                            modifier = Modifier
+                                                .background(cs.tertiaryContainer, RoundedCornerShape(AppDimens.Corner.xs))
+                                                .padding(
+                                                    horizontal = AppDimens.Spacing.sm,
+                                                    vertical = AppDimens.Spacing.xxs,
+                                                ),
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.justlift_beta_badge),
+                                                color = cs.onTertiaryContainer,
+                                                style = MaterialTheme.typography.labelSmall,
+                                            )
+                                        }
+                                    }
                                     Spacer(Modifier.width(AppDimens.Spacing.xs))
                                     Icon(
                                         AppIcons.KeyboardArrowDown,
@@ -513,16 +476,16 @@ fun JustLiftDialog(
                                     )
                                 }
                             },
-                            onClick = { showEccentricMenu = true },
+                            onClick = { showModeMenu = true },
                         )
-                        if (showEccentricMenu) {
-                            EccentricPickerDialog(
-                                current = eccentricPct,
-                                onSelect = { value ->
-                                    eccentricPct = value
-                                    showEccentricMenu = false
+                        if (showModeMenu) {
+                            ModePickerDialog(
+                                current = selectedMode,
+                                onSelect = { mode ->
+                                    selectedMode = mode
+                                    showModeMenu = false
                                 },
-                                onDismiss = { showEccentricMenu = false },
+                                onDismiss = { showModeMenu = false },
                             )
                         }
 
@@ -531,88 +494,127 @@ fun JustLiftDialog(
                             color = cs.outlineVariant,
                         )
 
-                        SettingsRow(
-                            icon = AppIcons.Tune,
-                            label = stringResource(R.string.justlift_level),
-                            valueContent = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = echoLevel.displayName,
-                                        color = cs.onSurfaceVariant,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                    )
-                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Icon(
-                                        AppIcons.KeyboardArrowDown,
-                                        contentDescription = stringResource(R.string.cd_dropdown),
-                                        tint = cs.onSurfaceVariant,
-                                        modifier = Modifier.size(AppDimens.Icon.md),
-                                    )
-                                }
-                            },
-                            onClick = { showLevelMenu = true },
-                        )
-                        if (showLevelMenu) {
-                            LevelPickerDialog(
-                                current = echoLevel,
-                                onSelect = { value ->
-                                    echoLevel = value
-                                    showLevelMenu = false
+                        if (isEcho) {
+                            SettingsRow(
+                                icon = AppIcons.SwapVert,
+                                label = stringResource(R.string.justlift_eccentric_title),
+                                valueContent = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "$eccentricPct%",
+                                            color = cs.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                        )
+                                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                        Icon(
+                                            AppIcons.KeyboardArrowDown,
+                                            contentDescription = stringResource(R.string.cd_dropdown),
+                                            tint = cs.onSurfaceVariant,
+                                            modifier = Modifier.size(AppDimens.Icon.md),
+                                        )
+                                    }
                                 },
-                                onDismiss = { showLevelMenu = false },
+                                onClick = { showEccentricMenu = true },
                             )
-                        }
-                    } else {
-                        SettingsRow(
-                            icon = AppIcons.SwapVert,
-                            label = stringResource(R.string.justlift_progression),
-                            valueContent = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val progDisplay = kgToDisplay(progressionKg)
-                                    val progText = formatSignedUnitValue(progDisplay, unitLabel)
-                                    Text(
-                                        text = progText,
-                                        color = cs.onSurfaceVariant,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                    )
-                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Icon(
-                                        AppIcons.KeyboardArrowDown,
-                                        contentDescription = stringResource(R.string.cd_dropdown),
-                                        tint = cs.onSurfaceVariant,
-                                        modifier = Modifier.size(AppDimens.Icon.md),
-                                    )
-                                }
-                            },
-                            onClick = { showProgressionMenu = true },
-                        )
-                        if (showProgressionMenu) {
-                            ProgressionPickerDialog(
-                                current = progressionKg,
-                                onSelect = { value ->
-                                    progressionKg = value
-                                    showProgressionMenu = false
-                                },
-                                onDismiss = { showProgressionMenu = false },
-                            )
-                        }
+                            if (showEccentricMenu) {
+                                EccentricPickerDialog(
+                                    current = eccentricPct,
+                                    onSelect = { value ->
+                                        eccentricPct = value
+                                        showEccentricMenu = false
+                                    },
+                                    onDismiss = { showEccentricMenu = false },
+                                )
+                            }
 
-                        if (selectedMode == JustLiftMode.TUT) {
                             Divider(
                                 modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
                                 color = cs.outlineVariant,
                             )
+
                             SettingsRow(
-                                icon = AppIcons.Speed,
-                                label = stringResource(R.string.player_beast_mode),
+                                icon = AppIcons.Tune,
+                                label = stringResource(R.string.justlift_level),
                                 valueContent = {
-                                    Switch(
-                                        checked = isBeastMode,
-                                        onCheckedChange = { isBeastMode = it },
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = echoLevel.displayName,
+                                            color = cs.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                        )
+                                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                        Icon(
+                                            AppIcons.KeyboardArrowDown,
+                                            contentDescription = stringResource(R.string.cd_dropdown),
+                                            tint = cs.onSurfaceVariant,
+                                            modifier = Modifier.size(AppDimens.Icon.md),
+                                        )
+                                    }
                                 },
-                                onClick = { isBeastMode = !isBeastMode },
+                                onClick = { showLevelMenu = true },
                             )
+                            if (showLevelMenu) {
+                                LevelPickerDialog(
+                                    current = echoLevel,
+                                    onSelect = { value ->
+                                        echoLevel = value
+                                        showLevelMenu = false
+                                    },
+                                    onDismiss = { showLevelMenu = false },
+                                )
+                            }
+                        } else {
+                            SettingsRow(
+                                icon = AppIcons.SwapVert,
+                                label = stringResource(R.string.justlift_progression),
+                                valueContent = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        val progDisplay = kgToDisplay(progressionKg)
+                                        val progText = formatSignedUnitValue(progDisplay, unitLabel)
+                                        Text(
+                                            text = progText,
+                                            color = cs.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                        )
+                                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                        Icon(
+                                            AppIcons.KeyboardArrowDown,
+                                            contentDescription = stringResource(R.string.cd_dropdown),
+                                            tint = cs.onSurfaceVariant,
+                                            modifier = Modifier.size(AppDimens.Icon.md),
+                                        )
+                                    }
+                                },
+                                onClick = { showProgressionMenu = true },
+                            )
+                            if (showProgressionMenu) {
+                                ProgressionPickerDialog(
+                                    current = progressionKg,
+                                    onSelect = { value ->
+                                        progressionKg = value
+                                        showProgressionMenu = false
+                                    },
+                                    onDismiss = { showProgressionMenu = false },
+                                )
+                            }
+
+                            if (selectedMode == JustLiftMode.TUT) {
+                                Divider(
+                                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
+                                    color = cs.outlineVariant,
+                                )
+                                SettingsRow(
+                                    icon = AppIcons.Speed,
+                                    label = stringResource(R.string.player_beast_mode),
+                                    valueContent = {
+                                        Switch(
+                                            checked = isBeastMode,
+                                            onCheckedChange = { isBeastMode = it },
+                                        )
+                                    },
+                                    onClick = { isBeastMode = !isBeastMode },
+                                )
+                            }
                         }
                     }
                 }
@@ -631,73 +633,75 @@ fun JustLiftDialog(
                         .fillMaxWidth()
                         .padding(horizontal = AppDimens.Spacing.md),
                 ) {
-                    SettingsRow(
-                        icon = AppIcons.Bedtime,
-                        label = stringResource(R.string.justlift_rest),
-                        valueContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "%d:%02d".format(restSeconds / 60, restSeconds % 60),
-                                    color = cs.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                Icon(
-                                    AppIcons.KeyboardArrowDown,
-                                    contentDescription = stringResource(R.string.cd_dropdown),
-                                    tint = cs.onSurfaceVariant,
-                                    modifier = Modifier.size(AppDimens.Icon.md),
-                                )
-                            }
-                        },
-                        onClick = { showRestMenu = true },
-                    )
-                    if (showRestMenu) {
-                        RestPickerDialog(
-                            current = restSeconds,
-                            onSelect = { value ->
-                                restSeconds = value
-                                showRestMenu = false
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        SettingsRow(
+                            icon = AppIcons.Bedtime,
+                            label = stringResource(R.string.justlift_rest),
+                            valueContent = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "%d:%02d".format(restSeconds / 60, restSeconds % 60),
+                                        color = cs.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                    Icon(
+                                        AppIcons.KeyboardArrowDown,
+                                        contentDescription = stringResource(R.string.cd_dropdown),
+                                        tint = cs.onSurfaceVariant,
+                                        modifier = Modifier.size(AppDimens.Icon.md),
+                                    )
+                                }
                             },
-                            onDismiss = { showRestMenu = false },
+                            onClick = { showRestMenu = true },
                         )
-                    }
+                        if (showRestMenu) {
+                            RestPickerDialog(
+                                current = restSeconds,
+                                onSelect = { value ->
+                                    restSeconds = value
+                                    showRestMenu = false
+                                },
+                                onDismiss = { showRestMenu = false },
+                            )
+                        }
 
-                    Divider(
-                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
-                        color = cs.outlineVariant,
-                    )
+                        Divider(
+                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
+                            color = cs.outlineVariant,
+                        )
 
-                    SettingsRow(
-                        icon = AppIcons.Timer,
-                        label = "Rep Timing",
-                        valueContent = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = repCountTiming.replaceFirstChar { it.uppercase() },
-                                    color = cs.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                Icon(
-                                    AppIcons.KeyboardArrowDown,
-                                    contentDescription = stringResource(R.string.cd_dropdown),
-                                    tint = cs.onSurfaceVariant,
-                                    modifier = Modifier.size(AppDimens.Icon.md),
-                                )
-                            }
-                        },
-                        onClick = { showTimingMenu = true },
-                    )
-                    if (showTimingMenu) {
-                        RepTimingPickerDialog(
-                            current = repCountTiming,
-                            onSelect = { value ->
-                                repCountTiming = value
-                                showTimingMenu = false
+                        SettingsRow(
+                            icon = AppIcons.Timer,
+                            label = "Rep Timing",
+                            valueContent = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = repCountTiming.replaceFirstChar { it.uppercase() },
+                                        color = cs.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                    Icon(
+                                        AppIcons.KeyboardArrowDown,
+                                        contentDescription = stringResource(R.string.cd_dropdown),
+                                        tint = cs.onSurfaceVariant,
+                                        modifier = Modifier.size(AppDimens.Icon.md),
+                                    )
+                                }
                             },
-                            onDismiss = { showTimingMenu = false },
+                            onClick = { showTimingMenu = true },
                         )
+                        if (showTimingMenu) {
+                            RepTimingPickerDialog(
+                                current = repCountTiming,
+                                onSelect = { value ->
+                                    repCountTiming = value
+                                    showTimingMenu = false
+                                },
+                                onDismiss = { showTimingMenu = false },
+                            )
+                        }
                     }
                 }
 
@@ -716,46 +720,48 @@ fun JustLiftDialog(
                         .padding(horizontal = AppDimens.Spacing.md),
                     borderColor = if (bleConnected) cs.primary.copy(alpha = 0.18f) else cs.outline,
                 ) {
-                    SettingsRow(
-                        icon = AppIcons.VolumeDown,
-                        label = "Sound",
-                        valueContent = {
-                            Switch(
-                                checked = soundEnabled,
-                                onCheckedChange = { soundEnabled = it },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = cs.onPrimary,
-                                    checkedTrackColor = cs.primary,
-                                    uncheckedThumbColor = cs.onSurface,
-                                    uncheckedTrackColor = cs.outline,
-                                ),
-                            )
-                        },
-                        onClick = null,
-                    )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        SettingsRow(
+                            icon = AppIcons.VolumeDown,
+                            label = "Sound",
+                            valueContent = {
+                                Switch(
+                                    checked = soundEnabled,
+                                    onCheckedChange = { soundEnabled = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = cs.onPrimary,
+                                        checkedTrackColor = cs.primary,
+                                        uncheckedThumbColor = cs.onSurface,
+                                        uncheckedTrackColor = cs.outline,
+                                    ),
+                                )
+                            },
+                            onClick = null,
+                        )
 
-                    Divider(
-                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
-                        color = cs.outlineVariant,
-                    )
+                        Divider(
+                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
+                            color = cs.outlineVariant,
+                        )
 
-                    SettingsRow(
-                        icon = AppIcons.Speed,
-                        label = "Stall Detection",
-                        valueContent = {
-                            Switch(
-                                checked = stallDetection,
-                                onCheckedChange = { stallDetection = it },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = cs.onPrimary,
-                                    checkedTrackColor = cs.primary,
-                                    uncheckedThumbColor = cs.onSurface,
-                                    uncheckedTrackColor = cs.outline,
-                                ),
-                            )
-                        },
-                        onClick = null,
-                    )
+                        SettingsRow(
+                            icon = AppIcons.Speed,
+                            label = "Stall Detection",
+                            valueContent = {
+                                Switch(
+                                    checked = stallDetection,
+                                    onCheckedChange = { stallDetection = it },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = cs.onPrimary,
+                                        checkedTrackColor = cs.primary,
+                                        uncheckedThumbColor = cs.onSurface,
+                                        uncheckedTrackColor = cs.outline,
+                                    ),
+                                )
+                            },
+                            onClick = null,
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(AppDimens.Spacing.lg))
