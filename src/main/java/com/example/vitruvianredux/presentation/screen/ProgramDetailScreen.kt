@@ -4,6 +4,7 @@ package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
+import android.app.Activity
 import coil.compose.AsyncImage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,12 +19,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.example.vitruvianredux.ble.ActualOutcome
@@ -51,6 +54,7 @@ fun ProgramDetailScreen(
     onBack: () -> Unit,
     onEditProgram: () -> Unit = {},
 ) {
+    val view = LocalView.current
     val programs by savedProgramsFlow.collectAsState()
     val program  = programs.find { it.id == programId }
 
@@ -110,12 +114,19 @@ onClick = { showDeleteDialog = false }) {
         item.sets * (item.restTimerSec / 60.0 + 1.5)
     }.toInt().coerceAtLeast(if (program.items.isEmpty()) 0 else 1)
     val daysLabel = formatScheduledDays(program.scheduledDays)
+    val bottomBarPadding = 112.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    SideEffect {
+        val window = (view.context as? Activity)?.window ?: return@SideEffect
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant)) {
 
         LazyColumn(
             modifier       = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 96.dp),
+            contentPadding = PaddingValues(bottom = bottomBarPadding),
         ) {
 
             // ── Hero ──────────────────────────────────────────────────────
@@ -132,8 +143,7 @@ onClick = { showDeleteDialog = false }) {
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                         .background(heroBrush)
-                        .statusBarsPadding()
-                        .padding(start = 20.dp, end = 20.dp, top = 56.dp, bottom = 28.dp),
+                        .padding(start = 20.dp, end = 20.dp, top = 72.dp, bottom = 28.dp),
                 ) {
                     Column {
                         Text(
