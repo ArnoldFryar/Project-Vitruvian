@@ -24,6 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.presentation.components.ChartMetric
+import com.example.vitruvianredux.presentation.components.PremiumChartCard
+import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.theme.Success
@@ -148,25 +151,32 @@ private fun VolumeContent(onBack: () -> Unit) {
 
                 // â”€â”€ 6-week trend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
-                    Text(stringResource(R.string.metric_6_week_trend),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                item {
                     val maxVol = weeklyData.maxOfOrNull { it.second }?.coerceAtLeast(1.0) ?: 1.0
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = LocalExtendedColors.current.surface2,
-                        border = androidx.compose.foundation.BorderStroke(
-                            AppDimens.Stroke.thin,
-                            MaterialTheme.colorScheme.outlineVariant,
+                    val avgVol = weeklyData.map { it.second }.average()
+                    val latestWeek = weeklyData.lastOrNull()
+                    PremiumChartCard(
+                        title = stringResource(R.string.metric_6_week_trend),
+                        subtitle = "Weekly training output with the current window pinned for fast comparison.",
+                        accent = MaterialTheme.colorScheme.primary,
+                        metrics = listOf(
+                            ChartMetric(
+                                "Peak",
+                                UnitConversions.formatVolumeFromKg(maxVol, unitSystem) + " " + UnitConversions.unitLabel(unitSystem),
+                                MaterialTheme.colorScheme.primary,
+                            ),
+                            ChartMetric(
+                                "Average",
+                                UnitConversions.formatVolumeFromKg(avgVol, unitSystem) + " " + UnitConversions.unitLabel(unitSystem),
+                                Success,
+                            ),
+                            ChartMetric("Span", "${weeklyData.size} weeks", MaterialTheme.colorScheme.onSurface),
                         ),
+                        selectionBadge = latestWeek?.let { formatWeekRange(it.first, it.first.plusDays(6), weekFmt) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(AppDimens.Spacing.md)) {
-                            val barColor = MaterialTheme.colorScheme.primary
-                            val bgBar = LocalExtendedColors.current.surface2
+                        val barColor = MaterialTheme.colorScheme.primary
+                        val bgBar = LocalExtendedColors.current.surface2
+                        PremiumChartPlotSurface(accent = barColor) {
                             Canvas(Modifier.fillMaxWidth().height(AppDimens.Component.chartLarge)) {
                                 val gap = size.width / weeklyData.size
                                 val barW = gap * 0.55f

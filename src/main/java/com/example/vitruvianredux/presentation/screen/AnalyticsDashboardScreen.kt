@@ -43,6 +43,9 @@ import com.example.vitruvianredux.data.PrTracker
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.components.AppEmptyState
+import com.example.vitruvianredux.presentation.components.ChartMetric
+import com.example.vitruvianredux.presentation.components.PremiumChartCard
+import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
 import com.example.vitruvianredux.presentation.ui.theme.AccentRed
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -59,6 +62,7 @@ import com.example.vitruvianredux.presentation.util.loadAllExercises
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
@@ -268,70 +272,123 @@ private fun VolumePerSessionChart(logs: List<AnalyticsStore.SessionLog>, unitSys
     }
     if (recent.isEmpty()) return
 
+    val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
+    val zone = ZoneId.systemDefault()
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
     val maxVol = recent.maxOf { it.totalVolumeKg }.coerceAtLeast(1.0)
-    val barColor = MaterialTheme.colorScheme.primary
-    val bgColor = LocalExtendedColors.current.surface2
-    val highlightColor = MaterialTheme.colorScheme.primaryContainer
-    val labelColor = MaterialTheme.colorScheme.onSurface
+    val avgVol = recent.map { it.totalVolumeKg }.average()
+    val barColor = cs.primary
+    val bgColor = ext.surface3.copy(alpha = 0.72f)
+    val highlightColor = BrandBrass
+    val lineColor = cs.outlineVariant.copy(alpha = 0.55f)
+    val labelColor = cs.onSurface
     val measurer = rememberTextMeasurer()
-    var selectedBar by remember { mutableIntStateOf(-1) }
+    var selectedBar by remember(recent.size) { mutableIntStateOf(recent.lastIndex) }
+    val selectedSession = recent[selectedBar.coerceIn(0, recent.lastIndex)]
+    val selectedDate = remember(selectedSession.endTimeMs) {
+        Instant.ofEpochMilli(selectedSession.endTimeMs).atZone(zone).toLocalDate()
+    }
+    val selectedVolumeLabel = remember(selectedSession, unitSystem) {
+        UnitConversions.formatVolumeFromKg(selectedSession.totalVolumeKg, unitSystem) + " " +
+            UnitConversions.unitLabel(unitSystem)
+    }
 
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-        SectionHeader("Volume Per Session")
-        Text(
-            "Last ${recent.size} sessions — tap a bar to see volume",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.xs))
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(140.dp)
-                .pointerInput(recent) {
-                    detectTapGestures { offset ->
-                        val gap = size.width.toFloat() / recent.size
-                        val idx = (offset.x / gap).toInt().coerceIn(0, recent.size - 1)
-                        selectedBar = if (selectedBar == idx) -1 else idx
+    PremiumChartCard(
+        title = "Volume Per Session",
+        subtitle = "A premium view of your last ${recent.size} workouts, weighted by session output.",
+        accent = barColor,
+        metrics = listOf(
+            ChartMetric("Peak", UnitConversions.formatVolumeFromKg(maxVol, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), highlightColor),
+            ChartMetric("Average", UnitConversions.formatVolumeFromKg(avgVol, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), barColor),
+            ChartMetric("Sessions", recent.size.toString(), cs.onSurface),
+        ),
+        selectionBadge = "${dateFormatter.format(selectedDate)} • $selectedVolumeLabel",
+    ) {
+        PremiumChartPlotSurface(accent = highlightColor) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(176.dp)
+                    .pointerInput(recent) {
+                        detectTapGestures { offset ->
+                            val gap = size.width.toFloat() / recent.size
+                            val idx = (offset.x / gap).toInt().coerceIn(0, recent.size - 1)
+                            selectedBar = idx
+                        }
                     }
+            ) {
+                val totalBars = recent.size
+                val barGap = size.width / totalBars
+                val barWidth = barGap * 0.58f
+                val plotTop = 8.dp.toPx()
+                val labelSpace = 20.dp.toPx()
+                val plotBottom = size.height - labelSpace
+                val plotHeight = plotBottom - plotTop
+
+                listOf(0.25f, 0.5f, 0.75f, 1f).forEach { fraction ->
+                    val y = plotBottom - plotHeight * fraction
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx(),
+                    )
                 }
-        ) {
-            val totalBars = recent.size
-            val barWidth = (size.width / totalBars) * 0.65f
-            val gap = size.width / totalBars
-            recent.forEachIndexed { i, session ->
-                val x = i * gap + (gap - barWidth) / 2
-                val isSelected = i == selectedBar
-                drawRoundRect(
-                    color = bgColor,
-                    topLeft = Offset(x, 0f),
-                    size = Size(barWidth, size.height),
-                    cornerRadius = CornerRadius(10f, 10f),
-                )
-                val barH = ((session.totalVolumeKg / maxVol) * size.height).toFloat()
-                if (barH > 0) {
-                    val fill = if (isSelected) highlightColor else barColor
+
+                recent.forEachIndexed { index, session ->
+                    val x = index * barGap + (barGap - barWidth) / 2f
+                    val isSelected = index == selectedBar
+                    val ratio = (session.totalVolumeKg / maxVol).toFloat().coerceIn(0f, 1f)
+                    val barHeight = plotHeight * ratio
+                    val barTop = plotBottom - barHeight
+
+                    drawRoundRect(
+                        color = bgColor,
+                        topLeft = Offset(x, plotTop),
+                        size = Size(barWidth, plotHeight),
+                        cornerRadius = CornerRadius(12f, 12f),
+                    )
                     drawRoundRect(
                         brush = Brush.verticalGradient(
-                            colors = listOf(fill, fill.copy(alpha = 0.72f)),
-                            startY = size.height - barH,
-                            endY = size.height,
+                            colors = if (isSelected) {
+                                listOf(highlightColor, barColor)
+                            } else {
+                                listOf(barColor.copy(alpha = 0.94f), barColor.copy(alpha = 0.56f))
+                            },
+                            startY = barTop,
+                            endY = plotBottom,
                         ),
-                        topLeft = Offset(x, size.height - barH),
-                        size = Size(barWidth, barH),
-                        cornerRadius = CornerRadius(10f, 10f),
+                        topLeft = Offset(x, barTop),
+                        size = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(12f, 12f),
                     )
+                    if (isSelected) {
+                        drawRoundRect(
+                            color = highlightColor.copy(alpha = 0.18f),
+                            topLeft = Offset(x - 4.dp.toPx(), plotTop - 4.dp.toPx()),
+                            size = Size(barWidth + 8.dp.toPx(), plotHeight + 8.dp.toPx()),
+                            cornerRadius = CornerRadius(16f, 16f),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()),
+                        )
+                        val result = measurer.measure(
+                            text = selectedVolumeLabel,
+                            style = TextStyle(fontSize = 9.sp, color = labelColor, fontWeight = FontWeight.Bold),
+                        )
+                        val tx = (x + (barWidth - result.size.width) / 2f).coerceIn(0f, size.width - result.size.width)
+                        val ty = (barTop - result.size.height - 8.dp.toPx()).coerceAtLeast(0f)
+                        drawText(result, topLeft = Offset(tx, ty))
+                    }
                 }
-                if (isSelected) {
-                    val label = UnitConversions.formatVolumeFromKg(session.totalVolumeKg, unitSystem) +
-                        " " + UnitConversions.unitLabel(unitSystem)
+
+                listOf(0, recent.lastIndex / 2, recent.lastIndex).distinct().forEach { index ->
+                    val label = dateFormatter.format(Instant.ofEpochMilli(recent[index].endTimeMs).atZone(zone).toLocalDate())
                     val result = measurer.measure(
-                        label,
-                        TextStyle(fontSize = 9.sp, color = labelColor, fontWeight = FontWeight.Bold),
+                        text = label,
+                        style = TextStyle(fontSize = 9.sp, color = cs.onSurfaceVariant),
                     )
-                    val tx = (x + (barWidth - result.size.width) / 2f).coerceIn(0f, size.width - result.size.width)
-                    val ty = (size.height - barH - result.size.height - 4f).coerceAtLeast(0f)
-                    drawText(result, topLeft = Offset(tx, ty))
+                    val x = index * barGap + (barGap - result.size.width) / 2f
+                    drawText(result, topLeft = Offset(x.coerceIn(0f, size.width - result.size.width), plotBottom + 6.dp.toPx()))
                 }
             }
         }
@@ -348,76 +405,109 @@ private fun WeeklyFrequencyChart(logs: List<AnalyticsStore.SessionLog>) {
     if (data.isEmpty()) return
     val maxCount = data.maxOf { it.second }.coerceAtLeast(1)
     val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
     val barColor = cs.secondary
     val highlightColor = cs.primary
-    val bgColor = LocalExtendedColors.current.surface2
+    val bgColor = ext.surface3.copy(alpha = 0.72f)
     val textColor = cs.onSurfaceVariant
     val labelColor = cs.onSurface
+    val weekFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
     val measurer = rememberTextMeasurer()
-    val weekLabelStyle = TextStyle(fontSize = 9.sp, color = textColor)
-    var selectedBar by remember { mutableIntStateOf(-1) }
+    var selectedBar by remember(data.size) { mutableIntStateOf(data.lastIndex) }
+    val selectedWeek = data[selectedBar.coerceIn(0, data.lastIndex)]
+    val averageCount = data.map { it.second }.average()
+    val lineColor = cs.outlineVariant.copy(alpha = 0.55f)
 
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-        SectionHeader("Weekly Frequency")
-        Text(
-            "Sessions per week (last 12 weeks) — tap a bar to see count",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.xs))
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .pointerInput(data) {
-                    detectTapGestures { offset ->
-                        val gap = size.width.toFloat() / data.size
-                        val idx = (offset.x / gap).toInt().coerceIn(0, data.size - 1)
-                        selectedBar = if (selectedBar == idx) -1 else idx
+    PremiumChartCard(
+        title = "Weekly Frequency",
+        subtitle = "Twelve-week cadence view, emphasizing consistency over isolated spikes.",
+        accent = highlightColor,
+        metrics = listOf(
+            ChartMetric("Peak Week", maxCount.toString(), highlightColor),
+            ChartMetric("Average", String.format("%.1f/wk", averageCount), barColor),
+            ChartMetric("Span", "${data.size} weeks", cs.onSurface),
+        ),
+        selectionBadge = "${weekFormatter.format(selectedWeek.first)} • ${selectedWeek.second} ${if (selectedWeek.second == 1) "session" else "sessions"}",
+    ) {
+        PremiumChartPlotSurface(accent = highlightColor) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(164.dp)
+                    .pointerInput(data) {
+                        detectTapGestures { offset ->
+                            val gap = size.width.toFloat() / data.size
+                            val idx = (offset.x / gap).toInt().coerceIn(0, data.size - 1)
+                            selectedBar = idx
+                        }
                     }
+            ) {
+                val totalBars = data.size
+                val barGap = size.width / totalBars
+                val barWidth = barGap * 0.56f
+                val plotTop = 8.dp.toPx()
+                val labelSpace = 20.dp.toPx()
+                val plotBottom = size.height - labelSpace
+                val plotHeight = plotBottom - plotTop
+
+                listOf(0.25f, 0.5f, 0.75f, 1f).forEach { fraction ->
+                    val y = plotBottom - plotHeight * fraction
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx(),
+                    )
                 }
-        ) {
-            val totalBars = data.size
-            val barWidth = (size.width / totalBars) * 0.6f
-            val gap = size.width / totalBars
-            val chartH = size.height - 20f // leave room for labels
-            data.forEachIndexed { i, (weekDate, count) ->
-                val x = i * gap + (gap - barWidth) / 2
-                val isSelected = i == selectedBar
-                drawRoundRect(
-                    color = bgColor,
-                    topLeft = Offset(x, 0f),
-                    size = Size(barWidth, chartH),
-                    cornerRadius = CornerRadius(10f, 10f),
-                )
-                val barH = ((count.toFloat() / maxCount) * chartH)
-                if (barH > 0) {
-                    val fill = if (isSelected) highlightColor else barColor
+
+                data.forEachIndexed { index, (weekDate, count) ->
+                    val x = index * barGap + (barGap - barWidth) / 2f
+                    val isSelected = index == selectedBar
+                    val barHeight = plotHeight * (count.toFloat() / maxCount)
+                    val barTop = plotBottom - barHeight
+
+                    drawRoundRect(
+                        color = bgColor,
+                        topLeft = Offset(x, plotTop),
+                        size = Size(barWidth, plotHeight),
+                        cornerRadius = CornerRadius(12f, 12f),
+                    )
                     drawRoundRect(
                         brush = Brush.verticalGradient(
-                            colors = listOf(fill, fill.copy(alpha = 0.72f)),
-                            startY = chartH - barH,
-                            endY = chartH,
+                            colors = if (isSelected) {
+                                listOf(highlightColor, barColor)
+                            } else {
+                                listOf(barColor.copy(alpha = 0.92f), barColor.copy(alpha = 0.56f))
+                            },
+                            startY = barTop,
+                            endY = plotBottom,
                         ),
-                        topLeft = Offset(x, chartH - barH),
-                        size = Size(barWidth, barH),
-                        cornerRadius = CornerRadius(10f, 10f),
+                        topLeft = Offset(x, barTop),
+                        size = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(12f, 12f),
                     )
-                }
-                // Week label
-                val weekLabel = "${weekDate.monthValue}/${weekDate.dayOfMonth}"
-                val weekResult = measurer.measure(weekLabel, weekLabelStyle)
-                drawText(weekResult, topLeft = Offset(x + (barWidth - weekResult.size.width) / 2, chartH + 4f))
-                // Count label on tap
-                if (isSelected) {
-                    val countLabel = "$count"
-                    val countResult = measurer.measure(
-                        countLabel,
-                        TextStyle(fontSize = 9.sp, color = labelColor, fontWeight = FontWeight.Bold),
-                    )
-                    val tx = (x + (barWidth - countResult.size.width) / 2f).coerceIn(0f, size.width - countResult.size.width)
-                    val ty = (chartH - barH - countResult.size.height - 4f).coerceAtLeast(0f)
-                    drawText(countResult, topLeft = Offset(tx, ty))
+                    if (isSelected) {
+                        val countResult = measurer.measure(
+                            text = count.toString(),
+                            style = TextStyle(fontSize = 9.sp, color = labelColor, fontWeight = FontWeight.Bold),
+                        )
+                        val tx = (x + (barWidth - countResult.size.width) / 2f).coerceIn(0f, size.width - countResult.size.width)
+                        val ty = (barTop - countResult.size.height - 8.dp.toPx()).coerceAtLeast(0f)
+                        drawText(countResult, topLeft = Offset(tx, ty))
+                    }
+                    if (index % 3 == 0 || index == data.lastIndex) {
+                        val weekResult = measurer.measure(
+                            text = weekFormatter.format(weekDate),
+                            style = TextStyle(fontSize = 9.sp, color = textColor),
+                        )
+                        drawText(
+                            weekResult,
+                            topLeft = Offset(
+                                (x + (barWidth - weekResult.size.width) / 2f).coerceIn(0f, size.width - weekResult.size.width),
+                                plotBottom + 6.dp.toPx(),
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -441,8 +531,16 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
     if (ranked.isEmpty()) return
     val maxCount = ranked.first().value
 
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-        SectionHeader("Most Trained Exercises")
+    PremiumChartCard(
+        title = "Most Trained Exercises",
+        subtitle = "Your most repeated movements across completed sessions.",
+        accent = Success,
+        metrics = listOf(
+            ChartMetric("Leader", ranked.first().value.toString(), Success),
+            ChartMetric("Tracked", ranked.size.toString(), MaterialTheme.colorScheme.onSurface),
+        ),
+        selectionBadge = ranked.firstOrNull()?.let { "Top: ${it.key}" },
+    ) {
         ranked.forEach { (name, count) ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -598,8 +696,16 @@ private fun MuscleSilhouetteSection(
         value = Pair(front, back)
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-        SectionHeader("Muscle Group Heatmap")
+    PremiumChartCard(
+        title = "Muscle Group Heatmap",
+        subtitle = "Body-region emphasis over the selected training window.",
+        accent = BrandBrass,
+        metrics = listOf(
+            ChartMetric("Regions", distribution.count { it.value > 0.0 }.toString(), BrandBrass),
+            ChartMetric("Peak", String.format("%.0f", maxVal), MaterialTheme.colorScheme.onSurface),
+        ),
+        selectionBadge = period.label,
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -713,8 +819,17 @@ private fun ModeBreakdownSection(logs: List<AnalyticsStore.SessionLog>) {
     if (modeData.isEmpty()) return
     val maxSets = modeData.first().value
 
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-        SectionHeader("Training Modes")
+    val topMode = modeData.firstOrNull()
+    PremiumChartCard(
+        title = "Training Modes",
+        subtitle = "How your logged sessions distribute across mode presets.",
+        accent = topMode?.let { MODE_COLORS[it.key]?.color } ?: MaterialTheme.colorScheme.primary,
+        metrics = listOf(
+            ChartMetric("Modes", modeData.size.toString(), MaterialTheme.colorScheme.onSurface),
+            ChartMetric("Top", topMode?.value?.toString() ?: "0", topMode?.let { MODE_COLORS[it.key]?.color } ?: MaterialTheme.colorScheme.primary),
+        ),
+        selectionBadge = topMode?.let { MODE_COLORS[it.key]?.label ?: it.key },
+    ) {
         modeData.forEach { (mode, count) ->
             val meta = MODE_COLORS[mode] ?: ModeMeta(
                 mode.replaceFirstChar { it.uppercaseChar() },
@@ -784,15 +899,15 @@ private fun PersonalRecordsSection(
     val unitLabel = if (isLb) "lb" else "kg"
     val accent = MaterialTheme.colorScheme.primary
 
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-        SectionHeader("Personal Records")
-        Text(
-            "Top lifts by estimated 1RM",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.xs))
-
+    PremiumChartCard(
+        title = "Personal Records",
+        subtitle = "Top lifts ranked by estimated one-rep max.",
+        accent = accent,
+        metrics = listOf(
+            ChartMetric("Records", pbs.size.toString(), accent),
+            ChartMetric("Top 1RM", if (pbs.isNotEmpty()) "~${if (isLb) pbs.first().bestEst1RmPerCableLb.roundToInt() else (pbs.first().bestEst1RmPerCableLb * UnitConversions.KG_PER_LB).roundToInt()} $unitLabel" else "-", MaterialTheme.colorScheme.onSurface),
+        ),
+    ) {
         val maxE1Rm = pbs.first().bestEst1RmLb.coerceAtLeast(1.0)
         pbs.forEachIndexed { index, pb ->
             val e1rmDisplay = if (isLb) pb.bestEst1RmPerCableLb.roundToInt()

@@ -60,7 +60,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
+import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
+import com.example.vitruvianredux.presentation.components.PremiumChartHeader
+import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.components.TrainingMomentumCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
@@ -69,6 +72,7 @@ import com.example.vitruvianredux.presentation.ui.theme.AccentCyan
 import com.example.vitruvianredux.presentation.ui.theme.BrandCyan
 import com.example.vitruvianredux.presentation.ui.theme.Gold
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.presentation.ui.theme.Success
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
 import java.time.DayOfWeek
@@ -78,6 +82,37 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import org.json.JSONObject
+
+@Composable
+private fun ProfileChartBlock(
+    title: String,
+    subtitle: String,
+    accent: Color,
+    metrics: List<ChartMetric>,
+    selectionBadge: String? = null,
+    emptyMessage: String,
+    hasData: Boolean,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    PremiumChartHeader(
+        title = title,
+        subtitle = subtitle,
+        accent = accent,
+        metrics = metrics,
+        selectionBadge = selectionBadge,
+    )
+    if (!hasData) {
+        Text(
+            text = emptyMessage,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else {
+        PremiumChartPlotSurface(accent = accent) {
+            content()
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -876,32 +911,26 @@ fun ProfileScreen(
                     val daySessions = weekDays.map { sessionMap[it] ?: 0 }
                     val weekTotal = dayVolumes.sum()
                     val maxVal = dayVolumes.maxOrNull()?.takeIf { it > 0 } ?: 1.0
-
-                    // Total volume display
-                    val totalDisplay = UnitConversions.formatVolumeFromKg(weekTotal, unitSystem)
-                    Text(
-                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = cs.primary,
-                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
                     val hasAnyActivity = dayVolumes.any { it > 0.0 } || daySessions.any { it > 0 }
-                    if (!hasAnyActivity) {
-                        Text(stringResource(R.string.profile_empty_week),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-                        val barColor = cs.primary
-                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
-                        // Minimum stub height for sessions with no tracked volume (4dp in px)
-                        val minStubPx = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }
+                    val dayLabels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                    val barColor = cs.primary
+                    val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
+                    val minStubPx = with(androidx.compose.ui.platform.LocalDensity.current) { 4.dp.toPx() }
 
+                    ProfileChartBlock(
+                        title = "Weekly Volume",
+                        subtitle = "Day-by-day workload across the current seven-day window.",
+                        accent = barColor,
+                        metrics = listOf(
+                            ChartMetric("Total", UnitConversions.formatVolumeFromKg(weekTotal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), barColor),
+                            ChartMetric("Peak Day", UnitConversions.formatVolumeFromKg(maxVal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), Success),
+                            ChartMetric("Sessions", daySessions.sum().toString(), MaterialTheme.colorScheme.onSurface),
+                        ),
+                        selectionBadge = "${rangeFmt.format(monday)} - ${rangeFmt.format(sunday)}",
+                        emptyMessage = stringResource(R.string.profile_empty_week),
+                        hasData = hasAnyActivity,
+                    ) {
                         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
                             val totalBars = 7
                             val barWidth = (size.width / totalBars) * 0.55f
@@ -923,8 +952,6 @@ fun ProfileScreen(
                                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
                                     )
                                 } else if (daySessions[i] > 0) {
-                                    // Session happened but no tracked volume (e.g. Just Lift, warmup-only).
-                                    // Draw a minimal stub so the day doesn't appear empty.
                                     drawRoundRect(
                                         color = barColor.copy(alpha = 0.35f),
                                         topLeft = Offset(x, size.height - minStubPx),
@@ -934,9 +961,8 @@ fun ProfileScreen(
                                 }
                             }
                         }
-                        // Day labels
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEachIndexed { i, label ->
+                            dayLabels.forEachIndexed { i, label ->
                                 Text(
                                     label,
                                     style = MaterialTheme.typography.labelSmall,
@@ -979,27 +1005,27 @@ fun ProfileScreen(
                         WorkoutHistoryStore.dailyVolume(monthStart, monthEnd)
                     }
                     val monthTotal = volumeData.sumOf { it.second }
-                    val totalDisplay = UnitConversions.formatVolumeFromKg(monthTotal, unitSystem)
-                    Text(
-                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = cs.primary,
-                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     // Aggregate by week
                     val weeklyBuckets = volumeData.groupBy { (d, _) -> d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR) }
                         .entries.sortedBy { it.key }
                         .map { it.value.sumOf { p -> p.second } }
                     val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1.0
-
-                    if (weeklyBuckets.all { it == 0.0 }) {
-                        Text(stringResource(R.string.profile_empty_month), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        val barColor = cs.primary
-                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    val barColor = cs.primary
+                    val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ProfileChartBlock(
+                        title = "Monthly Volume",
+                        subtitle = "Weekly rollup for the selected month so volume spikes read cleanly.",
+                        accent = barColor,
+                        metrics = listOf(
+                            ChartMetric("Total", UnitConversions.formatVolumeFromKg(monthTotal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), barColor),
+                            ChartMetric("Peak Week", UnitConversions.formatVolumeFromKg(maxVal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), Success),
+                            ChartMetric("Weeks", weeklyBuckets.size.toString(), MaterialTheme.colorScheme.onSurface),
+                        ),
+                        selectionBadge = monthFmt.format(refMonth),
+                        emptyMessage = stringResource(R.string.profile_empty_month),
+                        hasData = weeklyBuckets.any { it > 0.0 },
+                    ) {
                         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
                             val totalBars = weeklyBuckets.size
                             val barWidth = (size.width / totalBars.coerceAtLeast(1)) * 0.55f
@@ -1048,27 +1074,27 @@ fun ProfileScreen(
                         WorkoutHistoryStore.dailyVolume(yearStart, yearEnd)
                     }
                     val yearTotal = volumeData.sumOf { it.second }
-                    val totalDisplay = UnitConversions.formatVolumeFromKg(yearTotal, unitSystem)
-                    Text(
-                        "$totalDisplay ${UnitConversions.unitLabel(unitSystem)} total",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = cs.primary,
-                        modifier = Modifier.padding(vertical = AppDimens.Spacing.xs),
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
                     val monthlyBuckets = (1..12).map { m ->
                         volumeData.filter { it.first.monthValue == m }.sumOf { it.second }
                     }
                     val maxVal = monthlyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1.0
                     val monthLabels = listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D")
-
-                    if (monthlyBuckets.all { it == 0.0 }) {
-                        Text(stringResource(R.string.profile_empty_year), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        val barColor = cs.primary
-                        val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    val barColor = cs.primary
+                    val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ProfileChartBlock(
+                        title = "Yearly Volume",
+                        subtitle = "Month-by-month workload across the selected year.",
+                        accent = barColor,
+                        metrics = listOf(
+                            ChartMetric("Total", UnitConversions.formatVolumeFromKg(yearTotal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), barColor),
+                            ChartMetric("Peak Month", UnitConversions.formatVolumeFromKg(maxVal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), Success),
+                            ChartMetric("Months", "12", MaterialTheme.colorScheme.onSurface),
+                        ),
+                        selectionBadge = refYear.toString(),
+                        emptyMessage = stringResource(R.string.profile_empty_year),
+                        hasData = monthlyBuckets.any { it > 0.0 },
+                    ) {
                         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
                             val totalBars = 12
                             val barWidth = (size.width / totalBars) * 0.55f
@@ -1139,14 +1165,21 @@ fun ProfileScreen(
                     val weekDays = (0L..6L).map { monday.plusDays(it) }
                     val dayValues = weekDays.map { sessionMap[it] ?: 0 }
                     val weekTotal = dayValues.sum()
-                    Text("$weekTotal session${if (weekTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
                     val maxSessions = dayValues.maxOrNull()?.takeIf { it > 0 } ?: 1
                     val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
-                    if (dayValues.all { it == 0 }) {
-                        Text(stringResource(R.string.profile_sessions_empty_week), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
+                    ProfileChartBlock(
+                        title = "Weekly Sessions",
+                        subtitle = "Frequency across the active week, with today emphasized when relevant.",
+                        accent = sessColor,
+                        metrics = listOf(
+                            ChartMetric("Total", "$weekTotal", sessColor),
+                            ChartMetric("Peak Day", maxSessions.toString(), Success),
+                            ChartMetric("Active Days", dayValues.count { it > 0 }.toString(), MaterialTheme.colorScheme.onSurface),
+                        ),
+                        selectionBadge = "${rangeFmt.format(monday)} - ${rangeFmt.format(sunday)}",
+                        emptyMessage = stringResource(R.string.profile_sessions_empty_week),
+                        hasData = dayValues.any { it > 0 },
+                    ) {
                         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
                             val totalBars = 7; val barWidth = (size.width / totalBars) * 0.55f; val gap = size.width / totalBars
                             dayValues.forEachIndexed { i, v ->
@@ -1175,13 +1208,20 @@ fun ProfileScreen(
                     val sessionData = remember(history, monthStart) { WorkoutHistoryStore.dailySessions(monthStart, monthEnd) }
                     val weeklyBuckets = sessionData.groupBy { (d, _) -> d.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR) }.entries.sortedBy { it.key }.map { it.value.sumOf { p -> p.second } }
                     val monthTotal = sessionData.sumOf { it.second }
-                    Text("$monthTotal session${if (monthTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
                     val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
-                    if (weeklyBuckets.all { it == 0 }) {
-                        Text(stringResource(R.string.profile_sessions_empty_month), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
+                    ProfileChartBlock(
+                        title = "Monthly Sessions",
+                        subtitle = "Weekly frequency clusters for the selected month.",
+                        accent = sessColor,
+                        metrics = listOf(
+                            ChartMetric("Total", monthTotal.toString(), sessColor),
+                            ChartMetric("Peak Week", maxVal.toString(), Success),
+                            ChartMetric("Weeks", weeklyBuckets.size.toString(), MaterialTheme.colorScheme.onSurface),
+                        ),
+                        selectionBadge = monthFmt.format(refMonth),
+                        emptyMessage = stringResource(R.string.profile_sessions_empty_month),
+                        hasData = weeklyBuckets.any { it > 0 },
+                    ) {
                         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
                             val totalBars = weeklyBuckets.size; val barWidth = (size.width / totalBars.coerceAtLeast(1)) * 0.55f; val gap = size.width / totalBars.coerceAtLeast(1)
                             weeklyBuckets.forEachIndexed { i, v ->
@@ -1207,13 +1247,20 @@ fun ProfileScreen(
                     val sessionData = remember(history, refYear) { WorkoutHistoryStore.dailySessions(yearStart, yearEnd) }
                     val monthlyBuckets = (1..12).map { m -> sessionData.filter { it.first.monthValue == m }.sumOf { it.second } }
                     val yearTotal = sessionData.sumOf { it.second }
-                    Text("$yearTotal session${if (yearTotal != 1) "s" else ""}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = sessColor, modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-
                     val maxVal = monthlyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
-                    if (monthlyBuckets.all { it == 0 }) {
-                        Text(stringResource(R.string.profile_sessions_empty_year), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
+                    ProfileChartBlock(
+                        title = "Yearly Sessions",
+                        subtitle = "Month-by-month training frequency across the selected year.",
+                        accent = sessColor,
+                        metrics = listOf(
+                            ChartMetric("Total", yearTotal.toString(), sessColor),
+                            ChartMetric("Peak Month", maxVal.toString(), Success),
+                            ChartMetric("Months", "12", MaterialTheme.colorScheme.onSurface),
+                        ),
+                        selectionBadge = refYear.toString(),
+                        emptyMessage = stringResource(R.string.profile_sessions_empty_year),
+                        hasData = monthlyBuckets.any { it > 0 },
+                    ) {
                         Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.cardMinHeight)) {
                             val totalBars = 12; val barWidth = (size.width / totalBars) * 0.55f; val gap = size.width / totalBars
                             monthlyBuckets.forEachIndexed { i, v ->

@@ -5,10 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,6 +17,9 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.vitruvianredux.presentation.components.ChartMetric
+import com.example.vitruvianredux.presentation.components.PremiumChartCard
+import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
@@ -51,77 +51,75 @@ fun FatigueTrendGraph(
         else         -> trendGreen
     }
     val label = FatigueTrendAnalyzer.trendLabel()
+    val latestScore = scores.lastOrNull()?.score ?: 0
 
-    Surface(
+    PremiumChartCard(
+        title = "Rep Quality Trend",
+        subtitle = "A compact fatigue sparkline for the most recent scored set.",
+        accent = lineColor,
+        metrics = listOf(
+            ChartMetric("Reps", scores.size.toString(), dotColor),
+            ChartMetric("Latest", latestScore.toString(), lineColor),
+        ),
+        selectionBadge = label,
         modifier = modifier.fillMaxWidth(0.7f),
-        shape    = RoundedCornerShape(AppDimens.Corner.md_sm),
-        color    = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
     ) {
-        Column(
-            modifier            = Modifier.padding(horizontal = AppDimens.Spacing.md_sm2, vertical = AppDimens.Spacing.sm_md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-        ) {
-            Text(
-                text       = "Rep Quality Trend",
-                style      = MaterialTheme.typography.labelSmall,
-                color      = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            // ── Sparkline ────────────────────────────────────────────────────
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(AppDimens.Component.buttonHeight),
+        PremiumChartPlotSurface(accent = lineColor) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
             ) {
-                val pts     = scores.map { it.score }
-                val yMin    = 0f
-                val yMax    = 100f
-                val padX    = 8.dp.toPx()
-                val padY    = 6.dp.toPx()
-                val usableW = size.width - padX * 2f
-                val usableH = size.height - padY * 2f
-                val stepX   = if (pts.size > 1) usableW / (pts.size - 1).toFloat() else 0f
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(AppDimens.Component.buttonHeight),
+                ) {
+                    val pts     = scores.map { it.score }
+                    val yMin    = 0f
+                    val yMax    = 100f
+                    val padX    = 8.dp.toPx()
+                    val padY    = 6.dp.toPx()
+                    val usableW = size.width - padX * 2f
+                    val usableH = size.height - padY * 2f
+                    val stepX   = if (pts.size > 1) usableW / (pts.size - 1).toFloat() else 0f
 
-                fun xOf(i: Int) = padX + i * stepX
-                fun yOf(v: Int) = padY + usableH * (1f - (v - yMin) / (yMax - yMin))
+                    fun xOf(i: Int) = padX + i * stepX
+                    fun yOf(v: Int) = padY + usableH * (1f - (v - yMin) / (yMax - yMin))
 
-                // Line path
-                val path = Path().apply {
-                    moveTo(xOf(0), yOf(pts[0]))
-                    for (i in 1 until pts.size) {
-                        lineTo(xOf(i), yOf(pts[i]))
+                    val path = Path().apply {
+                        moveTo(xOf(0), yOf(pts[0]))
+                        for (i in 1 until pts.size) {
+                            lineTo(xOf(i), yOf(pts[i]))
+                        }
+                    }
+                    drawPath(
+                        path  = path,
+                        color = lineColor,
+                        style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+                    )
+
+                    val dotRadius = 3.dp.toPx()
+                    pts.forEachIndexed { i, v ->
+                        drawCircle(
+                            color  = dotColor,
+                            radius = dotRadius,
+                            center = Offset(xOf(i), yOf(v)),
+                        )
+                        drawCircle(
+                            color  = lineColor,
+                            radius = dotRadius - 1.dp.toPx(),
+                            center = Offset(xOf(i), yOf(v)),
+                        )
                     }
                 }
-                drawPath(
-                    path  = path,
-                    color = lineColor,
-                    style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+
+                Text(
+                    text       = label,
+                    style      = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = lineColor,
                 )
-
-                // Dots
-                val dotRadius = 3.dp.toPx()
-                pts.forEachIndexed { i, v ->
-                    drawCircle(
-                        color  = dotColor,
-                        radius = dotRadius,
-                        center = Offset(xOf(i), yOf(v)),
-                    )
-                    drawCircle(
-                        color  = lineColor,
-                        radius = dotRadius - 1.dp.toPx(),
-                        center = Offset(xOf(i), yOf(v)),
-                    )
-                }
             }
-
-            // ── Trend label ──────────────────────────────────────────────────
-            Text(
-                text       = label,
-                style      = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color      = lineColor,
-            )
         }
     }
 }

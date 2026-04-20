@@ -39,6 +39,9 @@ import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.PrTracker
 import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.presentation.components.ChartMetric
+import com.example.vitruvianredux.presentation.components.PremiumChartCard
+import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.Error
 import com.example.vitruvianredux.presentation.ui.theme.Success
@@ -507,9 +510,35 @@ onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                     }
                 }
 
-                // Load by Set chart
-                EdsSection("Load by Set")
-                EdsCard {
+                val bestSetLabel = bestSetResult?.let { result ->
+                    val bestWeight = UnitConversions.formatWeightFromKg(
+                        UnitConversions.lbToKg(result.weightLb.toDouble()),
+                        unitSystem,
+                    )
+                    "Best set ${result.setIndex + 1} • ${result.reps} reps @ $bestWeight ${UnitConversions.unitLabel(unitSystem)}"
+                }
+                PremiumChartCard(
+                    title = "Load by Set",
+                    subtitle = "Per-set load distribution for this exercise, with the strongest effort isolated.",
+                    accent = cs.primary,
+                    metrics = listOf(
+                        ChartMetric("Sets", sets.size.toString(), cs.onSurface),
+                        ChartMetric(
+                            "Top Weight",
+                            UnitConversions.formatWeightFromKg(
+                                UnitConversions.lbToKg((sets.maxOfOrNull { it.weightLb } ?: 0).toDouble()),
+                                unitSystem,
+                            ) + " " + UnitConversions.unitLabel(unitSystem),
+                            cs.primary,
+                        ),
+                        ChartMetric(
+                            "Volume",
+                            UnitConversions.formatVolumeFromKg(totalVolKg, unitSystem) + " " + UnitConversions.unitLabel(unitSystem),
+                            Success,
+                        ),
+                    ),
+                    selectionBadge = bestSetLabel,
+                ) {
                     PolishedLoadChart(
                         sets         = sets,
                         unitSystem   = unitSystem,
@@ -524,8 +553,36 @@ onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
 
                 // Multi-session progression line chart
                 if (progressionPoints.size >= 2) {
-                    EdsSection("Progress")
-                    EdsCard {
+                    val peakProgressPoint = progressionPoints.maxByOrNull { it.second }
+                    val latestProgressPoint = progressionPoints.lastOrNull()
+                    PremiumChartCard(
+                        title = "Progress",
+                        subtitle = "Historical best-set progression across your most recent sessions for this movement.",
+                        accent = Success,
+                        metrics = listOf(
+                            ChartMetric("Sessions", progressionPoints.size.toString(), cs.onSurface),
+                            ChartMetric(
+                                "Peak",
+                                UnitConversions.formatWeightFromKg(
+                                    UnitConversions.lbToKg((peakProgressPoint?.second ?: 0).toDouble()),
+                                    unitSystem,
+                                ) + " " + UnitConversions.unitLabel(unitSystem),
+                                Success,
+                            ),
+                            ChartMetric(
+                                "Current",
+                                UnitConversions.formatWeightFromKg(
+                                    UnitConversions.lbToKg((latestProgressPoint?.second ?: 0).toDouble()),
+                                    unitSystem,
+                                ) + " " + UnitConversions.unitLabel(unitSystem),
+                                cs.primary,
+                            ),
+                        ),
+                        selectionBadge = latestProgressPoint?.let { point ->
+                            val date = Instant.ofEpochMilli(point.first).atZone(ZoneId.systemDefault()).toLocalDate()
+                            "Latest ${DateTimeFormatter.ofPattern("MMM d").format(date)}"
+                        },
+                    ) {
                         SessionProgressionChart(
                             points     = progressionPoints,
                             unitSystem = unitSystem,
@@ -816,76 +873,73 @@ private fun PolishedLoadChart(
     val unitLabel = UnitConversions.unitLabel(unitSystem)
 
     Column(modifier = modifier) {
-        // Y-axis range labels
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("0 $unitLabel", style = MaterialTheme.typography.labelSmall,
-                color = labelColor)
-            Text("${formatChartValue(maxW)} $unitLabel", style = MaterialTheme.typography.labelSmall,
-                color = labelColor.copy(alpha = 0.70f))
-        }
-
-        // Bar canvas — equal-width slots so labels below align perfectly
-        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
-            val slotW   = size.width / sets.size
-            val pad     = slotW * 0.17f
-            val barW    = (slotW - pad * 2f).coerceAtLeast(4f)
-            val cornerR = 4.dp.toPx()
-
-            displayWeights.forEachIndexed { idx, w ->
-                val left   = idx * slotW + pad
-                val ratio  = (w / maxW).coerceIn(0f, 1f)
-                val barH   = (size.height * ratio).coerceAtLeast(4f)
-                val barTop = size.height - barH
-
-                drawRoundRect(
-                    color = trackColor, topLeft = Offset(left, 0f),
-                    size = Size(barW, size.height), cornerRadius = CornerRadius(cornerR, cornerR),
-                )
-                val fill = if (idx == bestSetIndex) accentColor else dimColor
-                drawRoundRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(fill, fill.copy(alpha = 0.72f)),
-                        startY = barTop,
-                        endY = size.height,
-                    ),
-                    topLeft = Offset(left, barTop),
-                    size = Size(barW, barH), cornerRadius = CornerRadius(cornerR, cornerR),
-                )
-            }
-        }
-
-        // X-axis set number labels — same slot layout as canvas
-        Row(modifier = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs)) {
-            sets.forEachIndexed { idx, _ ->
-                Text(
-                    "${idx + 1}",
-                    style      = MaterialTheme.typography.labelSmall,
-                    color      = if (idx == bestSetIndex) accentColor else labelColor.copy(alpha = 0.65f),
-                    fontWeight = if (idx == bestSetIndex) FontWeight.Bold else FontWeight.Normal,
-                    textAlign  = TextAlign.Center,
-                    modifier   = Modifier.weight(1f),
-                )
-            }
-        }
-
-        // Legend — shown only when best-set distinction is meaningful
-        if (sets.size > 1 && bestSetIndex != null) {
-            Spacer(Modifier.height(AppDimens.Spacing.sm))
+        PremiumChartPlotSurface(accent = accentColor) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Canvas(Modifier.size(8.dp)) { drawCircle(accentColor) }
-                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text(stringResource(R.string.pb_best_set),   style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.65f))
-                Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-                Canvas(Modifier.size(8.dp)) { drawCircle(dimColor) }
-                Spacer(Modifier.width(AppDimens.Spacing.xs))
-                Text(stringResource(R.string.exercise_chart_other), style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.65f))
+                Text("0 $unitLabel", style = MaterialTheme.typography.labelSmall,
+                    color = labelColor)
+                Text("${formatChartValue(maxW)} $unitLabel", style = MaterialTheme.typography.labelSmall,
+                    color = labelColor.copy(alpha = 0.70f))
+            }
+            Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
+                val slotW   = size.width / sets.size
+                val pad     = slotW * 0.17f
+                val barW    = (slotW - pad * 2f).coerceAtLeast(4f)
+                val cornerR = 4.dp.toPx()
+
+                displayWeights.forEachIndexed { idx, w ->
+                    val left   = idx * slotW + pad
+                    val ratio  = (w / maxW).coerceIn(0f, 1f)
+                    val barH   = (size.height * ratio).coerceAtLeast(4f)
+                    val barTop = size.height - barH
+
+                    drawRoundRect(
+                        color = trackColor, topLeft = Offset(left, 0f),
+                        size = Size(barW, size.height), cornerRadius = CornerRadius(cornerR, cornerR),
+                    )
+                    val fill = if (idx == bestSetIndex) accentColor else dimColor
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(fill, fill.copy(alpha = 0.72f)),
+                            startY = barTop,
+                            endY = size.height,
+                        ),
+                        topLeft = Offset(left, barTop),
+                        size = Size(barW, barH), cornerRadius = CornerRadius(cornerR, cornerR),
+                    )
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs)) {
+                sets.forEachIndexed { idx, _ ->
+                    Text(
+                        "${idx + 1}",
+                        style      = MaterialTheme.typography.labelSmall,
+                        color      = if (idx == bestSetIndex) accentColor else labelColor.copy(alpha = 0.65f),
+                        fontWeight = if (idx == bestSetIndex) FontWeight.Bold else FontWeight.Normal,
+                        textAlign  = TextAlign.Center,
+                        modifier   = Modifier.weight(1f),
+                    )
+                }
+            }
+
+            if (sets.size > 1 && bestSetIndex != null) {
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Canvas(Modifier.size(8.dp)) { drawCircle(accentColor) }
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                    Text(stringResource(R.string.pb_best_set),   style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.65f))
+                    Spacer(Modifier.width(AppDimens.Spacing.md_sm))
+                    Canvas(Modifier.size(8.dp)) { drawCircle(dimColor) }
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                    Text(stringResource(R.string.exercise_chart_other), style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.65f))
+                }
             }
         }
     }
@@ -910,121 +964,137 @@ private fun SessionProgressionChart(
     val lineColor  = cs.primary
     val labelColor = cs.onSurfaceVariant
     val unitLabel  = UnitConversions.unitLabel(unitSystem)
-
     val displayWeights = points.map { (_, lb) ->
         if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) lb.toFloat()
         else UnitConversions.lbToKg(lb.toDouble()).toFloat()
     }
-    val minW = (displayWeights.minOrNull() ?: 0f) * 0.92f   // add 8% padding below
+    val minW = (displayWeights.minOrNull() ?: 0f) * 0.92f
     val maxW = (displayWeights.maxOrNull() ?: 1f).let { if (it <= minW) it + 1f else it }
-
-    val zone    = ZoneId.systemDefault()
+    val zone = ZoneId.systemDefault()
     val dateFmt = DateTimeFormatter.ofPattern("MMM d")
 
     Column(modifier = modifier) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            // Y-axis labels overlaid on left edge
-            Column(
-                modifier = Modifier.matchParentSize().padding(end = AppDimens.Spacing.xs),
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text("${formatChartValue(maxW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor.copy(alpha = 0.70f))
-                Text("${formatChartValue(minW)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = labelColor)
-            }
-
-        Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
-            val w = size.width
-            val h = size.height
-            val n = (points.size - 1).coerceAtLeast(1).toFloat()
-            val range = (maxW - minW).coerceAtLeast(0.001f)
-
-            // Baseline hairline
-            drawLine(
-                color = lineColor.copy(alpha = 0.12f),
-                start = Offset(0f, h),
-                end = Offset(w, h),
-                strokeWidth = 1.dp.toPx(),
-            )
-
-            val path = Path()
-            val area = Path()
-            displayWeights.forEachIndexed { idx, weight ->
-                val x = idx / n * w
-                val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
-                if (idx == 0) {
-                    path.moveTo(x, y)
-                    area.moveTo(x, h)
-                    area.lineTo(x, y)
-                } else {
-                    path.lineTo(x, y)
-                    area.lineTo(x, y)
-                }
-                if (idx == displayWeights.lastIndex) {
-                    area.lineTo(x, h)
-                    area.close()
-                }
-            }
-            // Subtle area fill under the line
-            drawPath(
-                path = area,
-                brush = Brush.verticalGradient(
-                    colors = listOf(lineColor.copy(alpha = 0.32f), lineColor.copy(alpha = 0f)),
-                    startY = 0f,
-                    endY = h,
-                ),
-            )
-            drawPath(path, color = lineColor,
-                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
-
-            displayWeights.forEachIndexed { idx, weight ->
-                val x = idx / n * w
-                val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
-                val isLatest = idx == displayWeights.lastIndex
-                if (isLatest) {
-                    drawCircle(
-                        color = lineColor.copy(alpha = 0.22f),
-                        radius = 10.dp.toPx(),
-                        center = Offset(x, y),
+        PremiumChartPlotSurface(accent = lineColor) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .padding(end = AppDimens.Spacing.xs),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        "${formatChartValue(maxW)} $unitLabel",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = labelColor.copy(alpha = 0.70f),
+                    )
+                    Text(
+                        "${formatChartValue(minW)} $unitLabel",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = labelColor,
                     )
                 }
-                drawCircle(
-                    color  = lineColor,
-                    radius = if (isLatest) 5.dp.toPx() else 3.5.dp.toPx(),
-                    center = Offset(x, y),
-                )
-            }
-        }
-        } // end Box
 
-        // X-axis: first, mid, last date labels
-        Row(modifier = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs)) {
-            Text(
-                dateFmt.format(Instant.ofEpochMilli(points.first().first).atZone(zone)),
-                style = MaterialTheme.typography.labelSmall,
-                color = labelColor,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Start,
-            )
-            if (points.size > 2) {
-                val midIdx = points.size / 2
+                Canvas(modifier = Modifier.fillMaxWidth().height(AppDimens.Component.chartRing)) {
+                    val w = size.width
+                    val h = size.height
+                    val n = (points.size - 1).coerceAtLeast(1).toFloat()
+                    val range = (maxW - minW).coerceAtLeast(0.001f)
+
+                    drawLine(
+                        color = lineColor.copy(alpha = 0.12f),
+                        start = Offset(0f, h),
+                        end = Offset(w, h),
+                        strokeWidth = 1.dp.toPx(),
+                    )
+
+                    val path = Path()
+                    val area = Path()
+                    displayWeights.forEachIndexed { idx, weight ->
+                        val x = idx / n * w
+                        val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
+                        if (idx == 0) {
+                            path.moveTo(x, y)
+                            area.moveTo(x, h)
+                            area.lineTo(x, y)
+                        } else {
+                            path.lineTo(x, y)
+                            area.lineTo(x, y)
+                        }
+                        if (idx == displayWeights.lastIndex) {
+                            area.lineTo(x, h)
+                            area.close()
+                        }
+                    }
+
+                    drawPath(
+                        path = area,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(lineColor.copy(alpha = 0.32f), lineColor.copy(alpha = 0f)),
+                            startY = 0f,
+                            endY = h,
+                        ),
+                    )
+                    drawPath(
+                        path,
+                        color = lineColor,
+                        style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
+                    )
+
+                    displayWeights.forEachIndexed { idx, weight ->
+                        val x = idx / n * w
+                        val y = h - ((weight - minW) / range * h).coerceIn(0f, h)
+                        val isLatest = idx == displayWeights.lastIndex
+                        if (isLatest) {
+                            drawCircle(
+                                color = lineColor.copy(alpha = 0.22f),
+                                radius = 10.dp.toPx(),
+                                center = Offset(x, y),
+                            )
+                        }
+                        drawCircle(
+                            color = cs.background,
+                            radius = 4.dp.toPx(),
+                            center = Offset(x, y),
+                        )
+                        drawCircle(
+                            color = lineColor,
+                            radius = if (isLatest) 5.dp.toPx() else 3.5.dp.toPx(),
+                            center = Offset(x, y),
+                        )
+                    }
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth().padding(top = AppDimens.Spacing.xs)) {
                 Text(
-                    dateFmt.format(Instant.ofEpochMilli(points[midIdx].first).atZone(zone)),
+                    dateFmt.format(Instant.ofEpochMilli(points.first().first).atZone(zone).toLocalDate()),
                     style = MaterialTheme.typography.labelSmall,
                     color = labelColor,
                     modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Start,
+                )
+                if (points.size > 2) {
+                    val midIdx = points.size / 2
+                    Text(
+                        dateFmt.format(Instant.ofEpochMilli(points[midIdx].first).atZone(zone).toLocalDate()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = labelColor,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+                Text(
+                    dateFmt.format(Instant.ofEpochMilli(points.last().first).atZone(zone).toLocalDate()),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = labelColor,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.End,
                 )
             }
-            Text(
-                dateFmt.format(Instant.ofEpochMilli(points.last().first).atZone(zone)),
-                style = MaterialTheme.typography.labelSmall,
-                color = labelColor,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.End,
-            )
         }
 
-        // Latest weight badge
         Spacer(Modifier.height(AppDimens.Spacing.xs))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Surface(
@@ -1033,10 +1103,10 @@ private fun SessionProgressionChart(
             ) {
                 Text(
                     "Latest: ${formatWeightLb(points.last().second, unitSystem)}",
-                    style      = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color      = cs.onPrimaryContainer,
-                    modifier   = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xxs),
+                    color = cs.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xxs),
                 )
             }
         }

@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
@@ -47,7 +48,10 @@ import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
+import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.components.PremiumChartCard
+import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
@@ -73,9 +77,9 @@ fun WorkoutCompleteContent(
     exerciseSets: List<AnalyticsStore.ExerciseSetLog> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
-    val cs = MaterialTheme.colorScheme
     val ext = LocalExtendedColors.current
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
+    val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
     Box(modifier = modifier.fillMaxSize()) {
     WorkoutCelebrationConfetti(
@@ -165,6 +169,14 @@ fun WorkoutCompleteContent(
             }
         }
 
+        SessionBenchmarkCard(
+            stats = stats,
+            avgQualityScore = avgQualityScore,
+            unitSystem = unitSystem,
+            allLogs = allLogs,
+            prCount = prCount,
+        )
+
         // â”€â”€ Stats grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Column(
             modifier            = Modifier.fillMaxWidth(),
@@ -242,54 +254,16 @@ fun WorkoutCompleteContent(
             }
         }
 
-        // ── Points earned + per-exercise breakdown ───────────────────────────
         val sessionPts = AnalyticsStore.sessionPoints(
             stats.totalVolumeKg.toDouble(), avgQualityScore)
         val breakdown = remember(exerciseSets) {
             AnalyticsStore.exercisePointsBreakdown(exerciseSets)
                 .entries.sortedByDescending { it.value }
         }
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-            ) {
-                StatTile(
-                    icon  = AppIcons.Star,
-                    label = "Points Earned",
-                    value = "$sessionPts",
-                    unit  = "pts",
-                    modifier = Modifier.fillMaxWidth(),
-                    animDelay = 700,
-                )
-            }
-            if (breakdown.size > 1) {
-                breakdown.forEach { (name, pts) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = AppDimens.Spacing.sm),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            name,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = cs.onSurfaceVariant,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "+$pts pts",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ext.gold,
-                        )
-                    }
-                }
-            }
-        }
+        ExercisePointsBreakdownCard(
+            sessionPts = sessionPts,
+            breakdown = breakdown,
+        )
 
         // ── Muscle-group tags (just-lift sessions only) ──────────────────────
         if (isJustLift) {
@@ -428,6 +402,242 @@ private val GlassBorder = BorderStroke(
     0.5.dp,
     Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.07f), Color.Transparent)),
 )
+
+private data class SessionBenchmark(
+    val label: String,
+    val currentValue: Float,
+    val averageValue: Float,
+    val currentLabel: String,
+    val averageLabel: String,
+    val accent: Color,
+)
+
+@Composable
+private fun SessionBenchmarkCard(
+    stats: WorkoutStats,
+    avgQualityScore: Int?,
+    unitSystem: UnitsStore.UnitSystem,
+    allLogs: List<AnalyticsStore.SessionLog>,
+    prCount: Int,
+) {
+    val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
+    val recentLogs = remember(allLogs) { allLogs.sortedByDescending { it.endTimeMs }.take(16) }
+    val qualityHistory = remember(recentLogs) { recentLogs.mapNotNull { it.avgQualityScore?.takeIf { score -> score > 0 } } }
+
+    val avgReps = recentLogs.map { it.totalReps }.average().takeIf { it > 0 } ?: stats.totalReps.toDouble().coerceAtLeast(1.0)
+    val avgVolumeKg = recentLogs.map { it.totalVolumeKg }.average().takeIf { it > 0 } ?: stats.totalVolumeKg.toDouble().coerceAtLeast(1.0)
+    val avgDurationSec = recentLogs.map { it.durationSec }.average().takeIf { it > 0 } ?: stats.durationSec.toDouble().coerceAtLeast(1.0)
+    val avgQuality = qualityHistory.average().takeIf { !it.isNaN() && it > 0 }
+
+    val comparisons = buildList {
+        add(
+            SessionBenchmark(
+                label = "Reps",
+                currentValue = stats.totalReps.toFloat(),
+                averageValue = avgReps.toFloat(),
+                currentLabel = stats.totalReps.toString(),
+                averageLabel = avgReps.toInt().toString(),
+                accent = Success,
+            )
+        )
+        add(
+            SessionBenchmark(
+                label = "Volume",
+                currentValue = stats.totalVolumeKg.toFloat(),
+                averageValue = avgVolumeKg.toFloat(),
+                currentLabel = UnitConversions.formatVolumeFromKg(stats.totalVolumeKg.toDouble(), unitSystem) + " " + UnitConversions.unitLabel(unitSystem),
+                averageLabel = UnitConversions.formatVolumeFromKg(avgVolumeKg, unitSystem) + " " + UnitConversions.unitLabel(unitSystem),
+                accent = BrandBrass,
+            )
+        )
+        add(
+            SessionBenchmark(
+                label = "Duration",
+                currentValue = stats.durationSec.toFloat(),
+                averageValue = avgDurationSec.toFloat(),
+                currentLabel = formatDuration(stats.durationSec),
+                averageLabel = formatDuration(avgDurationSec.toInt()),
+                accent = AccentCyan,
+            )
+        )
+        if (avgQualityScore != null && avgQuality != null) {
+            add(
+                SessionBenchmark(
+                    label = "Quality",
+                    currentValue = avgQualityScore.toFloat(),
+                    averageValue = avgQuality.toFloat(),
+                    currentLabel = "$avgQualityScore",
+                    averageLabel = avgQuality.toInt().toString(),
+                    accent = ext.accentAmber,
+                )
+            )
+        }
+    }
+
+    PremiumChartCard(
+        title = "Session Signature",
+        subtitle = "Current workout against your recent saved baseline.",
+        accent = BrandBrass,
+        metrics = listOf(
+            ChartMetric("Points", AnalyticsStore.sessionPoints(stats.totalVolumeKg.toDouble(), avgQualityScore).toString(), ext.gold),
+            ChartMetric("PRs", prCount.toString(), ext.accentAmber),
+            ChartMetric("Baseline", if (recentLogs.isEmpty()) "new" else recentLogs.size.toString(), cs.onSurface),
+        ),
+        selectionBadge = if (recentLogs.isEmpty()) "First recorded benchmark" else "vs ${recentLogs.size} saved workouts",
+    ) {
+        PremiumChartPlotSurface(accent = BrandBrass) {
+            comparisons.forEach { benchmark ->
+                val maxValue = maxOf(benchmark.currentValue, benchmark.averageValue, 1f)
+                val currentFraction = (benchmark.currentValue / maxValue).coerceIn(0f, 1f)
+                val averageFraction = (benchmark.averageValue / maxValue).coerceIn(0f, 1f)
+                val deltaPct = if (benchmark.averageValue > 0f) {
+                    (((benchmark.currentValue - benchmark.averageValue) / benchmark.averageValue) * 100f).toInt()
+                } else {
+                    0
+                }
+                val deltaColor = if (benchmark.currentValue >= benchmark.averageValue) Success else cs.onSurfaceVariant
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            benchmark.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = if (recentLogs.isEmpty()) "baseline pending" else "${if (deltaPct >= 0) "+" else ""}$deltaPct% vs avg",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (recentLogs.isEmpty()) cs.onSurfaceVariant else deltaColor,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(12.dp)
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(cs.surfaceVariant.copy(alpha = 0.42f)),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(averageFraction)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(benchmark.accent.copy(alpha = 0.18f)),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(currentFraction)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(benchmark.accent.copy(alpha = 0.7f), benchmark.accent),
+                                    )
+                                ),
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            "Now ${benchmark.currentLabel}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurface,
+                        )
+                        Text(
+                            "Avg ${benchmark.averageLabel}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExercisePointsBreakdownCard(
+    sessionPts: Int,
+    breakdown: List<Map.Entry<String, Int>>,
+) {
+    val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
+    val maxPts = breakdown.maxOfOrNull { it.value }?.coerceAtLeast(1) ?: 1
+
+    PremiumChartCard(
+        title = "Point Breakdown",
+        subtitle = "Where this workout's points came from across the exercises you completed.",
+        accent = ext.gold,
+        metrics = listOf(
+            ChartMetric("Session", sessionPts.toString(), ext.gold),
+            ChartMetric("Exercises", breakdown.size.toString(), cs.onSurface),
+            ChartMetric("Leader", breakdown.firstOrNull()?.value?.toString() ?: "0", ext.accentAmber),
+        ),
+        selectionBadge = breakdown.firstOrNull()?.let { "Top ${it.key}" },
+    ) {
+        PremiumChartPlotSurface(accent = ext.gold) {
+            if (breakdown.isEmpty()) {
+                Text(
+                    text = "Complete exercise sets to unlock a per-movement point breakdown.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
+                )
+            } else {
+                breakdown.take(6).forEach { (name, pts) ->
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = cs.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(Modifier.width(AppDimens.Spacing.sm))
+                            Text(
+                                text = "+$pts pts",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ext.gold,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(10.dp)
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(cs.surfaceVariant.copy(alpha = 0.42f)),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth((pts.toFloat() / maxPts).coerceIn(0f, 1f))
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            colors = listOf(ext.accentAmber.copy(alpha = 0.82f), ext.gold),
+                                        )
+                                    ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun StatTile(
