@@ -18,17 +18,17 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Divider
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,14 +38,17 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,8 +59,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.ble.JustLiftCommandRouter
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.protocol.EchoLevel
@@ -132,6 +133,7 @@ fun JustLiftFab(onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JustLiftDialog(
     workoutVM: WorkoutSessionViewModel,
@@ -210,236 +212,238 @@ fun JustLiftDialog(
     } else {
         "Settings are saved now and sent to the trainer when you start."
     }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    Dialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        sheetState = sheetState,
+        windowInsets = WindowInsets(0),
+        containerColor = Color.Transparent,
+        scrimColor = Color.Black.copy(alpha = 0.6f),
+        dragHandle = null,
+        tonalElevation = 0.dp,
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .clickable(enabled = false) {},
+                .widthIn(max = AppDimens.Layout.maxContentWidth)
+                .fillMaxWidth()
+                .padding(horizontal = AppDimens.Spacing.sm)
+                .navigationBarsPadding()
+                .padding(bottom = AppDimens.Spacing.sm)
+                .clip(RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg))
+                .background(
+                    cs.background,
+                    RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg),
+                )
+                .border(
+                    AppDimens.Stroke.thin,
+                    cs.outline,
+                    RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg),
+                )
+                .verticalScroll(rememberScrollState()),
         ) {
-            Column(
-                modifier = Modifier
-                    .widthIn(max = AppDimens.Layout.maxContentWidth)
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .clip(RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg))
-                    .background(
-                        cs.background,
-                        RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg),
-                    )
-                    .border(
-                        AppDimens.Stroke.thin,
-                        cs.outline,
-                        RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg),
-                    )
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
-                ) {
-                    TextButton(
-                        onClick = {
-                            saveSnapshot()
-                            onDismiss()
-                        },
-                        modifier = Modifier.align(Alignment.CenterStart),
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md),
                     ) {
-                        Text(
-                            text = stringResource(R.string.complete_done),
-                            color = cs.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.justlift_title),
-                        color = cs.onBackground,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                    IconButton(
-                        onClick = { showInfoDialog = true },
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                    ) {
-                        Icon(AppIcons.Info, contentDescription = "Info", tint = cs.onSurfaceVariant)
-                    }
-                }
-
-                if (showInfoDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showInfoDialog = false },
-                        containerColor = cs.surface,
-                        tonalElevation = 0.dp,
-                        title = { Text(stringResource(R.string.justlift_title)) },
-                        text = {
+                        TextButton(
+                            onClick = {
+                                saveSnapshot()
+                                onDismiss()
+                            },
+                            modifier = Modifier.align(Alignment.CenterStart),
+                        ) {
                             Text(
-                                "Quick-start a workout without a program.\n\n" +
-                                    "- Old School: constant load\n" +
-                                    "- Pump: lighter, higher rep\n" +
-                                    "- Echo: adaptive resistance that responds to your force. " +
-                                    "Use Level and Eccentric Load instead of setting a weight.",
+                                text = stringResource(R.string.complete_done),
+                                color = cs.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyLarge,
                             )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = { showInfoDialog = false }) {
-                                Text(stringResource(R.string.common_ok))
-                            }
-                        },
-                    )
-                }
-
-                AppCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppDimens.Spacing.md),
-                    containerColor = WarningContainer.copy(alpha = 0.92f),
-                    borderColor = WarningOnContainer.copy(alpha = 0.18f),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(AppDimens.Spacing.md_sm),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            AppIcons.Warning,
-                            contentDescription = stringResource(R.string.cd_warning),
-                            tint = WarningOnContainer,
-                            modifier = Modifier.size(AppDimens.Icon.md),
-                        )
-                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        }
                         Text(
-                            text = stringResource(R.string.justlift_safety_warning),
-                            color = WarningOnContainer,
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = stringResource(R.string.justlift_title),
+                            color = cs.onBackground,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.align(Alignment.Center),
+                        )
+                        IconButton(
+                            onClick = { showInfoDialog = true },
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                        ) {
+                            Icon(AppIcons.Info, contentDescription = "Info", tint = cs.onSurfaceVariant)
+                        }
+                    }
+
+                    if (showInfoDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showInfoDialog = false },
+                            containerColor = cs.surface,
+                            tonalElevation = 0.dp,
+                            title = { Text(stringResource(R.string.justlift_title)) },
+                            text = {
+                                Text(
+                                    "Quick-start a workout without a program.\n\n" +
+                                        "- Old School: constant load\n" +
+                                        "- Pump: lighter, higher rep\n" +
+                                        "- Echo: adaptive resistance that responds to your force. " +
+                                        "Use Level and Eccentric Load instead of setting a weight.",
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = { showInfoDialog = false }) {
+                                    Text(stringResource(R.string.common_ok))
+                                }
+                            },
                         )
                     }
-                }
 
-                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
-
-                AppCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppDimens.Spacing.md),
-                    borderColor = if (bleConnected) cs.primary.copy(alpha = 0.28f) else cs.outline,
-                ) {
-                    Column(
-                        modifier = Modifier.padding(AppDimens.Spacing.md),
-                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
+                    AppCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.md),
+                        containerColor = WarningContainer.copy(alpha = 0.92f),
+                        borderColor = WarningOnContainer.copy(alpha = 0.18f),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier.padding(AppDimens.Spacing.md_sm),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            JustLiftHeroPill(
-                                label = connectionLabel,
-                                containerColor = if (bleConnected) cs.primaryContainer else cs.surfaceVariant,
-                                contentColor = if (bleConnected) cs.onPrimaryContainer else cs.onSurfaceVariant,
+                            Icon(
+                                AppIcons.Warning,
+                                contentDescription = stringResource(R.string.cd_warning),
+                                tint = WarningOnContainer,
+                                modifier = Modifier.size(AppDimens.Icon.md),
                             )
-                            JustLiftHeroPill(
-                                label = if (isEcho) "${selectedMode.label} Beta" else selectedMode.label,
-                                containerColor = if (isEcho) cs.tertiaryContainer else cs.secondaryContainer,
-                                contentColor = if (isEcho) cs.onTertiaryContainer else cs.onSecondaryContainer,
+                            Spacer(Modifier.width(AppDimens.Spacing.sm))
+                            Text(
+                                text = stringResource(R.string.justlift_safety_warning),
+                                color = WarningOnContainer,
+                                style = MaterialTheme.typography.bodyMedium,
                             )
                         }
+                    }
 
-                        if (isEcho) {
-                            Text(
-                                text = stringResource(R.string.mode_adaptive),
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.Bold,
-                                color = cs.secondary,
-                            )
-                            Text(
-                                text = "Adaptive resistance reacts to your force so the lowering phase can stay challenging without manually picking a cable load.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = cs.onSurfaceVariant,
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-                                JustLiftSummaryChip(label = "Level", value = echoLevel.displayName)
-                                JustLiftSummaryChip(label = "Eccentric", value = "$eccentricPct%")
-                            }
-                        } else {
-                            Text(
-                                text = "Weight ($unitLabel/cable)",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = cs.onSurfaceVariant,
-                            )
-                            Text(
-                                text = displayedWeight,
-                                style = MaterialTheme.typography.displayMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = cs.secondary,
-                            )
-                            Text(
-                                text = "Per cable resistance for this freeform session.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = cs.onSurfaceVariant,
-                            )
-                            SelectorCard(
-                                title = "Weight / Cable",
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                ResistanceTumbler(
-                                    valueKg = weightKgPerCable,
-                                    onValueKgChange = { weightKgPerCable = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    surfaceColor = cs.surfaceVariant,
-                                )
-                            }
-                            JustLiftSummaryChip(label = "Total for 2 cables", value = totalDisplay)
-                        }
+                    Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
-                        Surface(
-                            shape = RoundedCornerShape(AppDimens.Corner.sm),
-                            color = cs.surfaceVariant,
-                            border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant),
+                    AppCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.md),
+                        borderColor = if (bleConnected) cs.primary.copy(alpha = 0.28f) else cs.outline,
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(AppDimens.Spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
                         ) {
                             Row(
-                                modifier = Modifier.padding(AppDimens.Spacing.md_sm),
-                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top,
                             ) {
-                                Icon(
-                                    AppIcons.Info,
-                                    contentDescription = stringResource(R.string.cd_info),
-                                    tint = cs.onSurfaceVariant,
-                                    modifier = Modifier.size(AppDimens.Icon.sm),
+                                JustLiftHeroPill(
+                                    label = connectionLabel,
+                                    containerColor = if (bleConnected) cs.primaryContainer else cs.surfaceVariant,
+                                    contentColor = if (bleConnected) cs.onPrimaryContainer else cs.onSurfaceVariant,
                                 )
-                                Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                JustLiftHeroPill(
+                                    label = if (isEcho) "${selectedMode.label} Beta" else selectedMode.label,
+                                    containerColor = if (isEcho) cs.tertiaryContainer else cs.secondaryContainer,
+                                    contentColor = if (isEcho) cs.onTertiaryContainer else cs.onSecondaryContainer,
+                                )
+                            }
+
+                            if (isEcho) {
                                 Text(
-                                    text = if (isEcho) {
-                                        "The stronger you lift up, the heavier you'll lower down."
-                                    } else {
-                                        "The load above is saved now and sent to the trainer when you start."
-                                    },
-                                    color = cs.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    text = stringResource(R.string.mode_adaptive),
+                                    style = MaterialTheme.typography.displaySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = cs.secondary,
                                 )
+                                Text(
+                                    text = "Adaptive resistance reacts to your force so the lowering phase can stay challenging without manually picking a cable load.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = cs.onSurfaceVariant,
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                                    JustLiftSummaryChip(label = "Level", value = echoLevel.displayName)
+                                    JustLiftSummaryChip(label = "Eccentric", value = "$eccentricPct%")
+                                }
+                            } else {
+                                Text(
+                                    text = "Weight ($unitLabel/cable)",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = cs.onSurfaceVariant,
+                                )
+                                Text(
+                                    text = displayedWeight,
+                                    style = MaterialTheme.typography.displayMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = cs.secondary,
+                                )
+                                Text(
+                                    text = "Per cable resistance for this freeform session.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = cs.onSurfaceVariant,
+                                )
+                                SelectorCard(
+                                    title = "Weight / Cable",
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    ResistanceTumbler(
+                                        valueKg = weightKgPerCable,
+                                        onValueKgChange = { weightKgPerCable = it },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        surfaceColor = cs.surfaceVariant,
+                                    )
+                                }
+                                JustLiftSummaryChip(label = "Total for 2 cables", value = totalDisplay)
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                                color = cs.surfaceVariant,
+                                border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(AppDimens.Spacing.md_sm),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        AppIcons.Info,
+                                        contentDescription = stringResource(R.string.cd_info),
+                                        tint = cs.onSurfaceVariant,
+                                        modifier = Modifier.size(AppDimens.Icon.sm),
+                                    )
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                    Text(
+                                        text = if (isEcho) {
+                                            "The stronger you lift up, the heavier you'll lower down."
+                                        } else {
+                                            "The load above is saved now and sent to the trainer when you start."
+                                        },
+                                        color = cs.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+                    Spacer(Modifier.height(AppDimens.Spacing.md_lg))
 
-                SectionHeader(
-                    title = "Setup",
-                    subtitle = "Choose the resistance style and the controls that shape each rep.",
-                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
-                )
-                Spacer(Modifier.height(AppDimens.Spacing.sm))
+                    SectionHeader(
+                        title = "Setup",
+                        subtitle = "Choose the resistance style and the controls that shape each rep.",
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-                AppCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppDimens.Spacing.md),
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    AppCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.md),
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
                         SettingsRow(
                             icon = AppIcons.GridView,
                             label = stringResource(R.string.justlift_mode),
@@ -619,21 +623,21 @@ fun JustLiftDialog(
                     }
                 }
 
-                Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+                    Spacer(Modifier.height(AppDimens.Spacing.md_lg))
 
-                SectionHeader(
-                    title = "Session Defaults",
-                    subtitle = "Applies to each Just Lift set once you start.",
-                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
-                )
-                Spacer(Modifier.height(AppDimens.Spacing.sm))
+                    SectionHeader(
+                        title = "Session Defaults",
+                        subtitle = "Applies to each Just Lift set once you start.",
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.sm))
 
-                AppCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppDimens.Spacing.md),
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    AppCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.md),
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
                         SettingsRow(
                             icon = AppIcons.Bedtime,
                             label = stringResource(R.string.justlift_rest),
@@ -764,26 +768,25 @@ fun JustLiftDialog(
                     }
                 }
 
-                Spacer(Modifier.height(AppDimens.Spacing.lg))
+                    Spacer(Modifier.height(AppDimens.Spacing.lg))
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppDimens.Spacing.md),
-                ) {
-                    GradientButton(
-                        text = if (bleConnected) "Start Just Lift" else "Connect Trainer First",
-                        onClick = {
-                            saveSnapshot()
-                            if (router.connect()) onDismiss()
-                        },
-                        enabled = bleConnected,
-                    )
-                }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.md),
+                    ) {
+                        GradientButton(
+                            text = if (bleConnected) "Start Just Lift" else "Connect Trainer First",
+                            onClick = {
+                                saveSnapshot()
+                                if (router.connect()) onDismiss()
+                            },
+                            enabled = bleConnected,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
 
-                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
-                Spacer(Modifier.height(AppDimens.Spacing.md))
-            }
+                    Spacer(Modifier.height(AppDimens.Spacing.xl))
         }
     }
 }
