@@ -72,6 +72,7 @@ import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.LocalDate
 import java.time.DayOfWeek
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
@@ -131,13 +132,25 @@ fun ProfileScreen(
 
     val localContext = androidx.compose.ui.platform.LocalContext.current
     val roomDb = remember(localContext) { SessionLogDatabase.getInstance(localContext) }
-    val thisWeekStartMs = remember {
-        java.time.LocalDate.now()
-            .with(java.time.DayOfWeek.MONDAY)
-            .atStartOfDay(java.time.ZoneId.systemDefault())
-            .toInstant().toEpochMilli()
+    val today by produceState(initialValue = LocalDate.now()) {
+        while (true) {
+            val currentDate = LocalDate.now()
+            val nextMidnightMs = currentDate
+                .plusDays(1)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+            delay((nextMidnightMs - System.currentTimeMillis()).coerceAtLeast(60_000L))
+            value = LocalDate.now()
+        }
     }
-    val thisWeekStartDate = remember { LocalDate.now().with(DayOfWeek.MONDAY) }
+    val thisWeekStartDate = remember(today) { today.with(DayOfWeek.MONDAY) }
+    val thisWeekStartMs = remember(thisWeekStartDate) {
+        thisWeekStartDate
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    }
     val weekVolumeKgFromRoom by roomDb.sessionLogDao()
         .currentWeekVolumeKgFlow(thisWeekStartMs)
         .collectAsState(initial = 0.0)

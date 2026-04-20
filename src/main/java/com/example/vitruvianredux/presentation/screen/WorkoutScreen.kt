@@ -34,6 +34,7 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.data.CustomExerciseStore
+import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.model.ExerciseSortOrder
@@ -46,6 +47,7 @@ import com.example.vitruvianredux.presentation.components.ExerciseVideoPreviewDi
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ShimmerBox
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.util.UnitConversions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -54,6 +56,12 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
 private val jsonParser = Json { ignoreUnknownKeys = true }
 
 private const val WORKOUT_GUIDE_TEXT = "Use the library when you want exercise-specific setup, filters, and video previews. Use Just Lift for a fast freeform session."
+
+private fun formatWeightLbForDisplay(lb: Int, unitSystem: UnitsStore.UnitSystem): String =
+    when (unitSystem) {
+        UnitsStore.UnitSystem.IMPERIAL_LB -> "$lb lb"
+        UnitsStore.UnitSystem.METRIC_KG -> "%.1f kg".format(UnitConversions.lbToKg(lb.toDouble()))
+    }
 
 
 @Composable
@@ -65,6 +73,7 @@ fun WorkoutScreen(
     val context = LocalContext.current
     val sessionState by workoutVM.state.collectAsState()
     val isReady      by workoutVM.bleIsReady.collectAsState()
+    val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
 
     // â”€â”€ Load state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var allExercises by remember { mutableStateOf<List<Exercise>?>(null) }
@@ -176,6 +185,7 @@ fun WorkoutScreen(
             item {
                 ActiveSessionBanner(
                     state     = sessionState,
+                    unitSystem = unitSystem,
                     onStop    = { WiringRegistry.hit(A_WORKOUT_BANNER_STOP); WiringRegistry.recordOutcome(A_WORKOUT_BANNER_STOP, ActualOutcome.BleWriteAttempt("PANIC_STOP")); workoutVM.panicStop() },
                     onDismiss = { WiringRegistry.hit(A_WORKOUT_BANNER_DISMISS); WiringRegistry.recordOutcome(A_WORKOUT_BANNER_DISMISS, ActualOutcome.StateChanged("bannerDismissed")); workoutVM.dismiss() },
                 )
@@ -653,6 +663,7 @@ private fun ExerciseEmptyState(message: String, onRetry: (() -> Unit)? = null) {
 @Composable
 private fun ActiveSessionBanner(
     state: SessionState,
+    unitSystem: UnitsStore.UnitSystem,
     onStop: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -735,7 +746,7 @@ private fun ActiveSessionBanner(
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text       = "${state.targetWeightLb} lb",
+                                text       = formatWeightLbForDisplay(state.targetWeightLb, unitSystem),
                                 style      = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color      = MaterialTheme.colorScheme.onPrimaryContainer,

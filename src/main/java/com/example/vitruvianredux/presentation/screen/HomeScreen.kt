@@ -93,13 +93,37 @@ fun HomeScreen(
     val currentStreak = remember(allLogs) { AnalyticsStore.currentStreak() }
     val volumeValue = UnitConversions.formatVolumeFromKg(weekVolumeKg, unitSystem)
     val volumeLabel = stringResource(R.string.home_metric_volume, UnitConversions.unitLabel(unitSystem))
+    var showResetStatsDialog by remember { mutableStateOf(false) }
+
+    if (showResetStatsDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetStatsDialog = false },
+            title = { Text("Reset analytics") },
+            text = { Text("This clears recorded analytics sessions and the Home stats derived from them. This can't be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        AnalyticsStore.clear()
+                        showResetStatsDialog = false
+                    }
+                ) {
+                    Text("Reset", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetStatsDialog = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
 
     ScreenScaffold(
         title = stringResource(R.string.screen_title_home),
         innerPadding = innerPadding,
         fillWidth = true,
         actions = {
-            IconButton(onClick = { AnalyticsStore.clear() }) {
+            IconButton(onClick = { showResetStatsDialog = true }) {
                 Icon(AppIcons.Refresh, contentDescription = "Reset Stats")
             }
         }

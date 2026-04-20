@@ -132,6 +132,7 @@ fun ProgramsScreen(
     // Multi-select state
     var isSelecting by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showBulkDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(isSelecting) {
         if (isSelecting) editingScheduleId = null
@@ -139,6 +140,51 @@ fun ProgramsScreen(
 
     // All selectable IDs: SavedProgram IDs + "hv_<id>" for hearted Vit rows
     val allSelectableIds = visiblePrograms.map { it.id } + heartedVit.map { "hv_${it.id}" }
+    val selectedSavedProgramCount = selectedIds.count { !it.startsWith("hv_") }
+    val selectedFavoriteCount = selectedIds.count { it.startsWith("hv_") }
+
+    if (showBulkDeleteDialog) {
+        val deleteSummary = buildString {
+            append("This will ")
+            if (selectedSavedProgramCount > 0) {
+                append("delete $selectedSavedProgramCount saved ")
+                append(if (selectedSavedProgramCount == 1) "program" else "programs")
+            }
+            if (selectedSavedProgramCount > 0 && selectedFavoriteCount > 0) {
+                append(" and ")
+            }
+            if (selectedFavoriteCount > 0) {
+                append("remove $selectedFavoriteCount favorite ")
+                append(if (selectedFavoriteCount == 1) "routine" else "routines")
+            }
+            append(". This can't be undone.")
+        }
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteDialog = false },
+            title = { Text("Confirm bulk remove") },
+            text = { Text(deleteSummary) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedIds.forEach { id ->
+                            if (id.startsWith("hv_")) VitruvianFavoritesStore.toggle(id.removePrefix("hv_"))
+                            else ProgramStore.deleteProgram(id)
+                        }
+                        selectedIds = emptySet()
+                        isSelecting = false
+                        showBulkDeleteDialog = false
+                    }
+                ) {
+                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBulkDeleteDialog = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
 
     Scaffold(
         modifier            = Modifier.fillMaxSize().padding(innerPadding),
@@ -163,12 +209,7 @@ fun ProgramsScreen(
                             Icon(AppIcons.CheckCircle, contentDescription = "Select all")
                         }
                         IconButton(onClick = {
-                            selectedIds.forEach { id ->
-                                if (id.startsWith("hv_")) VitruvianFavoritesStore.toggle(id.removePrefix("hv_"))
-                                else ProgramStore.deleteProgram(id)
-                            }
-                            selectedIds = emptySet()
-                            isSelecting = false
+                            if (selectedIds.isNotEmpty()) showBulkDeleteDialog = true
                         }) {
                             Icon(AppIcons.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
                         }
