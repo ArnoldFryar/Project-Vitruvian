@@ -57,6 +57,22 @@ data class SessionLog(
     @ColumnInfo(name = "avg_quality_score")
     val avgQualityScore: Int? = null,
 
+    /** Origin mode for the session, e.g. JUST_LIFT, when applicable. */
+    @ColumnInfo(name = "training_mode")
+    val trainingMode: String? = null,
+
+    /** Tagged exercise id selected after a Just Lift workout, if any. */
+    @ColumnInfo(name = "tagged_exercise_id")
+    val taggedExerciseId: String? = null,
+
+    /** Tagged exercise name selected after a Just Lift workout, if any. */
+    @ColumnInfo(name = "tagged_exercise_name")
+    val taggedExerciseName: String? = null,
+
+    /** Tagged exercise source (BUILT_IN or CUSTOM), if any. */
+    @ColumnInfo(name = "tagged_exercise_source")
+    val taggedExerciseSource: String? = null,
+
     /** Epoch millis when this record was inserted into the database. */
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),

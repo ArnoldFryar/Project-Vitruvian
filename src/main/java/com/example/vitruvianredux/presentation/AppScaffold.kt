@@ -47,6 +47,7 @@ import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.example.vitruvianredux.data.HealthConnectSyncStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
+import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.data.WorkoutSessionRecord
 import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.sync.SyncServiceLocator
@@ -205,125 +206,148 @@ fun AppScaffold() {
 
                 // â”€â”€ Health Connect: export workout summary when a session completes â”€â”€
                 // â”€â”€ Analytics: passively record completed session â”€â”€
-                // Guard: only record once per WorkoutComplete event even if
-                // Compose recomposes and re-fires the LaunchedEffect.
+                // Guard: only finalize once per WorkoutComplete event.
                 var analyticsRecorded by rememberSaveable { mutableStateOf(false) }
                 LaunchedEffect(phase) {
-                    if (phase is SessionPhase.WorkoutComplete && !analyticsRecorded) {
-                        analyticsRecorded = true
-                        val stats = phase.workoutStats
-                        val endMs = System.currentTimeMillis()
-                        val startMs = endMs - (stats.durationSec * 1_000L)
-
-                        // Shared stable session ID for linking records
-                        val sessionId = java.util.UUID.randomUUID().toString()
-
-                        // â”€â”€ Analytics capture (always) â”€â”€
-                        val exerciseNames = WorkoutHistoryStore.historyFlow.value
-                            .lastOrNull()?.exerciseNames ?: emptyList()
-
-                        // Capture per-set data before it's cleared; deduplicate by setIndex
-                        // as a defensive guard in case the ViewModel accumulates duplicates
-                        // from multiple state emissions during ExerciseComplete.
-                        val completedStats = workoutVM.completedExerciseStats
-                            .distinctBy { it.setIndex }
-                        val exerciseSets = completedStats.map { es ->
-                            AnalyticsStore.ExerciseSetLog(
-                                exerciseId      = es.exerciseId,
-                                exerciseName    = es.exerciseName,
-                                muscleGroups    = es.muscleGroups,
-                                muscles         = es.muscles,
-                                setIndex        = es.setIndex,
-                                reps            = es.repsCompleted,
-                                weightLb        = es.weightPerCableLb * es.numCables,
-                                volumeKg        = es.volumeKg,
-                                avgQualityScore = es.avgQualityScore,
-                                avgRom          = es.avgRom,
-                                avgTempo        = es.avgTempo,
-                                avgSymmetry     = es.avgSymmetry,
-                                avgSmoothness   = es.avgSmoothness,
-                                numCables       = es.numCables,
-                                skipped         = es.skipped,
-                                avgForce        = es.avgForce,
-                                peakForce       = es.peakForce,
-                                echoLevel       = es.echoLevel,
-                                eccentricLoadPct = es.eccentricLoadPct,
-                                cableSamplesLeft  = es.cableSamplesLeft,
-                                cableSamplesRight = es.cableSamplesRight,
-                            )
-                        }
-
-                        val tags = workoutVM.sessionTags
-                        val fullNotes = buildString {
-                            if (tags.isNotEmpty()) {
-                                append(tags.joinToString(", "))
-                                if (workoutVM.sessionNotes.isNotBlank()) { append("\n") }
-                            }
-                            append(workoutVM.sessionNotes)
-                        }
-                        AnalyticsRecorder.onSessionCompleted(
-                            stats         = stats,
-                            exerciseNames = exerciseNames,
-                            exerciseSets  = exerciseSets,
-                            programName   = workoutVM.activeProgramName,
-                            dayName       = workoutVM.activeDayName,
-                            notes         = fullNotes,
-                        )
-                        // Reseed activity stats from the now-persisted AnalyticsStore so that
-                        // weekly volume, session count, and streak reflect real data rather
-                        // than the in-memory increments from the engine.
-                        com.example.vitruvianredux.data.ActivityStatsStore.seedFromAnalytics()
-
-                        // â”€â”€ Durable exercise/set history (Room, pending sync) â”€â”€
-                        ExerciseHistoryRecorder.record(
-                            sessionId      = sessionId,
-                            completedStats = completedStats,
-                            completedAtMs  = endMs,
-                        )
-
-                        // â”€â”€ Sync-ready session record â”€â”€
-                        if (SyncServiceLocator.isInitialized) {
-                            val programName = workoutVM.activeProgramId?.let { pid ->
-                                com.example.vitruvianredux.data.ProgramStore.savedProgramsFlow.value
-                                    .firstOrNull { it.id == pid }?.name
-                            }
-                            SyncServiceLocator.sessionRepo.save(
-                                WorkoutSessionRecord(
-                                    id            = sessionId,
-                                    programId     = workoutVM.activeProgramId,
-                                    name          = programName ?: exerciseNames.firstOrNull() ?: "Workout",
-                                    startedAt     = startMs,
-                                    endedAt       = endMs,
-                                    totalReps     = stats.totalReps,
-                                    totalSets     = stats.totalSets,
-                                    totalVolumeKg = stats.totalVolumeKg,
-                                    durationSec   = stats.durationSec,
-                                )
-                            )
-                        }
-
-                        // â”€â”€ Health Connect export (when enabled) â”€â”€
-                        if (HealthConnectStore.isEnabled) {
-                            val title = workoutVM.activeProgramName
-                                ?: playerExercise?.name
-                                ?: "Vitruvian Workout"
-                            val summary = HealthConnectManager.WorkoutSummary(
-                                title          = title,
-                                startEpochMs   = startMs,
-                                endEpochMs     = endMs,
-                                calories       = stats.calories,
-                                totalSets      = stats.totalSets,
-                                totalReps      = stats.totalReps,
-                                totalVolumeKg  = stats.totalVolumeKg,
-                                sessionId      = sessionId,
-                            )
-                            val ok = HealthConnectManager.writeWorkoutSummary(summary)
-                            if (ok) HealthConnectSyncStore.markSynced(sessionId)
-                        }
-                    }
-                    // Reset the recording guard when transitioning to a new session
                     if (phase !is SessionPhase.WorkoutComplete) {
                         analyticsRecorded = false
+                    }
+                }
+
+                suspend fun finalizeCompletedWorkout() {
+                    val completePhase = phase as? SessionPhase.WorkoutComplete ?: return
+                    if (analyticsRecorded) return
+                    analyticsRecorded = true
+
+                    val stats = completePhase.workoutStats
+                    val endMs = System.currentTimeMillis()
+                    val startMs = workoutVM.sessionStartMs.takeIf { it > 0L }
+                        ?: endMs - (stats.durationSec * 1_000L)
+                    val sessionId = workoutVM.ensureCompletionSessionId()
+                    val taggedExercise = workoutVM.justLiftTaggedExercise
+                        ?.takeIf { workoutVM.activeProgramId == null }
+                    val trainingMode = if (workoutVM.activeProgramId == null) "JUST_LIFT" else null
+
+                    if (taggedExercise != null) {
+                        WorkoutHistoryStore.retagLatestJustLiftRecord(
+                            taggedExercise = taggedExercise,
+                            totalSets = stats.totalSets,
+                            totalReps = stats.totalReps,
+                            durationSec = stats.durationSec,
+                        )
+                    }
+
+                    val completedStats = workoutVM.completedExerciseStats
+                        .distinctBy { it.setIndex }
+                    val exerciseNames = taggedExercise?.let { listOf(it.name) }
+                        ?: WorkoutHistoryStore.historyFlow.value.lastOrNull()?.exerciseNames
+                        ?: completedStats.map { it.exerciseName }.distinct()
+                    val exerciseSets = completedStats.map { es ->
+                        AnalyticsStore.ExerciseSetLog(
+                            exerciseId      = taggedExercise?.id ?: es.exerciseId,
+                            exerciseName    = taggedExercise?.name ?: es.exerciseName,
+                            muscleGroups    = taggedExercise?.muscleGroups ?: es.muscleGroups,
+                            muscles         = taggedExercise?.muscles ?: es.muscles,
+                            setIndex        = es.setIndex,
+                            reps            = es.repsCompleted,
+                            weightLb        = es.weightPerCableLb * es.numCables,
+                            volumeKg        = es.volumeKg,
+                            avgQualityScore = es.avgQualityScore,
+                            avgRom          = es.avgRom,
+                            avgTempo        = es.avgTempo,
+                            avgSymmetry     = es.avgSymmetry,
+                            avgSmoothness   = es.avgSmoothness,
+                            numCables       = es.numCables,
+                            skipped         = es.skipped,
+                            avgForce        = es.avgForce,
+                            peakForce       = es.peakForce,
+                            echoLevel       = es.echoLevel,
+                            eccentricLoadPct = es.eccentricLoadPct,
+                            cableSamplesLeft  = es.cableSamplesLeft,
+                            cableSamplesRight = es.cableSamplesRight,
+                        )
+                    }
+
+                    val tags = workoutVM.sessionTags
+                    val fullNotes = buildString {
+                        if (tags.isNotEmpty()) {
+                            append(tags.joinToString(", "))
+                            if (workoutVM.sessionNotes.isNotBlank()) { append("\n") }
+                        }
+                        append(workoutVM.sessionNotes)
+                    }
+
+                    AnalyticsRecorder.onSessionCompleted(
+                        stats         = stats,
+                        sessionId     = sessionId,
+                        exerciseNames = exerciseNames,
+                        exerciseSets  = exerciseSets,
+                        programName   = workoutVM.activeProgramName,
+                        dayName       = workoutVM.activeDayName,
+                        notes         = fullNotes,
+                        trainingMode  = trainingMode,
+                    )
+                    com.example.vitruvianredux.data.ActivityStatsStore.seedFromAnalytics()
+
+                    ExerciseHistoryRecorder.record(
+                        sessionId      = sessionId,
+                        completedStats = completedStats,
+                        completedAtMs  = endMs,
+                        originMode     = trainingMode,
+                        taggedExercise = taggedExercise,
+                    )
+
+                    WorkoutSessionRecorder.record(
+                        stats           = stats,
+                        sessionId       = sessionId,
+                        programName     = workoutVM.activeProgramName,
+                        dayName         = workoutVM.activeDayName,
+                        startTimeMs     = startMs,
+                        avgQualityScore = workoutVM.completedExerciseStats
+                            .mapNotNull { it.avgQualityScore }
+                            .takeIf { it.isNotEmpty() }
+                            ?.average()?.toInt(),
+                        trainingMode    = trainingMode,
+                        taggedExercise  = taggedExercise,
+                    )
+
+                    if (SyncServiceLocator.isInitialized) {
+                        val programName = workoutVM.activeProgramId?.let { pid ->
+                            com.example.vitruvianredux.data.ProgramStore.savedProgramsFlow.value
+                                .firstOrNull { it.id == pid }?.name
+                        }
+                        SyncServiceLocator.sessionRepo.save(
+                            WorkoutSessionRecord(
+                                id            = sessionId,
+                                programId     = workoutVM.activeProgramId,
+                                name          = programName ?: taggedExercise?.name ?: exerciseNames.firstOrNull() ?: "Workout",
+                                startedAt     = startMs,
+                                endedAt       = endMs,
+                                totalReps     = stats.totalReps,
+                                totalSets     = stats.totalSets,
+                                totalVolumeKg = stats.totalVolumeKg,
+                                durationSec   = stats.durationSec,
+                            )
+                        )
+                    }
+
+                    if (HealthConnectStore.isEnabled) {
+                        val title = workoutVM.activeProgramName
+                            ?: taggedExercise?.name
+                            ?: playerExercise?.name
+                            ?: "Vitruvian Workout"
+                        val summary = HealthConnectManager.WorkoutSummary(
+                            title          = title,
+                            startEpochMs   = startMs,
+                            endEpochMs     = endMs,
+                            calories       = stats.calories,
+                            totalSets      = stats.totalSets,
+                            totalReps      = stats.totalReps,
+                            totalVolumeKg  = stats.totalVolumeKg,
+                            sessionId      = sessionId,
+                        )
+                        val ok = HealthConnectManager.writeWorkoutSummary(summary)
+                        if (ok) HealthConnectSyncStore.markSynced(sessionId)
                     }
                 }
                 
@@ -345,11 +369,15 @@ fun AppScaffold() {
                 ) {
                     ExercisePlayerScreen(
                         workoutVM = workoutVM,
+                        onFinalizeWorkout = { finalizeCompletedWorkout() },
                         onBack = { 
                             if (phase is SessionPhase.ExerciseActive) {
                                 workoutVM.panicStop()
+                                workoutVM.resetAfterWorkout()
                             }
-                            workoutVM.resetAfterWorkout()
+                            if (phase !is SessionPhase.WorkoutComplete && phase !is SessionPhase.ExerciseActive) {
+                                workoutVM.resetAfterWorkout()
+                            }
                             workoutVM.setPlayerExercise(null)
                         },
                         onNavigateToRepair = { nav.navigate(Route.Repair.path) }

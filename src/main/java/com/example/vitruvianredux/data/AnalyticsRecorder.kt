@@ -37,14 +37,17 @@ object AnalyticsRecorder {
      */
     fun onSessionCompleted(
         stats: WorkoutStats,
+        sessionId: String = java.util.UUID.randomUUID().toString(),
         exerciseNames: List<String> = emptyList(),
         programName: String? = null,
         dayName: String? = null,
         exerciseSets: List<AnalyticsStore.ExerciseSetLog> = emptyList(),
         notes: String = "",
+        trainingMode: String? = null,
     ) {
         try {
             val log = AnalyticsStore.buildLog(
+                id             = sessionId,
                 durationSec    = stats.durationSec,
                 totalSets      = stats.totalSets,
                 totalReps      = stats.totalReps,
@@ -56,6 +59,7 @@ object AnalyticsRecorder {
                 dayName        = dayName,
                 exerciseSets   = exerciseSets,
                 notes          = notes,
+                trainingMode   = trainingMode,
             )
             AnalyticsStore.record(log)
             Timber.tag("analytics").i("Session logged: ${log.id} (${stats.totalSets} sets, ${stats.totalReps} reps, ${stats.durationSec}s)")

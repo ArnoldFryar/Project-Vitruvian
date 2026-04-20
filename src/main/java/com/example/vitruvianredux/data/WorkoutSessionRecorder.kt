@@ -3,6 +3,7 @@ package com.example.vitruvianredux.data
 import timber.log.Timber
 import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.data.db.SessionLog
+import com.example.vitruvianredux.model.Exercise
 import java.util.UUID
 
 /**
@@ -32,17 +33,20 @@ object WorkoutSessionRecorder {
     internal fun buildSessionLog(
         stats: WorkoutStats,
         endTimeMs: Long,
+        sessionId: String = UUID.randomUUID().toString(),
         programName: String? = null,
         dayName: String? = null,
         startTimeMs: Long = 0L,
         avgQualityScore: Int? = stats.avgQualityScore,
+        trainingMode: String? = null,
+        taggedExercise: Exercise? = null,
     ): SessionLog {
         val resolvedStart = if (startTimeMs > 0L) startTimeMs
                             else endTimeMs - stats.durationSec * 1_000L
         val volumeKg = stats.totalVolumeKg.toDouble().takeIf { it > 0.0 }
 
         return SessionLog(
-            id              = UUID.randomUUID().toString(),
+            id              = sessionId,
             startTime       = resolvedStart,
             endTime         = endTimeMs,
             durationSeconds = stats.durationSec,
@@ -51,6 +55,10 @@ object WorkoutSessionRecorder {
             totalReps       = stats.totalReps,
             totalVolumeKg   = volumeKg,
             avgQualityScore = avgQualityScore,
+            trainingMode    = trainingMode,
+            taggedExerciseId = taggedExercise?.id,
+            taggedExerciseName = taggedExercise?.name,
+            taggedExerciseSource = taggedExercise?.source?.name,
             createdAt       = endTimeMs,
         )
     }
@@ -71,10 +79,13 @@ object WorkoutSessionRecorder {
      */
     suspend fun record(
         stats: WorkoutStats,
+        sessionId: String = UUID.randomUUID().toString(),
         programName: String? = null,
         dayName: String? = null,
         startTimeMs: Long = 0L,
         avgQualityScore: Int? = stats.avgQualityScore,
+        trainingMode: String? = null,
+        taggedExercise: Exercise? = null,
     ) {
         try {
             val endTimeMs     = System.currentTimeMillis()
@@ -87,10 +98,13 @@ object WorkoutSessionRecorder {
             val log = buildSessionLog(
                 stats = stats,
                 endTimeMs = endTimeMs,
+                sessionId = sessionId,
                 programName = programName,
                 dayName = dayName,
                 startTimeMs = startTimeMs,
                 avgQualityScore = avgQualityScore,
+                trainingMode = trainingMode,
+                taggedExercise = taggedExercise,
             )
 
             SessionLogRepository.saveSession(log)

@@ -69,6 +69,10 @@ data class SetHistoryEntity(
     @ColumnInfo(name = "avg_smoothness")
     val avgSmoothness: Int? = null,
 
+    /** Origin mode for the set history row, e.g. JUST_LIFT, when applicable. */
+    @ColumnInfo(name = "origin_mode")
+    val originMode: String? = null,
+
     /** Epoch millis when the workout completed. */
     @ColumnInfo(name = "completed_at")
     val completedAt: Long,

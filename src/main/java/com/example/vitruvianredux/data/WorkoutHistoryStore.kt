@@ -3,6 +3,7 @@ package com.example.vitruvianredux.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.example.vitruvianredux.model.Exercise
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,6 +62,32 @@ object WorkoutHistoryStore {
     /** Record a completed workout. Called from WorkoutSessionEngine.finishWorkout(). */
     fun record(record: WorkoutRecord) {
         _history.update { it + record }
+        persist()
+    }
+
+    /** Retag the most recent ad-hoc Just Lift record after the user chooses an exercise. */
+    fun retagLatestJustLiftRecord(
+        taggedExercise: Exercise,
+        totalSets: Int,
+        totalReps: Int,
+        durationSec: Int,
+    ) {
+        val index = _history.value.indexOfLast { record ->
+            record.programName == null &&
+                record.exerciseNames == listOf("Just Lift") &&
+                record.totalSets == totalSets &&
+                record.totalReps == totalReps &&
+                record.durationSec == durationSec
+        }
+        if (index == -1) return
+
+        val updated = _history.value.toMutableList()
+        updated[index] = updated[index].copy(
+            exerciseNames = listOf(taggedExercise.name),
+            muscleGroups = if (taggedExercise.muscleGroups.isNotEmpty()) taggedExercise.muscleGroups
+                           else updated[index].muscleGroups,
+        )
+        _history.value = updated
         persist()
     }
 

@@ -47,6 +47,7 @@ private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE, PA
 fun ExercisePlayerScreen(
     workoutVM: WorkoutSessionViewModel,
     onBack: () -> Unit,
+    onFinalizeWorkout: suspend () -> Unit = {},
     onNavigateToRepair: () -> Unit = {},
 ) {
     val exercise      by workoutVM.playerExercise.collectAsState()
@@ -95,6 +96,7 @@ fun ExercisePlayerScreen(
     var modeExpanded   by remember { mutableStateOf(false) }  // transient UI, fine to reset
     var showDebugPanel by remember { mutableStateOf(false) }  // transient UI, fine to reset
     var showEditUpcomingSets by remember { mutableStateOf(false) }  // transient UI
+    var showTagExercisePicker by remember { mutableStateOf(false) }
     var isMuted        by rememberSaveable { mutableStateOf(!workoutVM.soundEnabled.value) }
     // Keep the mute icon in sync with the ViewModel (e.g. after resetAfterWorkout resets soundEnabled).
     LaunchedEffect(Unit) { workoutVM.soundEnabled.collect { enabled -> isMuted = !enabled } }
@@ -107,6 +109,13 @@ fun ExercisePlayerScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    suspend fun finalizeAndExit(saveProgramChanges: Boolean) {
+        onFinalizeWorkout()
+        if (saveProgramChanges) workoutVM.saveWorkoutChangesToProgram()
+        workoutVM.resetAfterWorkout()
+        onBack()
+    }
 
     // â”€â”€ Sync local steppers from program set when a new set launches â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // This keeps the bottom-sheet controls in sync with the active program values
@@ -184,6 +193,18 @@ fun ExercisePlayerScreen(
         )
     }
 
+    if (showTagExercisePicker) {
+        ExercisePickerSheet(
+            alreadySelected = workoutVM.justLiftTaggedExercise?.let(::listOf) ?: emptyList(),
+            onDone = { selected ->
+                workoutVM.justLiftTaggedExercise = selected.firstOrNull()
+                showTagExercisePicker = false
+            },
+            onDismiss = { showTagExercisePicker = false },
+            singleSelect = true,
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -210,8 +231,14 @@ fun ExercisePlayerScreen(
                     IconButton(onClick = {
                         WiringRegistry.hit(A_PLAYER_BACK)
                         WiringRegistry.recordOutcome(A_PLAYER_BACK, ActualOutcome.Navigated("back"))
-                        if (phase is SessionPhase.ExerciseActive) workoutVM.panicStop()
-                        onBack()
+                        when (phase) {
+                            is SessionPhase.WorkoutComplete -> scope.launch { finalizeAndExit(saveProgramChanges = false) }
+                            is SessionPhase.ExerciseActive -> {
+                                workoutVM.panicStop()
+                                onBack()
+                            }
+                            else -> onBack()
+                        }
                     }) {
                         Icon(AppIcons.Close, contentDescription = "Back")
                     }
@@ -309,13 +336,10 @@ fun ExercisePlayerScreen(
                         WorkoutCompleteContent(
                             stats    = completePhase.workoutStats,
                             onDismiss = {
-                                workoutVM.resetAfterWorkout()
-                                onBack()
+                                scope.launch { finalizeAndExit(saveProgramChanges = false) }
                             },
                             onSaveAndExit = {
-                                if (hasProgramChanges) workoutVM.saveWorkoutChangesToProgram()
-                                workoutVM.resetAfterWorkout()
-                                onBack()
+                                scope.launch { finalizeAndExit(saveProgramChanges = hasProgramChanges) }
                             },
                             avgQualityScore = workoutVM.completedExerciseStats
                                 .mapNotNull { it.avgQualityScore }
@@ -326,6 +350,9 @@ fun ExercisePlayerScreen(
                             isJustLift   = workoutVM.activeProgramId == null,
                             tags         = workoutVM.sessionTags,
                             onTagsChange = { workoutVM.sessionTags = it },
+                            taggedExerciseName = workoutVM.justLiftTaggedExercise?.name,
+                            onPickTaggedExercise = { showTagExercisePicker = true },
+                            onClearTaggedExercise = { workoutVM.justLiftTaggedExercise = null },
                             prCount      = prCount,
                             exerciseSets = workoutVM.completedExerciseStats.map { es ->
                                 com.example.vitruvianredux.data.AnalyticsStore.ExerciseSetLog(

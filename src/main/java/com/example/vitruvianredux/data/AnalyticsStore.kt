@@ -308,6 +308,7 @@ object AnalyticsStore {
 
     /** Create a [SessionLog] from workout completion data. */
     fun buildLog(
+        id: String = UUID.randomUUID().toString(),
         durationSec: Int,
         totalSets: Int,
         totalReps: Int,
@@ -319,11 +320,12 @@ object AnalyticsStore {
         dayName: String? = null,
         exerciseSets: List<ExerciseSetLog> = emptyList(),
         notes: String = "",
+        trainingMode: String? = null,
     ): SessionLog {
         val endMs = System.currentTimeMillis()
         val startMs = endMs - (durationSec * 1_000L)
         return SessionLog(
-            id               = UUID.randomUUID().toString(),
+            id               = id,
             startTimeMs      = startMs,
             endTimeMs        = endMs,
             durationSec      = durationSec,
@@ -341,6 +343,7 @@ object AnalyticsStore {
             avgQualityScore  = exerciseSets.mapNotNull { it.avgQualityScore }
                                    .takeIf { it.isNotEmpty() }?.average()?.toInt(),
             notes            = notes,
+            trainingMode     = trainingMode,
         )
     }
 

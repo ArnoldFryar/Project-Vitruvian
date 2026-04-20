@@ -240,6 +240,7 @@ class JustLiftCommandRouter(
             name = "Just Lift",
             muscleGroups = emptyList(),
             videos = emptyList(),
+            equipment = listOf("HANDLES"),
         )
 
         workoutVM.startPlayerSet(

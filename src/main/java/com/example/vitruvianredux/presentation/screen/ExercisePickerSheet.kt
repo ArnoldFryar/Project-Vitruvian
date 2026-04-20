@@ -53,6 +53,7 @@ fun ExercisePickerSheet(
     alreadySelected: List<Exercise>,
     onDone: (List<Exercise>) -> Unit,
     onDismiss: () -> Unit,
+    singleSelect: Boolean = false,
 ) {
     val context    = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -108,12 +109,16 @@ fun ExercisePickerSheet(
                     },
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Text("Done (${selectedKeys.size})")
+                    Text(if (singleSelect) "Select" else "Done (${selectedKeys.size})")
                 }
             }
 
             Text(
-                text = "Tap to add, tap again to remove, and long press any exercise to preview it. Selection order becomes workout order.",
+                text = if (singleSelect) {
+                    "Pick one exercise to label this workout. Long press any exercise to preview it."
+                } else {
+                    "Tap to add, tap again to remove, and long press any exercise to preview it. Selection order becomes workout order."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
@@ -282,8 +287,12 @@ fun ExercisePickerSheet(
                         Card(
                             modifier  = Modifier.fillMaxWidth().combinedClickable(
                                 onClick     = {
-                                    selectedKeys = if (isSelected) selectedKeys - ex.stableKey
-                                                   else selectedKeys + ex.stableKey
+                                    selectedKeys = when {
+                                        singleSelect && isSelected -> emptyList()
+                                        singleSelect -> listOf(ex.stableKey)
+                                        isSelected -> selectedKeys - ex.stableKey
+                                        else -> selectedKeys + ex.stableKey
+                                    }
                                 },
                                 onLongClick = { videoPreviewExercise = ex },
                             ),

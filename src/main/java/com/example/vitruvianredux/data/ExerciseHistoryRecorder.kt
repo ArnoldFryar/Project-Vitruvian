@@ -3,6 +3,7 @@ package com.example.vitruvianredux.data
 import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.data.db.ExerciseHistoryEntity
 import com.example.vitruvianredux.data.db.SetHistoryEntity
+import com.example.vitruvianredux.model.Exercise
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -37,16 +38,29 @@ object ExerciseHistoryRecorder {
         sessionId: String,
         completedStats: List<ExerciseStats>,
         completedAtMs: Long = System.currentTimeMillis(),
+        originMode: String? = null,
+        taggedExercise: Exercise? = null,
     ) = withContext(Dispatchers.IO) {
         if (completedStats.isEmpty()) return@withContext
 
         try {
             val dao = SessionLogRepository.exerciseHistoryDao()
-
             val now = System.currentTimeMillis()
+            val statsForHistory = if (taggedExercise != null) {
+                completedStats.map { stat ->
+                    stat.copy(
+                        exerciseId = taggedExercise.id,
+                        exerciseName = taggedExercise.name,
+                        muscleGroups = taggedExercise.muscleGroups,
+                        muscles = taggedExercise.muscles,
+                    )
+                }
+            } else {
+                completedStats
+            }
 
             // Group stats by exercise name to build per-exercise aggregates
-            val byExercise = completedStats.groupBy { it.exerciseName }
+            val byExercise = statsForHistory.groupBy { it.exerciseName }
 
             val exerciseEntities = byExercise.map { (name, stats) ->
                 val exerciseId = deterministicId(sessionId, name)
@@ -60,13 +74,14 @@ object ExerciseHistoryRecorder {
                     heaviestWeightLb = stats.maxOfOrNull { it.weightPerCableLb } ?: 0,
                     avgQualityScore  = stats.mapNotNull { it.avgQualityScore }.takeIf { it.isNotEmpty() }
                                            ?.average()?.toInt(),
+                    originMode       = originMode,
                     completedAt      = completedAtMs,
                     updatedAt        = now,
                     syncPending      = true,
                 )
             }
 
-            val setEntities = completedStats.map { stat ->
+            val setEntities = statsForHistory.map { stat ->
                 val exerciseId = deterministicId(sessionId, stat.exerciseName)
                 SetHistoryEntity(
                     id                = deterministicId(sessionId, stat.exerciseName, stat.setIndex),
@@ -84,6 +99,7 @@ object ExerciseHistoryRecorder {
                     avgSymmetry       = stat.avgSymmetry,
                     avgSmoothness     = stat.avgSmoothness,
                     completedAt       = completedAtMs,
+                    originMode        = originMode,
                     updatedAt         = now,
                     syncPending       = true,
                 )

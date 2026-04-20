@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
+import java.util.UUID
 
 /**
  * Activity-scoped ViewModel that wraps [WorkoutSessionEngine].
@@ -137,6 +138,11 @@ class WorkoutSessionViewModel(
 
     /** Muscle-group tags selected by the user on the just-lift completion screen. */
     var sessionTags: Set<String> = emptySet()
+    /** Optional exercise chosen to tag a completed Just Lift session. */
+    var justLiftTaggedExercise: Exercise? = null
+
+    /** Stable completion record id shared across post-workout persistence paths. */
+    private var completionSessionId: String? = null
 
     /** Epoch millis captured when the workout starts; used to compute session startTime. */
     var sessionStartMs: Long = 0L
@@ -729,6 +735,9 @@ class WorkoutSessionViewModel(
 
     /** Transition just-lift session to WorkoutComplete so analytics/history are recorded. */
     fun finishWorkout() = engine.finishWorkout()
+    /** Ensure a stable completion id so post-workout saves can upsert consistently. */
+    fun ensureCompletionSessionId(): String = completionSessionId
+        ?: UUID.randomUUID().toString().also { completionSessionId = it }
 
     /** Reset from WorkoutComplete back to Idle. Call after user dismisses the summary. */
     fun resetAfterWorkout() {
@@ -738,6 +747,8 @@ class WorkoutSessionViewModel(
         sessionStartMs    = 0L
         sessionNotes      = ""
         sessionTags       = emptySet()
+            justLiftTaggedExercise = null
+            completionSessionId = null
         _completedExerciseStats.clear()
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null

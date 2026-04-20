@@ -73,6 +73,9 @@ fun WorkoutCompleteContent(
     isJustLift: Boolean = false,
     tags: Set<String> = emptySet(),
     onTagsChange: (Set<String>) -> Unit = {},
+    taggedExerciseName: String? = null,
+    onPickTaggedExercise: () -> Unit = {},
+    onClearTaggedExercise: () -> Unit = {},
     prCount: Int = 0,
     exerciseSets: List<AnalyticsStore.ExerciseSetLog> = emptyList(),
     modifier: Modifier = Modifier,
@@ -290,6 +293,42 @@ fun WorkoutCompleteContent(
                     )
                 }
             }
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+            Text(
+                "Tag this workout as",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                OutlinedButton(
+                    onClick = onPickTaggedExercise,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                ) {
+                    Icon(AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness), modifier = Modifier.size(AppDimens.Icon.sm))
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                    Text(taggedExerciseName ?: "Choose exercise")
+                }
+                if (taggedExerciseName != null) {
+                    OutlinedButton(
+                        onClick = onClearTaggedExercise,
+                        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                    ) {
+                        Text("Clear")
+                    }
+                }
+            }
+            Text(
+                text = "This only labels the completed workout. It does not change how Just Lift ran.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Spacer(Modifier.height(AppDimens.Spacing.sm))
         }
 
