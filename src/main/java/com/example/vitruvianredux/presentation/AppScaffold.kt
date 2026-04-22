@@ -225,8 +225,8 @@ fun AppScaffold() {
                         ?: endMs - (stats.durationSec * 1_000L)
                     val sessionId = workoutVM.ensureCompletionSessionId()
                     val taggedExercise = workoutVM.justLiftTaggedExercise
-                        ?.takeIf { workoutVM.activeProgramId == null }
-                    val trainingMode = if (workoutVM.activeProgramId == null) "JUST_LIFT" else null
+                        ?.takeIf { workoutVM.isJustLiftSession }
+                    val trainingMode = if (workoutVM.isJustLiftSession) "JUST_LIFT" else null
 
                     if (taggedExercise != null) {
                         WorkoutHistoryStore.retagLatestJustLiftRecord(

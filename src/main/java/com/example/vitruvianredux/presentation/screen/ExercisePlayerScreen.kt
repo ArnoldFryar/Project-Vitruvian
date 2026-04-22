@@ -347,7 +347,7 @@ fun ExercisePlayerScreen(
                                 ?.average()?.toInt(),
                             notes        = workoutVM.sessionNotes,
                             onNotesChange = { workoutVM.sessionNotes = it },
-                            isJustLift   = workoutVM.activeProgramId == null,
+                            isJustLift   = workoutVM.isJustLiftSession,
                             tags         = workoutVM.sessionTags,
                             onTagsChange = { workoutVM.sessionTags = it },
                             taggedExerciseName = workoutVM.justLiftTaggedExercise?.name,

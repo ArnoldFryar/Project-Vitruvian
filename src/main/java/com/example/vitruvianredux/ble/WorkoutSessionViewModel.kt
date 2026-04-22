@@ -1,6 +1,8 @@
 ﻿package com.example.vitruvianredux.ble
 
 import android.app.Application
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.speech.tts.TextToSpeech
 import android.speech.tts.Voice
 import androidx.lifecycle.AndroidViewModel
@@ -21,6 +23,7 @@ import com.example.vitruvianredux.presentation.coaching.ModeProfile
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.repquality.RepQuality
 import com.example.vitruvianredux.presentation.repquality.RepQualityTracker
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -61,7 +64,7 @@ class WorkoutSessionViewModel(
         get() = engine.autoPlay
         set(value) { engine.autoPlay = value }
 
-    /** When false, TTS rep/rest announcements are silenced. */
+    /** When false, workout audio cues are silenced. */
     val soundEnabled = MutableStateFlow(true)
 
     /** Available TTS voices for the current locale — populated after TTS init. */
@@ -133,6 +136,10 @@ class WorkoutSessionViewModel(
     var activeDayName: String? = null
         private set
 
+    /** True only for open-ended Just Lift sessions, not other ad-hoc workout launches. */
+    var isJustLiftSession: Boolean = false
+        private set
+
     /** User-entered notes for the current workout session. */
     var sessionNotes: String = ""
 
@@ -161,8 +168,10 @@ class WorkoutSessionViewModel(
     private val repQualityTracker = RepQualityTracker()
 
     private var tts: TextToSpeech? = null
+    private val warmupToneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
     private var isTtsInitialized = false
     private var lastSpokenWorkingRep = 0
+    private var lastCuedWarmupRep = 0
     private var lastSetPhase: com.example.vitruvianredux.ble.session.SetPhase? = null
     /** Tracks the last rest-countdown second we spoke so we don't repeat. */
     private var lastSpokenRestSecond = -1
@@ -199,6 +208,7 @@ class WorkoutSessionViewModel(
             state.collect { currentState ->
                 val phase = currentState.setPhase
                 val sessionPhase = currentState.sessionPhase
+                val warmupTarget = (sessionPhase as? SessionPhase.ExerciseActive)?.warmupReps ?: 0
 
                 if (sessionPhase != lastAudioSessionPhase) {
                     handleAudioPhaseTransition(lastAudioSessionPhase, sessionPhase)
@@ -226,6 +236,20 @@ class WorkoutSessionViewModel(
                         lastSpokenWorkingRep = 0  // Fresh start for working phase
                     }
                     lastSetPhase = phase
+                }
+
+                if (currentState.warmupRepsCompleted < lastCuedWarmupRep) {
+                    lastCuedWarmupRep = 0
+                }
+
+                if (
+                    warmupTarget > 0 &&
+                    currentState.warmupRepsCompleted > lastCuedWarmupRep &&
+                    voiceCoachingSettings.value.repAnnouncementsEnabled &&
+                    soundEnabled.value
+                ) {
+                    playWarmupRepCue(isLastWarmupRep = currentState.warmupRepsCompleted >= warmupTarget)
+                    lastCuedWarmupRep = currentState.warmupRepsCompleted
                 }
 
                 // Only announce working reps (matches Phoenix behaviour)
@@ -368,6 +392,16 @@ class WorkoutSessionViewModel(
         }
     }
 
+    private fun playWarmupRepCue(isLastWarmupRep: Boolean) {
+        viewModelScope.launch {
+            warmupToneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
+            if (isLastWarmupRep) {
+                delay(170)
+                warmupToneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
+            }
+        }
+    }
+
     private fun handleAudioPhaseTransition(previous: SessionPhase?, current: SessionPhase) {
         when {
             current is SessionPhase.SetReady && previous !is SessionPhase.SetReady -> {
@@ -435,6 +469,7 @@ class WorkoutSessionViewModel(
         super.onCleared()
         tts?.stop()
         tts?.shutdown()
+        warmupToneGenerator.release()
     }
 
     /** Call before navigating to the player screen to hand off the full Exercise object.
@@ -488,6 +523,7 @@ class WorkoutSessionViewModel(
     fun startProgram(sets: List<WorkoutParameters>) = engine.startProgram(sets)
 
     fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
+        isJustLiftSession = false
         sessionStartMs = System.currentTimeMillis()
         _completedExerciseStats.clear()
         repQualityTracker.discardCurrentSet()
@@ -503,6 +539,7 @@ class WorkoutSessionViewModel(
      * and the session recorder can label the log entry.
      */
     fun startProgramWorkout(programId: String, sets: List<PlayerSetParams>): Boolean {
+        isJustLiftSession = false
         activeProgramId   = programId
         activeProgramName = com.example.vitruvianredux.data.ProgramStore
             .savedProgramsFlow.value.find { it.id == programId }?.name
@@ -588,6 +625,7 @@ class WorkoutSessionViewModel(
      * @see WorkoutSessionEngine.prepareForJustLift
      */
     fun prepareForJustLift() {
+        isJustLiftSession = true
         // Clear the player exercise selection (mirrors Phoenix selectedExerciseId = null).
         _playerExercise.value = null
         engine.prepareForJustLift()
@@ -615,6 +653,7 @@ class WorkoutSessionViewModel(
         repCountTiming: com.example.vitruvianredux.ble.protocol.RepCountTiming =
             com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
     ) {
+        isJustLiftSession = isJustLift
         _playerExercise.value = exercise
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null
@@ -741,6 +780,7 @@ class WorkoutSessionViewModel(
 
     /** Reset from WorkoutComplete back to Idle. Call after user dismisses the summary. */
     fun resetAfterWorkout() {
+        isJustLiftSession = false
         activeProgramId   = null
         activeProgramName = null
         activeDayName     = null
