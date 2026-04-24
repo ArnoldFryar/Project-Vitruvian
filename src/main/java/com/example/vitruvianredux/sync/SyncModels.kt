@@ -41,6 +41,7 @@ data class SyncProgramItem(
     val programMode: String = "Old School",
     val progressionRegressionLb: Int = 0,
     val restTimerSec: Int = 60,
+    val circuitGroup: Int? = null,
     val repRangeMin: Int? = null,
     val repRangeMax: Int? = null,
 )

@@ -87,7 +87,9 @@ fun ProgramEditorScreen(
         val fromIdx = draftItems.indexOfFirst { it.exerciseId == fromKey }
         val toIdx   = draftItems.indexOfFirst { it.exerciseId == toKey }
         if (fromIdx != -1 && toIdx != -1) {
-            draftItems = draftItems.toMutableList().apply { add(toIdx, removeAt(fromIdx)) }
+            draftItems = normalizeProgramSupersetDrafts(
+                draftItems.toMutableList().apply { add(toIdx, removeAt(fromIdx)) }
+            )
         }
     })
 
@@ -99,29 +101,31 @@ fun ProgramEditorScreen(
             alreadySelected = alreadyExercises,
             onDone = { picked ->
                 val existingById = draftItems.associateBy { it.exerciseId }
-                draftItems = picked.map { ex ->
-                    existingById[ex.id.ifBlank { ex.name }] ?: run {
-                        val suggested = ProgressionEngine.suggestedStartingWeightLb(ex.name)
-                        if (ex.isBodyweightOnly) {
-                            ProgramItemDraft(
-                                exerciseId     = ex.id.ifBlank { ex.name },
-                                exerciseName   = ex.name,
-                                mode           = ExerciseMode.TIME,
-                                reps           = null,
-                                durationSec    = 30,
-                                targetWeightLb = 0,
-                                programMode    = "Old School",
-                            )
-                        } else {
-                            ProgramItemDraft(
-                                exerciseId     = ex.id.ifBlank { ex.name },
-                                exerciseName   = ex.name,
-                                targetWeightLb = suggested ?: 30,
-                                programMode    = "Old School",
-                            )
+                draftItems = normalizeProgramSupersetDrafts(
+                    picked.map { ex ->
+                        existingById[ex.id.ifBlank { ex.name }] ?: run {
+                            val suggested = ProgressionEngine.suggestedStartingWeightLb(ex.name)
+                            if (ex.isBodyweightOnly) {
+                                ProgramItemDraft(
+                                    exerciseId     = ex.id.ifBlank { ex.name },
+                                    exerciseName   = ex.name,
+                                    mode           = ExerciseMode.TIME,
+                                    reps           = null,
+                                    durationSec    = 30,
+                                    targetWeightLb = 0,
+                                    programMode    = "Old School",
+                                )
+                            } else {
+                                ProgramItemDraft(
+                                    exerciseId     = ex.id.ifBlank { ex.name },
+                                    exerciseName   = ex.name,
+                                    targetWeightLb = suggested ?: 30,
+                                    programMode    = "Old School",
+                                )
+                            }
                         }
                     }
-                }
+                )
                 showPicker = false
             },
             onDismiss = { showPicker = false },
@@ -130,11 +134,16 @@ fun ProgramEditorScreen(
 
     editingItem?.let { item ->
         val editingExercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
+        val editingIndex = draftItems.indexOfFirst { it.exerciseId == item.exerciseId }
         EditExerciseSheet(
             item      = item,
             exercise  = editingExercise,
-            onSave    = { updated ->
-                draftItems  = draftItems.map { if (it.exerciseId == updated.exerciseId) updated else it }
+            supersetContext = EditExerciseSupersetContext(
+                previousItem = draftItems.getOrNull(editingIndex - 1),
+                nextItem = draftItems.getOrNull(editingIndex + 1),
+            ),
+            onSave    = { result ->
+                draftItems  = applyProgramSupersetEdit(draftItems, result.item, result.supersetPlacement)
                 editingItem = null
             },
             onDismiss = { editingItem = null },
@@ -337,13 +346,28 @@ onClick = { showDaysDialog = false }) { Text("Done") }
             item(key = "__gap__") { Spacer(Modifier.height(12.dp)) }
 
             items(draftItems, key = { it.exerciseId }) { item ->
+                val itemIndex = draftItems.indexOfFirst { it.exerciseId == item.exerciseId }
+                val previousItem = draftItems.getOrNull(itemIndex - 1)
+                val nextItem = draftItems.getOrNull(itemIndex + 1)
+                val group = item.circuitGroup
+                val isSupersetBlockMember = group != null
+                val isSupersetBlockStart = group != null && previousItem?.circuitGroup != group
+                val isSupersetBlockEnd = group != null && nextItem?.circuitGroup != group
                 ReorderableItem(reorderState, key = item.exerciseId) { isDragging ->
                     val exercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
                     EditorExerciseCard(
                         item     = item,
                         exercise = exercise,
+                        showSupersetLabel = isSupersetBlockStart,
+                        isSupersetBlockMember = isSupersetBlockMember,
+                        isSupersetBlockStart = isSupersetBlockStart,
+                        isSupersetBlockEnd = isSupersetBlockEnd,
                         onEdit   = { editingItem = item },
-                        onRemove = { draftItems = draftItems.filter { it.exerciseId != item.exerciseId } },
+                        onRemove = {
+                            draftItems = normalizeProgramSupersetDrafts(
+                                draftItems.filter { it.exerciseId != item.exerciseId }
+                            )
+                        },
                         modifier = Modifier.graphicsLayer(
                             scaleX = if (isDragging) 1.02f else 1f,
                             scaleY = if (isDragging) 1.02f else 1f,
@@ -378,11 +402,13 @@ onClick = { showDaysDialog = false }) { Text("Done") }
             IconButton(
                 onClick = {
                     if (isSaveEnabled && program != null) {
+                        val normalizedItems = normalizeProgramSupersetDrafts(draftItems)
+                        draftItems = normalizedItems
                         ProgramStore.addProgram(
                             program.copy(
                                 name          = programName.trim(),
-                                exerciseCount = draftItems.size,
-                                items         = draftItems,
+                                exerciseCount = normalizedItems.size,
+                                items         = normalizedItems,
                                 scheduledDays = scheduledDays,
                             )
                         )
@@ -423,27 +449,58 @@ onClick = { showDaysDialog = false }) { Text("Done") }
 private fun EditorExerciseCard(
     item: ProgramItemDraft,
     exercise: Exercise?,
+    showSupersetLabel: Boolean,
+    isSupersetBlockMember: Boolean,
+    isSupersetBlockStart: Boolean,
+    isSupersetBlockEnd: Boolean,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val isBodyweight = exercise?.isBodyweightOnly == true
+    val colors = MaterialTheme.colorScheme
+    val supersetLabel = item.circuitGroup?.let { "Superset $it" }
+    val outerTopPadding = if (isSupersetBlockMember && !isSupersetBlockStart) 2.dp else 6.dp
+    val outerBottomPadding = if (isSupersetBlockMember && !isSupersetBlockEnd) 2.dp else 6.dp
+    val cardShape = when {
+        !isSupersetBlockMember || (isSupersetBlockStart && isSupersetBlockEnd) -> RoundedCornerShape(16.dp)
+        isSupersetBlockStart -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 8.dp, bottomEnd = 8.dp)
+        isSupersetBlockEnd -> RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+        else -> RoundedCornerShape(8.dp)
+    }
+    val imageShape = when {
+        !isSupersetBlockMember || (isSupersetBlockStart && isSupersetBlockEnd) -> RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+        isSupersetBlockStart -> RoundedCornerShape(topStart = 16.dp, bottomStart = 8.dp)
+        isSupersetBlockEnd -> RoundedCornerShape(topStart = 8.dp, bottomStart = 16.dp)
+        else -> RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+    }
 
     Card(
         modifier  = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        shape     = RoundedCornerShape(16.dp),
-        colors    = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            .padding(start = 12.dp, end = 12.dp, top = outerTopPadding, bottom = outerBottomPadding),
+        shape     = cardShape,
+        colors    = CardDefaults.cardColors(
+            containerColor = if (isSupersetBlockMember) colors.primaryContainer.copy(alpha = 0.22f)
+            else colors.surface,
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outline,
+            if (isSupersetBlockMember) colors.primary.copy(alpha = 0.3f) else colors.outline,
         ),
     ) {
         Column {
             Row(modifier = Modifier.fillMaxWidth()) {
+                if (isSupersetBlockMember) {
+                    Box(
+                        modifier = Modifier
+                            .width(6.dp)
+                            .height(160.dp)
+                            .background(colors.primary.copy(alpha = 0.75f)),
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .width(140.dp)
@@ -458,7 +515,7 @@ private fun EditorExerciseCard(
                             contentScale       = ContentScale.Crop,
                             modifier           = Modifier
                                 .fillMaxSize()
-                                .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)),
+                                .clip(imageShape),
                         )
                     }
                 }
@@ -468,6 +525,22 @@ private fun EditorExerciseCard(
                         .weight(1f)
                         .padding(start = 12.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
                 ) {
+                    if (showSupersetLabel && supersetLabel != null) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = colors.primary,
+                            modifier = Modifier.padding(bottom = 6.dp),
+                        ) {
+                            Text(
+                                text = supersetLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.onPrimary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+
                     Row(
                         verticalAlignment = Alignment.Top,
                         modifier          = Modifier.fillMaxWidth(),
@@ -585,7 +658,10 @@ private fun EditorExerciseCard(
                 Row(
                     modifier              = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .background(
+                            if (isSupersetBlockMember) colors.primaryContainer.copy(alpha = 0.9f)
+                            else MaterialTheme.colorScheme.primaryContainer
+                        )
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),

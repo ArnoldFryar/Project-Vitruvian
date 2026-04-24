@@ -12,17 +12,21 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -62,6 +66,11 @@ fun ProgramPreviewCard(
     modifier: Modifier = Modifier,
     footerContainerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     footerContentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    shape: Shape = RoundedCornerShape(AppDimens.Corner.md),
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
+    backgroundBrush: Brush? = null,
+    leadAccentColor: Color? = null,
+    imageShape: Shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp),
     imageContent: @Composable BoxScope.() -> Unit,
     detailsContent: @Composable ColumnScope.() -> Unit,
     footerContent: (@Composable RowScope.() -> Unit)? = null,
@@ -71,13 +80,28 @@ fun ProgramPreviewCard(
     val thumbBg = ext.surface2
     val resolvedFooterBg = if (footerContainerColor == MaterialTheme.colorScheme.surfaceVariant)
         ext.surface2 else footerContainerColor
-    AppCard(modifier = modifier.fillMaxWidth()) {
+    AppCard(
+        modifier = modifier.fillMaxWidth(),
+        borderColor = borderColor,
+        shape = shape,
+        backgroundBrush = backgroundBrush,
+    ) {
         Column {
             Row(modifier = Modifier.fillMaxWidth()) {
+                if (leadAccentColor != null) {
+                    Box(
+                        modifier = Modifier
+                            .width(6.dp)
+                            .heightIn(min = 160.dp)
+                            .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                            .background(leadAccentColor),
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .width(140.dp)
                         .height(160.dp)
+                        .clip(imageShape)
                         .background(thumbBg),
                     contentAlignment = Alignment.Center,
                     content = imageContent,
@@ -105,11 +129,13 @@ fun ProgramPreviewCard(
                         .fillMaxWidth()
                         .background(resolvedFooterBg),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        content = footerContent,
-                    )
+                    CompositionLocalProvider(LocalContentColor provides footerContentColor) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            content = footerContent,
+                        )
+                    }
                 }
             }
         }

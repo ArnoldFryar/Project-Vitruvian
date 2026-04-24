@@ -40,6 +40,23 @@ import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
+data class EditExerciseSupersetContext(
+    val previousItem: ProgramItemDraft? = null,
+    val nextItem: ProgramItemDraft? = null,
+)
+
+enum class EditExerciseSupersetPlacement {
+    Solo,
+    KeepCurrent,
+    LinkWithPrevious,
+    LinkWithNext,
+}
+
+data class EditExerciseSaveResult(
+    val item: ProgramItemDraft,
+    val supersetPlacement: EditExerciseSupersetPlacement,
+)
+
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Quick Edit sheet  — premium redesign
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -48,8 +65,9 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
 fun EditExerciseSheet(
     item: ProgramItemDraft,
     exercise: Exercise? = null,
-    onSave: (ProgramItemDraft) -> Unit,
+    onSave: (EditExerciseSaveResult) -> Unit,
     onDismiss: () -> Unit,
+    supersetContext: EditExerciseSupersetContext = EditExerciseSupersetContext(),
 ) {
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
@@ -70,13 +88,24 @@ fun EditExerciseSheet(
     var isBeastMode   by remember { mutableStateOf(item.programMode == "TUT Beast") }
     var progRegLb     by remember { mutableIntStateOf(item.progressionRegressionLb) }
     var restTimerSec  by remember { mutableIntStateOf(item.restTimerSec) }
-    var isSuperset    by remember { mutableStateOf(item.circuitGroup != null) }
-    var circuitGroup  by remember { mutableIntStateOf(item.circuitGroup ?: 1) }
     var repRangeMin   by remember { mutableStateOf(item.repRangeMin ?: 8) }
     var repRangeMax   by remember { mutableStateOf(item.repRangeMax ?: 12) }
     var useRepRange   by remember { mutableStateOf(item.repRangeMin != null && item.repRangeMax != null) }
     val pbMap          by PersonalBestStore.summariesFlow.collectAsState()
     val prLb           = pbMap[item.exerciseName.lowercase().trim()]?.bestWeightLb ?: 0
+    val hasPreviousSupersetOption = supersetContext.previousItem != null
+    val hasNextSupersetOption = supersetContext.nextItem != null
+    var supersetPlacement by remember(
+        item.exerciseId,
+        item.circuitGroup,
+        supersetContext.previousItem?.exerciseId,
+        supersetContext.nextItem?.exerciseId,
+    ) {
+        mutableStateOf(
+            if (item.circuitGroup != null) EditExerciseSupersetPlacement.KeepCurrent
+            else EditExerciseSupersetPlacement.Solo
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -354,32 +383,54 @@ fun EditExerciseSheet(
 
                 // â”€â”€ Section: Superset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SectionHeader("Superset")
-                SelectorCard(
-                    title    = stringResource(R.string.edit_superset_toggle),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Switch(
-                        checked         = isSuperset,
-                        onCheckedChange = { isSuperset = it },
+                Text(
+                    text = when {
+                        item.circuitGroup != null -> "This exercise is already linked. Keep it in the block, unlink it, or join the exercise above or below."
+                        hasPreviousSupersetOption || hasNextSupersetOption -> "Choose how this exercise should connect in the workout flow."
+                        else -> "Add another exercise above or below this one to create a superset block."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                    SupersetOptionCard(
+                        title = "Train solo",
+                        subtitle = "No linked block. Rest runs after this exercise as normal.",
+                        selected = supersetPlacement == EditExerciseSupersetPlacement.Solo,
+                        onClick = { supersetPlacement = EditExerciseSupersetPlacement.Solo },
                     )
-                }
-                if (isSuperset) {
-                    SelectorCard(
-                        title    = stringResource(R.string.edit_superset_group),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        SmoothValuePicker(
-                            value         = circuitGroup.toFloat(),
-                            onValueChange = { circuitGroup = it.toInt().coerceAtLeast(1) },
-                            range         = 1f..9f,
-                            step          = 1f,
-                            unitLabel     = "",
-                            formatLabel   = { v -> "Group ${v.toInt()}" },
-                            compact       = true,
-                            visibleItemCount = 3,
-                            itemHeight    = 32.dp,
-                            surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier      = Modifier.width(140.dp),
+                    if (item.circuitGroup != null) {
+                        SupersetOptionCard(
+                            title = "Keep current block",
+                            subtitle = "Stay in Superset ${item.circuitGroup}.",
+                            selected = supersetPlacement == EditExerciseSupersetPlacement.KeepCurrent,
+                            onClick = { supersetPlacement = EditExerciseSupersetPlacement.KeepCurrent },
+                        )
+                    }
+                    supersetContext.previousItem?.let { previousItem ->
+                        val subtitle = if (previousItem.circuitGroup != null) {
+                            "Join the linked block above with ${previousItem.exerciseName.trim()}."
+                        } else {
+                            "Pair directly with ${previousItem.exerciseName.trim()}."
+                        }
+                        SupersetOptionCard(
+                            title = "Link with previous",
+                            subtitle = subtitle,
+                            selected = supersetPlacement == EditExerciseSupersetPlacement.LinkWithPrevious,
+                            onClick = { supersetPlacement = EditExerciseSupersetPlacement.LinkWithPrevious },
+                        )
+                    }
+                    supersetContext.nextItem?.let { nextItem ->
+                        val subtitle = if (nextItem.circuitGroup != null) {
+                            "Join the linked block below with ${nextItem.exerciseName.trim()}."
+                        } else {
+                            "Pair directly with ${nextItem.exerciseName.trim()}."
+                        }
+                        SupersetOptionCard(
+                            title = "Link with next",
+                            subtitle = subtitle,
+                            selected = supersetPlacement == EditExerciseSupersetPlacement.LinkWithNext,
+                            onClick = { supersetPlacement = EditExerciseSupersetPlacement.LinkWithNext },
                         )
                     }
                 }
@@ -430,7 +481,7 @@ fun EditExerciseSheet(
                             val normalizedWeightLb = if (isBodyweight) 0 else (weightKg * UnitConversions.LB_PER_KG).roundToInt()
                             val normalizedProgramMode = if (isBodyweight) "Old School" else if (programMode == "TUT" && isBeastMode) "TUT Beast" else programMode
                             val normalizedMode = if (isBodyweight) ExerciseMode.TIME else mode
-                            onSave(item.copy(
+                            val normalizedItem = item.copy(
                                 mode                    = normalizedMode,
                                 sets                    = sets,
                                 reps                    = if (normalizedMode == ExerciseMode.REPS) reps else null,
@@ -439,10 +490,16 @@ fun EditExerciseSheet(
                                 programMode             = normalizedProgramMode,
                                 progressionRegressionLb = progRegLb,
                                 restTimerSec            = restTimerSec,
-                                circuitGroup            = if (isSuperset) circuitGroup else null,
+                                circuitGroup            = when (supersetPlacement) {
+                                    EditExerciseSupersetPlacement.Solo -> null
+                                    EditExerciseSupersetPlacement.KeepCurrent -> item.circuitGroup
+                                    EditExerciseSupersetPlacement.LinkWithPrevious,
+                                    EditExerciseSupersetPlacement.LinkWithNext -> null
+                                },
                                 repRangeMin             = if (normalizedMode == ExerciseMode.REPS && useRepRange) repRangeMin else null,
                                 repRangeMax             = if (normalizedMode == ExerciseMode.REPS && useRepRange) repRangeMax else null,
-                            ))
+                            )
+                            onSave(EditExerciseSaveResult(normalizedItem, supersetPlacement))
                         },
                         modifier = Modifier.weight(1f),
                     )
@@ -463,4 +520,50 @@ private fun SectionHeader(title: String) {
         letterSpacing = AppDimens.LetterSpacing.wide,
         modifier      = Modifier.padding(bottom = AppDimens.Spacing.xs),
     )
+}
+
+@Composable
+private fun SupersetOptionCard(
+    title: String,
+    subtitle: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(AppDimens.Corner.md),
+        color = if (selected) colors.primaryContainer else colors.surfaceVariant,
+        tonalElevation = 0.dp,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            if (selected) colors.primary else colors.outlineVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppDimens.Spacing.md_sm),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RadioButton(
+                selected = selected,
+                onClick = null,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (selected) colors.onPrimaryContainer else colors.onSurface,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }

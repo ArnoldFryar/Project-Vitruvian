@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -39,11 +40,12 @@ fun AppCard(
     onClick: (() -> Unit)? = null,
     containerColor: Color = Color.Unspecified,
     borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
+    shape: Shape = RoundedCornerShape(AppDimens.Corner.md),
+    backgroundBrush: Brush? = null,
     content: @Composable () -> Unit,
 ) {
     val ext = LocalExtendedColors.current
-    val shape = RoundedCornerShape(AppDimens.Corner.md)
-    val brush: Brush = if (containerColor == Color.Unspecified) {
+    val brush: Brush = backgroundBrush ?: if (containerColor == Color.Unspecified) {
         Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
     } else {
         Brush.verticalGradient(listOf(containerColor, containerColor))

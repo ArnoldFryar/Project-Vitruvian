@@ -9,7 +9,7 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -196,9 +196,22 @@ onClick = { showDeleteDialog = false }) {
             item(key = "exercises_gap") { Spacer(Modifier.height(12.dp)) }
 
             // ── Exercise cards ────────────────────────────────────────────
-            items(program.items, key = { it.exerciseId + it.exerciseName }) { item ->
+            itemsIndexed(program.items, key = { _, item -> item.exerciseId + item.exerciseName }) { index, item ->
                 val exercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
-                ProgramItemCard(item = item, exercise = exercise)
+                val previousItem = program.items.getOrNull(index - 1)
+                val nextItem = program.items.getOrNull(index + 1)
+                val group = item.circuitGroup
+                val isSupersetBlockMember = group != null
+                val isSupersetBlockStart = group != null && previousItem?.circuitGroup != group
+                val isSupersetBlockEnd = group != null && nextItem?.circuitGroup != group
+                ProgramItemCard(
+                    item = item,
+                    exercise = exercise,
+                    showSupersetLabel = isSupersetBlockStart,
+                    isSupersetBlockMember = isSupersetBlockMember,
+                    isSupersetBlockStart = isSupersetBlockStart,
+                    isSupersetBlockEnd = isSupersetBlockEnd,
+                )
             }
         }
 
@@ -291,12 +304,44 @@ onClick = { showDeleteDialog = false }) {
 // ─── Sub-composables ──────────────────────────────────────────────────────────
 
 @Composable
-private fun ProgramItemCard(item: ProgramItemDraft, exercise: Exercise?) {
+private fun ProgramItemCard(
+    item: ProgramItemDraft,
+    exercise: Exercise?,
+    showSupersetLabel: Boolean,
+    isSupersetBlockMember: Boolean,
+    isSupersetBlockStart: Boolean,
+    isSupersetBlockEnd: Boolean,
+) {
     val isBodyweight = exercise?.isBodyweightOnly == true
+    val colors = MaterialTheme.colorScheme
+    val supersetLabel = item.circuitGroup?.let { "Superset $it" }
+    val outerTopPadding = if (isSupersetBlockMember && !isSupersetBlockStart) 2.dp else 6.dp
+    val outerBottomPadding = if (isSupersetBlockMember && !isSupersetBlockEnd) 2.dp else 6.dp
+    val cardShape = when {
+        !isSupersetBlockMember || (isSupersetBlockStart && isSupersetBlockEnd) -> RoundedCornerShape(16.dp)
+        isSupersetBlockStart -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 8.dp, bottomEnd = 8.dp)
+        isSupersetBlockEnd -> RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+        else -> RoundedCornerShape(8.dp)
+    }
+    val imageShape = when {
+        !isSupersetBlockMember || (isSupersetBlockStart && isSupersetBlockEnd) -> RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+        isSupersetBlockStart -> RoundedCornerShape(topStart = 16.dp, bottomStart = 8.dp)
+        isSupersetBlockEnd -> RoundedCornerShape(topStart = 8.dp, bottomStart = 16.dp)
+        else -> RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+    }
     ProgramPreviewCard(
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-        footerContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-        footerContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = outerTopPadding, bottom = outerBottomPadding),
+        footerContainerColor = if (isSupersetBlockMember) colors.primaryContainer.copy(alpha = 0.58f) else colors.surfaceVariant,
+        footerContentColor = colors.onSurfaceVariant,
+        shape = cardShape,
+        borderColor = if (isSupersetBlockMember) colors.primary.copy(alpha = 0.3f) else colors.outlineVariant,
+        backgroundBrush = if (isSupersetBlockMember) {
+            Brush.verticalGradient(listOf(colors.surface, colors.primaryContainer.copy(alpha = 0.22f)))
+        } else {
+            null
+        },
+        leadAccentColor = if (isSupersetBlockMember) colors.primary.copy(alpha = 0.75f) else null,
+        imageShape = imageShape,
         imageContent = {
             val thumbUrl = exercise?.thumbnailUrl
             if (!thumbUrl.isNullOrBlank()) {
@@ -305,12 +350,20 @@ private fun ProgramItemCard(item: ProgramItemDraft, exercise: Exercise?) {
                     contentDescription = item.exerciseName,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)),
+                        .fillMaxSize(),
                 )
             }
         },
         detailsContent = {
+            if (showSupersetLabel && supersetLabel != null) {
+                ProgramPreviewChip(
+                    label = supersetLabel,
+                    containerColor = colors.primary,
+                    contentColor = colors.onPrimary,
+                    modifier = Modifier.padding(bottom = 6.dp),
+                )
+            }
+
             Text(
                 item.exerciseName,
                 style = MaterialTheme.typography.titleSmall,

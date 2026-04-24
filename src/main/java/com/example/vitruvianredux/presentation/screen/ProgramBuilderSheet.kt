@@ -33,6 +33,7 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
+import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
@@ -89,26 +90,28 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
             alreadySelected = alreadyExercises,
             onDone = { picked ->
                 val existingById = draftItems.associateBy { it.exerciseId }
-                draftItems = picked.map { ex ->
-                    existingById[ex.id.ifBlank { ex.name }] ?: if (ex.isBodyweightOnly) {
-                        ProgramItemDraft(
-                            exerciseId = ex.id.ifBlank { ex.name },
-                            exerciseName = ex.name,
-                            mode = ExerciseMode.TIME,
-                            reps = null,
-                            durationSec = 30,
-                            targetWeightLb = 0,
-                            programMode = "Old School",
-                        )
-                    } else {
-                        ProgramItemDraft(
-                            exerciseId = ex.id.ifBlank { ex.name },
-                            exerciseName = ex.name,
-                            targetWeightLb = 30,
-                            programMode = "Old School",
-                        )
+                draftItems = normalizeProgramSupersetDrafts(
+                    picked.map { ex ->
+                        existingById[ex.id.ifBlank { ex.name }] ?: if (ex.isBodyweightOnly) {
+                            ProgramItemDraft(
+                                exerciseId = ex.id.ifBlank { ex.name },
+                                exerciseName = ex.name,
+                                mode = ExerciseMode.TIME,
+                                reps = null,
+                                durationSec = 30,
+                                targetWeightLb = 0,
+                                programMode = "Old School",
+                            )
+                        } else {
+                            ProgramItemDraft(
+                                exerciseId = ex.id.ifBlank { ex.name },
+                                exerciseName = ex.name,
+                                targetWeightLb = 30,
+                                programMode = "Old School",
+                            )
+                        }
                     }
-                }
+                )
                 showPicker = false
             },
             onDismiss = { showPicker = false },
@@ -118,11 +121,16 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
     // Quick-edit sheet for one item
     editingItem?.let { item ->
         val editingExercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
+        val editingIndex = draftItems.indexOfFirst { it.exerciseId == item.exerciseId }
         EditExerciseSheet(
             item      = item,
             exercise  = editingExercise,
-            onSave    = { updated ->
-                draftItems  = draftItems.map { if (it.exerciseId == updated.exerciseId) updated else it }
+            supersetContext = EditExerciseSupersetContext(
+                previousItem = draftItems.getOrNull(editingIndex - 1),
+                nextItem = draftItems.getOrNull(editingIndex + 1),
+            ),
+            onSave    = { result ->
+                draftItems = applyProgramSupersetEdit(draftItems, result.item, result.supersetPlacement)
                 editingItem = null
             },
             onDismiss = { editingItem = null },
@@ -161,7 +169,9 @@ onClick = { showDiscardDialog = false }) {
         val fromIndex = draftItems.indexOfFirst { it.exerciseId == fromKey }
         val toIndex   = draftItems.indexOfFirst { it.exerciseId == toKey }
         if (fromIndex != -1 && toIndex != -1) {
-            draftItems = draftItems.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+            draftItems = normalizeProgramSupersetDrafts(
+                draftItems.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+            )
         }
     })
 
@@ -321,13 +331,28 @@ onClick = { showDiscardDialog = false }) {
 
                 // â”€â”€ Reorderable exercise cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 items(draftItems, key = { it.exerciseId }) { item ->
-                    ReorderableItem(reorderState, key = item.exerciseId) { isDragging ->
+                    val itemIndex = draftItems.indexOfFirst { it.exerciseId == item.exerciseId }
+                    val previousItem = draftItems.getOrNull(itemIndex - 1)
+                    val nextItem = draftItems.getOrNull(itemIndex + 1)
+                    val group = item.circuitGroup
+                    val isSupersetBlockMember = group != null
+                    val isSupersetBlockStart = group != null && previousItem?.circuitGroup != group
+                    val isSupersetBlockEnd = group != null && nextItem?.circuitGroup != group
+                    ReorderableItem(reorderState, key = item.exerciseId) { _ ->
                         val exercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
                         ProgramItemCard(
                             item     = item,
                             exercise = exercise,
+                            showSupersetLabel = isSupersetBlockStart,
+                            isSupersetBlockMember = isSupersetBlockMember,
+                            isSupersetBlockStart = isSupersetBlockStart,
+                            isSupersetBlockEnd = isSupersetBlockEnd,
                             onEdit   = { editingItem = item },
-                            onRemove = { draftItems = draftItems.filter { it.exerciseId != item.exerciseId } },
+                            onRemove = {
+                                draftItems = normalizeProgramSupersetDrafts(
+                                    draftItems.filter { it.exerciseId != item.exerciseId }
+                                )
+                            },
                             modifier = Modifier,
                         )
                     }
@@ -405,6 +430,8 @@ onClick = { showDiscardDialog = false }) {
                             WiringRegistry.hit(A_PROGRAMS_SAVE)
                             WiringRegistry.recordOutcome(A_PROGRAMS_SAVE, ActualOutcome.StateChanged("programDraftSaved"))
                             if (isSaveEnabled) {
+                                val normalizedItems = normalizeProgramSupersetDrafts(draftItems)
+                                draftItems = normalizedItems
                                 val newId = programName.trim().lowercase()
                                     .replace(Regex("[^a-z0-9]+"), "_")
                                     .trim('_') +
@@ -413,8 +440,8 @@ onClick = { showDiscardDialog = false }) {
                                     SavedProgram(
                                         id            = newId,
                                         name          = programName.trim(),
-                                        exerciseCount = draftItems.size,
-                                        items         = draftItems,
+                                        exerciseCount = normalizedItems.size,
+                                        items         = normalizedItems,
                                         scheduledDays = scheduledDays,
                                     )
                                 )
@@ -429,27 +456,11 @@ onClick = { showDiscardDialog = false }) {
                     }
 
                     if (canStart) {
-                        val programSets: List<PlayerSetParams> = remember(draftItems, exerciseCatalog) {
-                            draftItems.flatMap { draft ->
-                                val ex = exerciseCatalog[draft.exerciseId]
-                                List(draft.sets) {
-                                    PlayerSetParams(
-                                        exerciseId              = ex?.stableKey ?: draft.exerciseId,
-                                        exerciseName            = draft.exerciseName,
-                                        thumbnailUrl            = ex?.thumbnailUrl,
-                                        videoUrl                = ex?.videoUrl,
-                                        targetReps              = draft.reps,
-                                        targetDurationSec       = draft.durationSec,
-                                        weightPerCableLb        = draft.targetWeightLb,
-                                        programMode             = draft.programMode,
-                                        progressionRegressionLb = draft.progressionRegressionLb,
-                                        restAfterSec            = draft.restTimerSec,
-                                        muscleGroups            = ex?.muscleGroups ?: emptyList(),
-                                        muscles                 = ex?.muscles ?: emptyList(),
-                                        numCables               = ex?.numCables ?: 2,
-                                    )
-                                }
-                            }
+                        val normalizedDraftItems = remember(draftItems) {
+                            normalizeProgramSupersetDrafts(draftItems)
+                        }
+                        val programSets: List<PlayerSetParams> = remember(normalizedDraftItems, exerciseCatalog) {
+                            CircuitSetBuilder.build(normalizedDraftItems, exerciseCatalog)
                         }
                         GradientButton(
                             text    = "Start Now",
@@ -457,6 +468,7 @@ onClick = { showDiscardDialog = false }) {
                             onClick = {
                                 WiringRegistry.hit(A_PROGRAMS_START_NOW)
                                 WiringRegistry.recordOutcome(A_PROGRAMS_START_NOW, ActualOutcome.Navigated("player"))
+                                draftItems = normalizedDraftItems
                                 workoutVM?.startPlayerWorkout(programSets)
                                 onDismiss()
                             },

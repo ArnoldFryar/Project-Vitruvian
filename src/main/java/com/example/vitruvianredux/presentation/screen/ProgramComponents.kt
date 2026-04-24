@@ -43,20 +43,52 @@ fun ProgramItemCard(
     onEdit: () -> Unit,
     onRemove: () -> Unit,
     exercise: Exercise? = null,
+    showSupersetLabel: Boolean = true,
+    isSupersetBlockMember: Boolean = item.circuitGroup != null,
+    isSupersetBlockStart: Boolean = true,
+    isSupersetBlockEnd: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val isBodyweight = exercise?.isBodyweightOnly == true
     val ext = LocalExtendedColors.current
     val cs = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(AppDimens.Corner.md)
-    val gradient = Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
+    val shape = when {
+        !isSupersetBlockMember || (isSupersetBlockStart && isSupersetBlockEnd) -> RoundedCornerShape(AppDimens.Corner.md)
+        isSupersetBlockStart -> RoundedCornerShape(
+            topStart = AppDimens.Corner.md,
+            topEnd = AppDimens.Corner.md,
+            bottomStart = AppDimens.Corner.xs,
+            bottomEnd = AppDimens.Corner.xs,
+        )
+        isSupersetBlockEnd -> RoundedCornerShape(
+            topStart = AppDimens.Corner.xs,
+            topEnd = AppDimens.Corner.xs,
+            bottomStart = AppDimens.Corner.md,
+            bottomEnd = AppDimens.Corner.md,
+        )
+        else -> RoundedCornerShape(AppDimens.Corner.xs)
+    }
+    val gradient = Brush.verticalGradient(
+        if (isSupersetBlockMember) {
+            listOf(ext.surface2, cs.primaryContainer.copy(alpha = 0.32f))
+        } else {
+            listOf(ext.surface2, ext.surface1)
+        }
+    )
+    val supersetLabel = item.circuitGroup?.let { "Superset $it" }
     Box(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize(tween(MotionTokens.STANDARD_MS, easing = MotionTokens.EnterEasing))
             .clip(shape)
             .background(gradient)
-            .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), shape)
+            .border(
+                BorderStroke(
+                    AppDimens.Stroke.thin,
+                    if (isSupersetBlockMember) cs.primary.copy(alpha = 0.28f) else cs.outlineVariant,
+                ),
+                shape,
+            )
             .clickable(onClick = {
                 WiringRegistry.hit(A_PROGRAMS_ITEM_EDIT)
                 WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_EDIT, ActualOutcome.SheetOpened("edit_item"))
@@ -69,6 +101,16 @@ fun ProgramItemCard(
                 .padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.md_sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (isSupersetBlockMember) {
+                Box(
+                    modifier = Modifier
+                        .width(6.dp)
+                        .heightIn(min = 72.dp)
+                        .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                        .background(cs.primary.copy(alpha = 0.75f)),
+                )
+                Spacer(Modifier.width(AppDimens.Spacing.sm))
+            }
             Icon(
                 AppIcons.DragHandle,
                 contentDescription = "Drag to reorder",
@@ -79,6 +121,14 @@ fun ProgramItemCard(
             )
 
             Column(modifier = Modifier.weight(1f)) {
+                if (showSupersetLabel && supersetLabel != null) {
+                    MetadataBadge(
+                        text = supersetLabel,
+                        containerColor = cs.primaryContainer,
+                        contentColor = cs.onPrimaryContainer,
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.xs))
+                }
                 Text(
                     item.exerciseName.trim(),
                     style      = MaterialTheme.typography.bodyLarge,

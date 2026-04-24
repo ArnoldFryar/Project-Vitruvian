@@ -76,7 +76,7 @@ object RemoteDataSource {
 
     suspend fun upsertPrograms(programs: List<RemoteProgram>) {
         if (programs.isEmpty()) return
-        db.from("programs").upsert(programs)
+        db.from("programs").upsert(programs, onConflict = "user_id,id")
         Timber.tag(TAG).d("upserted ${programs.size} program(s)")
     }
 
