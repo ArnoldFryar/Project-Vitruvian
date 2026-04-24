@@ -13,6 +13,7 @@ import timber.log.Timber
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Pushes completed workout sessions to the Hevy API.
@@ -146,6 +147,7 @@ object HevyClient {
     // resets if the user switches accounts).
     private var cacheKey: String = ""
     private val templateCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val inFlightSessionIds = ConcurrentHashMap.newKeySet<String>()
 
     // ── Public API ─────────────────────────────────────────────────────────
 
@@ -158,6 +160,10 @@ object HevyClient {
         val apiKey = HevyStore.apiKey
         if (!HevyStore.enabled || apiKey.isBlank()) return Result.success(Unit)
         if (HevySyncStore.isSynced(session.id)) return Result.success(Unit)
+        if (!inFlightSessionIds.add(session.id)) {
+            Timber.tag(TAG).d("Hevy push already in flight for session ${session.id} — skipping duplicate request")
+            return Result.success(Unit)
+        }
 
         return try {
             // Refresh template cache if API key changed
@@ -206,6 +212,8 @@ object HevyClient {
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Hevy push error for session ${session.id}: ${e.message}")
             Result.failure(e)
+        } finally {
+            inFlightSessionIds.remove(session.id)
         }
     }
 
