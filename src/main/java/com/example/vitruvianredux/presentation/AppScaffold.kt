@@ -243,6 +243,10 @@ fun AppScaffold() {
                         ?: WorkoutHistoryStore.historyFlow.value.lastOrNull()?.exerciseNames
                         ?: completedStats.map { it.exerciseName }.distinct()
                     val exerciseSets = completedStats.map { es ->
+                        val telemetry = com.example.vitruvianredux.data.TelemetryInsights.summarizeSamples(
+                            es.cableSamplesLeft,
+                            es.cableSamplesRight,
+                        )
                         AnalyticsStore.ExerciseSetLog(
                             exerciseId      = taggedExercise?.id ?: es.exerciseId,
                             exerciseName    = taggedExercise?.name ?: es.exerciseName,
@@ -263,6 +267,11 @@ fun AppScaffold() {
                             peakForce       = es.peakForce,
                             echoLevel       = es.echoLevel,
                             eccentricLoadPct = es.eccentricLoadPct,
+                            telemetryAvgLeftForce = telemetry?.avgLeftForceKg?.toFloat() ?: 0f,
+                            telemetryAvgRightForce = telemetry?.avgRightForceKg?.toFloat() ?: 0f,
+                            telemetryBalancePct = telemetry?.balancePct ?: 0,
+                            telemetryFinishForcePct = telemetry?.finishForcePct ?: 100,
+                            telemetrySampleCount = telemetry?.sampleCount ?: 0,
                             cableSamplesLeft  = es.cableSamplesLeft,
                             cableSamplesRight = es.cableSamplesRight,
                         )
@@ -466,7 +475,11 @@ private fun AppTopBar(
                     ) {
                         Icon(AppIcons.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
-                        val label = if (bleState is BleConnectionState.Scanning) "Scanningâ€¦" else "Connectingâ€¦"
+                        val label = if (bleState is BleConnectionState.Scanning) {
+                            stringResource(R.string.trainer_status_scanning)
+                        } else {
+                            stringResource(R.string.trainer_status_connecting)
+                        }
                         Text(label, style = MaterialTheme.typography.labelMedium)
                     }
                 }

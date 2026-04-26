@@ -20,14 +20,17 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 CREATE POLICY "Users can view own profile"
     ON profiles FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 CREATE POLICY "Users can insert own profile"
     ON profiles FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile"
     ON profiles FOR UPDATE
     USING (auth.uid() = user_id);
@@ -49,6 +52,7 @@ CREATE TABLE IF NOT EXISTS devices (
 
 ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own devices" ON devices;
 CREATE POLICY "Users can manage own devices"
     ON devices FOR ALL
     USING (auth.uid() = user_id)
@@ -72,6 +76,7 @@ CREATE TABLE IF NOT EXISTS programs (
 
 ALTER TABLE programs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own programs" ON programs;
 CREATE POLICY "Users can manage own programs"
     ON programs FOR ALL
     USING (auth.uid() = user_id)
@@ -99,6 +104,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own sessions" ON sessions;
 CREATE POLICY "Users can manage own sessions"
     ON sessions FOR ALL
     USING (auth.uid() = user_id)
@@ -131,6 +137,7 @@ CREATE TABLE IF NOT EXISTS analytics_logs (
 
 ALTER TABLE analytics_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own analytics" ON analytics_logs;
 CREATE POLICY "Users can manage own analytics"
     ON analytics_logs FOR ALL
     USING (auth.uid() = user_id)
@@ -158,6 +165,7 @@ CREATE TABLE IF NOT EXISTS custom_exercises (
 
 ALTER TABLE custom_exercises ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own exercises" ON custom_exercises;
 CREATE POLICY "Users can manage own exercises"
     ON custom_exercises FOR ALL
     USING (auth.uid() = user_id)
@@ -179,6 +187,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
 
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own settings" ON user_settings;
 CREATE POLICY "Users can manage own settings"
     ON user_settings FOR ALL
     USING (auth.uid() = user_id)
@@ -196,14 +205,18 @@ CREATE TABLE IF NOT EXISTS exercise_history (
     total_reps  INTEGER DEFAULT 0,
     total_volume_kg REAL DEFAULT 0,
     heaviest_weight_lb INTEGER DEFAULT 0,
+    origin_mode TEXT,
     completed_at BIGINT DEFAULT 0,
     device_id   TEXT DEFAULT '',
     updated_at  BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, id)
 );
 
+ALTER TABLE exercise_history ADD COLUMN IF NOT EXISTS origin_mode TEXT;
+
 ALTER TABLE exercise_history ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own exercise history" ON exercise_history;
 CREATE POLICY "Users can manage own exercise history"
     ON exercise_history FOR ALL
     USING (auth.uid() = user_id)
@@ -223,14 +236,26 @@ CREATE TABLE IF NOT EXISTS set_history (
     weight_lb   INTEGER DEFAULT 0,
     volume_kg   REAL DEFAULT 0,
     duration_sec INTEGER DEFAULT 0,
+    avg_force   REAL DEFAULT 0,
+    peak_force  REAL DEFAULT 0,
+    echo_level  TEXT,
+    eccentric_load_pct INTEGER DEFAULT 100,
+    origin_mode TEXT,
     completed_at BIGINT DEFAULT 0,
     device_id   TEXT DEFAULT '',
     updated_at  BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, id)
 );
 
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS avg_force REAL DEFAULT 0;
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS peak_force REAL DEFAULT 0;
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS echo_level TEXT;
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS eccentric_load_pct INTEGER DEFAULT 100;
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS origin_mode TEXT;
+
 ALTER TABLE set_history ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own set history" ON set_history;
 CREATE POLICY "Users can manage own set history"
     ON set_history FOR ALL
     USING (auth.uid() = user_id)

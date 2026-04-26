@@ -49,7 +49,7 @@ class MachineRepDetector : IRepDetector {
     private var lastCompleteCounter = 0
     private var _warmupReps = 0
     private var _workingReps = 0
-    private var hasPendingWorkingRep = false
+    private var pendingWorkingReps = 0
 
     // ── Machine-confirmed floor ───────────────────────────────────────────────
     // repsRomCount and down counter are updated on eccentric completion and
@@ -78,7 +78,7 @@ class MachineRepDetector : IRepDetector {
         lastCompleteCounter = 0
         _warmupReps = 0
         _workingReps = 0
-        hasPendingWorkingRep = false
+        pendingWorkingReps = 0
         lastMachineWarmup = 0
         lastMachineDown = 0
     }
@@ -128,16 +128,13 @@ class MachineRepDetector : IRepDetector {
         // Issue #210: No priming skip. lastTopCounter starts at 0.
         // First notification with up=1 → delta = 1 - 0 = 1.
         val upDelta = calculateDelta(lastTopCounter, n.up)
-        if (upDelta > 0 && _warmupReps >= warmupTarget && !hasPendingWorkingRep) {
-            hasPendingWorkingRep = true
-            events.add(RepDetectorEvent.WorkingRepPending(_workingReps + 1))
+        if (upDelta > 0 && _warmupReps >= warmupTarget) {
+            pendingWorkingReps += upDelta
+            events.add(RepDetectorEvent.WorkingRepPending(_workingReps + pendingWorkingReps))
         }
 
         // -- Down delta → clear pending state ---------------------------------
         val downDelta = calculateDelta(lastCompleteCounter, n.down)
-        if (downDelta > 0 && hasPendingWorkingRep) {
-            hasPendingWorkingRep = false
-        }
 
         // -- WARMUP TRACKING ──────────────────────────────────────────────
         // 20-byte packets: repsRomCount lags (updates on eccentric/down),
@@ -161,8 +158,6 @@ class MachineRepDetector : IRepDetector {
                 events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
             }
         }
-        val warmupAdded = _warmupReps - warmupBefore
-
         // -- WORKING REP TRACKING: Use repsSetCount directly from machine ------
         // The machine handles warmup/working distinction internally.
         // repsSetCount increments for WORKING reps only — trust the machine!
@@ -175,7 +170,7 @@ class MachineRepDetector : IRepDetector {
             }
 
             _workingReps = machineWorking
-            hasPendingWorkingRep = false
+            pendingWorkingReps = 0
             val total = _warmupReps + _workingReps
             events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, total))
 
@@ -184,14 +179,13 @@ class MachineRepDetector : IRepDetector {
             }
         }
         // FALLBACK: 20-byte packets have repsRomCount but NO repsSetCount.
-        // When warmup is done and repsSetCount is absent, count working reps
-        // from up-counter delta MINUS any warmup reps that consumed part of
-        // the delta (up counter counts ALL reps, not just working).
-        else if (n.repsSetCount == null && _warmupReps >= warmupTarget && upDelta > 0) {
-            val workingDelta = (upDelta - warmupAdded).coerceAtLeast(0)
+        // In this format, `up` gives immediate visual pending feedback and
+        // `down` confirms the working rep at the bottom of the eccentric.
+        else if (n.repsSetCount == null && _warmupReps >= warmupTarget && downDelta > 0) {
+            val workingDelta = downDelta.coerceAtMost(pendingWorkingReps).coerceAtLeast(0)
             if (workingDelta > 0) {
                 _workingReps += workingDelta
-                hasPendingWorkingRep = false
+                pendingWorkingReps = (pendingWorkingReps - workingDelta).coerceAtLeast(0)
                 val total = _warmupReps + _workingReps
                 events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, total))
 
@@ -271,7 +265,7 @@ class MachineRepDetector : IRepDetector {
 
         // Down delta → visual pending for next working rep
         val downDelta = calculateDelta(lastCompleteCounter, n.down)
-        if (downDelta > 0 && _warmupReps >= warmupTarget && !hasPendingWorkingRep) {
+        if (downDelta > 0 && _warmupReps >= warmupTarget && pendingWorkingReps == 0) {
             // In legacy mode, pending shows on down (eccentric valley)
             // since we count at top, visual feedback is inverted
         }

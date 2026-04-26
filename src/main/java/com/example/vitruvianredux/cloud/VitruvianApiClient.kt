@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.cloud
 
 import com.example.vitruvianredux.data.AnalyticsStore
+import io.ktor.client.call.body
 import io.ktor.client.*
 import io.ktor.client.engine.android.*
 import io.ktor.client.request.*
@@ -12,6 +13,12 @@ import timber.log.Timber
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+
+data class FirmwarePackageInfo(
+    val version: String,
+    val md5: String?,
+    val downloadUrl: String,
+)
 
 /**
  * Thin HTTP client for the Vitruvian REST API (api.vitruvian.me).
@@ -308,6 +315,68 @@ object VitruvianApiClient {
         }
     }
 
+    suspend fun getFirmwarePackageInfo(
+        accessToken: String,
+        hardwareVersion: String,
+        majorVersionLte: String? = null,
+    ): FirmwarePackageInfo? {
+        val payload = getFirmwareInfo(accessToken, hardwareVersion, majorVersionLte) ?: return null
+        val sources = listOfNotNull(
+            payload,
+            payload.optJSONObject("firmware"),
+            payload.optJSONObject("download"),
+            payload.optJSONObject("file"),
+        )
+
+        var version: String? = null
+        var md5: String? = null
+        var downloadUrl: String? = null
+        for (source in sources) {
+            version = version ?: source.optFirstString("version", "firmwareVersion", "firmware_version")
+            md5 = md5 ?: source.optFirstString("md5", "checksum", "hash")
+            downloadUrl = downloadUrl ?: source.optFirstString(
+                "downloadUrl",
+                "download_url",
+                "url",
+                "signedUrl",
+                "signed_url",
+            )
+        }
+
+        val resolvedVersion = version?.trim().orEmpty()
+        val resolvedUrl = downloadUrl?.trim().orEmpty()
+        if (resolvedVersion.isBlank() || resolvedUrl.isBlank()) {
+            Timber.tag(TAG).w("getFirmwarePackageInfo: missing version/url keys")
+            return null
+        }
+
+        return FirmwarePackageInfo(
+            version = resolvedVersion,
+            md5 = md5?.trim()?.takeIf { it.isNotEmpty() },
+            downloadUrl = resolveUrl(resolvedUrl),
+        )
+    }
+
+    suspend fun downloadBinary(url: String, accessToken: String? = null): ByteArray? {
+        val resolvedUrl = resolveUrl(url)
+        return try {
+            val response = http.get(resolvedUrl) {
+                if (!accessToken.isNullOrBlank() && resolvedUrl.startsWith(BASE_URL)) {
+                    header(HttpHeaders.Authorization, "Bearer $accessToken")
+                }
+            }
+            if (response.status.isSuccess()) {
+                response.body<ByteArray>()
+            } else {
+                Timber.tag(TAG).w("downloadBinary HTTP ${response.status.value} for $resolvedUrl")
+                null
+            }
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "downloadBinary failed: $resolvedUrl")
+            null
+        }
+    }
+
     // ── Featured content ──────────────────────────────────────────────────────
 
     /**
@@ -368,7 +437,7 @@ object VitruvianApiClient {
      * Vitruvian cloud so it appears in the official Vitruvian app history.
      *
      * Sends a minimal session payload with per-set workout entries.
-     * Machine-specific fields (samples, device, statistics) are omitted;
+        * Device metadata/statistics are still omitted, but machine cable samples are uploaded;
      * [freestyle] is set to true to indicate a manually-recorded session.
      *
      * @param session   The [AnalyticsStore.SessionLog] to upload.
@@ -477,4 +546,22 @@ object VitruvianApiClient {
             false
         }
     }
+}
+
+private fun JSONObject.optStringOrNull(name: String): String? {
+    val value = optString(name).trim()
+    return value.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
+}
+
+private fun JSONObject.optFirstString(vararg names: String): String? {
+    for (name in names) {
+        val value = optStringOrNull(name)
+        if (value != null) return value
+    }
+    return null
+}
+
+private fun resolveUrl(url: String): String {
+    if (url.startsWith("http://") || url.startsWith("https://")) return url
+    return if (url.startsWith("/")) "https://api.vitruvian.me$url" else "https://api.vitruvian.me/$url"
 }

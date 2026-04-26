@@ -135,16 +135,16 @@ object AnalyticsProvenance {
             "Small sample sizes; display-only on rest screen",
         ),
         MetricInfo(
-            "avg_force", Source.UNKNOWN,
-            "Never populated — always 0f",
-            Confidence.NONE,
-            "Dead field in ExerciseStats",
+            "avg_force", Source.DEVICE,
+            "BLE HEURISTIC telemetry → WorkoutSessionEngine.completeCurrentPlayerSet() average concentric kgAvg",
+            Confidence.MEDIUM,
+            "Stored per completed set and available to analytics/session detail when present",
         ),
         MetricInfo(
-            "peak_force", Source.UNKNOWN,
-            "Never populated — always 0f",
-            Confidence.NONE,
-            "Dead field in ExerciseStats",
+            "peak_force", Source.DEVICE,
+            "BLE HEURISTIC telemetry → WorkoutSessionEngine.completeCurrentPlayerSet() max concentric kgMax",
+            Confidence.MEDIUM,
+            "Stored per completed set and available to analytics/session detail when present",
         ),
     )
 

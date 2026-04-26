@@ -100,6 +100,19 @@ object BlePacketFactory {
         return byteArrayOf(0x0A, 0x00, 0x00, 0x00)
     }
 
+    /** Build a BLE DFU chunk response packet for a previously received update request. */
+    fun createBleUpdateResponse(
+        offset: Int,
+        bytes: ByteArray,
+        index: Int,
+    ): ByteArray {
+        Log.d(TAG, "createBleUpdateResponse: index=$index offset=$offset bytes=${bytes.size}B")
+        return ByteArray(4 + bytes.size).also { packet ->
+            putIntLE(packet, 0, offset)
+            bytes.copyInto(packet, destinationOffset = 4)
+        }
+    }
+
     // ── Program params (96-byte activation frame) ─────────────────────────────
 
     /**

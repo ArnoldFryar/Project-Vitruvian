@@ -59,6 +59,7 @@ data class WorkoutStats(
 /** What to do after the rest period ends. */
 sealed class NextStep {
     data class NextSet(
+        val flatIndex: Int,
         val setIndex: Int,
         val totalSets: Int,
         val exerciseName: String,

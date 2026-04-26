@@ -7,6 +7,10 @@ import com.example.vitruvianredux.data.ProgramBackingStore
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SessionRepository
 import com.example.vitruvianredux.data.WorkoutHistoryStore
+import com.example.vitruvianredux.data.WorkoutSessionRecord
+import com.example.vitruvianredux.data.db.ExerciseHistoryEntity
+import com.example.vitruvianredux.data.db.SetHistoryEntity
+import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.util.InstallationId
 import timber.log.Timber
 import java.time.Instant
@@ -116,60 +120,51 @@ object SyncServiceLocator {
      * [AnalyticsStore] and [WorkoutHistoryStore] so charts and history
      * reflect synced data from other devices.
      */
-    fun reconcileAfterSync() {
+    suspend fun reconcileAfterSync() {
         if (!isInitialized) return
         try {
             val synced = sessionRepo.loadActive()
-            val existingLogIds = AnalyticsStore.logsFlow.value.map { it.id }.toSet()
             val existingLogTimes = AnalyticsStore.logsFlow.value.map { it.endTimeMs }.toSet()
             val existingHistDates = WorkoutHistoryStore.historyFlow.value
-                .map { "${it.date}_${it.totalSets}_${it.totalReps}_${it.durationSec}" }.toSet()
+                .map { "${it.date}_${it.totalSets}_${it.totalReps}_${it.durationSec}" }
+                .toMutableSet()
+            val historyDao = SessionLogRepository.exerciseHistoryDao()
 
             var imported = 0
+            var upgraded = 0
             for (session in synced) {
-                // Skip if already in AnalyticsStore (by ID or endTime match)
-                if (session.id in existingLogIds || session.endedAt in existingLogTimes) continue
                 if (session.endedAt == 0L || session.durationSec == 0) continue // skip incomplete
+
+                val existingLog = AnalyticsStore.sessionById(session.id)
+                if (existingLog == null && session.endedAt in existingLogTimes) continue
+
+                val exercises = historyDao.getBySessionId(session.id)
+                val sets = historyDao.getSetsBySessionId(session.id)
 
                 val sessionDate = Instant.ofEpochMilli(session.endedAt)
                     .atZone(ZoneId.systemDefault()).toLocalDate()
-                val histKey = "${sessionDate}_${session.totalSets}_${session.totalReps}_${session.durationSec}"
+                val log = buildAnalyticsLog(session, existingLog, exercises, sets)
+                if (shouldUpsertAnalyticsLog(existingLog, log)) {
+                    AnalyticsStore.upsert(log)
+                    if (existingLog == null) imported++ else upgraded++
+                }
+
+                val histKey = "${sessionDate}_${log.totalSets}_${log.totalReps}_${log.durationSec}"
                 if (histKey in existingHistDates) continue
-
-                // Import to AnalyticsStore
-                val log = AnalyticsStore.SessionLog(
-                    id              = session.id,
-                    startTimeMs     = session.startedAt,
-                    endTimeMs       = session.endedAt,
-                    durationSec     = session.durationSec,
-                    programName     = session.name.takeIf { it.isNotBlank() },
-                    dayName         = null,
-                    exerciseNames   = emptyList(), // not available from sync record
-                    totalSets       = session.totalSets,
-                    totalReps       = session.totalReps,
-                    totalVolumeKg   = session.totalVolumeKg.toDouble(),
-                    volumeAvailable = session.totalVolumeKg > 0f,
-                    heaviestLiftLb  = 0,
-                    calories        = 0,
-                    createdAt       = session.endedAt,
-                )
-                AnalyticsStore.record(log)
-
-                // Import to WorkoutHistoryStore
                 val histRecord = WorkoutHistoryStore.WorkoutRecord(
                     date          = sessionDate,
-                    exerciseNames = emptyList(),
+                    exerciseNames = log.exerciseNames,
                     muscleGroups  = emptyList(),
-                    totalVolumeKg = session.totalVolumeKg.toDouble(),
-                    durationSec   = session.durationSec,
-                    totalSets     = session.totalSets,
-                    totalReps     = session.totalReps,
-                    programName   = session.name.takeIf { it.isNotBlank() },
+                    totalVolumeKg = log.totalVolumeKg,
+                    durationSec   = log.durationSec,
+                    totalSets     = log.totalSets,
+                    totalReps     = log.totalReps,
+                    programName   = log.programName,
                 )
                 WorkoutHistoryStore.record(histRecord)
-                imported++
+                existingHistDates += histKey
             }
-            Timber.tag(TAG).i("reconcileAfterSync: imported $imported session(s)")
+            Timber.tag(TAG).i("reconcileAfterSync: imported $imported session(s), upgraded $upgraded session(s)")
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "reconcileAfterSync failed")
         }
@@ -190,7 +185,7 @@ object SyncServiceLocator {
                 if (log.id in existingIds) continue
                 if (log.durationSec == 0) continue
                 sessionRepo.save(
-                    com.example.vitruvianredux.data.WorkoutSessionRecord(
+                    WorkoutSessionRecord(
                         id            = log.id,
                         programId     = null,
                         name          = log.programName ?: log.exerciseNames.firstOrNull() ?: "Workout",
@@ -209,6 +204,127 @@ object SyncServiceLocator {
             Timber.tag(TAG).e(e, "exportToSessionRepo failed")
         }
     }
+
+    private fun buildAnalyticsLog(
+        session: WorkoutSessionRecord,
+        existingLog: AnalyticsStore.SessionLog?,
+        exercises: List<ExerciseHistoryEntity>,
+        sets: List<SetHistoryEntity>,
+    ): AnalyticsStore.SessionLog {
+        val exerciseNames = exercises.map { it.exerciseName }
+            .ifEmpty { existingLog?.exerciseNames.orEmpty() }
+            .distinct()
+        val exerciseSets = mergeExerciseSets(existingLog, sets)
+        val completedSets = exerciseSets.filter { !it.skipped }
+        val avgQualityScore = completedSets.mapNotNull { it.avgQualityScore }
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+            ?.toInt()
+
+        return AnalyticsStore.SessionLog(
+            id = session.id,
+            startTimeMs = existingLog?.startTimeMs ?: session.startedAt,
+            endTimeMs = session.endedAt,
+            durationSec = session.durationSec,
+            programName = session.name.takeIf { it.isNotBlank() } ?: existingLog?.programName,
+            dayName = existingLog?.dayName,
+            exerciseNames = exerciseNames,
+            totalSets = completedSets.size.takeIf { it > 0 } ?: session.totalSets,
+            totalReps = completedSets.sumOf { it.reps }.takeIf { it > 0 } ?: session.totalReps,
+            totalVolumeKg = completedSets.sumOf { it.volumeKg.toDouble() }
+                .takeIf { it > 0.0 }
+                ?: existingLog?.totalVolumeKg
+                ?: session.totalVolumeKg.toDouble(),
+            volumeAvailable = completedSets.any { it.volumeKg > 0f }
+                || existingLog?.volumeAvailable == true
+                || session.totalVolumeKg > 0f,
+            heaviestLiftLb = completedSets.maxOfOrNull { it.weightLb }
+                ?: existingLog?.heaviestLiftLb
+                ?: exercises.maxOfOrNull { it.heaviestWeightLb }
+                ?: 0,
+            calories = existingLog?.calories ?: 0,
+            createdAt = existingLog?.createdAt ?: session.endedAt,
+            exerciseSets = exerciseSets,
+            avgQualityScore = avgQualityScore ?: existingLog?.avgQualityScore ?: exercises.mapNotNull { it.avgQualityScore }
+                .takeIf { it.isNotEmpty() }
+                ?.average()
+                ?.toInt(),
+            notes = existingLog?.notes.orEmpty(),
+            trainingMode = existingLog?.trainingMode,
+        )
+    }
+
+    private fun mergeExerciseSets(
+        existingLog: AnalyticsStore.SessionLog?,
+        roomSets: List<SetHistoryEntity>,
+    ): List<AnalyticsStore.ExerciseSetLog> {
+        val existingByKey = existingLog?.exerciseSets
+            ?.associateBy { exerciseSetKey(it.exerciseName, it.setIndex) }
+            .orEmpty()
+        if (roomSets.isEmpty()) return existingLog?.exerciseSets.orEmpty()
+
+        val merged = roomSets
+            .sortedWith(compareBy<SetHistoryEntity> { it.exerciseName }.thenBy { it.setIndex })
+            .map { roomSet ->
+                val existing = existingByKey[exerciseSetKey(roomSet.exerciseName, roomSet.setIndex)]
+                AnalyticsStore.ExerciseSetLog(
+                    exerciseId = existing?.exerciseId.orEmpty(),
+                    exerciseName = roomSet.exerciseName,
+                    muscleGroups = existing?.muscleGroups.orEmpty(),
+                    muscles = existing?.muscles ?: existing?.muscleGroups.orEmpty(),
+                    setIndex = roomSet.setIndex,
+                    reps = roomSet.reps,
+                    weightLb = roomSet.weightLb,
+                    volumeKg = roomSet.volumeKg,
+                    avgQualityScore = roomSet.avgQualityScore ?: existing?.avgQualityScore,
+                    avgRom = roomSet.avgRom ?: existing?.avgRom,
+                    avgTempo = roomSet.avgTempo ?: existing?.avgTempo,
+                    avgSymmetry = roomSet.avgSymmetry ?: existing?.avgSymmetry,
+                    avgSmoothness = roomSet.avgSmoothness ?: existing?.avgSmoothness,
+                    numCables = existing?.numCables ?: 2,
+                    skipped = roomSet.reps <= 0 && roomSet.weightLb <= 0 && roomSet.volumeKg <= 0f,
+                    avgForce = roomSet.avgForce.takeIf { it > 0f } ?: existing?.avgForce ?: 0f,
+                    peakForce = roomSet.peakForce.takeIf { it > 0f } ?: existing?.peakForce ?: 0f,
+                    echoLevel = roomSet.echoLevel ?: existing?.echoLevel,
+                    eccentricLoadPct = roomSet.eccentricLoadPct.takeIf { it != 100 }
+                        ?: existing?.eccentricLoadPct
+                        ?: 100,
+                    telemetryAvgLeftForce = existing?.telemetryAvgLeftForce ?: 0f,
+                    telemetryAvgRightForce = existing?.telemetryAvgRightForce ?: 0f,
+                    telemetryBalancePct = existing?.telemetryBalancePct ?: 0,
+                    telemetryFinishForcePct = existing?.telemetryFinishForcePct ?: 100,
+                    telemetrySampleCount = existing?.telemetrySampleCount ?: 0,
+                    cableSamplesLeft = existing?.cableSamplesLeft.orEmpty(),
+                    cableSamplesRight = existing?.cableSamplesRight.orEmpty(),
+                )
+            }
+
+        val mergedKeys = merged.map { exerciseSetKey(it.exerciseName, it.setIndex) }.toSet()
+        val existingOnly = existingLog?.exerciseSets.orEmpty()
+            .filterNot { exerciseSetKey(it.exerciseName, it.setIndex) in mergedKeys }
+        return merged + existingOnly
+    }
+
+    private fun shouldUpsertAnalyticsLog(
+        existingLog: AnalyticsStore.SessionLog?,
+        candidate: AnalyticsStore.SessionLog,
+    ): Boolean {
+        if (existingLog == null) return true
+        if (existingLog.exerciseSets.isEmpty() && candidate.exerciseSets.isNotEmpty()) return true
+        if (existingLog.exerciseNames.isEmpty() && candidate.exerciseNames.isNotEmpty()) return true
+        if (existingLog.heaviestLiftLb == 0 && candidate.heaviestLiftLb > 0) return true
+        if (!existingLog.volumeAvailable && candidate.volumeAvailable) return true
+        val existingMachineData = existingLog.exerciseSets.any {
+            it.avgForce > 0f || it.peakForce > 0f || it.echoLevel != null || it.eccentricLoadPct != 100
+        }
+        val candidateMachineData = candidate.exerciseSets.any {
+            it.avgForce > 0f || it.peakForce > 0f || it.echoLevel != null || it.eccentricLoadPct != 100
+        }
+        return !existingMachineData && candidateMachineData
+    }
+
+    private fun exerciseSetKey(exerciseName: String, setIndex: Int): String =
+        "$exerciseName::$setIndex"
 
     // ── SharedPreferences-backed store (reuses ProgramBackingStore interface) ─
 

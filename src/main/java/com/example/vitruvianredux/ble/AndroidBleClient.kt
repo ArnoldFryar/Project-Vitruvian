@@ -35,6 +35,7 @@ private val NOTIFY_CHAR_UUIDS: List<String> = BleProtocolConstants.NOTIFY_CHAR_U
 private const val CONNECT_TIMEOUT_MS           = 12_000L
 private const val SERVICE_DISCOVERY_TIMEOUT_MS =  8_000L
 private const val WRITE_TIMEOUT_MS             =  3_000L
+private const val REQUESTED_MTU                =    247
 
 private fun isVitruvianDevice(name: String?) =
     name != null && (name.startsWith("Vitruvian", ignoreCase = true) ||
@@ -58,6 +59,7 @@ class AndroidBleClient(context: Context) {
     // Readiness tracking
     @Volatile private var writeCharacteristic: BluetoothGattCharacteristic? = null
     @Volatile private var allNotificationsEnabled = false
+    @Volatile private var servicesDiscoveryStarted = false
     private val pendingNotifyQueue = ArrayDeque<String>()
 
     // Timeout runnables
@@ -254,6 +256,7 @@ class AndroidBleClient(context: Context) {
         pendingNotifyQueue.clear()
         writeQueue.clear()
         writeInFlight = false
+        servicesDiscoveryStarted = false
         resetReadiness()
         _state.value = BleConnectionState.Disconnected
         updateDiagnostics()
@@ -422,6 +425,24 @@ class AndroidBleClient(context: Context) {
         }
     }
 
+    private fun startServiceDiscovery(gatt: BluetoothGatt, reason: String) {
+        if (servicesDiscoveryStarted) {
+            Log.d(TAG, "startServiceDiscovery: already started ($reason)")
+            return
+        }
+        servicesDiscoveryStarted = true
+        val started = gatt.discoverServices()
+        Log.d(TAG, "startServiceDiscovery($reason): queued=$started")
+        if (!started) {
+            servicesDiscoveryStarted = false
+            val msg = "Service discovery failed to start"
+            _state.value = BleConnectionState.Error(msg)
+            SessionEventLog.append(SessionEventLog.EventType.ERROR, msg)
+            updateDiagnostics(lastError = msg)
+            gatt.disconnect()
+        }
+    }
+
     // GATT callback
 
     private fun gattCallback(device: BleDevice) = object : BluetoothGattCallback() {
@@ -434,6 +455,7 @@ class AndroidBleClient(context: Context) {
                     Log.d(TAG, "onConnectionStateChange: CONNECTED [${device.name}]  status=$status")
                     connectTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                     connectTimeoutRunnable = null
+                    servicesDiscoveryStarted = false
 
                     _state.value = BleConnectionState.Connected(device)
                     SessionEventLog.append(SessionEventLog.EventType.STATE, "Connected: ${device.name}")
@@ -454,13 +476,24 @@ class AndroidBleClient(context: Context) {
                     }
                     discoveryTimeoutRunnable = dtRunnable
                     mainHandler.postDelayed(dtRunnable, SERVICE_DISCOVERY_TIMEOUT_MS)
-                    gatt.discoverServices()
+
+                    val mtuRequested = try {
+                        gatt.requestMtu(REQUESTED_MTU)
+                    } catch (e: SecurityException) {
+                        Log.w(TAG, "requestMtu($REQUESTED_MTU): permission issue: ${e.message}")
+                        false
+                    }
+                    Log.d(TAG, "requestMtu($REQUESTED_MTU): $mtuRequested")
+                    if (!mtuRequested) {
+                        startServiceDiscovery(gatt, "mtu-unavailable")
+                    }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     Log.d(TAG, "onConnectionStateChange: DISCONNECTED [${device.name}]  status=$status")
                     cancelAllTimeouts()
                     writeInFlight = false
                     writeQueue.clear()
+                    servicesDiscoveryStarted = false
                     resetReadiness()
                     _state.value = BleConnectionState.Disconnected
                     this@AndroidBleClient.gatt?.close()
@@ -478,6 +511,18 @@ class AndroidBleClient(context: Context) {
                 Log.e(TAG, "onConnectionStateChange: permission denied", e)
                 _state.value = BleConnectionState.Error("Bluetooth permission denied")
             }
+        }
+
+        override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
+            _lastGattEventAt.value = System.currentTimeMillis()
+            Log.d(TAG, "onMtuChanged: mtu=$mtu status=$status")
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                startServiceDiscovery(gatt, "mtu-changed")
+            } else {
+                Log.w(TAG, "onMtuChanged: falling back to service discovery after status=$status")
+                startServiceDiscovery(gatt, "mtu-fallback")
+            }
+            updateDiagnostics()
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {

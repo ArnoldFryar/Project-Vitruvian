@@ -280,50 +280,12 @@ internal fun ActivePlayerContent(
                             )
 
                             if (isActive && machineHeuristic != null) {
-                                val l = machineHeuristic.left.concentric
-                                val r = machineHeuristic.right.concentric
-                                val total = (l.kgAvg + r.kgAvg).coerceAtLeast(0.001f)
-                                val balL = (l.kgAvg / total * 100).toInt()
-                                val balR = 100 - balL
-                                Row(
+                                MachineInsightPanel(
+                                    heuristic = machineHeuristic,
                                     modifier = Modifier
                                         .padding(bottom = AppDimens.Spacing.xxs)
-                                        .fillMaxWidth(0.8f),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text  = "${ "%.0f".format(l.kgMax) }kg",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                        )
-                                        Text(
-                                            text  = "${ "%.0f".format(l.wattMax) }W â—„",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    Text(
-                                        text  = "$balL/$balR",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.align(Alignment.CenterVertically),
-                                    )
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text  = "${ "%.0f".format(r.kgMax) }kg",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary,
-                                        )
-                                        Text(
-                                            text  = "â–º ${ "%.0f".format(r.wattMax) }W",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
+                                        .fillMaxWidth(0.9f),
+                                )
                             }
 
                             Surface(
@@ -1109,4 +1071,81 @@ internal fun ActivePlayerContent(
 
 
     }  // Box
+}
+
+@Composable
+private fun MachineInsightPanel(
+    heuristic: MachineHeuristic,
+    modifier: Modifier = Modifier,
+) {
+    val leftCon = heuristic.left.concentric
+    val rightCon = heuristic.right.concentric
+    val leftEcc = heuristic.left.eccentric
+    val rightEcc = heuristic.right.eccentric
+
+    val concentricAvgKg = leftCon.kgAvg + rightCon.kgAvg
+    val eccentricAvgKg = leftEcc.kgAvg + rightEcc.kgAvg
+    val peakPowerW = leftCon.wattMax + rightCon.wattMax
+    val totalConcentric = concentricAvgKg.coerceAtLeast(0.001f)
+    val leftBalancePct = ((leftCon.kgAvg / totalConcentric) * 100f).roundToInt()
+
+    val balanceCue = when {
+        leftBalancePct >= 58 -> "Right side needs more drive"
+        leftBalancePct <= 42 -> "Left side needs more drive"
+        else -> "Drive looks balanced"
+    }
+    val balanceSummary = when {
+        leftBalancePct >= 58 -> "$leftBalancePct% left bias"
+        leftBalancePct <= 42 -> "${100 - leftBalancePct}% right bias"
+        else -> "${kotlin.math.abs(50 - leftBalancePct)}% gap"
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(AppDimens.Corner.sm),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f),
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.xs_sm),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                shape = RoundedCornerShape(AppDimens.Corner.pill),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+            ) {
+                Text(
+                    text = "LIVE",
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs_sm, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = AppDimens.LetterSpacing.normal,
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = balanceCue,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
+                Text(
+                    text = "$balanceSummary • Avg ${"%.1f".format(concentricAvgKg)} kg • Peak ${peakPowerW.roundToInt()} W • Ecc ${"%.1f".format(eccentricAvgKg)} kg",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 }

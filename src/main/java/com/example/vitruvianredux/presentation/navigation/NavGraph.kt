@@ -43,6 +43,7 @@ enum class Route(val path: String) {
     TemplatePreview("template_preview"),
     ExerciseDataDetail("exercise_data"),
     AnalyticsDashboard("analytics_dashboard"),
+    TelemetryDetail("telemetry_detail"),
     OfficialPrograms("official_programs"),
     OfficialProgramDetail("official_program_detail"),
 }
@@ -136,7 +137,18 @@ fun AppNavHost(
             AccountScreen(onBack = { nav.popBackStack() })
         }
         composable(Route.AnalyticsDashboard.path) {
-            AnalyticsDashboardScreen(onBack = { nav.popBackStack() })
+            AnalyticsDashboardScreen(
+                onBack = { nav.popBackStack() },
+                onNavigateToTelemetry = { nav.navigate(Route.TelemetryDetail.path) },
+            )
+        }
+        composable(Route.TelemetryDetail.path) {
+            TelemetryInsightsScreen(
+                onBack = { nav.popBackStack() },
+                onNavigateToSessionDetail = { sessionId ->
+                    nav.navigate("${Route.SessionDetail.path}/$sessionId")
+                },
+            )
         }
         if (BuildConfig.IS_DEBUG_BUILD) {
             composable(Route.Debug.path) { DebugScreen(innerPadding, bleVM, workoutVM, onBack = { nav.popBackStack() }) }

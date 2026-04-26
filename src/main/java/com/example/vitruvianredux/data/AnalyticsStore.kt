@@ -57,6 +57,11 @@ object AnalyticsStore {
         val peakForce: Float = 0f,
         val echoLevel: String? = null,
         val eccentricLoadPct: Int = 100,
+        val telemetryAvgLeftForce: Float = 0f,
+        val telemetryAvgRightForce: Float = 0f,
+        val telemetryBalancePct: Int = 0,
+        val telemetryFinishForcePct: Int = 100,
+        val telemetrySampleCount: Int = 0,
         /** Raw cable telemetry for Vitruvian API upload. NOT persisted to SharedPreferences. */
         val cableSamplesLeft: List<CableSample> = emptyList(),
         val cableSamplesRight: List<CableSample> = emptyList(),
@@ -155,6 +160,17 @@ object AnalyticsStore {
         _logs.update { it + log }
         persist()
         Timber.tag("analytics").d("recorded session ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")
+    }
+
+    fun upsert(log: SessionLog) {
+        val existingById = _logs.value.any { it.id == log.id }
+        if (existingById) {
+            _logs.update { current -> current.map { if (it.id == log.id) log else it } }
+            persist()
+            Timber.tag("analytics").d("updated session ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")
+            return
+        }
+        record(log)
     }
 
     fun clear() {
@@ -391,6 +407,13 @@ object AnalyticsStore {
                                 if (s.peakForce > 0f) put("peakForce", s.peakForce.toDouble())
                                 if (s.echoLevel != null) put("echoLevel", s.echoLevel)
                                 if (s.eccentricLoadPct != 100) put("eccentricLoadPct", s.eccentricLoadPct)
+                                if (s.telemetrySampleCount > 0) {
+                                    put("telemetryAvgLeftForce", s.telemetryAvgLeftForce.toDouble())
+                                    put("telemetryAvgRightForce", s.telemetryAvgRightForce.toDouble())
+                                    put("telemetryBalancePct", s.telemetryBalancePct)
+                                    put("telemetryFinishForcePct", s.telemetryFinishForcePct)
+                                    put("telemetrySampleCount", s.telemetrySampleCount)
+                                }
                             })
                         }
                     })
@@ -455,6 +478,11 @@ object AnalyticsStore {
                                 peakForce       = so.optDouble("peakForce", 0.0).toFloat(),
                                 echoLevel       = so.optString("echoLevel", "").takeIf { it.isNotEmpty() },
                                 eccentricLoadPct = so.optInt("eccentricLoadPct", 100),
+                                telemetryAvgLeftForce = so.optDouble("telemetryAvgLeftForce", 0.0).toFloat(),
+                                telemetryAvgRightForce = so.optDouble("telemetryAvgRightForce", 0.0).toFloat(),
+                                telemetryBalancePct = so.optInt("telemetryBalancePct", 0),
+                                telemetryFinishForcePct = so.optInt("telemetryFinishForcePct", 100),
+                                telemetrySampleCount = so.optInt("telemetrySampleCount", 0),
                             )
                         }
                     } ?: emptyList(),

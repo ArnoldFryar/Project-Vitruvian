@@ -2,9 +2,15 @@ package com.example.vitruvianredux.presentation.screen
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -15,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +47,7 @@ import com.caverock.androidsvg.SVG
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.MuscleHeatmap
 import com.example.vitruvianredux.data.PrTracker
+import com.example.vitruvianredux.data.TelemetryInsights
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.components.AppEmptyState
@@ -76,6 +84,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun AnalyticsDashboardScreen(
     onBack: () -> Unit = {},
+    onNavigateToTelemetry: () -> Unit = {},
 ) {
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
@@ -124,6 +133,8 @@ fun AnalyticsDashboardScreen(
                 return@BoxWithConstraints
             }
 
+            val showTrainingModes = remember(allLogs) { allLogs.any { !it.trainingMode.isNullOrBlank() } }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -144,12 +155,32 @@ fun AnalyticsDashboardScreen(
                             WeeklyFrequencyChart(allLogs)
                         }
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
+                    if (showTrainingModes) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                                MostTrainedExercises(allLogs)
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                                ModeBreakdownSection(allLogs)
+                            }
+                        }
+                    } else {
+                        MostTrainedExercises(allLogs)
+                    }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(colGap),
+                        verticalAlignment = Alignment.Top,
+                    ) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
-                            MostTrainedExercises(allLogs)
+                            ForceTrendSection(allLogs, unitSystem)
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
-                            ModeBreakdownSection(allLogs)
+                            EchoEccentricUsageSection(allLogs)
+                            TelemetryBalanceSection(
+                                logs = allLogs,
+                                onNavigateToTelemetry = onNavigateToTelemetry,
+                            )
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(colGap)) {
@@ -175,6 +206,12 @@ fun AnalyticsDashboardScreen(
                     MostTrainedExercises(allLogs)
                     MuscleSilhouetteSection(allLogs, catalogLookup)
                     ModeBreakdownSection(allLogs)
+                    ForceTrendSection(allLogs, unitSystem)
+                    EchoEccentricUsageSection(allLogs)
+                    TelemetryBalanceSection(
+                        logs = allLogs,
+                        onNavigateToTelemetry = onNavigateToTelemetry,
+                    )
                     PersonalRecordsSection(allLogs, unitSystem)
                     RecentPrsSection(allLogs, unitSystem)
                     StallDetectorSection(allLogs)
@@ -217,7 +254,15 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
             modifier = if (isTablet) Modifier.fillMaxWidth() else Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
         ) {
-            val cardMod = if (isTablet) Modifier.weight(1f) else Modifier.width(120.dp)
+            val cardMod = if (isTablet) {
+                Modifier
+                    .weight(1f)
+                    .heightIn(min = AnalyticsLayout.statCardMinHeight)
+            } else {
+                Modifier
+                    .width(AnalyticsLayout.statCardWidth)
+                    .heightIn(min = AnalyticsLayout.statCardMinHeight)
+            }
             StatCard("Sessions", "$totalSessions", cs.primary, cardMod)
             StatCard("Volume", UnitConversions.formatVolumeFromKg(totalVolume, unitSystem) + " $unitLabel", BrandBrass, cardMod)
             StatCard("Reps", "$totalReps", Success, cardMod)
@@ -230,33 +275,37 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
 }
 
 @Composable
-private fun StatCard(label: String, value: String, accent: Color, modifier: Modifier = Modifier.width(120.dp)) {
+private fun StatCard(label: String, value: String, accent: Color, modifier: Modifier = Modifier.width(AnalyticsLayout.statCardWidth)) {
     val ext = com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors.current
-    val shape = MaterialTheme.shapes.medium
-    Box(
+    Surface(
         modifier = modifier
-            .clip(shape)
-            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
-            .border(
-                BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
-                shape,
-            ),
+            .clip(MaterialTheme.shapes.large),
+        color = Color.Transparent,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Column(
-            modifier = Modifier.padding(AppDimens.Spacing.md_sm),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        Box(
+            modifier = Modifier
+                .background(Brush.verticalGradient(listOf(ext.surface2.copy(alpha = 0.98f), ext.surface1.copy(alpha = 0.94f))))
+                .padding(horizontal = AppDimens.Spacing.md_sm2, vertical = AppDimens.Spacing.md_sm),
         ) {
-            Text(
-                value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = accent,
-            )
-            Text(
-                label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = accent,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -309,7 +358,7 @@ private fun VolumePerSessionChart(logs: List<AnalyticsStore.SessionLog>, unitSys
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(176.dp)
+                    .height(AnalyticsLayout.chartHeight)
                     .pointerInput(recent) {
                         detectTapGestures { offset ->
                             val gap = size.width.toFloat() / recent.size
@@ -433,7 +482,7 @@ private fun WeeklyFrequencyChart(logs: List<AnalyticsStore.SessionLog>) {
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(164.dp)
+                    .height(AnalyticsLayout.chartHeight)
                     .pointerInput(data) {
                         detectTapGestures { offset ->
                             val gap = size.width.toFloat() / data.size
@@ -554,7 +603,7 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.width(AppDimens.Spacing.sm))
-                Box(modifier = Modifier.width(120.dp).height(12.dp)) {
+                Box(modifier = Modifier.width(AnalyticsLayout.horizontalBarWidth).height(AnalyticsLayout.horizontalBarHeight)) {
                     val fraction = count.toFloat() / maxCount
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawRoundRect(
@@ -579,7 +628,7 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
         }
     }
 }
@@ -722,7 +771,7 @@ private fun MuscleSilhouetteSection(
         }
         when (val pair = bitmaps) {
             null -> Box(
-                modifier = Modifier.fillMaxWidth().height(220.dp),
+                modifier = Modifier.fillMaxWidth().height(AnalyticsLayout.heatmapHeight),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(modifier = Modifier.size(32.dp))
@@ -797,6 +846,33 @@ private fun MuscleSilhouetteSection(
 
 private data class ModeMeta(val label: String, val color: Color)
 
+private data class ForceSessionPoint(
+    val endTimeMs: Long,
+    val avgForceKg: Double,
+    val peakForceKg: Double,
+)
+
+private data class TelemetrySessionPoint(
+    val endTimeMs: Long,
+    val balancePct: Int,
+    val sampledSetCount: Int,
+    val dominantSide: String,
+    val finishTrend: String,
+)
+
+private object AnalyticsLayout {
+    val statCardWidth = 132.dp
+    val statCardMinHeight = 88.dp
+    val chartHeight = 168.dp
+    val heatmapHeight = 208.dp
+    val horizontalBarWidth = 112.dp
+    val horizontalBarHeight = 12.dp
+    val recordBarWidth = 96.dp
+    val recordBarHeight = 10.dp
+    val rowGap = AppDimens.Spacing.sm
+    val compactRowPadding = AppDimens.Spacing.md_sm
+}
+
 private val MODE_COLORS = mapOf(
     "pump"       to ModeMeta("Pump",       AccentAmber),
     "echo"       to ModeMeta("Echo",       BrandBrass),
@@ -806,6 +882,382 @@ private val MODE_COLORS = mapOf(
     "external"   to ModeMeta("External",   BrandOxblood),
     "assessment" to ModeMeta("Assessment", Warning),
 )
+
+private val ECHO_COLORS = mapOf(
+    "hard" to BrandClay,
+    "harder" to AccentAmber,
+    "hardest" to AccentRed,
+    "epic" to BrandBrass,
+)
+
+@Composable
+private fun ForceTrendSection(logs: List<AnalyticsStore.SessionLog>, unitSystem: UnitsStore.UnitSystem) {
+    val recent = remember(logs) {
+        logs.sortedByDescending { it.endTimeMs }
+            .mapNotNull { session ->
+                val sets = session.exerciseSets.filter { !it.skipped }
+                val avgValues = sets.mapNotNull { it.avgForce.takeIf { force -> force > 0f }?.toDouble() }
+                val peakValues = sets.mapNotNull { it.peakForce.takeIf { force -> force > 0f }?.toDouble() }
+                val peak = peakValues.maxOrNull() ?: return@mapNotNull null
+                val avg = avgValues.takeIf { it.isNotEmpty() }?.average() ?: peak
+                ForceSessionPoint(
+                    endTimeMs = session.endTimeMs,
+                    avgForceKg = avg,
+                    peakForceKg = peak,
+                )
+            }
+            .take(12)
+            .reversed()
+    }
+    if (recent.isEmpty()) return
+
+    val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
+    val zone = ZoneId.systemDefault()
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
+    val maxPeak = recent.maxOf { it.peakForceKg }.coerceAtLeast(1.0)
+    val avgForce = recent.map { it.avgForceKg }.average()
+    val highlightColor = Success
+    val barColor = cs.primary
+    val bgColor = ext.surface3.copy(alpha = 0.72f)
+    val lineColor = cs.outlineVariant.copy(alpha = 0.55f)
+    var selectedBar by remember(recent.size) { mutableIntStateOf(recent.lastIndex) }
+    val selected = recent[selectedBar.coerceIn(0, recent.lastIndex)]
+    val selectedDate = remember(selected.endTimeMs) {
+        Instant.ofEpochMilli(selected.endTimeMs).atZone(zone).toLocalDate()
+    }
+
+    PremiumChartCard(
+        title = "Force Trend",
+        subtitle = "Peak bars with average-force markers from sessions that reported machine heuristics.",
+        accent = highlightColor,
+        metrics = listOf(
+            ChartMetric("Peak", UnitConversions.formatWeightFromKg(maxPeak, unitSystem), highlightColor),
+            ChartMetric("Average", UnitConversions.formatWeightFromKg(avgForce, unitSystem), barColor),
+            ChartMetric("Sessions", recent.size.toString(), cs.onSurface),
+        ),
+        selectionBadge = "${dateFormatter.format(selectedDate)} • peak ${UnitConversions.formatWeightFromKg(selected.peakForceKg, unitSystem)}",
+    ) {
+        PremiumChartPlotSurface(accent = highlightColor) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(AnalyticsLayout.chartHeight)
+                    .pointerInput(recent) {
+                        detectTapGestures { offset ->
+                            val gap = size.width.toFloat() / recent.size
+                            val idx = (offset.x / gap).toInt().coerceIn(0, recent.size - 1)
+                            selectedBar = idx
+                        }
+                    }
+            ) {
+                val totalBars = recent.size
+                val barGap = size.width / totalBars
+                val barWidth = barGap * 0.58f
+                val plotTop = 8.dp.toPx()
+                val labelSpace = 20.dp.toPx()
+                val plotBottom = size.height - labelSpace
+                val plotHeight = plotBottom - plotTop
+
+                listOf(0.25f, 0.5f, 0.75f, 1f).forEach { fraction ->
+                    val y = plotBottom - plotHeight * fraction
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx(),
+                    )
+                }
+
+                recent.forEachIndexed { index, point ->
+                    val x = index * barGap + (barGap - barWidth) / 2f
+                    val isSelected = index == selectedBar
+                    val peakRatio = (point.peakForceKg / maxPeak).toFloat().coerceIn(0f, 1f)
+                    val avgRatio = (point.avgForceKg / maxPeak).toFloat().coerceIn(0f, 1f)
+                    val barHeight = plotHeight * peakRatio
+                    val barTop = plotBottom - barHeight
+                    val avgY = plotBottom - plotHeight * avgRatio
+
+                    drawRoundRect(
+                        color = bgColor,
+                        topLeft = Offset(x, plotTop),
+                        size = Size(barWidth, plotHeight),
+                        cornerRadius = CornerRadius(12f, 12f),
+                    )
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            colors = if (isSelected) {
+                                listOf(highlightColor, barColor)
+                            } else {
+                                listOf(barColor.copy(alpha = 0.92f), barColor.copy(alpha = 0.54f))
+                            },
+                            startY = barTop,
+                            endY = plotBottom,
+                        ),
+                        topLeft = Offset(x, barTop),
+                        size = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(12f, 12f),
+                    )
+                    drawLine(
+                        color = AccentAmber,
+                        start = Offset(x + 3.dp.toPx(), avgY),
+                        end = Offset(x + barWidth - 3.dp.toPx(), avgY),
+                        strokeWidth = 2.dp.toPx(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EchoEccentricUsageSection(logs: List<AnalyticsStore.SessionLog>) {
+    data class EchoUsage(val label: String, val count: Int, val color: Color)
+
+    val usage = remember(logs) {
+        val relevantSets = logs.flatMap { session ->
+            session.exerciseSets.filter { set ->
+                !set.skipped && (set.echoLevel != null || set.eccentricLoadPct != 100)
+            }
+        }
+        val echoCounts = relevantSets.mapNotNull { it.echoLevel }
+            .groupingBy { it.lowercase() }
+            .eachCount()
+            .entries
+            .sortedByDescending { it.value }
+            .map { (level, count) ->
+                EchoUsage(
+                    label = level.replaceFirstChar { it.uppercaseChar() },
+                    count = count,
+                    color = ECHO_COLORS[level] ?: BrandBrass,
+                )
+            }
+        val avgEccentric = relevantSets
+            .map { it.eccentricLoadPct }
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+            ?.roundToInt()
+
+        Triple(relevantSets.size, echoCounts, avgEccentric)
+    }
+    val relevantSetCount = usage.first
+    val echoLevels = usage.second
+    val avgEccentric = usage.third
+    if (relevantSetCount == 0) return
+
+    val topEcho = echoLevels.firstOrNull()
+    val maxCount = echoLevels.maxOfOrNull { it.count } ?: 1
+
+    PremiumChartCard(
+        title = "Echo / Eccentric",
+        subtitle = "How often machine-assisted resistance settings appeared in your logged sets.",
+        accent = topEcho?.color ?: BrandBrass,
+        metrics = listOf(
+            ChartMetric("Echo Sets", relevantSetCount.toString(), topEcho?.color ?: BrandBrass),
+            ChartMetric("Levels", echoLevels.size.toString(), MaterialTheme.colorScheme.onSurface),
+            ChartMetric("Avg Ecc", avgEccentric?.let { "$it%" } ?: "—", Warning),
+        ),
+        selectionBadge = topEcho?.label,
+    ) {
+        if (echoLevels.isEmpty()) {
+            Text(
+                "Eccentric load was tracked, but no echo level labels were present in the synced set history.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            echoLevels.forEach { usageRow ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        usageRow.label,
+                        modifier = Modifier.width(72.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Box(modifier = Modifier.weight(1f).height(AnalyticsLayout.horizontalBarHeight)) {
+                        val fraction = usageRow.count.toFloat() / maxCount
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            drawRoundRect(
+                                color = usageRow.color.copy(alpha = 0.18f),
+                                size = Size(size.width, size.height),
+                                cornerRadius = CornerRadius(6f, 6f),
+                            )
+                            drawRoundRect(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(usageRow.color.copy(alpha = 0.85f), usageRow.color),
+                                    endX = size.width * fraction,
+                                ),
+                                size = Size(size.width * fraction, size.height),
+                                cornerRadius = CornerRadius(6f, 6f),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                    Text(
+                        usageRow.count.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(30.dp),
+                        textAlign = TextAlign.End,
+                    )
+                }
+                Spacer(Modifier.height(AppDimens.Spacing.xs))
+            }
+        }
+    }
+}
+
+@Composable
+private fun TelemetryBalanceSection(
+    logs: List<AnalyticsStore.SessionLog>,
+    onNavigateToTelemetry: () -> Unit,
+) {
+    val recent = remember(logs) {
+        logs.sortedByDescending { it.endTimeMs }
+            .mapNotNull { session ->
+                val summary = TelemetryInsights.summarizeSets(session.exerciseSets) ?: return@mapNotNull null
+                TelemetrySessionPoint(
+                    endTimeMs = session.endTimeMs,
+                    balancePct = summary.avgBalancePct,
+                    sampledSetCount = summary.sampledSetCount,
+                    dominantSide = summary.dominantSide,
+                    finishTrend = summary.finishTrend,
+                )
+            }
+            .take(8)
+            .reversed()
+    }
+    if (recent.isEmpty()) return
+
+    val zone = ZoneId.systemDefault()
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
+    var expanded by rememberSaveable(recent.size) { mutableStateOf(false) }
+    val avgBalance = recent.map { it.balancePct }.average().roundToInt()
+    val dominantBias = recent.groupingBy { it.dominantSide }.eachCount().maxByOrNull { it.value }?.key ?: "Balanced"
+    val stableCount = recent.count { it.finishTrend == "Stable finish" }
+    val cs = MaterialTheme.colorScheme
+    val accent = if (dominantBias == "Balanced") Success else Warning
+    val latestPoint = recent.lastOrNull()
+    val collapsedSummary = latestPoint?.let { point ->
+        val latestDate = dateFormatter.format(Instant.ofEpochMilli(point.endTimeMs).atZone(zone).toLocalDate())
+        "${recent.size} recent sessions • latest $latestDate at ${point.balancePct}%"
+    } ?: "${recent.size} recent sessions"
+
+    PremiumChartCard(
+        title = "Cable Balance",
+        subtitle = "Compact telemetry summary from sessions that captured left/right cable force data.",
+        accent = accent,
+        metrics = listOf(
+            ChartMetric("Avg Balance", "$avgBalance%", Success),
+            ChartMetric("Stable Finish", "$stableCount/${recent.size}", cs.primary),
+            ChartMetric("Bias", dominantBias, accent),
+        ),
+        modifier = Modifier.clickable(onClick = onNavigateToTelemetry),
+        selectionBadge = latestPoint?.let { point ->
+            "${dateFormatter.format(Instant.ofEpochMilli(point.endTimeMs).atZone(zone).toLocalDate())} • ${point.balancePct}%"
+        },
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded },
+            color = cs.surfaceVariant.copy(alpha = 0.32f),
+            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+            border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant.copy(alpha = 0.65f)),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs_sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = "Recent Sessions",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = if (expanded) {
+                            "Showing ${recent.size} sessions with left/right cable telemetry."
+                        } else {
+                            collapsedSummary
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    imageVector = if (expanded) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                    contentDescription = if (expanded) "Collapse recent cable balance sessions" else "Expand recent cable balance sessions",
+                    tint = cs.onSurfaceVariant,
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                recent.forEachIndexed { index, point ->
+                    val fraction = (point.balancePct / 100f).coerceIn(0f, 1f)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            dateFormatter.format(Instant.ofEpochMilli(point.endTimeMs).atZone(zone).toLocalDate()),
+                            modifier = Modifier.width(52.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Box(modifier = Modifier.weight(1f).height(AnalyticsLayout.horizontalBarHeight)) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                drawRoundRect(
+                                    color = cs.outlineVariant.copy(alpha = 0.22f),
+                                    size = Size(size.width, size.height),
+                                    cornerRadius = CornerRadius(6f, 6f),
+                                )
+                                drawRoundRect(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(cs.primary.copy(alpha = 0.82f), Success),
+                                        endX = size.width * fraction,
+                                    ),
+                                    size = Size(size.width * fraction, size.height),
+                                    cornerRadius = CornerRadius(6f, 6f),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                        Text(
+                            "${point.balancePct}%",
+                            modifier = Modifier.width(42.dp),
+                            textAlign = TextAlign.End,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        "${point.sampledSetCount} sampled set${if (point.sampledSetCount == 1) "" else "s"} • ${point.finishTrend}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                    if (index < recent.lastIndex) {
+                        Spacer(Modifier.height(AppDimens.Spacing.xs))
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun ModeBreakdownSection(logs: List<AnalyticsStore.SessionLog>) {
@@ -845,7 +1297,7 @@ private fun ModeBreakdownSection(logs: List<AnalyticsStore.SessionLog>) {
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
                 )
-                Box(modifier = Modifier.weight(1f).height(14.dp)) {
+                Box(modifier = Modifier.weight(1f).height(AnalyticsLayout.horizontalBarHeight)) {
                     val fraction = count.toFloat() / maxSets
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawRoundRect(
@@ -872,7 +1324,7 @@ private fun ModeBreakdownSection(logs: List<AnalyticsStore.SessionLog>) {
                     textAlign = TextAlign.End,
                 )
             }
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
         }
     }
 }
@@ -939,7 +1391,7 @@ private fun PersonalRecordsSection(
                 )
                 Spacer(Modifier.width(AppDimens.Spacing.sm))
                 // Bar
-                Box(modifier = Modifier.width(90.dp).height(8.dp)) {
+                Box(modifier = Modifier.width(AnalyticsLayout.recordBarWidth).height(AnalyticsLayout.recordBarHeight)) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawRoundRect(
                             color = accent.copy(alpha = 0.15f),
@@ -1013,17 +1465,20 @@ private fun RecentPrsSection(
 
     val isLb = unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB
     val now = System.currentTimeMillis()
+    val accent = AccentAmber
+    val latestEvent = events.firstOrNull()
 
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-        SectionHeader("Recent PRs")
-        Text(
-            "Latest personal record breakthroughs",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.xs))
-
-        events.forEach { event ->
+    PremiumChartCard(
+        title = "Recent PRs",
+        subtitle = "Latest personal record breakthroughs across your logged sessions.",
+        accent = accent,
+        metrics = listOf(
+            ChartMetric("Entries", events.size.toString(), accent),
+            ChartMetric("Exercises", events.map { it.exerciseName }.distinct().size.toString(), MaterialTheme.colorScheme.onSurface),
+        ),
+        selectionBadge = latestEvent?.exerciseName,
+    ) {
+        events.forEachIndexed { index, event ->
             val daysAgo = ((now - event.sessionEndMs) / 86_400_000L).toInt().coerceAtLeast(0)
             val timeLabel = when {
                 daysAgo == 0 -> "today"
@@ -1048,47 +1503,58 @@ private fun RecentPrsSection(
                 }
             }
 
-            Row(
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                border = BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
             ) {
-                Icon(
-                    AppIcons.Star,
-                    contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier.size(AppDimens.Icon.sm),
-                )
-                Spacer(Modifier.width(AppDimens.Spacing.sm))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        event.exerciseName,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppDimens.Spacing.md_sm, vertical = AnalyticsLayout.compactRowPadding),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        AppIcons.Star,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(AppDimens.Icon.sm),
                     )
-                    Text(
-                        event.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(Modifier.width(AppDimens.Spacing.sm))
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        valueStr,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = iconColor,
-                    )
-                    Text(
-                        timeLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            event.exerciseName,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            event.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            valueStr,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = iconColor,
+                        )
+                        Text(
+                            timeLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            if (index < events.lastIndex) {
+                Spacer(Modifier.height(AnalyticsLayout.rowGap))
+            }
         }
     }
 }
@@ -1143,28 +1609,28 @@ private fun StallDetectorSection(logs: List<AnalyticsStore.SessionLog>) {
     }
     if (stalls.isEmpty()) return
 
-    val cs = MaterialTheme.colorScheme
-
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-        SectionHeader("Stalled Exercises")
-        Text(
-            "Frequent lately but no new PR in 3+ weeks",
-            style = MaterialTheme.typography.bodySmall,
-            color = cs.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.xs))
-
-        stalls.forEach { stall ->
+    PremiumChartCard(
+        title = "Stalled Exercises",
+        subtitle = "Frequent lately but no new PR in 3+ weeks.",
+        accent = Warning,
+        metrics = listOf(
+            ChartMetric("Stalled", stalls.size.toString(), Warning),
+            ChartMetric("Longest", stalls.maxOf { it.weeksSinceLastPr }.toString() + "w", WarningOnContainer),
+        ),
+        selectionBadge = stalls.firstOrNull()?.exerciseName,
+    ) {
+        stalls.forEachIndexed { index, stall ->
             Surface(
-                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                shape = RoundedCornerShape(AppDimens.Corner.md_sm),
                 color = WarningContainer,
                 contentColor = WarningOnContainer,
                 modifier = Modifier.fillMaxWidth(),
+                border = BorderStroke(AppDimens.Stroke.thin, Warning.copy(alpha = 0.28f)),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.sm),
+                        .padding(horizontal = AppDimens.Spacing.md_sm, vertical = AnalyticsLayout.compactRowPadding),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
@@ -1202,7 +1668,9 @@ private fun StallDetectorSection(logs: List<AnalyticsStore.SessionLog>) {
                     }
                 }
             }
-            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            if (index < stalls.lastIndex) {
+                Spacer(Modifier.height(AnalyticsLayout.rowGap))
+            }
         }
     }
 }

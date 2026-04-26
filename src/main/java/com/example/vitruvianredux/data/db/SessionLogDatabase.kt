@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities  = [SessionLog::class, ExerciseHistoryEntity::class, SetHistoryEntity::class, CachedVideoEntity::class],
-    version   = 6,
+    version   = 7,
     exportSchema = true,
 )
 abstract class SessionLogDatabase : RoomDatabase() {
@@ -114,6 +114,15 @@ abstract class SessionLogDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE set_history ADD COLUMN avg_force REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN peak_force REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN echo_level TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN eccentric_load_pct INTEGER NOT NULL DEFAULT 100")
+            }
+        }
+
         /** Return the process-wide singleton, creating it on first call. */
         fun getInstance(context: Context): SessionLogDatabase =
             INSTANCE ?: synchronized(this) {
@@ -122,7 +131,7 @@ abstract class SessionLogDatabase : RoomDatabase() {
                     SessionLogDatabase::class.java,
                     DB_NAME,
                 )
-                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build().also { INSTANCE = it }
             }
     }

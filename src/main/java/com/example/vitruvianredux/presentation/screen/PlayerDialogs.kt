@@ -24,6 +24,7 @@ import com.example.vitruvianredux.ble.MachineWifiState
 import com.example.vitruvianredux.ble.MachineMode
 import com.example.vitruvianredux.ble.MachineVersion
 import com.example.vitruvianredux.ble.MachineHeuristic
+import com.example.vitruvianredux.ble.MachineBleUpdateRequest
 import com.example.vitruvianredux.ble.MachineUpdateState
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.presentation.components.AppCard
@@ -147,6 +148,7 @@ internal fun BleDiagnosticsDialog(
     machineVersion: MachineVersion? = null,
     machineHeuristic: MachineHeuristic? = null,
     machineUpdateState: MachineUpdateState? = null,
+    machineBleUpdateRequest: MachineBleUpdateRequest? = null,
     onDismiss: () -> Unit,
 ) {
     val fmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
@@ -216,6 +218,11 @@ internal fun BleDiagnosticsDialog(
                     if (machineUpdateState.errorCode != 0) {
                         DiagRow("OTA Error", machineUpdateState.errorCode.toString(), isError = true)
                     }
+                }
+                if (machineBleUpdateRequest != null) {
+                    Divider(modifier = Modifier.padding(vertical = AppDimens.Spacing.xs))
+                    DiagRow("DFU Req Offset", machineBleUpdateRequest.offset.toString())
+                    DiagRow("DFU Req Index", machineBleUpdateRequest.index.toString())
                 }
             }
         },
@@ -339,6 +346,23 @@ internal fun UpcomingSetsSheet(
                                         itemHeight       = 32.dp,
                                         surfaceColor     = MaterialTheme.colorScheme.surfaceVariant,
                                         modifier         = Modifier.width(140.dp),
+                                    )
+                                }
+                                Spacer(Modifier.height(AppDimens.Spacing.sm))
+                                SelectorCard(
+                                    title    = stringResource(R.string.edit_rest_timer),
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    ValueStepper(
+                                        value         = set.restAfterSec,
+                                        onValueChange = { newVal ->
+                                            val newSets = draftSets.toMutableList()
+                                            newSets[index] = set.copy(restAfterSec = newVal.coerceIn(0, 300))
+                                            draftSets = newSets
+                                        },
+                                        range         = 0..300,
+                                        unitLabel     = stringResource(R.string.unit_sec),
+                                        compact       = true,
                                     )
                                 }
                             }

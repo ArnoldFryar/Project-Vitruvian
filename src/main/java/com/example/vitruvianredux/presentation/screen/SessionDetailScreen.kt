@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.TelemetryInsights
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
@@ -35,6 +36,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import kotlin.math.roundToInt
 
 /**
  * Premium Session Detail screen — shows a single completed workout session.
@@ -103,6 +105,95 @@ onClick = onBack) {
         val dateFmt = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")
         val timeFmt = DateTimeFormatter.ofPattern("h:mm a")
         val cs = MaterialTheme.colorScheme
+        val completedSets = session.exerciseSets.filter { !it.skipped }
+        val avgForceKg = completedSets
+            .mapNotNull { it.avgForce.takeIf { force -> force > 0f }?.toDouble() }
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+        val peakForceKg = completedSets
+            .mapNotNull { it.peakForce.takeIf { force -> force > 0f }?.toDouble() }
+            .maxOrNull()
+        val echoSets = completedSets.filter { it.echoLevel != null }
+        val dominantEcho = echoSets
+            .groupingBy { it.echoLevel.orEmpty() }
+            .eachCount()
+            .maxByOrNull { it.value }
+            ?.key
+        val avgEccentricPct = echoSets
+            .map { it.eccentricLoadPct }
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+            ?.roundToInt()
+        val telemetrySummary = TelemetryInsights.summarizeSets(completedSets)
+        val machineTiles = buildList {
+            if (avgForceKg != null) {
+                add(
+                    SessionMetricTile(
+                        icon = AppIcons.BarChart,
+                        label = "Avg Force",
+                        value = UnitConversions.formatWeightFromKg(avgForceKg, unitSystem),
+                    )
+                )
+            }
+            if (peakForceKg != null) {
+                add(
+                    SessionMetricTile(
+                        icon = AppIcons.FitnessCenter,
+                        label = "Peak Force",
+                        value = UnitConversions.formatWeightFromKg(peakForceKg, unitSystem),
+                        accentColor = Success,
+                    )
+                )
+            }
+            if (dominantEcho != null) {
+                add(
+                    SessionMetricTile(
+                        icon = AppIcons.Stars,
+                        label = "Echo",
+                        value = dominantEcho,
+                    )
+                )
+            }
+            if (avgEccentricPct != null) {
+                add(
+                    SessionMetricTile(
+                        icon = AppIcons.Layers,
+                        label = "Avg Eccentric",
+                        value = avgEccentricPct.toString(),
+                        valueSuffix = "%",
+                        accentColor = Warning,
+                    )
+                )
+            }
+        }
+        val telemetryTiles = buildList {
+            telemetrySummary?.let { summary ->
+                add(
+                    SessionMetricTile(
+                        icon = AppIcons.BarChart,
+                        label = "Balance",
+                        value = summary.avgBalancePct.toString(),
+                        valueSuffix = "%",
+                        accentColor = Success,
+                    )
+                )
+                add(
+                    SessionMetricTile(
+                        icon = AppIcons.Layers,
+                        label = "Bias",
+                        value = summary.dominantSide,
+                    )
+                )
+                add(
+                    SessionMetricTile(
+                        icon = AppIcons.Timer,
+                        label = "Finish",
+                        value = summary.finishTrend.removeSuffix(" finish"),
+                        accentColor = if (summary.finishTrend == "Stable finish") Success else Warning,
+                    )
+                )
+            }
+        }
 
         Column(
             modifier = Modifier
@@ -233,6 +324,63 @@ onClick = onBack) {
                     // Fill empty space if only one tile in this row
                     if (session.heaviestLiftLb <= 0 || session.avgQualityScore == null) {
                         Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+
+            if (machineTiles.isNotEmpty()) {
+                SdSectionHeader("Machine")
+                machineTiles.chunked(2).forEach { rowTiles ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    ) {
+                        rowTiles.forEach { tile ->
+                            SdStatTile(
+                                icon = tile.icon,
+                                label = tile.label,
+                                value = tile.value,
+                                valueSuffix = tile.valueSuffix,
+                                accentColor = tile.accentColor,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (rowTiles.size == 1) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+
+            if (telemetryTiles.isNotEmpty()) {
+                SdSectionHeader("Cable Telemetry")
+                telemetryTiles.chunked(2).forEach { rowTiles ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    ) {
+                        rowTiles.forEach { tile ->
+                            SdStatTile(
+                                icon = tile.icon,
+                                label = tile.label,
+                                value = tile.value,
+                                valueSuffix = tile.valueSuffix,
+                                accentColor = tile.accentColor,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (rowTiles.size == 1) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+                telemetrySummary?.let { summary ->
+                    SdCard {
+                        Text(
+                            "Compact telemetry was captured on ${summary.sampledSetCount} set${if (summary.sampledSetCount == 1) "" else "s"}. Side gap averaged ${summary.sideGapPct}% across the session.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = cs.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -494,6 +642,14 @@ private fun SdStatTile(
         }
     }
 }
+
+private data class SessionMetricTile(
+    val icon: ImageVector,
+    val label: String,
+    val value: String,
+    val valueSuffix: String? = null,
+    val accentColor: Color? = null,
+)
 
 internal fun formatSessionDuration(sec: Int): String = when {
     sec >= 3600 -> "${sec / 3600}h ${(sec % 3600) / 60}m"

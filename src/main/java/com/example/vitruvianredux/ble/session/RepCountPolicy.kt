@@ -32,6 +32,7 @@ import com.example.vitruvianredux.ble.protocol.RepCountTiming
 class RepCountPolicy(private val timing: RepCountTiming) {
 
     private var _displayWorkingReps = 0
+    private var _announcedWorkingReps = 0
 
     /**
      * The working-rep count to show in the UI and announce via TTS.
@@ -45,6 +46,16 @@ class RepCountPolicy(private val timing: RepCountTiming) {
     val displayWorkingReps: Int get() = _displayWorkingReps
 
     /**
+     * The working-rep count to use for voice announcements.
+     *
+     * Voice cues intentionally lead the bottom-counted UI by one phase when
+     * the machine emits a pending event at the top of the rep. This keeps the
+     * spoken count closer to the user's motion without changing the visual or
+     * reducer-confirmed bottom-count semantics.
+     */
+    val announcedWorkingReps: Int get() = _announcedWorkingReps
+
+    /**
      * Process detector events from the latest BLE notification.
      *
      * Call **once** per [MachineRepDetector.process] invocation, passing
@@ -56,6 +67,7 @@ class RepCountPolicy(private val timing: RepCountTiming) {
         for (event in events) {
             when (event) {
                 is RepDetectorEvent.WorkingRepPending -> {
+                    _announcedWorkingReps = maxOf(_announcedWorkingReps, event.pendingWorkingReps)
                     if (timing == RepCountTiming.TOP) {
                         // TOP: show the rep as soon as the concentric peak fires.
                         // pendingWorkingReps == _workingReps + 1 inside the detector.
@@ -68,6 +80,7 @@ class RepCountPolicy(private val timing: RepCountTiming) {
                     // TOP: catch-up (should already match or exceed pending).
                     // BOTTOM: this is the moment the rep becomes visible.
                     _displayWorkingReps = maxOf(_displayWorkingReps, event.workingReps)
+                    _announcedWorkingReps = maxOf(_announcedWorkingReps, event.workingReps)
                 }
                 // Warmup events don't affect the working-rep display count.
                 else -> {}
@@ -78,5 +91,6 @@ class RepCountPolicy(private val timing: RepCountTiming) {
     /** Reset for a new set. */
     fun reset() {
         _displayWorkingReps = 0
+        _announcedWorkingReps = 0
     }
 }

@@ -60,6 +60,7 @@ fun ExercisePlayerScreen(
     val machineVersion     by workoutVM.machineVersion.collectAsState()
     val machineHeuristic   by workoutVM.machineHeuristic.collectAsState()
     val machineUpdateState by workoutVM.machineUpdateState.collectAsState()
+    val machineBleUpdateRequest by workoutVM.machineBleUpdateRequest.collectAsState()
     val lastRepQuality     by workoutVM.lastRepQuality.collectAsState()
     val phase = sessionState.sessionPhase
     val phaseVideoUrl = when (phase) {
@@ -90,6 +91,7 @@ fun ExercisePlayerScreen(
     // is display-only (the engine controls how many sets fire).
     // For JustLift (open-ended) workouts the user can freely edit it as a plan.
     var targetSets          by rememberSaveable { mutableIntStateOf(3) }
+    var restAfterSec        by rememberSaveable { mutableIntStateOf(0) }
     var resistanceLb        by rememberSaveable { mutableFloatStateOf(40f) }
     var selectedMode   by rememberSaveable { mutableStateOf("Old School") }
     var isBeastMode    by rememberSaveable { mutableStateOf(false) }
@@ -129,10 +131,12 @@ fun ExercisePlayerScreen(
         val wt     = if (active != null) sessionState.targetWeightLb
                      else ready?.weightPerCableLb
         val mode   = active?.programMode ?: ready?.programMode
+        val rest   = workoutVM.upcomingSets.firstOrNull()?.restAfterSec
         if (reps != null)  { targetReps = reps; isRepsMode = true }
         if (dur != null)   { targetDuration = dur; isRepsMode = false }
         if (wu != null)    warmupReps = wu
         if (wt != null)    resistanceLb = wt.toFloat()
+        if (rest != null)  restAfterSec = rest
         if (mode != null) {
             isBeastMode  = mode == "TUT Beast"
             selectedMode = if (mode == "TUT Beast") "TUT" else mode
@@ -182,6 +186,7 @@ fun ExercisePlayerScreen(
             machineVersion      = machineVersion,
             machineHeuristic    = machineHeuristic,
             machineUpdateState  = machineUpdateState,
+            machineBleUpdateRequest = machineBleUpdateRequest,
             onDismiss           = { showDebugPanel = false },
         )
     }
@@ -379,6 +384,7 @@ fun ExercisePlayerScreen(
                     if (readyPhase != null) {
                         val isOpenEnded = readyPhase.isJustLift
                         val isExerciseMenuLaunch = !isOpenEnded && workoutVM.activeProgramId == null
+                        val canEditExerciseMenuPlan = isExerciseMenuLaunch && readyPhase.setIndex == 0
 
                         // Compute progression suggestion only on the first set of a program workout
                         val allSessions by AnalyticsStore.logsFlow.collectAsState()
@@ -398,7 +404,7 @@ fun ExercisePlayerScreen(
                         SetReadyContent(
                             exerciseName      = readyPhase.exerciseName,
                             setIndex          = readyPhase.setIndex,
-                            totalSets         = if (isOpenEnded || isExerciseMenuLaunch) targetSets
+                            totalSets         = if (isOpenEnded || canEditExerciseMenuPlan) targetSets
                                                else readyPhase.totalSets,
                             sharedVideoPlayerState = sharedVideoPlayerState,
                             videoUrl          = readyPhase.videoUrl,
@@ -409,13 +415,16 @@ fun ExercisePlayerScreen(
                             resistanceLb      = effectiveResistanceLb,
                             isRepsMode        = isRepsMode,
                             isOpenEnded       = isOpenEnded,
-                            showSetsStepper   = isOpenEnded || isExerciseMenuLaunch,
+                            showSetsStepper   = isOpenEnded || canEditExerciseMenuPlan,
+                            showRestTimerPicker = canEditExerciseMenuPlan,
                             isBodyweight      = isBodyweight,
                             autoPlay          = autoPlay,
                             onTargetRepsChange = { targetReps = it.coerceIn(1, 100) },
                             onTargetDurationChange = { targetDuration = it.coerceIn(5, 300) },
                             onWarmupRepsChange = { warmupReps = it.coerceIn(0, 20) },
                             onTotalSetsChange  = { targetSets = it.coerceIn(1, 20) },
+                            restAfterSec      = restAfterSec,
+                            onRestAfterSecChange = { restAfterSec = it.coerceIn(0, 300) },
                             onResistanceChange = { resistanceLb = it.coerceIn(0f, ResistanceLimits.maxPerHandleLb.toFloat()) },
                             onToggleMode       = { reps ->
                                 isRepsMode = reps
@@ -426,10 +435,9 @@ fun ExercisePlayerScreen(
                             },
                             onAutoPlayChange   = { autoPlay = it; workoutVM.autoPlay = it },
                             onGo = {
-                                if (isExerciseMenuLaunch) {
+                                if (canEditExerciseMenuPlan) {
                                     // Re-queue the engine with the user's desired number of sets.
-                                    // All sets share the same configuration; rest uses the
-                                    // PlayerSetParams default (60 s) between sets.
+                                    // All sets share the same configuration, including rest.
                                     workoutVM.startPlayerWorkout(
                                         List(targetSets) {
                                             PlayerSetParams(
@@ -441,6 +449,7 @@ fun ExercisePlayerScreen(
                                                 targetDurationSec = if (isBodyweight) targetDuration else if (!isRepsMode) targetDuration else null,
                                                 isOffMachineTimer = isBodyweight,
                                                 weightPerCableLb  = if (isBodyweight) 0 else effectiveResistanceLb.roundToInt(),
+                                                restAfterSec      = restAfterSec,
                                                 warmupReps        = if (isBodyweight) 0 else warmupReps,
                                                 programMode       = effectiveSelectedMode,
                                                 muscleGroups      = exercise?.muscleGroups ?: emptyList(),

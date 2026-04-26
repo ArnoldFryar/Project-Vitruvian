@@ -239,6 +239,8 @@ data class RemoteExerciseHistory(
     val totalVolumeKg: Float = 0f,
     @SerialName("heaviest_weight_lb")
     val heaviestWeightLb: Int = 0,
+    @SerialName("origin_mode")
+    val originMode: String? = null,
     @SerialName("completed_at")
     val completedAt: Long = 0L,
     @SerialName("device_id")
@@ -271,6 +273,16 @@ data class RemoteSetHistory(
     val volumeKg: Float = 0f,
     @SerialName("duration_sec")
     val durationSec: Int = 0,
+    @SerialName("avg_force")
+    val avgForce: Float = 0f,
+    @SerialName("peak_force")
+    val peakForce: Float = 0f,
+    @SerialName("echo_level")
+    val echoLevel: String? = null,
+    @SerialName("eccentric_load_pct")
+    val eccentricLoadPct: Int = 100,
+    @SerialName("origin_mode")
+    val originMode: String? = null,
     @SerialName("completed_at")
     val completedAt: Long = 0L,
     @SerialName("device_id")

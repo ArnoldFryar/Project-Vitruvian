@@ -6,6 +6,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -56,19 +58,27 @@ fun RestScreenContent(
     val trackColor    = MaterialTheme.colorScheme.surfaceVariant
     val surfaceColor  = MaterialTheme.colorScheme.background
 
-    Box(
-        modifier         = modifier
+    BoxWithConstraints(
+        modifier = modifier
             .fillMaxSize()
             .background(surfaceColor),
-        contentAlignment = Alignment.Center,
     ) {
+        val isCompactHeight = maxHeight < 700.dp
+        val ringSize = if (isCompactHeight) 168.dp else 220.dp
+        val sectionSpacing = if (isCompactHeight) AppDimens.Spacing.md else AppDimens.Spacing.xl
+        val contentPadding = if (isCompactHeight) AppDimens.Spacing.sm else AppDimens.Spacing.lg
+
         Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = AppDimens.Spacing.md, vertical = contentPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(sectionSpacing),
         ) {
             // â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Text(text = "Recover",
-                style      = MaterialTheme.typography.headlineLarge,
+                style      = if (isCompactHeight) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
                 letterSpacing = AppDimens.LetterSpacing.display,
                 color      = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -76,10 +86,10 @@ fun RestScreenContent(
 
             // â”€â”€ Circular countdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Box(
-                modifier         = Modifier.size(220.dp),
+                modifier         = Modifier.size(ringSize),
                 contentAlignment = Alignment.Center,
             ) {
-                Canvas(modifier = Modifier.size(220.dp)) {
+                Canvas(modifier = Modifier.size(ringSize)) {
                     val strokeWidth = 12.dp.toPx()
                     val radius      = size.minDimension / 2f - strokeWidth / 2f
                     val center      = Offset(size.width / 2f, size.height / 2f)
@@ -112,7 +122,7 @@ fun RestScreenContent(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text       = "$secondsRemaining",
-                        style      = MaterialTheme.typography.displayLarge,
+                        style      = if (isCompactHeight) MaterialTheme.typography.displayMedium else MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Black,
                         color      = ext.accentCyan,
                     )
@@ -151,7 +161,7 @@ fun RestScreenContent(
                 text = if (next is NextStep.WorkoutDone) "Finish Workout" else "Start Next Set",
                 icon = if (next is NextStep.WorkoutDone) AppIcons.CheckCircle else AppIcons.PlayArrow,
                 onClick = onSkip,
-                modifier = Modifier.fillMaxWidth(0.78f),
+                modifier = Modifier.fillMaxWidth(if (isCompactHeight) 0.9f else 0.78f),
             )
 
             if (canRepeatPreviousSet) {
@@ -159,7 +169,7 @@ fun RestScreenContent(
                     text = "Repeat Last Set",
                     icon = AppIcons.Repeat,
                     onClick = onRepeatPreviousSet,
-                    modifier = Modifier.fillMaxWidth(0.78f),
+                    modifier = Modifier.fillMaxWidth(if (isCompactHeight) 0.9f else 0.78f),
                 )
             }
 
@@ -167,12 +177,12 @@ fun RestScreenContent(
                 AppTonalButton(
                     text = stringResource(R.string.rest_edit_sets),
                     onClick = onEditUpcomingSets,
-                    modifier = Modifier.fillMaxWidth(0.78f),
+                    modifier = Modifier.fillMaxWidth(if (isCompactHeight) 0.9f else 0.78f),
                 )
                 AppOutlinedButton(
                     text = stringResource(R.string.rest_skip_exercise),
                     onClick = onSkipExercise,
-                    modifier = Modifier.fillMaxWidth(0.78f),
+                    modifier = Modifier.fillMaxWidth(if (isCompactHeight) 0.9f else 0.78f),
                 )
             }
         }

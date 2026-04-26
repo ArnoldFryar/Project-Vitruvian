@@ -34,10 +34,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
+import com.example.vitruvianredux.ble.protocol.CableSample
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.PrTracker
+import com.example.vitruvianredux.data.TelemetryInsights
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.PremiumChartCard
@@ -82,6 +84,25 @@ private data class ExerciseComparison(
     val currTotalVolKg: Double,
     val prevBestE1RmLb: Double,
     val currBestE1RmLb: Double,
+)
+
+private data class TelemetrySetSummary(
+    val setIndex: Int,
+    val avgLeftForceKg: Double,
+    val avgRightForceKg: Double,
+    val balancePct: Int,
+    val sampleCount: Int,
+)
+
+private data class TelemetryOverview(
+    val sampledSets: List<TelemetrySetSummary>,
+    val avgBalancePct: Int,
+    val dominantSide: String,
+    val sideGapPct: Int,
+    val finishTrend: String,
+    val representativeSetIndex: Int,
+    val representativeLeftTraceKg: List<Float>,
+    val representativeRightTraceKg: List<Float>,
 )
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -231,6 +252,57 @@ private object ExerciseAnalytics {
             session.endTimeMs to maxW
         }
         .filter { (_, w) -> w > 0 }
+
+    fun buildTelemetryOverview(
+        sets: List<AnalyticsStore.ExerciseSetLog>,
+        preferredSetIndex: Int? = null,
+    ): TelemetryOverview? {
+        val aggregate = TelemetryInsights.summarizeSets(sets) ?: return null
+        val sampledSets = sets.filter { !it.skipped }
+            .mapNotNull { set ->
+                val summary = TelemetryInsights.summarizeSet(set) ?: return@mapNotNull null
+                TelemetrySetSummary(
+                    setIndex = set.setIndex,
+                    avgLeftForceKg = summary.avgLeftForceKg,
+                    avgRightForceKg = summary.avgRightForceKg,
+                    balancePct = summary.balancePct,
+                    sampleCount = summary.sampleCount,
+                )
+            }
+            .sortedBy { it.setIndex }
+        if (sampledSets.isEmpty()) return null
+
+        val representativeSet = sampledSets.firstOrNull { it.setIndex == preferredSetIndex }
+            ?: sampledSets.maxByOrNull { it.sampleCount }
+            ?: return null
+        val representativeMetrics = sets.firstOrNull { it.setIndex == representativeSet.setIndex }
+            ?.let(TelemetryInsights::summarizeSet)
+        val representativePairs = sets.firstOrNull { it.setIndex == representativeSet.setIndex }
+            ?.let(::matchedForcePairs)
+            .orEmpty()
+
+        return TelemetryOverview(
+            sampledSets = sampledSets,
+            avgBalancePct = aggregate.avgBalancePct,
+            dominantSide = aggregate.dominantSide,
+            sideGapPct = aggregate.sideGapPct,
+            finishTrend = representativeMetrics?.let { TelemetryInsights.finishTrendLabel(it.finishForcePct) }
+                ?: aggregate.finishTrend,
+            representativeSetIndex = representativeSet.setIndex,
+            representativeLeftTraceKg = representativePairs.map { it.first },
+            representativeRightTraceKg = representativePairs.map { it.second },
+        )
+    }
+
+    private fun matchedForcePairs(set: AnalyticsStore.ExerciseSetLog): List<Pair<Float, Float>> {
+        val sampleCount = minOf(set.cableSamplesLeft.size, set.cableSamplesRight.size)
+        if (sampleCount <= 0) return emptyList()
+        return (0 until sampleCount).mapNotNull { index ->
+            val left = set.cableSamplesLeft[index].force
+            val right = set.cableSamplesRight[index].force
+            if (left > 0f || right > 0f) left to right else null
+        }
+    }
 }
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -307,6 +379,9 @@ fun ExerciseDataScreen(
     val comparison = remember(sets, previousSets) {
         previousSets?.takeIf { it.isNotEmpty() && sets.isNotEmpty() }
             ?.let { prev -> ExerciseAnalytics.buildComparison(sets, prev) }
+    }
+    val telemetryOverview = remember(sets, bestSetResult) {
+        ExerciseAnalytics.buildTelemetryOverview(sets, bestSetResult?.setIndex)
     }
 
     // â”€â”€ All-time personal bests (reactive, from PersonalBestStore) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -601,6 +676,39 @@ onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                 if (sets.any { it.avgRom != null || it.avgTempo != null || it.avgSymmetry != null || it.avgSmoothness != null }) {
                     EdsSection("Quality Breakdown")
                     QualityBreakdownCard(sets = sets)
+                }
+
+                if (sets.any { it.avgForce > 0f || it.peakForce > 0f || it.echoLevel != null || it.eccentricLoadPct != 100 }) {
+                    EdsSection("Machine Breakdown")
+                    MachineBreakdownCard(sets = sets, unitSystem = unitSystem)
+                }
+
+                if (telemetryOverview != null) {
+                    EdsSection("Cable Telemetry")
+                    TelemetryInsightsCard(
+                        overview = telemetryOverview,
+                        unitSystem = unitSystem,
+                    )
+                    if (telemetryOverview.representativeLeftTraceKg.isNotEmpty() && telemetryOverview.representativeRightTraceKg.isNotEmpty()) {
+                        PremiumChartCard(
+                            title = "Force Balance Trace",
+                            subtitle = "Representative left and right cable force from your strongest sampled set.",
+                            accent = cs.secondary,
+                            metrics = listOf(
+                                ChartMetric("Sampled Sets", telemetryOverview.sampledSets.size.toString(), cs.onSurface),
+                                ChartMetric("Balance", "${telemetryOverview.avgBalancePct}%", cs.secondary),
+                                ChartMetric("Bias", telemetryOverview.dominantSide, if (telemetryOverview.dominantSide == "Balanced") Success else Warning),
+                            ),
+                            selectionBadge = "Set ${telemetryOverview.representativeSetIndex + 1} • ${telemetryOverview.finishTrend}",
+                        ) {
+                            TelemetryTraceChart(
+                                leftTraceKg = telemetryOverview.representativeLeftTraceKg,
+                                rightTraceKg = telemetryOverview.representativeRightTraceKg,
+                                unitSystem = unitSystem,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                 }
 
             } else {
@@ -1274,9 +1382,234 @@ private fun QualityScoreCell(score: Int?, modifier: Modifier = Modifier) {
     )
 }
 
+@Composable
+private fun MachineBreakdownCard(
+    sets: List<AnalyticsStore.ExerciseSetLog>,
+    unitSystem: UnitsStore.UnitSystem,
+) {
+    val cs = MaterialTheme.colorScheme
+    val setsWithData = sets.filter { !it.skipped }
+        .filter { it.avgForce > 0f || it.peakForce > 0f || it.echoLevel != null || it.eccentricLoadPct != 100 }
+    if (setsWithData.isEmpty()) return
+
+    EdsCard {
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs)) {
+            Text("Set", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(36.dp))
+            Text("Avg F", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text("Peak F", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text("Echo", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text("Ecc", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
+        }
+        Divider(color = cs.outlineVariant, thickness = 0.5.dp)
+        setsWithData.forEachIndexed { index, set ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "${set.setIndex + 1}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(36.dp),
+                )
+                MachineMetricCell(
+                    value = set.avgForce.takeIf { it > 0f }?.let {
+                        UnitConversions.formatWeightFromKg(it.toDouble(), unitSystem)
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                MachineMetricCell(
+                    value = set.peakForce.takeIf { it > 0f }?.let {
+                        UnitConversions.formatWeightFromKg(it.toDouble(), unitSystem)
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                MachineMetricCell(
+                    value = set.echoLevel,
+                    modifier = Modifier.weight(1f),
+                )
+                MachineMetricCell(
+                    value = if (set.echoLevel != null || set.eccentricLoadPct != 100) "${set.eccentricLoadPct}%" else null,
+                    modifier = Modifier.width(52.dp),
+                    textAlign = TextAlign.End,
+                )
+            }
+            if (index < setsWithData.lastIndex) {
+                Divider(color = cs.outlineVariant, thickness = 0.5.dp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TelemetryInsightsCard(
+    overview: TelemetryOverview,
+    unitSystem: UnitsStore.UnitSystem,
+) {
+    val cs = MaterialTheme.colorScheme
+    val representativePeakKg = maxOf(
+        overview.representativeLeftTraceKg.maxOrNull() ?: 0f,
+        overview.representativeRightTraceKg.maxOrNull() ?: 0f,
+    )
+    EdsCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            EdsStatTile("Balance", "${overview.avgBalancePct}%", Modifier.weight(1f))
+            EdsStatTile("Bias", overview.dominantSide, Modifier.weight(1f))
+            EdsStatTile("Finish", overview.finishTrend, Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+        Text(
+            "Telemetry was captured on ${overview.sampledSets.size} set${if (overview.sampledSets.size == 1) "" else "s"}. Side gap stayed around ${overview.sideGapPct}% overall.",
+            style = MaterialTheme.typography.bodySmall,
+            color = cs.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        Divider(color = cs.outlineVariant, thickness = 0.5.dp)
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        Row(modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs)) {
+            Text("Set", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(36.dp))
+            Text("Left Avg", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text("Right Avg", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            Text("Balance", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant, modifier = Modifier.width(64.dp), textAlign = TextAlign.End)
+        }
+        overview.sampledSets.forEachIndexed { index, set ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = AppDimens.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "${set.setIndex + 1}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.width(36.dp),
+                )
+                MachineMetricCell(
+                    value = UnitConversions.formatWeightFromKg(set.avgLeftForceKg, unitSystem),
+                    modifier = Modifier.weight(1f),
+                )
+                MachineMetricCell(
+                    value = UnitConversions.formatWeightFromKg(set.avgRightForceKg, unitSystem),
+                    modifier = Modifier.weight(1f),
+                )
+                MachineMetricCell(
+                    value = "${set.balancePct}%",
+                    modifier = Modifier.width(64.dp),
+                    textAlign = TextAlign.End,
+                )
+            }
+            if (index < overview.sampledSets.lastIndex) {
+                Divider(color = cs.outlineVariant, thickness = 0.5.dp)
+            }
+        }
+        if (representativePeakKg > 0f) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            Text(
+                "Representative peak: ${UnitConversions.formatWeightFromKg(representativePeakKg.toDouble(), unitSystem)} ${UnitConversions.unitLabel(unitSystem)} on set ${overview.representativeSetIndex + 1}.",
+                style = MaterialTheme.typography.labelSmall,
+                color = cs.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TelemetryTraceChart(
+    leftTraceKg: List<Float>,
+    rightTraceKg: List<Float>,
+    unitSystem: UnitsStore.UnitSystem,
+    modifier: Modifier = Modifier,
+) {
+    val cs = MaterialTheme.colorScheme
+    val sampleCount = minOf(leftTraceKg.size, rightTraceKg.size)
+    if (sampleCount < 2) return
+
+    val leftValues = leftTraceKg.take(sampleCount).map { forceForDisplay(it, unitSystem) }
+    val rightValues = rightTraceKg.take(sampleCount).map { forceForDisplay(it, unitSystem) }
+    val maxForce = maxOf(
+        leftValues.maxOrNull() ?: 0f,
+        rightValues.maxOrNull() ?: 0f,
+    ).coerceAtLeast(1f)
+    val unitLabel = UnitConversions.unitLabel(unitSystem)
+
+    PremiumChartPlotSurface(accent = cs.secondary) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.xs),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("0 $unitLabel", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant)
+            Text("${formatChartValue(maxForce)} $unitLabel", style = MaterialTheme.typography.labelSmall, color = cs.onSurfaceVariant.copy(alpha = 0.70f))
+        }
+        Canvas(modifier = modifier.height(AppDimens.Component.chartRing)) {
+            val strokeWidth = 3.dp.toPx()
+            val width = size.width
+            val height = size.height
+            drawLine(
+                color = cs.outlineVariant,
+                start = Offset(0f, height),
+                end = Offset(width, height),
+                strokeWidth = 1.dp.toPx(),
+            )
+            drawLine(
+                color = cs.outlineVariant.copy(alpha = 0.5f),
+                start = Offset(0f, height / 2f),
+                end = Offset(width, height / 2f),
+                strokeWidth = 1.dp.toPx(),
+            )
+            drawPath(
+                path = telemetryPath(leftValues, maxForce, width, height),
+                color = cs.secondary,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+            )
+            drawPath(
+                path = telemetryPath(rightValues, maxForce, width, height),
+                color = Success,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+            )
+        }
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+        ) {
+            TelemetryLegendDot(color = cs.secondary, label = "Left cable")
+            TelemetryLegendDot(color = Success, label = "Right cable")
+        }
+    }
+}
+
+@Composable
+private fun TelemetryLegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(RoundedCornerShape(AppDimens.Corner.pill))
+                .background(color),
+        )
+        Spacer(Modifier.width(AppDimens.Spacing.xs))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //  LAYOUT PRIMITIVES
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+@Composable
+private fun MachineMetricCell(
+    value: String?,
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.Center,
+) {
+    Text(
+        text = value ?: "—",
+        style = MaterialTheme.typography.bodySmall,
+        color = if (value == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+        modifier = modifier,
+        textAlign = textAlign,
+    )
+}
 
 @Composable
 private fun EdsCard(content: @Composable ColumnScope.() -> Unit) {
@@ -1353,6 +1686,26 @@ private fun EdsStatTile(label: String, value: String, modifier: Modifier = Modif
 private fun formatWeightLb(lb: Int, unitSystem: UnitsStore.UnitSystem): String =
     if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) "$lb lb"
     else "%.1f kg".format(UnitConversions.lbToKg(lb.toDouble()))
+
+private fun forceForDisplay(forceKg: Float, unitSystem: UnitsStore.UnitSystem): Float =
+    if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) (forceKg * 2.20462f) else forceKg
+
+private fun telemetryPath(
+    values: List<Float>,
+    maxValue: Float,
+    width: Float,
+    height: Float,
+): Path {
+    val path = Path()
+    if (values.isEmpty()) return path
+    val lastIndex = (values.lastIndex).coerceAtLeast(1)
+    values.forEachIndexed { index, value ->
+        val x = width * index / lastIndex
+        val y = height - ((value / maxValue).coerceIn(0f, 1f) * height)
+        if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    return path
+}
 
 private fun formatChartValue(value: Float): String =
     if (value == value.toLong().toFloat()) value.toLong().toString()

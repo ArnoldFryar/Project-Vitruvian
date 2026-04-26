@@ -68,8 +68,10 @@ internal fun SetReadyContent(
     onTargetRepsChange: (Int) -> Unit,
     onTargetDurationChange: (Int) -> Unit,
     onWarmupRepsChange: (Int) -> Unit,
-    /** Called when the user changes the planned set count (JustLift only). */
+    /** Called when the user changes the planned set count for editable ad-hoc flows. */
     onTotalSetsChange: (Int) -> Unit = {},
+    restAfterSec: Int = 0,
+    onRestAfterSecChange: (Int) -> Unit = {},
     onResistanceChange: (Float) -> Unit,
     onToggleMode: (Boolean) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
@@ -85,6 +87,8 @@ internal fun SetReadyContent(
     isOpenEnded: Boolean = false,
     /** Show the Sets count stepper — true for JustLift and exercise-menu launches. */
     showSetsStepper: Boolean = false,
+    /** Show the rest timer picker for editable ad-hoc exercise plans. */
+    showRestTimerPicker: Boolean = false,
     /** When non-null, show a "level up" suggestion banner above the weight selector. */
     progressionSuggestionLb: Int? = null,
     /** When non-null, show a deload suggestion banner (user struggling below rep floor). */
@@ -109,6 +113,7 @@ internal fun SetReadyContent(
 ) {
     val haptic = LocalHapticFeedback.current
     val usesRepsMode = !isBodyweight && isRepsMode
+    var showRestPicker by remember { mutableStateOf(false) }
 
     val pbMap           by PersonalBestStore.summariesFlow.collectAsState()
     val prLb             = pbMap[exerciseName.lowercase().trim()]?.bestWeightLb ?: 0
@@ -256,6 +261,9 @@ internal fun SetReadyContent(
                     value = if (isEchoMode) "Adaptive"
                             else "${resistanceLb.roundToInt()} lb / cable",
                 )
+            }
+            if (showRestTimerPicker) {
+                ReadyInfoPill(label = "Rest", value = formatRestDuration(restAfterSec))
             }
         }
 
@@ -460,6 +468,45 @@ internal fun SetReadyContent(
                     compact       = true,
                 )
             }
+        }
+
+        if (showRestTimerPicker) {
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            SelectorCard(
+                title    = stringResource(R.string.edit_rest_timer),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                        .clickable { showRestPicker = true }
+                        .padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = formatRestDuration(restAfterSec),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Icon(
+                        imageVector = AppIcons.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.cd_dropdown),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        if (showRestPicker) {
+            RestPickerDialog(
+                current = restAfterSec,
+                onSelect = {
+                    onRestAfterSecChange(it)
+                    showRestPicker = false
+                },
+                onDismiss = { showRestPicker = false },
+            )
         }
 
         // â”€â”€ Mode selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -707,3 +754,6 @@ private fun ReadyInfoPill(label: String, value: String) {
         }
     }
 }
+
+private fun formatRestDuration(seconds: Int): String =
+    if (seconds <= 0) "Off" else "%d:%02d".format(seconds / 60, seconds % 60)

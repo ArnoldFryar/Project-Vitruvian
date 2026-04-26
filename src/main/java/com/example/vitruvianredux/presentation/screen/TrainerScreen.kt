@@ -27,10 +27,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
+import com.example.vitruvianredux.ble.MachineBleUpdateResponder
+import com.example.vitruvianredux.ble.MachineMode
+import com.example.vitruvianredux.ble.MachineUpdateState
+import com.example.vitruvianredux.ble.MachineVersion
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.protocol.BlePacketFactory
+import com.example.vitruvianredux.cloud.VitruvianApiClient
+import com.example.vitruvianredux.cloud.VitruvianAuthManager
 import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
@@ -39,6 +45,11 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.security.MessageDigest
+
+private const val MAX_BLE_DFU_CHUNK_BYTES = 240
 
 @Composable
 fun TrainerScreen(
@@ -85,7 +96,80 @@ fun TrainerScreen(
     val isConnected  = state is BleConnectionState.Connected
     val isConnecting = state is BleConnectionState.Connecting
     val isScanning   = state is BleConnectionState.Scanning
-    val machineVersion by (workoutVM?.machineVersion?.collectAsState() ?: remember { mutableStateOf(null) })
+    val machineVersion by (workoutVM?.machineVersion?.collectAsState() ?: remember { mutableStateOf<MachineVersion?>(null) })
+    val machineMode by (workoutVM?.machineMode?.collectAsState() ?: remember { mutableStateOf<MachineMode?>(null) })
+    val machineUpdateState by (workoutVM?.machineUpdateState?.collectAsState() ?: remember { mutableStateOf<MachineUpdateState?>(null) })
+    var firmwarePackageVersion by remember { mutableStateOf<String?>(null) }
+    var firmwarePackageStatus by remember { mutableStateOf("Connect a trainer to check firmware") }
+
+    LaunchedEffect(workoutVM, machineVersion?.hardware, machineVersion?.firmware) {
+        val version = machineVersion
+        if (workoutVM == null || version?.hardware.isNullOrBlank()) {
+            firmwarePackageVersion = null
+            firmwarePackageStatus = "Connect a trainer to check firmware"
+            workoutVM?.setMachineBleUpdateResponder(null)
+            return@LaunchedEffect
+        }
+
+        val token = VitruvianAuthManager.accessToken
+        if (token.isNullOrBlank()) {
+            firmwarePackageVersion = null
+            firmwarePackageStatus = "Sign in to preload firmware"
+            workoutVM.setMachineBleUpdateResponder(null)
+            return@LaunchedEffect
+        }
+
+        val currentFirmware = version?.firmware.orEmpty()
+        val currentMajor = currentFirmware.substringBefore('.').takeIf { it.all(Char::isDigit) }
+        firmwarePackageStatus = "Checking firmware package..."
+
+        val packageInfo = withContext(Dispatchers.IO) {
+            VitruvianApiClient.getFirmwarePackageInfo(
+                accessToken = token,
+                hardwareVersion = version?.hardware.orEmpty(),
+                majorVersionLte = currentMajor,
+            )
+        }
+
+        if (packageInfo == null) {
+            firmwarePackageVersion = null
+            firmwarePackageStatus = "No firmware package available"
+            workoutVM.setMachineBleUpdateResponder(null)
+            return@LaunchedEffect
+        }
+
+        firmwarePackageVersion = packageInfo.version
+        if (packageInfo.version == currentFirmware) {
+            firmwarePackageStatus = "Firmware is up to date"
+            workoutVM.setMachineBleUpdateResponder(null)
+            return@LaunchedEffect
+        }
+
+        firmwarePackageStatus = "Downloading firmware ${packageInfo.version}..."
+        val firmwareBytes = withContext(Dispatchers.IO) {
+            VitruvianApiClient.downloadBinary(packageInfo.downloadUrl, token)
+        }
+        if (firmwareBytes == null || firmwareBytes.isEmpty()) {
+            firmwarePackageStatus = "Firmware download failed"
+            workoutVM.setMachineBleUpdateResponder(null)
+            return@LaunchedEffect
+        }
+        val readyBytes = firmwareBytes
+
+        val expectedMd5 = packageInfo.md5?.lowercase()
+        val actualMd5 = readyBytes.md5Hex()
+        if (!expectedMd5.isNullOrBlank() && actualMd5 != expectedMd5) {
+            firmwarePackageStatus = "Firmware checksum mismatch"
+            workoutVM.setMachineBleUpdateResponder(null)
+            return@LaunchedEffect
+        }
+
+        val responder = MachineBleUpdateResponder { request ->
+            readyBytes.chunkForBleOffset(request.offset)
+        }
+        workoutVM.setMachineBleUpdateResponder(responder)
+        firmwarePackageStatus = "Firmware ${packageInfo.version} ready for OTA"
+    }
 
     Column(
         modifier = Modifier
@@ -226,6 +310,18 @@ fun TrainerScreen(
                 )
                 Divider(color = cs.outlineVariant)
 
+                TrainerInfoRow(
+                    label = "Machine mode",
+                    value = machineMode?.displayName() ?: "\u2013",
+                )
+                Divider(color = cs.outlineVariant)
+
+                TrainerInfoRow(
+                    label = "Update state",
+                    value = machineUpdateState?.displayString() ?: "\u2013",
+                )
+                Divider(color = cs.outlineVariant)
+
                 // Colour indicator — opens LED colour picker
                 TrainerInfoRow(
                     label = stringResource(R.string.trainer_colour),
@@ -287,6 +383,11 @@ fun TrainerScreen(
                 TrainerInfoRow(label = stringResource(R.string.trainer_firmware), value = machineVersion?.firmware ?: "\u2013")
                 Divider(color = cs.outlineVariant)
                 TrainerInfoRow(label = stringResource(R.string.trainer_hardware), value = machineVersion?.hardware ?: "\u2013")
+                Divider(color = cs.outlineVariant)
+                TrainerInfoRow(
+                    label = "Firmware package",
+                    value = firmwarePackageVersion?.let { "$it • $firmwarePackageStatus" } ?: firmwarePackageStatus,
+                )
                 Divider(color = cs.outlineVariant)
                 TrainerInfoRow(
                     label = stringResource(R.string.trainer_app),
@@ -428,4 +529,35 @@ private fun TrainerInfoRow(
             )
         }
     }
+}
+
+private fun MachineMode.displayName(): String = when (this) {
+    MachineMode.BASELINE -> "Baseline"
+    MachineMode.SOFTWARE -> "Software"
+    MachineMode.STATIC -> "Static"
+    MachineMode.TWO_PHASE -> "Two-phase"
+    MachineMode.MASTER -> "Master"
+}
+
+private fun MachineUpdateState.displayString(): String {
+    val status = when (statusCode) {
+        0 -> "Idle"
+        1 -> "Pending"
+        2 -> "In progress"
+        3 -> "Complete"
+        else -> "Unknown"
+    }
+    val error = if (errorCode == 0) "" else " (error $errorCode)"
+    return "$status $progressPct%$error".trim()
+}
+
+private fun ByteArray.chunkForBleOffset(offset: Int): ByteArray? {
+    if (offset < 0 || offset >= size) return null
+    val endExclusive = (offset + MAX_BLE_DFU_CHUNK_BYTES).coerceAtMost(size)
+    return copyOfRange(offset, endExclusive)
+}
+
+private fun ByteArray.md5Hex(): String {
+    val digest = MessageDigest.getInstance("MD5").digest(this)
+    return digest.joinToString(separator = "") { "%02x".format(it) }
 }

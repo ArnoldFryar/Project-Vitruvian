@@ -4,7 +4,9 @@ import android.app.Application
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -41,6 +43,10 @@ class WorkoutSessionViewModel(
     app: Application,
     bleClient: AndroidBleClient,
 ) : AndroidViewModel(app), TextToSpeech.OnInitListener {
+
+    companion object {
+        private const val VOICE_TAG = "WorkoutVoice"
+    }
 
     private val engine = WorkoutSessionEngine(bleClient, viewModelScope)
 
@@ -100,6 +106,13 @@ class WorkoutSessionViewModel(
 
     /** Firmware update progress (rarely non-null during normal use). */
     val machineUpdateState: StateFlow<MachineUpdateState?> = engine.machineUpdateState
+
+    /** Most recent BLE DFU chunk request emitted by the machine. */
+    val machineBleUpdateRequest: StateFlow<MachineBleUpdateRequest?> = engine.machineBleUpdateRequest
+
+    fun setMachineBleUpdateResponder(responder: MachineBleUpdateResponder?) {
+        engine.setMachineBleUpdateResponder(responder)
+    }
 
     /** In-memory ring buffer of the last 50 session + BLE events (for debug UI). */
     val sessionEvents: StateFlow<List<SessionEventLog.Event>> = SessionEventLog.events
@@ -168,6 +181,7 @@ class WorkoutSessionViewModel(
     private val repQualityTracker = RepQualityTracker()
 
     private var tts: TextToSpeech? = null
+    private var previewVoiceToRestore: Voice? = null
     private val warmupToneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
     private var isTtsInitialized = false
     private var lastSpokenWorkingRep = 0
@@ -181,6 +195,31 @@ class WorkoutSessionViewModel(
     private val audioArbiter = WorkoutAudioArbiter()
     private val currentSetVoiceQualities = mutableListOf<RepQuality>()
     private var bestConcentricWattMaxForSet: Float? = null
+    private val ttsProgressListener = object : UtteranceProgressListener() {
+        override fun onStart(utteranceId: String) {
+            if (utteranceId.startsWith("rep_")) {
+                Log.d(
+                    VOICE_TAG,
+                    "VOICE_TTS_START utteranceId=$utteranceId displayed=${state.value.workingRepsCompleted} announced=${state.value.announcedWorkingReps}",
+                )
+            }
+        }
+
+        override fun onDone(utteranceId: String) {
+            if (utteranceId == "voice_preview") {
+                tts?.voice = previewVoiceToRestore
+                previewVoiceToRestore = null
+            }
+        }
+
+        @Suppress("OVERRIDE_DEPRECATION")
+        override fun onError(utteranceId: String) {
+            if (utteranceId == "voice_preview") {
+                tts?.voice = previewVoiceToRestore
+                previewVoiceToRestore = null
+            }
+        }
+    }
 
     /**
      * Passive desync watchdog — observes BLE metrics, rep counter, and session
@@ -256,8 +295,12 @@ class WorkoutSessionViewModel(
                 if (phase == com.example.vitruvianredux.ble.session.SetPhase.WORKING ||
                     phase == com.example.vitruvianredux.ble.session.SetPhase.REST ||
                     phase == com.example.vitruvianredux.ble.session.SetPhase.COMPLETE) {
-                    val workingRep = currentState.workingRepsCompleted
+                    val workingRep = currentState.announcedWorkingReps
                     if (workingRep > lastSpokenWorkingRep && workingRep > 0) {
+                        Log.d(
+                            VOICE_TAG,
+                            "VOICE_REP_REQUEST announced=$workingRep displayed=${currentState.workingRepsCompleted} phase=$phase sessionPhase=${sessionPhase.javaClass.simpleName}",
+                        )
                         speakEvent(WorkoutAudioEvent.RepCount(workingRep))
                         lastSpokenWorkingRep = workingRep
                     }
@@ -334,6 +377,7 @@ class WorkoutSessionViewModel(
             _availableVoices.value = voices
             // Apply saved voice preference
             applyVoiceByName(TtsVoiceStore.voiceNameFlow.value)
+            tts?.setOnUtteranceProgressListener(ttsProgressListener)
         }
     }
 
@@ -349,7 +393,7 @@ class WorkoutSessionViewModel(
      */
     fun previewVoice(name: String) {
         if (!isTtsInitialized) return
-        val savedVoice = tts?.voice
+        previewVoiceToRestore = tts?.voice
         // Temporarily apply the preview voice
         if (name.isEmpty()) {
             tts?.voice = tts?.defaultVoice
@@ -358,21 +402,6 @@ class WorkoutSessionViewModel(
             if (voice != null) tts?.voice = voice
         }
         tts?.speak("1, 2, 3", TextToSpeech.QUEUE_FLUSH, null, "voice_preview")
-        // Restore after the utterance completes
-        tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-            override fun onStart(utteranceId: String) {}
-            override fun onDone(utteranceId: String) {
-                if (utteranceId == "voice_preview") {
-                    tts?.voice = savedVoice
-                    tts?.setOnUtteranceProgressListener(null)
-                }
-            }
-            @Suppress("OVERRIDE_DEPRECATION")
-            override fun onError(utteranceId: String) {
-                tts?.voice = savedVoice
-                tts?.setOnUtteranceProgressListener(null)
-            }
-        })
     }
 
     private fun applyVoiceByName(name: String) {
@@ -388,6 +417,12 @@ class WorkoutSessionViewModel(
     private fun speakEvent(event: WorkoutAudioEvent) {
         if (isTtsInitialized && soundEnabled.value) {
             val utterance = audioArbiter.nextUtterance(event, voiceCoachingSettings.value) ?: return
+            if (utterance.utteranceId.startsWith("rep_")) {
+                Log.d(
+                    VOICE_TAG,
+                    "VOICE_TTS_ENQUEUE utteranceId=${utterance.utteranceId} text=${utterance.text} queue=${utterance.queueMode} displayed=${state.value.workingRepsCompleted} announced=${state.value.announcedWorkingReps}",
+                )
+            }
             tts?.speak(utterance.text, utterance.queueMode, null, utterance.utteranceId)
         }
     }
@@ -530,6 +565,7 @@ class WorkoutSessionViewModel(
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
         bestConcentricWattMaxForSet = null
+        resetAudioStateForNewWorkout()
         return engine.startPlayerWorkout(sets)
     }
 
@@ -550,6 +586,7 @@ class WorkoutSessionViewModel(
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
         bestConcentricWattMaxForSet = null
+        resetAudioStateForNewWorkout()
         return engine.startPlayerWorkout(sets, programName = activeProgramName)
     }
 
@@ -659,6 +696,7 @@ class WorkoutSessionViewModel(
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
         bestConcentricWattMaxForSet = null
+        resetAudioStateForNewWorkout()
         val isBodyweight = exercise.isBodyweightOnly
         val sets = listOf(
             PlayerSetParams(
@@ -794,11 +832,32 @@ class WorkoutSessionViewModel(
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
         bestConcentricWattMaxForSet = null
-        lastSpokenRestSecond = -1
-        lastSpokenDurationWarningSecond = -1
-        audioArbiter.resetSession()
-        soundEnabled.value = true   // Restore default so every new workout starts with audio on
+        resetAudioStateForNewWorkout()
         engine.resetAfterWorkout()
+    }
+
+    private fun currentAudioResetState(): WorkoutAudioResetState = WorkoutAudioResetState(
+        soundEnabled = soundEnabled.value,
+        lastSpokenWorkingRep = lastSpokenWorkingRep,
+        lastCuedWarmupRep = lastCuedWarmupRep,
+        lastSetPhase = lastSetPhase,
+        lastSpokenRestSecond = lastSpokenRestSecond,
+        lastSpokenDurationWarningSecond = lastSpokenDurationWarningSecond,
+        lastAudioSessionPhase = lastAudioSessionPhase,
+        lastRepQualitySessionPhase = lastRepQualitySessionPhase,
+    )
+
+    private fun resetAudioStateForNewWorkout() {
+        val defaults = WorkoutAudioReset.forNewWorkout(currentAudioResetState())
+        lastSpokenWorkingRep = defaults.lastSpokenWorkingRep
+        lastCuedWarmupRep = defaults.lastCuedWarmupRep
+        lastSetPhase = defaults.lastSetPhase
+        lastSpokenRestSecond = defaults.lastSpokenRestSecond
+        lastSpokenDurationWarningSecond = defaults.lastSpokenDurationWarningSecond
+        lastAudioSessionPhase = defaults.lastAudioSessionPhase
+        lastRepQualitySessionPhase = defaults.lastRepQualitySessionPhase
+        audioArbiter.resetSession()
+        soundEnabled.value = defaults.soundEnabled
     }
 
     /**

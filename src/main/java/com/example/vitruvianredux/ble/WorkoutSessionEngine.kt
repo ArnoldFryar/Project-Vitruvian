@@ -26,6 +26,7 @@ import com.example.vitruvianredux.ble.session.SessionReducer
 import com.example.vitruvianredux.ble.session.SetPhase
 import com.example.vitruvianredux.ble.session.WorkoutStats
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +48,7 @@ private const val MODE_UUID          = "67d0dae0-5bfc-4ea2-acc9-ac784dee7f29"
 private const val HEURISTIC_UUID     = "c7b73007-b245-4503-a1ed-9e4e97eb9802"
 private const val VERSION_UUID       = "74e994ac-0e80-4c02-9cd0-76cb31d3959b"
 private const val UPDATE_STATE_UUID  = "383f7276-49af-4335-9072-f01b0f8acad6"
+private const val BLE_UPDATE_REQ_UUID = "ef0e485a-8749-4314-b1be-01e57cd1712e"
 
 /**
  * WiFi credentials broadcast by the Vitruvian machine via the WIFI_STATE characteristic.
@@ -161,6 +163,15 @@ data class MachineUpdateState(
     val progressPct: Int,  // 0-100
 )
 
+data class MachineBleUpdateRequest(
+    val offset: Int,
+    val index: Int,
+)
+
+fun interface MachineBleUpdateResponder {
+    fun chunkFor(request: MachineBleUpdateRequest): ByteArray?
+}
+
 internal fun parseMachineUpdateState(bytes: ByteArray): MachineUpdateState? {
     if (bytes.size < 9) return null
     return try {
@@ -169,6 +180,17 @@ internal fun parseMachineUpdateState(bytes: ByteArray): MachineUpdateState? {
         val error    = buf.int.coerceIn(0, 4)
         val progress = buf.get().toInt().and(0xFF).coerceIn(0, 100)
         MachineUpdateState(status, error, progress)
+    } catch (e: Exception) { null }
+}
+
+internal fun parseMachineBleUpdateRequest(bytes: ByteArray): MachineBleUpdateRequest? {
+    if (bytes.size != 5) return null
+    return try {
+        val buf = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        MachineBleUpdateRequest(
+            offset = buf.int,
+            index = buf.get().toInt().and(0xFF),
+        )
     } catch (e: Exception) { null }
 }
 
@@ -273,6 +295,8 @@ data class SessionState(
     val warmupRepsCompleted: Int = 0,
     /** Working reps completed (from reducer) — use this for display, not raw repsCount. */
     val workingRepsCompleted: Int = 0,
+    /** Working reps to announce via TTS — may lead the bottom-counted UI by one phase. */
+    val announcedWorkingReps: Int = 0,
     /** Live left-cable telemetry (position/velocity/force). Null until first sample received. */
     val leftCable: CableSample? = null,
     /** Live right-cable telemetry (position/velocity/force). Null until first sample received. */
@@ -280,6 +304,43 @@ data class SessionState(
     /** Duration countdown — seconds remaining for duration-mode exercises. Null for reps mode. */
     val durationCountdownSec: Int? = null,
 )
+
+internal fun perExerciseSetInfoForSets(
+    playerSets: List<PlayerSetParams>,
+    flatIndex: Int,
+): Pair<Int, Int> {
+    val name = playerSets.getOrNull(flatIndex)?.exerciseName ?: return Pair(0, 1)
+    var start = flatIndex
+    while (start > 0 && playerSets[start - 1].exerciseName == name) start--
+    var end = flatIndex
+    while (end < playerSets.size - 1 && playerSets[end + 1].exerciseName == name) end++
+    return Pair(flatIndex - start, end - start + 1)
+}
+
+internal fun nextStepAfterCompletedSet(
+    playerSets: List<PlayerSetParams>,
+    completedIndex: Int,
+): NextStep {
+    val nextIndex = completedIndex + 1
+    if (nextIndex >= playerSets.size) return NextStep.WorkoutDone
+    val nextSet = playerSets[nextIndex]
+    val (nextExIdx, nextExTotal) = perExerciseSetInfoForSets(playerSets, nextIndex)
+    return NextStep.NextSet(
+        flatIndex = nextIndex,
+        setIndex = nextExIdx,
+        totalSets = nextExTotal,
+        exerciseName = nextSet.exerciseName,
+        thumbnailUrl = nextSet.thumbnailUrl,
+    )
+}
+
+internal fun isReconnectablePhase(phase: SessionPhase): Boolean = when (phase) {
+    is SessionPhase.InSet,
+    is SessionPhase.ExerciseActive,
+    is SessionPhase.ExerciseComplete,
+    is SessionPhase.Resting -> true
+    else -> false
+}
 
 class WorkoutSessionEngine(
     internal val bleClient: AndroidBleClient,
@@ -311,6 +372,13 @@ class WorkoutSessionEngine(
     /** Firmware update status (null until first UPDATE_STATE notification). */
     private val _machineUpdateState = MutableStateFlow<MachineUpdateState?>(null)
     val machineUpdateState: StateFlow<MachineUpdateState?> = _machineUpdateState.asStateFlow()
+
+    /** Most recent BLE DFU chunk request from the machine (null until first request). */
+    private val _machineBleUpdateRequest = MutableStateFlow<MachineBleUpdateRequest?>(null)
+    val machineBleUpdateRequest: StateFlow<MachineBleUpdateRequest?> = _machineBleUpdateRequest.asStateFlow()
+
+    @Volatile
+    private var machineBleUpdateResponder: MachineBleUpdateResponder? = null
 
     private var programJob: Job? = null
     @Volatile private var stopSignal = false
@@ -345,6 +413,9 @@ class WorkoutSessionEngine(
         get() = if (currentPlayerIndex < playerSets.size) playerSets.subList(currentPlayerIndex, playerSets.size) else emptyList()
     private var playerJob: Job? = null
     private var restJob: Job? = null
+    private var postSetTransitionJob: Job? = null
+    private val restTransitionEpoch = SessionTransitionEpoch()
+    private val postSetTransitionEpoch = SessionTransitionEpoch()
     /** Job driving the 15-second reconnect countdown. Cancelled on success or explicit reset. */
     private var reconnectJob: Job? = null
     /** Phase captured at the moment of disconnect — used to resume after successful reconnect. */
@@ -424,6 +495,8 @@ class WorkoutSessionEngine(
         private const val DELOAD_DEBOUNCE_MS = 2_000L
         /** Status flag bit 15 — machine detected cable safety release. */
         private const val DELOAD_OCCURRED_MASK = 0x8000
+        /** Minimum average-cable delta that counts as movement for notification recovery. */
+        private const val REP_NOTIFY_MOTION_DELTA = 0.03f
     }
     /** Timestamp when the current set became active (for auto-stop grace period). */
     private var setActiveTimestampMs: Long = 0L
@@ -464,6 +537,14 @@ class WorkoutSessionEngine(
     private var eccentricTimeoutJob: Job? = null
     /** Tracks the last notification's `up` counter for eccentric gating. */
     private var lastNotificationUp = 0
+    /** Last timestamp we received a REPS notification while a set is active. */
+    private var lastRepNotifyTimestampMs = 0L
+    /** Last timestamp we attempted to re-enable BLE notifications during a set. */
+    private var lastRepNotifyRearmAttemptMs = 0L
+    /** Last timestamp where cable motion was detected from monitor samples. */
+    private var lastCableMotionTimestampMs = 0L
+    /** Previous average cable position used to detect active movement. */
+    private var previousAvgCablePosition: Float? = null
 
     // ── Monitor polling (cable position / force) ─────────────────────────────
     /**
@@ -487,13 +568,21 @@ class WorkoutSessionEngine(
                         successCount++
                         val sample = SampleNotification.fromBytes(data)
                         if (sample != null) {
+                            val nowMs = System.currentTimeMillis()
+                            val avgPos = (sample.left.position + sample.right.position) / 2f
                             _state.update { current ->
                                 current.copy(
                                     leftCable = sample.left,
                                     rightCable = sample.right,
-                                    lastTelemetryTimestamp = System.currentTimeMillis(),
+                                    lastTelemetryTimestamp = nowMs,
                                 )
                             }
+                            val prevAvg = previousAvgCablePosition
+                            if (prevAvg != null && kotlin.math.abs(avgPos - prevAvg) >= REP_NOTIFY_MOTION_DELTA) {
+                                lastCableMotionTimestampMs = nowMs
+                            }
+                            previousAvgCablePosition = avgPos
+                            maybeRecoverRepNotifications(nowMs)
 
                             // ── Stall detection ──────────────────────────────
                             // Feed averaged cable position to the detector,
@@ -501,8 +590,7 @@ class WorkoutSessionEngine(
                             // Only for Just Lift — programmed sets have a rep target
                             // and the user may legitimately pause between reps.
                             if (stallDetectionEnabled && justLiftArmed && !stallDetector.stallFired) {
-                                val avgPos = (sample.left.position + sample.right.position) / 2f
-                                stallDetector.onSample(avgPos, System.currentTimeMillis())
+                                stallDetector.onSample(avgPos, nowMs)
 
                                 if (stallDetector.isStalled && engineState.phase == SetPhase.WORKING) {
                                     val phase = _state.value.sessionPhase
@@ -549,9 +637,8 @@ class WorkoutSessionEngine(
 
                             // ── Deload event detection (status bit 15) ───────
                             if (justLiftArmed && (sample.status and DELOAD_OCCURRED_MASK) != 0) {
-                                val now = System.currentTimeMillis()
-                                if (now - lastDeloadTimeMs > DELOAD_DEBOUNCE_MS) {
-                                    lastDeloadTimeMs = now
+                                if (nowMs - lastDeloadTimeMs > DELOAD_DEBOUNCE_MS) {
+                                    lastDeloadTimeMs = nowMs
                                     onDeloadOccurred()
                                 }
                             }
@@ -585,13 +672,37 @@ class WorkoutSessionEngine(
         monitorPollingJob = null
     }
 
+    private fun maybeRecoverRepNotifications(nowMs: Long) {
+        val phase = _state.value.sessionPhase
+        val shouldRearm = RepNotifyRecoveryPolicy.shouldReEnableNotifications(
+            nowMs = nowMs,
+            isExerciseActive = phase is SessionPhase.ExerciseActive,
+            isOffMachineTimer = engineState.setDef?.isOffMachineTimer == true,
+            setPhase = engineState.phase,
+            lastRepNotifyMs = lastRepNotifyTimestampMs,
+            lastMotionMs = lastCableMotionTimestampMs,
+            lastRearmAttemptMs = lastRepNotifyRearmAttemptMs,
+        )
+        if (!shouldRearm) return
+
+        lastRepNotifyRearmAttemptMs = nowMs
+        Log.w(
+            TAG,
+            "REP_NOTIFY_SILENT: no rep notifications for ${nowMs - lastRepNotifyTimestampMs}ms " +
+                "with active cable movement -> re-enabling notifications",
+        )
+        bleClient.reEnableNotifications()
+    }
+
     init {
         scope.launch {
             bleClient.state.collect { conn ->
                 _state.value = _state.value.copy(connectionState = conn)
                 val phase = _state.value.sessionPhase
                 when {
-                    conn is BleConnectionState.Disconnected && phase !is SessionPhase.Reconnecting -> {
+                    conn is BleConnectionState.Disconnected &&
+                        phase !is SessionPhase.Reconnecting &&
+                        isReconnectablePhase(phase) -> {
                         _machineVersion.value = null
                         when (phase) {
                             is SessionPhase.InSet -> {
@@ -601,11 +712,19 @@ class WorkoutSessionEngine(
                             is SessionPhase.ExerciseActive -> {
                                 startReconnectFlow(phase)
                             }
-                            is SessionPhase.Resting -> {
-                                restJob?.cancel()
+                            is SessionPhase.ExerciseComplete -> {
+                                postSetTransitionEpoch.invalidate()
+                                postSetTransitionJob?.cancel()
+                                postSetTransitionJob = null
                                 startReconnectFlow(phase)
                             }
-                            else -> { /* no active session — ignore */ }
+                            is SessionPhase.Resting -> {
+                                restJob?.cancel()
+                                restJob = null
+                                restTransitionEpoch.invalidate()
+                                startReconnectFlow(phase)
+                            }
+                            else -> Unit
                         }
                     }
                     conn is BleConnectionState.Connected && phase is SessionPhase.Reconnecting -> {
@@ -636,6 +755,7 @@ class WorkoutSessionEngine(
             bleClient.notifyEvents.collect { event ->
                 val now = event.timestampMs
                 if (event.uuid.equals(REPS_UUID, ignoreCase = true)) {
+                    lastRepNotifyTimestampMs = now
                     val notification = RepNotification.fromBytes(event.bytes)
                     if (notification == null) {
                         Log.w(TAG, "REPS notify: failed to parse ${event.bytes.size}B payload")
@@ -721,6 +841,7 @@ class WorkoutSessionEngine(
                                 setPhase             = engineState.phase,
                                 warmupRepsCompleted  = engineState.warmupRepsCompleted,
                                 workingRepsCompleted = repCountPolicy.displayWorkingReps,
+                                announcedWorkingReps = repCountPolicy.announcedWorkingReps,
                             )
                         }
                         Log.d(TAG, "UI_STATE -> phase=${engineState.phase}" +
@@ -770,6 +891,15 @@ class WorkoutSessionEngine(
                         _machineUpdateState.value = u
                         Log.d(TAG, "UPDATE_STATE: status=${u.statusCode} error=${u.errorCode} progress=${u.progressPct}%")
                     }
+                } else if (event.uuid.equals(BLE_UPDATE_REQ_UUID, ignoreCase = true)) {
+                    val request = parseMachineBleUpdateRequest(event.bytes)
+                    if (request != null) {
+                        _machineBleUpdateRequest.value = request
+                        Log.d(TAG, "BLE_UPDATE_REQUEST: offset=${request.offset} index=${request.index}")
+                        respondToMachineBleUpdateRequest(request)
+                    } else {
+                        Log.w(TAG, "BLE_UPDATE_REQUEST: failed to parse ${event.bytes.size}B payload")
+                    }
                 } else {
                     Log.d(TAG, "Notify [${event.uuid.take(8)}] ${event.bytes.size}B  ${event.bytes.hexPreview()}")
                     _state.value = _state.value.copy(lastTelemetryTimestamp = now)
@@ -783,6 +913,10 @@ class WorkoutSessionEngine(
         Log.i(TAG, "initDevice: sending INIT + PRESET")
         sendPacket(BlePacketFactory.createInitCommand(), "INIT")
         sendPacket(BlePacketFactory.createInitPreset(), "INIT_PRESET")
+    }
+
+    fun setMachineBleUpdateResponder(responder: MachineBleUpdateResponder?) {
+        machineBleUpdateResponder = responder
     }
 
     fun startSet(params: WorkoutParameters) {
@@ -950,6 +1084,7 @@ class WorkoutSessionEngine(
     fun startPlayerWorkout(sets: List<PlayerSetParams>, programName: String? = null): Boolean {
         activeWorkoutProgramName = programName
         if (sets.isEmpty()) { Log.w(TAG, "startPlayerWorkout: empty sets list"); return false }
+        resetSetCompletionGuard()
         
         // Set phase immediately so the UI overlay appears — start with SetReady
         // so the user can get into position before warmup begins.
@@ -984,6 +1119,10 @@ class WorkoutSessionEngine(
         repCountPolicy.reset()
         stallDetector.reset()
         stallDetectionEnabled = false
+        lastRepNotifyTimestampMs = 0L
+        lastRepNotifyRearmAttemptMs = 0L
+        lastCableMotionTimestampMs = 0L
+        previousAvgCablePosition = null
         setVolumeAccumulator = VolumeAccumulator.ZERO
         workoutStartTimeMs = System.currentTimeMillis()
 
@@ -1073,6 +1212,10 @@ class WorkoutSessionEngine(
         repCountPolicy.reset()
         stallDetector.reset()
         lastDispatchedRepCount = 0
+        lastRepNotifyTimestampMs = 0L
+        lastRepNotifyRearmAttemptMs = 0L
+        lastCableMotionTimestampMs = 0L
+        previousAvgCablePosition = null
         setVolumeAccumulator = VolumeAccumulator.ZERO
         launchPlayerSet(currentPlayerIndex)
     }
@@ -1082,7 +1225,9 @@ class WorkoutSessionEngine(
         val phase = _state.value.sessionPhase
         if (phase !is SessionPhase.Resting) { Log.w(TAG, "skipRest: not Resting"); return }
         Log.i(TAG, "skipRest -> ${phase.next}")
+        restTransitionEpoch.invalidate()
         restJob?.cancel()
+        restJob = null
         advanceAfterRest(phase.next)
     }
 
@@ -1111,7 +1256,9 @@ class WorkoutSessionEngine(
                 // Not started yet — nothing to stop on the machine
             }
             is SessionPhase.Resting -> {
+                restTransitionEpoch.invalidate()
                 restJob?.cancel()
+                restJob = null
             }
             else -> {
                 Log.w(TAG, "skipSet: not in a skippable phase ($phase)")
@@ -1177,7 +1324,9 @@ class WorkoutSessionEngine(
                 // No machine state to unwind.
             }
             is SessionPhase.Resting -> {
+                restTransitionEpoch.invalidate()
                 restJob?.cancel()
+                restJob = null
             }
             else -> {
                 Log.w(TAG, "repeatPreviousSet: not in a repeatable phase ($phase)")
@@ -1236,7 +1385,9 @@ class WorkoutSessionEngine(
         }
         // Cancel rest timer if resting
         if (phase is SessionPhase.Resting) {
+            restTransitionEpoch.invalidate()
             restJob?.cancel()
+            restJob = null
         }
 
         // Advance past all remaining sets of the same exercise name
@@ -1300,7 +1451,7 @@ class WorkoutSessionEngine(
             val next: NextStep = if (currentPlayerIndex < playerSets.size) {
                 val nextSet = playerSets[currentPlayerIndex]
                 val (upExIdx, upExTotal) = perExerciseSetInfo(currentPlayerIndex)
-                NextStep.NextSet(upExIdx, upExTotal, nextSet.exerciseName, nextSet.thumbnailUrl)
+                NextStep.NextSet(currentPlayerIndex, upExIdx, upExTotal, nextSet.exerciseName, nextSet.thumbnailUrl)
             } else {
                 NextStep.WorkoutDone
             }
@@ -1337,7 +1488,12 @@ class WorkoutSessionEngine(
 
     private fun clearPlayerSessionState(sessionPhase: SessionPhase = SessionPhase.Idle) {
         stopMonitorPolling()
-        playerJob?.cancel(); restJob?.cancel(); reconnectJob?.cancel(); reconnectJob = null
+        playerJob?.cancel(); reconnectJob?.cancel(); reconnectJob = null
+        postSetTransitionEpoch.invalidate()
+        postSetTransitionJob?.cancel(); postSetTransitionJob = null
+        restTransitionEpoch.invalidate()
+        restJob?.cancel(); restJob = null
+        resetSetCompletionGuard()
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
         cancelAutoStartTimer()
@@ -1354,6 +1510,10 @@ class WorkoutSessionEngine(
         stallDetector.reset()
         stallDetectionEnabled = false
         lastDispatchedRepCount = 0
+        lastRepNotifyTimestampMs = 0L
+        lastRepNotifyRearmAttemptMs = 0L
+        lastCableMotionTimestampMs = 0L
+        previousAvgCablePosition = null
         setVolumeAccumulator = VolumeAccumulator.ZERO
         justLiftArmed = false
         _state.value = _state.value.copy(
@@ -1362,6 +1522,7 @@ class WorkoutSessionEngine(
             setPhase             = SetPhase.IDLE,
             warmupRepsCompleted  = 0,
             workingRepsCompleted = 0,
+            announcedWorkingReps = 0,
             durationCountdownSec = null,
         )
     }
@@ -1374,16 +1535,45 @@ class WorkoutSessionEngine(
      * Returns (perExerciseSetIndex, perExerciseTotalSets).
      */
     private fun perExerciseSetInfo(flatIndex: Int): Pair<Int, Int> {
-        val name = playerSets.getOrNull(flatIndex)?.exerciseName ?: return Pair(0, 1)
-        var start = flatIndex
-        while (start > 0 && playerSets[start - 1].exerciseName == name) start--
-        var end = flatIndex
-        while (end < playerSets.size - 1 && playerSets[end + 1].exerciseName == name) end++
-        return Pair(flatIndex - start, end - start + 1)
+        return perExerciseSetInfoForSets(playerSets, flatIndex)
+    }
+
+    private fun resetSetCompletionGuard(@Suppress("UNUSED_PARAMETER") reason: String? = null) {
+        setCompletionInFlight = false
+    }
+
+    private fun transitionAfterExerciseComplete(completedIndex: Int, set: PlayerSetParams) {
+        if (set.isJustLift) {
+            if (set.restAfterSec > 0) {
+                val (jlExIdx, jlExTotal) = perExerciseSetInfo(completedIndex)
+                startRest(
+                    seconds = set.restAfterSec,
+                    next = NextStep.NextSet(
+                        flatIndex = completedIndex,
+                        setIndex = jlExIdx,
+                        totalSets = jlExTotal,
+                        exerciseName = set.exerciseName,
+                        thumbnailUrl = set.thumbnailUrl,
+                    ),
+                )
+            } else {
+                reArmJustLift()
+            }
+            return
+        }
+
+        val next = nextStepAfterCompletedSet(playerSets, completedIndex)
+        if (next is NextStep.WorkoutDone && set.restAfterSec <= 0) {
+            finishWorkout()
+            return
+        }
+
+        currentPlayerIndex = completedIndex + 1
+        startRest(set.restAfterSec, next)
     }
 
     private fun launchPlayerSet(index: Int) {
-        setCompletionInFlight = false   // reset guard for the new set
+        resetSetCompletionGuard()
         val set = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
         val isDurationMode = set.targetDurationSec != null && set.targetReps == null
         Log.d(TAG, "launchPlayerSet[$index] workingRes=${set.weightPerCableLb}lb " +
@@ -1410,6 +1600,7 @@ class WorkoutSessionEngine(
             currentExerciseName = set.exerciseName,
             targetWeightLb      = set.weightPerCableLb,
             repsCount           = 0,
+            announcedWorkingReps = 0,
             lastTelemetryTimestamp = System.currentTimeMillis(),
         )
     }
@@ -1464,6 +1655,10 @@ class WorkoutSessionEngine(
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
         lastNotificationUp = 0
+        lastRepNotifyTimestampMs = setStartTimeMs
+        lastRepNotifyRearmAttemptMs = 0L
+        lastCableMotionTimestampMs = 0L
+        previousAvgCablePosition = null
         // Cancel any pending auto-start/auto-stop from the previous set
         cancelAutoStartTimer()
         handleAutoStopStartMs = null
@@ -1507,6 +1702,7 @@ class WorkoutSessionEngine(
                 setPhase             = engineState.phase,
                 warmupRepsCompleted  = 0,
                 workingRepsCompleted = 0,
+                announcedWorkingReps = 0,
             )
             Log.i(TAG, "confirmReady: starting off-machine timer for set $index (${set.exerciseName}, ${set.targetDurationSec}s)")
         } else {
@@ -1519,6 +1715,7 @@ class WorkoutSessionEngine(
                 setPhase             = engineState.phase,
                 warmupRepsCompleted  = engineState.warmupRepsCompleted,
                 workingRepsCompleted = engineState.workingRepsCompleted,
+                announcedWorkingReps = 0,
             )
             Log.i(TAG, "STARTSET_RESULT  setId=set_$index  newPhase=${engineState.phase}" +
                 "  warmupTarget=${engineState.warmupTarget}  workingTarget=${engineState.workingTarget}")
@@ -1572,8 +1769,11 @@ class WorkoutSessionEngine(
     private fun completeCurrentPlayerSet() {
         if (setCompletionInFlight) { Log.w(TAG, "completeCurrentPlayerSet: already in-flight – skipping"); return }
         setCompletionInFlight = true
+        awaitingEccentricFinish = false
+        eccentricTimeoutJob?.cancel()
         playerJob?.cancel()
-        val set    = playerSets.getOrNull(currentPlayerIndex) ?: run { setCompletionInFlight = false; return }
+        val completedIndex = currentPlayerIndex
+        val set    = playerSets.getOrNull(completedIndex) ?: run { resetSetCompletionGuard(); return }
         val now    = System.currentTimeMillis()
         val durSec = ((now - setStartTimeMs) / 1_000L).toInt().coerceAtLeast(1)
         val totalDeviceReps = _state.value.repsCount
@@ -1606,11 +1806,11 @@ class WorkoutSessionEngine(
         completedStats.add(stats)
         samplesLeft.clear()
         samplesRight.clear()
-        Log.i(TAG, "completeCurrentPlayerSet: set $currentPlayerIndex done — warmup=${set.warmupReps} working=$workingReps reps (device total=$totalDeviceReps), ${durSec}s, ${set.weightPerCableLb}lb")
+        Log.i(TAG, "completeCurrentPlayerSet: set $completedIndex done — warmup=${set.warmupReps} working=$workingReps reps (device total=$totalDeviceReps), ${durSec}s, ${set.weightPerCableLb}lb")
 
         // Send STOP through the adapter (skip if not connected is handled internally)
         if (!set.isOffMachineTimer) {
-            bleAdapter.execute(BleCommand.Stop, "AUTO_STOP[${currentPlayerIndex}]")
+            bleAdapter.execute(BleCommand.Stop, "AUTO_STOP[$completedIndex]")
         }
 
         _state.value = _state.value.copy(
@@ -1622,42 +1822,20 @@ class WorkoutSessionEngine(
             )
         )
 
-        val nextIndex = currentPlayerIndex + 1
-        val next: NextStep = if (nextIndex < playerSets.size) {
-            val nextSet = playerSets[nextIndex]
-            val (nextExIdx, nextExTotal) = perExerciseSetInfo(nextIndex)
-            NextStep.NextSet(nextExIdx, nextExTotal, nextSet.exerciseName, nextSet.thumbnailUrl)
-        } else {
-            NextStep.WorkoutDone
-        }
-
-        // Show ExerciseComplete for 1.5 s, then transition to Resting or WorkoutComplete
-        scope.launch {
+        // Show ExerciseComplete for 1.5 s, then transition to Resting or WorkoutComplete.
+        // The epoch retires any stale delayed transition if the user resets/skips first.
+        postSetTransitionEpoch.invalidate()
+        val transitionToken = postSetTransitionEpoch.issue()
+        postSetTransitionJob?.cancel()
+        val job = scope.launch {
             delay(1_500L)
-            if (set.isJustLift) {
-                if (set.restAfterSec > 0) {
-                    val (jlExIdx, jlExTotal) = perExerciseSetInfo(currentPlayerIndex)
-                    startRest(
-                        seconds = set.restAfterSec,
-                        next = NextStep.NextSet(
-                            setIndex = jlExIdx,
-                            totalSets = jlExTotal,
-                            exerciseName = set.exerciseName,
-                            thumbnailUrl = set.thumbnailUrl,
-                        ),
-                    )
-                } else {
-                    // ── Just Lift re-arm ────────────────────────────
-                    // Like Phoenix handleSetCompletion(): reset counters
-                    // and loop back to Idle/ready state for the next set
-                    // instead of finishing the workout.
-                    reArmJustLift()
-                }
-            } else if (next is NextStep.WorkoutDone && set.restAfterSec <= 0) {
-                finishWorkout()
-            } else {
-                startRest(set.restAfterSec, next)
-                currentPlayerIndex = nextIndex
+            if (!postSetTransitionEpoch.isCurrent(transitionToken)) return@launch
+            transitionAfterExerciseComplete(completedIndex, set)
+        }
+        postSetTransitionJob = job
+        job.invokeOnCompletion {
+            if (postSetTransitionJob === job) {
+                postSetTransitionJob = null
             }
         }
     }
@@ -1683,6 +1861,10 @@ class WorkoutSessionEngine(
         stallDetector.reset()
         stallDetectionEnabled = false
         lastDispatchedRepCount = 0
+        lastRepNotifyTimestampMs = 0L
+        lastRepNotifyRearmAttemptMs = 0L
+        lastCableMotionTimestampMs = 0L
+        previousAvgCablePosition = null
         setVolumeAccumulator = VolumeAccumulator.ZERO
         handleAutoStopStartMs = null
         cancelAutoStartTimer()
@@ -1835,6 +2017,7 @@ class WorkoutSessionEngine(
         val msg = when (fromPhase) {
             is SessionPhase.InSet          -> "Device disconnected during set"
             is SessionPhase.ExerciseActive -> "Device disconnected during exercise"
+            is SessionPhase.ExerciseComplete -> "Device disconnected between completed set and rest"
             is SessionPhase.Resting        -> "Connection lost during rest"
             else                           -> "Device disconnected"
         }
@@ -1959,6 +2142,15 @@ class WorkoutSessionEngine(
                     Log.i(TAG, "resumeAfterReconnect: Resting → restart rest ${savedPhase.secondsRemaining}s")
                     startRest(savedPhase.secondsRemaining.coerceAtLeast(3), savedPhase.next)
                 }
+                is SessionPhase.ExerciseComplete -> {
+                    val set = playerSets.getOrNull(currentPlayerIndex)
+                    if (set != null) {
+                        Log.i(TAG, "resumeAfterReconnect: ExerciseComplete → resume post-set transition idx=$currentPlayerIndex")
+                        transitionAfterExerciseComplete(currentPlayerIndex, set)
+                    } else {
+                        handleDisconnectError(savedPhase)
+                    }
+                }
                 is SessionPhase.SetReady -> {
                     _state.value = _state.value.copy(sessionPhase = savedPhase)
                 }
@@ -1973,24 +2165,39 @@ class WorkoutSessionEngine(
     }
 
     private fun startRest(seconds: Int, next: NextStep) {
+        restTransitionEpoch.invalidate()
         restJob?.cancel()
-        _state.value = _state.value.copy(
-            sessionPhase = SessionPhase.Resting(secondsRemaining = seconds, next = next)
-        )
-        restJob = scope.launch {
+        val restToken = restTransitionEpoch.issue()
+        val job = scope.launch(start = CoroutineStart.LAZY) {
             var remaining = seconds
-            while (isActive && remaining > 0) {
+            while (isActive && remaining > 0 && restTransitionEpoch.isCurrent(restToken)) {
                 delay(1_000L)
                 remaining--
                 val curPhase = _state.value.sessionPhase
-                if (curPhase is SessionPhase.Resting) {
+                if (curPhase is SessionPhase.Resting && restTransitionEpoch.isCurrent(restToken)) {
                     _state.value = _state.value.copy(
                         sessionPhase = curPhase.copy(secondsRemaining = remaining)
                     )
                 }
             }
-            if (isActive) advanceAfterRest(next)
+            if (isActive && restTransitionEpoch.isCurrent(restToken)) {
+                restJob = null
+                advanceAfterRest(next)
+            }
         }
+        restJob = job
+        _state.value = _state.value.copy(
+            sessionPhase = SessionPhase.Resting(secondsRemaining = seconds, next = next)
+        )
+        job.invokeOnCompletion { cause ->
+            if (restJob === job) {
+                restJob = null
+            }
+            if (cause != null) {
+                Log.w(TAG, "startRest: job canceled next=$next currentIndex=$currentPlayerIndex cause=${cause.message}")
+            }
+        }
+        job.start()
     }
 
     private fun advanceAfterRest(next: NextStep) {
@@ -2000,16 +2207,18 @@ class WorkoutSessionEngine(
             Log.w(TAG, "advanceAfterRest: phase is $phase, not Resting – skipping double advance")
             return
         }
+        restTransitionEpoch.invalidate()
+        restJob = null
         when (next) {
             is NextStep.NextSet -> {
+                currentPlayerIndex = next.flatIndex
                 if (justLiftArmed && playerSets.getOrNull(currentPlayerIndex)?.isJustLift == true) {
                     reArmJustLift()
                     return
                 }
-                launchPlayerSet(currentPlayerIndex)
+                launchPlayerSet(next.flatIndex)
                 if (autoPlay) {
                     // Skip the SetReady screen and start the set immediately
-                    Log.i(TAG, "advanceAfterRest: autoPlay ON → auto-confirming set $currentPlayerIndex")
                     confirmReady()
                 }
             }
@@ -2018,6 +2227,14 @@ class WorkoutSessionEngine(
     }
 
     internal fun finishWorkout() {
+        if (_state.value.sessionPhase is SessionPhase.WorkoutComplete) return
+        postSetTransitionEpoch.invalidate()
+        postSetTransitionJob?.cancel()
+        postSetTransitionJob = null
+        restTransitionEpoch.invalidate()
+        restJob?.cancel()
+        restJob = null
+        resetSetCompletionGuard()
         val totalDurSec = ((System.currentTimeMillis() - workoutStartTimeMs) / 1_000L).toInt()
         val totalReps      = completedStats.sumOf { it.repsCompleted }
         // Sum per-set working volumes — all in kg, the canonical unit.
@@ -2053,6 +2270,29 @@ class WorkoutSessionEngine(
         SessionEventLog.append(SessionEventLog.EventType.TX, "[Q:$note] ${bytes.hexPreview()}")
         Log.d(TAG, "sendPacket[$note]: ${bytes.size}B  queuing  hex=${bytes.hexPreview()}")
         bleClient.enqueueWrite(bytes, note)
+    }
+
+    private fun respondToMachineBleUpdateRequest(request: MachineBleUpdateRequest) {
+        val responder = machineBleUpdateResponder
+        if (responder == null) {
+            Log.d(TAG, "BLE_UPDATE_REQUEST: no responder installed")
+            return
+        }
+
+        val chunk = responder.chunkFor(request)
+        if (chunk == null) {
+            Log.w(TAG, "BLE_UPDATE_REQUEST: responder returned no chunk for index=${request.index} offset=${request.offset}")
+            return
+        }
+
+        sendPacket(
+            BlePacketFactory.createBleUpdateResponse(
+                offset = request.offset,
+                bytes = chunk,
+                index = request.index,
+            ),
+            "BLE_UPDATE_RESP[${request.index}]",
+        )
     }
 
     private fun assertReady(caller: String): Boolean {
@@ -2121,13 +2361,16 @@ class WorkoutSessionEngine(
                         " → warm=${setVolumeAccumulator.warmupKg}kg work=${setVolumeAccumulator.workingKg}kg")
                 }
                 is SessionEffect.StartRestTimer -> {
+                    val repTiming = engineState.setDef?.repCountTiming
                     Log.i(TAG, "EFFECT_STARTREST  seconds=${effect.seconds}  SETCOMPLETE" +
                         "  setId=${engineState.currentSetId}" +
                         "  workingDone=${engineState.workingRepsCompleted}/${engineState.workingTarget}" +
-                        "  stopAtTop=$stopAtTop  CALLER=executeEffects")
+                        "  stopAtTop=$stopAtTop  repTiming=$repTiming  CALLER=executeEffects")
 
-                    if (stopAtTop) {
-                        // Legacy behaviour: STOP fires immediately at the rep target.
+                    if (stopAtTop || repTiming == com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM) {
+                        // Immediate completion is correct when the user explicitly wants
+                        // release at the top, or when rep counting already confirmed the
+                        // final rep at the bottom of the eccentric.
                         completeCurrentPlayerSet()
                     } else {
                         // Default: wait for the eccentric of the final rep to finish

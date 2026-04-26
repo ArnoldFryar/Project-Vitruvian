@@ -69,6 +69,22 @@ data class SetHistoryEntity(
     @ColumnInfo(name = "avg_smoothness")
     val avgSmoothness: Int? = null,
 
+    /** Average concentric force derived from machine heuristics (kg). */
+    @ColumnInfo(name = "avg_force")
+    val avgForce: Float = 0f,
+
+    /** Peak concentric force derived from machine heuristics (kg). */
+    @ColumnInfo(name = "peak_force")
+    val peakForce: Float = 0f,
+
+    /** Echo level used for this set, or null when not in Echo mode. */
+    @ColumnInfo(name = "echo_level")
+    val echoLevel: String? = null,
+
+    /** Eccentric load percentage used for this set (default 100 = no reduction). */
+    @ColumnInfo(name = "eccentric_load_pct")
+    val eccentricLoadPct: Int = 100,
+
     /** Origin mode for the set history row, e.g. JUST_LIFT, when applicable. */
     @ColumnInfo(name = "origin_mode")
     val originMode: String? = null,

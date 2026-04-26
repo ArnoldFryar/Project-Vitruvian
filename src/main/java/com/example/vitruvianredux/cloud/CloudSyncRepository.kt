@@ -522,7 +522,10 @@ object CloudSyncRepository {
 
         // JustLift defaults — no individual updatedAt; fall back to global lastSyncAt
         try {
-            val jl = justLiftFromJson(remote.justLiftDefaults.toString())
+            val jl = justLiftFromJson(
+                jsonStr = remote.justLiftDefaults.toString(),
+                base = JustLiftStore.getJustLiftDefaults(),
+            )
             if (jl != null && remote.updatedAt > lastSyncAt) JustLiftStore.save(jl)
         } catch (_: Exception) {}
 
@@ -666,6 +669,17 @@ object CloudSyncRepository {
                 if (s.avgTempo      != null) put("avgTempo",      s.avgTempo)
                 if (s.avgSymmetry   != null) put("avgSymmetry",   s.avgSymmetry)
                 if (s.avgSmoothness != null) put("avgSmoothness", s.avgSmoothness)
+                if (s.avgForce > 0f) put("avgForce", s.avgForce.toDouble())
+                if (s.peakForce > 0f) put("peakForce", s.peakForce.toDouble())
+                if (s.echoLevel != null) put("echoLevel", s.echoLevel)
+                if (s.eccentricLoadPct != 100) put("eccentricLoadPct", s.eccentricLoadPct)
+                if (s.telemetrySampleCount > 0) {
+                    put("telemetryAvgLeftForce", s.telemetryAvgLeftForce.toDouble())
+                    put("telemetryAvgRightForce", s.telemetryAvgRightForce.toDouble())
+                    put("telemetryBalancePct", s.telemetryBalancePct)
+                    put("telemetryFinishForcePct", s.telemetryFinishForcePct)
+                    put("telemetrySampleCount", s.telemetrySampleCount)
+                }
                 if (s.skipped) put("skipped", true)
             })
         }
@@ -696,6 +710,15 @@ object CloudSyncRepository {
                     avgTempo        = if (obj.has("avgTempo"))      obj.getInt("avgTempo")      else null,
                     avgSymmetry     = if (obj.has("avgSymmetry"))   obj.getInt("avgSymmetry")   else null,
                     avgSmoothness   = if (obj.has("avgSmoothness")) obj.getInt("avgSmoothness") else null,
+                    avgForce        = obj.optDouble("avgForce", 0.0).toFloat(),
+                    peakForce       = obj.optDouble("peakForce", 0.0).toFloat(),
+                    echoLevel       = obj.optString("echoLevel", "").takeIf { it.isNotEmpty() },
+                    eccentricLoadPct = obj.optInt("eccentricLoadPct", 100),
+                    telemetryAvgLeftForce = obj.optDouble("telemetryAvgLeftForce", 0.0).toFloat(),
+                    telemetryAvgRightForce = obj.optDouble("telemetryAvgRightForce", 0.0).toFloat(),
+                    telemetryBalancePct = obj.optInt("telemetryBalancePct", 0),
+                    telemetryFinishForcePct = obj.optInt("telemetryFinishForcePct", 100),
+                    telemetrySampleCount = obj.optInt("telemetrySampleCount", 0),
                     skipped         = obj.optBoolean("skipped", false),
                 )
             }
@@ -718,33 +741,36 @@ object CloudSyncRepository {
         }.toString()
     }
 
-    private fun justLiftFromJson(jsonStr: String): JustLiftStore.JustLiftDefaults? {
+    private fun justLiftFromJson(
+        jsonStr: String,
+        base: JustLiftStore.JustLiftDefaults = JustLiftStore.JustLiftDefaults(),
+    ): JustLiftStore.JustLiftDefaults? {
         return try {
             val obj = JSONObject(jsonStr)
             JustLiftStore.JustLiftDefaults(
-                weightPerCableKg = obj.optDouble("weightPerCableKg", 4.536).toFloat(),
-                weightChangePerRep = obj.optDouble("weightChangePerRep", 0.0).toFloat(),
+                weightPerCableKg = obj.optDouble("weightPerCableKg", base.weightPerCableKg.toDouble()).toFloat(),
+                weightChangePerRep = obj.optDouble("weightChangePerRep", base.weightChangePerRep.toDouble()).toFloat(),
                 workoutModeId = try {
                     com.example.vitruvianredux.presentation.screen.JustLiftMode.valueOf(
-                        obj.optString("workoutModeId", "OldSchool")
+                        obj.optString("workoutModeId", base.workoutModeId.name)
                     )
                 } catch (_: Exception) {
-                    com.example.vitruvianredux.presentation.screen.JustLiftMode.OldSchool
+                    base.workoutModeId
                 },
-                eccentricLoadPercentage = obj.optInt("eccentricLoadPercentage", 100),
+                eccentricLoadPercentage = obj.optInt("eccentricLoadPercentage", base.eccentricLoadPercentage),
                 echoLevelValue = try {
                     com.example.vitruvianredux.ble.protocol.EchoLevel.valueOf(
-                        obj.optString("echoLevelValue", "HARD")
+                        obj.optString("echoLevelValue", base.echoLevelValue.name)
                     )
                 } catch (_: Exception) {
-                    com.example.vitruvianredux.ble.protocol.EchoLevel.HARD
+                    base.echoLevelValue
                 },
-                stallDetectionEnabled = obj.optBoolean("stallDetectionEnabled", true),
-                repCountTimingName = obj.optString("repCountTimingName", "BOTTOM"),
-                restSeconds = obj.optInt("restSeconds", 0),
-                soundEnabled = obj.optBoolean("soundEnabled", true),
-                mirrorEnabled = obj.optBoolean("mirrorEnabled", false),
-                isBeastMode = obj.optBoolean("isBeastMode", false),
+                stallDetectionEnabled = obj.optBoolean("stallDetectionEnabled", base.stallDetectionEnabled),
+                repCountTimingName = obj.optString("repCountTimingName", base.repCountTimingName),
+                restSeconds = obj.optInt("restSeconds", base.restSeconds),
+                soundEnabled = obj.optBoolean("soundEnabled", base.soundEnabled),
+                mirrorEnabled = obj.optBoolean("mirrorEnabled", base.mirrorEnabled),
+                isBeastMode = obj.optBoolean("isBeastMode", base.isBeastMode),
             )
         } catch (_: Exception) { null }
     }
@@ -789,6 +815,7 @@ object CloudSyncRepository {
                 totalReps        = e.totalReps,
                 totalVolumeKg    = e.totalVolumeKg,
                 heaviestWeightLb = e.heaviestWeightLb,
+                originMode       = e.originMode,
                 completedAt      = e.completedAt,
                 deviceId         = deviceId,
                 updatedAt        = e.updatedAt,
@@ -817,6 +844,11 @@ object CloudSyncRepository {
                 weightLb          = s.weightLb,
                 volumeKg          = s.volumeKg,
                 durationSec       = s.durationSec,
+                avgForce          = s.avgForce,
+                peakForce         = s.peakForce,
+                echoLevel         = s.echoLevel,
+                eccentricLoadPct  = s.eccentricLoadPct,
+                originMode        = s.originMode,
                 completedAt       = s.completedAt,
                 deviceId          = deviceId,
                 updatedAt         = s.updatedAt,
@@ -848,6 +880,7 @@ object CloudSyncRepository {
                         totalReps        = re.totalReps,
                         totalVolumeKg    = re.totalVolumeKg,
                         heaviestWeightLb = re.heaviestWeightLb,
+                        originMode       = re.originMode,
                         completedAt      = re.completedAt,
                         updatedAt        = re.updatedAt,
                         syncPending      = false,  // already on remote
@@ -884,6 +917,11 @@ object CloudSyncRepository {
                     weightLb          = rs.weightLb,
                     volumeKg          = rs.volumeKg,
                     durationSec       = rs.durationSec,
+                    avgForce          = rs.avgForce,
+                    peakForce         = rs.peakForce,
+                    echoLevel         = rs.echoLevel,
+                    eccentricLoadPct  = rs.eccentricLoadPct,
+                    originMode        = rs.originMode,
                     completedAt       = rs.completedAt,
                     updatedAt         = rs.updatedAt,
                     syncPending       = false,
