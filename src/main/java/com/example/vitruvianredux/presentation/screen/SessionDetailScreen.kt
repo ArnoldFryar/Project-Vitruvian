@@ -222,7 +222,7 @@ onClick = onBack) {
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            "${timeFmt.format(startInstant)} â€“ ${timeFmt.format(endInstant)}  ·  ${formatSessionDuration(session.durationSec)}",
+                            "${timeFmt.format(startInstant)} - ${timeFmt.format(endInstant)} | ${formatSessionDuration(session.durationSec)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = cs.onSurfaceVariant,
                         )
