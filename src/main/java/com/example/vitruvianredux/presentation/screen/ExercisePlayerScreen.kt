@@ -112,9 +112,15 @@ fun ExercisePlayerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    suspend fun finalizeAndExit(saveProgramChanges: Boolean) {
+    suspend fun finalizeAndExit(
+        saveProgramChanges: Boolean,
+        promoteDeloadWeights: Boolean = false,
+    ) {
         onFinalizeWorkout()
-        if (saveProgramChanges) workoutVM.saveWorkoutChangesToProgram()
+        workoutVM.finalizeTrackedProgramAfterWorkout(
+            saveProgramChanges = saveProgramChanges,
+            promoteDeloadToBaseline = promoteDeloadWeights,
+        )
         workoutVM.resetAfterWorkout()
         onBack()
     }
@@ -324,6 +330,13 @@ fun ExercisePlayerScreen(
                             )
                         }
                         val hasProgramChanges = workoutVM.activeProgramId != null
+                        val remainingDeloadSessions = workoutVM.activeProgramDeloadRemainingSessions
+                        val isFinalDeloadSession = workoutVM.activeProgramIsDeload && (remainingDeloadSessions ?: 1) <= 1
+                        val deloadMessage = when {
+                            !workoutVM.activeProgramIsDeload -> null
+                            isFinalDeloadSession -> "Final deload session complete. Promote these reduced loads to your program baseline or finish without changing the baseline."
+                            else -> "Deload session complete. ${((remainingDeloadSessions ?: 1) - 1).coerceAtLeast(0)} session(s) remain in this block."
+                        }
 
                         // -- PR detection --------------------------------------
                         // Snapshot the PB store *before* recording updates it.
@@ -346,6 +359,9 @@ fun ExercisePlayerScreen(
                             onSaveAndExit = {
                                 scope.launch { finalizeAndExit(saveProgramChanges = hasProgramChanges) }
                             },
+                            onPromoteDeloadWeights = if (isFinalDeloadSession) {
+                                { scope.launch { finalizeAndExit(saveProgramChanges = false, promoteDeloadWeights = true) } }
+                            } else null,
                             avgQualityScore = workoutVM.completedExerciseStats
                                 .mapNotNull { it.avgQualityScore }
                                 .takeIf { it.isNotEmpty() }
@@ -359,6 +375,7 @@ fun ExercisePlayerScreen(
                             onPickTaggedExercise = { showTagExercisePicker = true },
                             onClearTaggedExercise = { workoutVM.justLiftTaggedExercise = null },
                             prCount      = prCount,
+                            deloadMessage = deloadMessage,
                             exerciseSets = workoutVM.completedExerciseStats.map { es ->
                                 com.example.vitruvianredux.data.AnalyticsStore.ExerciseSetLog(
                                     exerciseId = es.exerciseId,
@@ -385,11 +402,12 @@ fun ExercisePlayerScreen(
                         val isOpenEnded = readyPhase.isJustLift
                         val isExerciseMenuLaunch = !isOpenEnded && workoutVM.activeProgramId == null
                         val canEditExerciseMenuPlan = isExerciseMenuLaunch && readyPhase.setIndex == 0
+                        val activeDeloadPercent = workoutVM.activeProgramDeloadPercent
 
                         // Compute progression suggestion only on the first set of a program workout
                         val allSessions by AnalyticsStore.logsFlow.collectAsState()
-                        val progressionSuggestion = remember(readyPhase.exerciseName, targetReps, resistanceLb, allSessions) {
-                            if (!isOpenEnded && readyPhase.setIndex == 0 && isRepsMode)
+                        val progressionSuggestion = remember(readyPhase.exerciseName, targetReps, resistanceLb, allSessions, activeDeloadPercent) {
+                            if (!isOpenEnded && readyPhase.setIndex == 0 && isRepsMode && activeDeloadPercent == null)
                                 ProgressionEngine.suggestProgression(
                                     exerciseName      = readyPhase.exerciseName,
                                     targetReps        = targetReps,
@@ -488,6 +506,7 @@ fun ExercisePlayerScreen(
                             progressionSuggestionLb = (progressionSuggestion as? ProgressionResult.Increase)?.newWeightLb,
                             progressionDeloadLb     = (progressionSuggestion as? ProgressionResult.Deload)?.newWeightLb,
                             onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
+                            deloadPercentOff    = activeDeloadPercent,
                             isEchoMode          = (effectiveSelectedMode == "Echo"),
                             selectedMode        = effectiveSelectedMode,
                             onModeSelect        = { selectedMode = it },
@@ -582,6 +601,7 @@ fun ExercisePlayerScreen(
                         onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
                         lastRepQuality         = lastRepQuality,
+                        deloadPercentOff       = workoutVM.activeProgramDeloadPercent,
                         machineHeuristic       = machineHeuristic,
                     )
                 }

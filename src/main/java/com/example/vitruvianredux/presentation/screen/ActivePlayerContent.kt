@@ -113,6 +113,7 @@ internal fun ActivePlayerContent(
     onSkipExercise: () -> Unit,
     onDebugRepIncrement: () -> Unit,
     lastRepQuality: RepQuality?,
+    deloadPercentOff: Int? = null,
     machineHeuristic: MachineHeuristic? = null,
 ) {
     val isActive   = phase is SessionPhase.ExerciseActive
@@ -996,6 +997,20 @@ internal fun ActivePlayerContent(
                             modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
                             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
                         ) {
+                            if (deloadPercentOff != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(AppDimens.Corner.pill),
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                ) {
+                                    Text(
+                                        text = "Deload -$deloadPercentOff%",
+                                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xxs),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    )
+                                }
+                            }
                             Text(
                                 text = phaseLabel,
                                 style = MaterialTheme.typography.labelSmall,

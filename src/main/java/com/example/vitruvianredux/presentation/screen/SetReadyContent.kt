@@ -94,6 +94,8 @@ internal fun SetReadyContent(
     /** When non-null, show a deload suggestion banner (user struggling below rep floor). */
     progressionDeloadLb: Int? = null,
     onAcceptProgression: (Int) -> Unit = {},
+    /** When non-null, the current workout was launched in deload mode. */
+    deloadPercentOff: Int? = null,
     /** Bodyweight exercise — hide resistance, warmup, and mode controls. */
     isBodyweight: Boolean = false,
     /** Echo (isokinetic) mode — weight is adaptive so the selector is hidden. */
@@ -179,6 +181,42 @@ internal fun SetReadyContent(
                 }
             }
             Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+            if (deloadPercentOff != null) {
+                Surface(
+                    shape = RoundedCornerShape(AppDimens.Corner.sm),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Deload active",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                            Text(
+                                "This workout started at $deloadPercentOff% below programmed load. Program updates are paused for this session.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        ReadyInfoPill(
+                            label = "Deload",
+                            value = "-$deloadPercentOff%",
+                        )
+                    }
+                }
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
+            }
         }
 
         if (progressionDeloadLb != null) {
@@ -264,6 +302,9 @@ internal fun SetReadyContent(
             }
             if (showRestTimerPicker) {
                 ReadyInfoPill(label = "Rest", value = formatRestDuration(restAfterSec))
+            }
+            if (deloadPercentOff != null) {
+                ReadyInfoPill(label = "Deload", value = "-$deloadPercentOff%")
             }
         }
 

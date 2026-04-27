@@ -16,6 +16,7 @@ import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.HandleState
 import com.example.vitruvianredux.ble.session.NextStep
+import com.example.vitruvianredux.data.ProgramDeloadState
 import com.example.vitruvianredux.data.TtsVoiceStore
 import com.example.vitruvianredux.data.VoiceCoachingSettings
 import com.example.vitruvianredux.data.VoiceCoachingStore
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import java.util.Locale
 import java.util.UUID
 
@@ -147,6 +149,22 @@ class WorkoutSessionViewModel(
 
     /** Day/split label within the program (e.g. "Push Day"); null if not applicable. */
     var activeDayName: String? = null
+        private set
+
+    /** True when the current program workout was launched in one-shot deload mode. */
+    var activeProgramIsDeload: Boolean = false
+        private set
+
+    /** Percentage reduction applied to the active deload session. */
+    var activeProgramDeloadPercent: Int? = null
+        private set
+
+    /** Remaining deload sessions at the point this workout started. */
+    var activeProgramDeloadRemainingSessions: Int? = null
+        private set
+
+    /** Set reduction applied to the active deload session. */
+    var activeProgramDeloadSetReduction: Int = 0
         private set
 
     /** True only for open-ended Just Lift sessions, not other ad-hoc workout launches. */
@@ -559,6 +577,10 @@ class WorkoutSessionViewModel(
 
     fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
         isJustLiftSession = false
+        activeProgramIsDeload = false
+        activeProgramDeloadPercent = null
+        activeProgramDeloadRemainingSessions = null
+        activeProgramDeloadSetReduction = 0
         sessionStartMs = System.currentTimeMillis()
         _completedExerciseStats.clear()
         repQualityTracker.discardCurrentSet()
@@ -574,12 +596,17 @@ class WorkoutSessionViewModel(
      * Tracks the program ID and name so changes can be saved back on completion
      * and the session recorder can label the log entry.
      */
-    fun startProgramWorkout(programId: String, sets: List<PlayerSetParams>): Boolean {
+    fun startProgramWorkout(
+        programId: String,
+        sets: List<PlayerSetParams>,
+        isDeload: Boolean = false,
+        deloadPercent: Int? = null,
+        deloadRemainingSessions: Int? = null,
+        deloadSetReduction: Int = 0,
+    ): Boolean {
         isJustLiftSession = false
-        activeProgramId   = programId
-        activeProgramName = com.example.vitruvianredux.data.ProgramStore
+        val programName = com.example.vitruvianredux.data.ProgramStore
             .savedProgramsFlow.value.find { it.id == programId }?.name
-        activeDayName     = null   // Day/split support can be wired here in future
         sessionStartMs    = System.currentTimeMillis()
         _completedExerciseStats.clear()
         repQualityTracker.discardCurrentSet()
@@ -587,7 +614,70 @@ class WorkoutSessionViewModel(
         currentSetVoiceQualities.clear()
         bestConcentricWattMaxForSet = null
         resetAudioStateForNewWorkout()
-        return engine.startPlayerWorkout(sets, programName = activeProgramName)
+        val started = engine.startPlayerWorkout(sets, programName = programName)
+        if (started) {
+            activeProgramId = programId
+            activeProgramName = programName
+            activeDayName = null   // Day/split support can be wired here in future
+            activeProgramIsDeload = isDeload
+            activeProgramDeloadPercent = deloadPercent?.takeIf { isDeload }
+            activeProgramDeloadRemainingSessions = deloadRemainingSessions?.takeIf { isDeload }
+            activeProgramDeloadSetReduction = if (isDeload) deloadSetReduction.coerceAtLeast(0) else 0
+        } else {
+            activeProgramId = null
+            activeProgramName = null
+            activeDayName = null
+            activeProgramIsDeload = false
+            activeProgramDeloadPercent = null
+            activeProgramDeloadRemainingSessions = null
+            activeProgramDeloadSetReduction = 0
+            sessionStartMs = 0L
+        }
+        return started
+    }
+
+    fun finalizeTrackedProgramAfterWorkout(
+        saveProgramChanges: Boolean,
+        promoteDeloadToBaseline: Boolean = false,
+    ): Boolean {
+        val progId = activeProgramId ?: return false
+        val programs = com.example.vitruvianredux.data.ProgramStore.savedProgramsFlow.value
+        val program = programs.find { it.id == progId } ?: return false
+
+        if (!activeProgramIsDeload) {
+            return if (saveProgramChanges) saveWorkoutChangesToProgram() else false
+        }
+
+        val activeDeload = program.deloadState ?: ProgramDeloadState(
+            percentOff = activeProgramDeloadPercent ?: 10,
+            remainingSessions = activeProgramDeloadRemainingSessions ?: 1,
+            reduceSetsBy = activeProgramDeloadSetReduction,
+        )
+        val updatedProgram = if (promoteDeloadToBaseline) {
+            val scale = 1f - (activeDeload.percentOff / 100f)
+            program.copy(
+                items = program.items.map { item ->
+                    if (item.targetWeightLb <= 0) item
+                    else item.copy(targetWeightLb = scaleProgramWeight(item.targetWeightLb, scale))
+                },
+                deloadState = null,
+            )
+        } else {
+            val nextRemainingSessions = activeDeload.remainingSessions - 1
+            program.copy(
+                deloadState = if (nextRemainingSessions > 0) {
+                    activeDeload.copy(remainingSessions = nextRemainingSessions)
+                } else {
+                    null
+                }
+            )
+        }
+
+        if (updatedProgram != program) {
+            com.example.vitruvianredux.data.ProgramStore.addProgram(updatedProgram)
+            return true
+        }
+        return false
     }
 
     /**
@@ -595,6 +685,7 @@ class WorkoutSessionViewModel(
      * Returns true if the program was updated, false if no program was tracked.
      */
     fun saveWorkoutChangesToProgram(): Boolean {
+        if (activeProgramIsDeload) return false
         val progId = activeProgramId ?: return false
         val programs = com.example.vitruvianredux.data.ProgramStore.savedProgramsFlow.value
         val program = programs.find { it.id == progId } ?: return false
@@ -822,6 +913,10 @@ class WorkoutSessionViewModel(
         activeProgramId   = null
         activeProgramName = null
         activeDayName     = null
+        activeProgramIsDeload = false
+        activeProgramDeloadPercent = null
+        activeProgramDeloadRemainingSessions = null
+        activeProgramDeloadSetReduction = 0
         sessionStartMs    = 0L
         sessionNotes      = ""
         sessionTags       = emptySet()
@@ -858,6 +953,11 @@ class WorkoutSessionViewModel(
         lastRepQualitySessionPhase = defaults.lastRepQualitySessionPhase
         audioArbiter.resetSession()
         soundEnabled.value = defaults.soundEnabled
+    }
+
+    private fun scaleProgramWeight(targetWeightLb: Int, scale: Float): Int {
+        if (targetWeightLb <= 0) return 0
+        return (targetWeightLb * scale.coerceAtLeast(0f)).roundToInt().coerceAtLeast(1)
     }
 
     /**

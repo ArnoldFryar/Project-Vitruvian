@@ -2,6 +2,7 @@ package com.example.vitruvianredux.data
 
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.model.Exercise
+import kotlin.math.roundToInt
 
 /**
  * Converts a flat list of [ProgramItemDraft]s into a [PlayerSetParams] queue,
@@ -20,6 +21,8 @@ object CircuitSetBuilder {
     fun build(
         items: List<ProgramItemDraft>,
         exerciseCatalog: Map<String, Exercise>,
+        workingWeightScale: Float = 1f,
+        setReduction: Int = 0,
     ): List<PlayerSetParams> {
         val result = mutableListOf<PlayerSetParams>()
 
@@ -32,8 +35,8 @@ object CircuitSetBuilder {
             if (item.circuitGroup == null) {
                 // Normal item — expand sets sequentially
                 val ex = exerciseCatalog[item.exerciseId]
-                repeat(item.sets) {
-                    result += makeParams(item, ex, item.restTimerSec)
+                repeat(effectiveSetCount(item.sets, setReduction)) {
+                    result += makeParams(item, ex, item.restTimerSec, workingWeightScale)
                 }
                 i++
             } else {
@@ -46,15 +49,15 @@ object CircuitSetBuilder {
                     j++
                 }
                 // Number of rounds = max(sets) across items in the group
-                val rounds = groupItems.maxOf { it.sets }
+                val rounds = groupItems.maxOf { effectiveSetCount(it.sets, setReduction) }
                 val lastInGroup = groupItems.last()
                 for (round in 0 until rounds) {
                     groupItems.forEachIndexed { idx, gi ->
-                        if (round < gi.sets) {
+                        if (round < effectiveSetCount(gi.sets, setReduction)) {
                             val ex = exerciseCatalog[gi.exerciseId]
                             val isLastInRound = (idx == groupItems.size - 1)
                             val rest = if (isLastInRound) lastInGroup.restTimerSec else 10
-                            result += makeParams(gi, ex, rest)
+                            result += makeParams(gi, ex, rest, workingWeightScale)
                         }
                     }
                 }
@@ -64,7 +67,12 @@ object CircuitSetBuilder {
         return result
     }
 
-    private fun makeParams(item: ProgramItemDraft, ex: Exercise?, restAfterSec: Int): PlayerSetParams =
+    private fun makeParams(
+        item: ProgramItemDraft,
+        ex: Exercise?,
+        restAfterSec: Int,
+        workingWeightScale: Float,
+    ): PlayerSetParams =
         if (ex?.isBodyweightOnly == true) {
             PlayerSetParams(
                 exerciseId              = ex.stableKey,
@@ -93,7 +101,7 @@ object CircuitSetBuilder {
             videoUrl                = ex?.videoUrl,
             targetReps              = if (item.mode == ExerciseMode.REPS) item.reps else null,
             targetDurationSec       = if (item.mode == ExerciseMode.TIME) item.durationSec else null,
-            weightPerCableLb        = item.targetWeightLb,
+            weightPerCableLb        = scaledWeightLb(item.targetWeightLb, workingWeightScale),
             restAfterSec            = restAfterSec,
             warmupReps              = 3,
             programMode             = item.programMode,
@@ -105,4 +113,13 @@ object CircuitSetBuilder {
             repRangeMax             = item.repRangeMax,
         )
         }
+
+    private fun scaledWeightLb(targetWeightLb: Int, workingWeightScale: Float): Int {
+        if (targetWeightLb <= 0) return 0
+        val scale = workingWeightScale.coerceAtLeast(0f)
+        return (targetWeightLb * scale).roundToInt().coerceAtLeast(1)
+    }
+
+    private fun effectiveSetCount(sets: Int, setReduction: Int): Int =
+        (sets - setReduction.coerceAtLeast(0)).coerceAtLeast(1)
 }

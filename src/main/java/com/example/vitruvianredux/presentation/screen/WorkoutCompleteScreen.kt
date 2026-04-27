@@ -67,6 +67,7 @@ fun WorkoutCompleteContent(
     stats: WorkoutStats,
     onDismiss: () -> Unit,
     onSaveAndExit: () -> Unit,
+    onPromoteDeloadWeights: (() -> Unit)? = null,
     avgQualityScore: Int? = null,
     notes: String = "",
     onNotesChange: (String) -> Unit = {},
@@ -78,6 +79,7 @@ fun WorkoutCompleteContent(
     onClearTaggedExercise: () -> Unit = {},
     prCount: Int = 0,
     exerciseSets: List<AnalyticsStore.ExerciseSetLog> = emptyList(),
+    deloadMessage: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val ext = LocalExtendedColors.current
@@ -344,7 +346,30 @@ fun WorkoutCompleteContent(
             shape = RoundedCornerShape(AppDimens.Corner.md_sm),
         )
 
+        if (deloadMessage != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+            ) {
+                Text(
+                    text = deloadMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    modifier = Modifier.padding(AppDimens.Spacing.md),
+                )
+            }
+        }
+
         // â”€â”€ Action buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        if (onPromoteDeloadWeights != null) {
+            GradientButton(
+                text = "Promote Deload Weights",
+                icon = AppIcons.TrendingUp,
+                onClick = onPromoteDeloadWeights,
+            )
+        }
+
         GradientButton(
             text = "Save and Exit",
             icon = AppIcons.Save,

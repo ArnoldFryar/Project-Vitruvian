@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.core.view.WindowCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,15 +34,21 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
+import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
+import com.example.vitruvianredux.data.PrTracker
+import com.example.vitruvianredux.data.ProgramDeloadState
 import com.example.vitruvianredux.data.ProgramItemDraft
+import com.example.vitruvianredux.data.ProgramStore
+import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ProgramPreviewCard
 import com.example.vitruvianredux.presentation.components.ProgramPreviewChip
+import com.example.vitruvianredux.presentation.components.ValueStepper
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.util.loadExercises
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -61,6 +68,11 @@ fun ProgramDetailScreen(
     var showDeleteDialog  by remember { mutableStateOf(false) }
     var showMenu          by remember { mutableStateOf(false) }
     var savedAsTemplate   by remember { mutableStateOf(false) }
+    var launchWithDeload  by rememberSaveable { mutableStateOf(false) }
+    var deloadPercentOff  by rememberSaveable { mutableStateOf(10) }
+    var deloadSessionCount by rememberSaveable { mutableIntStateOf(2) }
+    var deloadReduceSets  by rememberSaveable { mutableStateOf(true) }
+    val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
     val context = LocalContext.current
     var exerciseCatalog  by remember { mutableStateOf<Map<String, Exercise>>(emptyMap()) }
@@ -114,6 +126,8 @@ onClick = { showDeleteDialog = false }) {
         item.sets * (item.restTimerSec / 60.0 + 1.5)
     }.toInt().coerceAtLeast(if (program.items.isEmpty()) 0 else 1)
     val daysLabel = formatScheduledDays(program.scheduledDays)
+    val activeDeload = program.deloadState
+    val deloadRecommendation = remember(program, allLogs) { buildProgramDeloadRecommendation(program, allLogs) }
     val bottomBarPadding = 112.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     SideEffect {
@@ -213,6 +227,41 @@ onClick = { showDeleteDialog = false }) {
                     isSupersetBlockEnd = isSupersetBlockEnd,
                 )
             }
+
+            item(key = "deload_controls") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    DeloadControlsCard(
+                        activeDeload = activeDeload,
+                        launchWithDeload = launchWithDeload,
+                        deloadPercentOff = deloadPercentOff,
+                        deloadSessionCount = deloadSessionCount,
+                        deloadReduceSets = deloadReduceSets,
+                        isLoadingCatalog = isLoadingCatalog,
+                        onLaunchWithDeloadChange = { launchWithDeload = it },
+                        onDeloadPercentChange = { deloadPercentOff = it },
+                        onDeloadSessionCountChange = { deloadSessionCount = it },
+                        onDeloadReduceSetsChange = { deloadReduceSets = it },
+                        onEndDeloadBlock = { ProgramStore.addProgram(program.copy(deloadState = null)) },
+                    )
+
+                    if (activeDeload == null && deloadRecommendation != null) {
+                        DeloadRecommendationCard(
+                            recommendation = deloadRecommendation,
+                            onAccept = {
+                                launchWithDeload = true
+                                deloadPercentOff = 10
+                                deloadSessionCount = 2
+                                deloadReduceSets = true
+                            },
+                        )
+                    }
+                }
+            }
         }
 
         // ── Floating top bar (X + ⋮) ─────────────────────────────────────
@@ -282,21 +331,54 @@ onClick = { showDeleteDialog = false }) {
                 MaterialTheme.colorScheme.outlineVariant,
             ),
         ) {
-            GradientButton(
-                text     = if (isLoadingCatalog) "Loading…" else "Start Workout",
-                icon     = if (isLoadingCatalog) null else AppIcons.PlayArrow,
-                enabled  = !isLoadingCatalog,
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .navigationBarsPadding(),
-                onClick  = {
-                    WiringRegistry.hit(A_PROGRAMS_DETAIL_START)
-                    WiringRegistry.recordOutcome(A_PROGRAMS_DETAIL_START, ActualOutcome.Navigated("workout"))
-                    val sets = CircuitSetBuilder.build(program.items, exerciseCatalog)
-                    workoutVM.startProgramWorkout(programId, sets)
-                },
-            )
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                GradientButton(
+                    text     = when {
+                        isLoadingCatalog -> "Loading…"
+                        activeDeload != null -> "Continue Deload Workout"
+                        launchWithDeload -> "Start Deload Workout"
+                        else -> "Start Workout"
+                    },
+                    icon     = if (isLoadingCatalog) null else AppIcons.PlayArrow,
+                    enabled  = !isLoadingCatalog,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick  = {
+                        WiringRegistry.hit(A_PROGRAMS_DETAIL_START)
+                        WiringRegistry.recordOutcome(A_PROGRAMS_DETAIL_START, ActualOutcome.Navigated("workout"))
+                        val launchDeloadState = activeDeload ?: if (launchWithDeload) {
+                            ProgramDeloadState(
+                                percentOff = deloadPercentOff,
+                                remainingSessions = deloadSessionCount,
+                                reduceSetsBy = if (deloadReduceSets) 1 else 0,
+                            )
+                        } else null
+                        if (activeDeload == null && launchDeloadState != null) {
+                            ProgramStore.addProgram(program.copy(deloadState = launchDeloadState))
+                        }
+                        val sets = CircuitSetBuilder.build(
+                            items = program.items,
+                            exerciseCatalog = exerciseCatalog,
+                            workingWeightScale = if (launchDeloadState != null) 1f - (launchDeloadState.percentOff / 100f) else 1f,
+                            setReduction = launchDeloadState?.reduceSetsBy ?: 0,
+                        )
+                        val started = workoutVM.startProgramWorkout(
+                            programId = programId,
+                            sets = sets,
+                            isDeload = launchDeloadState != null,
+                            deloadPercent = launchDeloadState?.percentOff,
+                            deloadRemainingSessions = launchDeloadState?.remainingSessions,
+                            deloadSetReduction = launchDeloadState?.reduceSetsBy ?: 0,
+                        )
+                        if (started) launchWithDeload = false
+                    },
+                )
+            }
         }
     }
 }
@@ -471,6 +553,224 @@ private fun ProgramItemCard(
         } else {
             null
         },
+    )
+}
+
+@Composable
+private fun DeloadControlsCard(
+    activeDeload: ProgramDeloadState?,
+    launchWithDeload: Boolean,
+    deloadPercentOff: Int,
+    deloadSessionCount: Int,
+    deloadReduceSets: Boolean,
+    isLoadingCatalog: Boolean,
+    onLaunchWithDeloadChange: (Boolean) -> Unit,
+    onDeloadPercentChange: (Int) -> Unit,
+    onDeloadSessionCountChange: (Int) -> Unit,
+    onDeloadReduceSetsChange: (Boolean) -> Unit,
+    onEndDeloadBlock: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = if (activeDeload != null) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surface,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    if (activeDeload != null) "Deload block active" else "Deload this workout",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    if (activeDeload != null) {
+                        "${activeDeload.percentOff}% load reduction · ${activeDeload.remainingSessions} session(s) remaining${if (activeDeload.reduceSetsBy > 0) " · ${activeDeload.reduceSetsBy} set less per exercise" else ""}"
+                    } else {
+                        "Start a temporary deload block with lighter loads and optional set reduction."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (activeDeload != null) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (activeDeload == null && launchWithDeload) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Load reduction",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        ValueStepper(
+                            value = deloadPercentOff,
+                            onValueChange = { onDeloadPercentChange(it.coerceIn(5, 30)) },
+                            range = 5..30,
+                            step = 5,
+                            unitLabel = "%",
+                        )
+                        Text(
+                            "Starts at ${100 - deloadPercentOff}% of programmed load",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Block length",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        ValueStepper(
+                            value = deloadSessionCount,
+                            onValueChange = { onDeloadSessionCountChange(it.coerceIn(1, 4)) },
+                            range = 1..4,
+                            step = 1,
+                            unitLabel = "sessions",
+                        )
+                        Text(
+                            "Deload lasts $deloadSessionCount completed workout(s)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Reduce each exercise by 1 set",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                "Keeps the block lighter without changing exercise order.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Switch(
+                            checked = deloadReduceSets,
+                            onCheckedChange = onDeloadReduceSetsChange,
+                        )
+                    }
+                }
+                if (activeDeload != null) {
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(
+                        onClick = onEndDeloadBlock,
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        Text("End deload block")
+                    }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(
+                checked = activeDeload != null || launchWithDeload,
+                onCheckedChange = { checked ->
+                    if (activeDeload == null) onLaunchWithDeloadChange(checked)
+                },
+                enabled = !isLoadingCatalog && activeDeload == null,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeloadRecommendationCard(
+    recommendation: ProgramDeloadRecommendation,
+    onAccept: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "Recommended deload",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                "${recommendation.exerciseNames.joinToString(limit = 3, truncated = "…")} has stalled in this program. Longest gap since PR: ${recommendation.longestWeeksSincePr}w.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            TextButton(
+                onClick = onAccept,
+                contentPadding = PaddingValues(0.dp),
+            ) {
+                Text("Use suggested deload")
+            }
+        }
+    }
+}
+
+private data class ProgramDeloadRecommendation(
+    val exerciseNames: List<String>,
+    val longestWeeksSincePr: Int,
+)
+
+private fun buildProgramDeloadRecommendation(
+    program: SavedProgram,
+    logs: List<AnalyticsStore.SessionLog>,
+): ProgramDeloadRecommendation? {
+    if (program.items.isEmpty() || logs.isEmpty()) return null
+
+    val nowMs = System.currentTimeMillis()
+    val windowMs = 35L * 24 * 60 * 60 * 1000
+    val staleMs = 21L * 24 * 60 * 60 * 1000
+    val recentSessions = logs.filter { nowMs - it.endTimeMs <= windowMs && it.exerciseSets.isNotEmpty() }
+    if (recentSessions.isEmpty()) return null
+
+    val appearanceCount = mutableMapOf<String, Int>()
+    for (session in recentSessions) {
+        for (setLog in session.exerciseSets) {
+            val key = setLog.exerciseName.trim().lowercase()
+            appearanceCount[key] = (appearanceCount[key] ?: 0) + 1
+        }
+    }
+
+    val programExerciseKeys = program.items.map { it.exerciseName.trim().lowercase() }.toSet()
+    val matchingStalls = PrTracker.bestSummary(logs)
+        .entries
+        .mapNotNull { (key, summary) ->
+            val count = appearanceCount[key] ?: 0
+            val msSinceLastPb = nowMs - summary.latestPbAchievedAtMs
+            if (key !in programExerciseKeys || count < 3 || msSinceLastPb < staleMs || summary.bestEst1RmLb <= 0) return@mapNotNull null
+            summary.exerciseName to (msSinceLastPb / (7L * 24 * 60 * 60 * 1000)).toInt()
+        }
+        .sortedByDescending { it.second }
+
+    if (matchingStalls.isEmpty()) return null
+    return ProgramDeloadRecommendation(
+        exerciseNames = matchingStalls.map { it.first },
+        longestWeeksSincePr = matchingStalls.maxOf { it.second },
     )
 }
 

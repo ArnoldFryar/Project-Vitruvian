@@ -16,6 +16,12 @@ import java.util.UUID
  */
 enum class ExerciseMode { REPS, TIME }
 
+data class ProgramDeloadState(
+    val percentOff: Int = 10,
+    val remainingSessions: Int = 1,
+    val reduceSetsBy: Int = 0,
+)
+
 data class ProgramItemDraft(
     val exerciseId: String,
     val exerciseName: String,
@@ -70,6 +76,8 @@ data class SavedProgram(
     val scheduledDays: Set<DayOfWeek> = emptySet(),
     /** Whether the user has starred this program to keep it always visible. */
     val isFavorite: Boolean = false,
+    /** Optional temporary deload block applied when launching this program. */
+    val deloadState: ProgramDeloadState? = null,
 )
 
 // ── Backing-store interface ────────────────────────────────────────────────────
@@ -303,6 +311,14 @@ class ProgramRepository(
                     val devId      = obj.optString("deviceId", "")
                     val sortOrder  = obj.optInt("sortOrder", 0)
                     val isFavorite = obj.optBoolean("isFavorite", false)
+                    val deloadObj  = obj.optJSONObject("deloadState")
+                    val deloadState = deloadObj?.let {
+                        ProgramDeloadState(
+                            percentOff = it.optInt("percentOff", 10).coerceIn(5, 30),
+                            remainingSessions = it.optInt("remainingSessions", 1).coerceAtLeast(1),
+                            reduceSetsBy = it.optInt("reduceSetsBy", 0).coerceIn(0, 3),
+                        )
+                    }
                     val daysArray  = obj.optJSONArray("scheduledDays")
                     val days = if (daysArray != null) {
                         (0 until daysArray.length()).mapNotNull { i ->
@@ -310,7 +326,7 @@ class ProgramRepository(
                         }.toSet()
                     } else emptySet()
 
-                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder, days, isFavorite)
+                    SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder, days, isFavorite, deloadState)
                 }
         } catch (_: Exception) {
             backing.writePrograms("[]")
@@ -348,6 +364,15 @@ class ProgramRepository(
                 put("deviceId", p.deviceId)
                 put("sortOrder", p.sortOrder)
                 put("isFavorite", p.isFavorite)
+                if (p.deloadState != null) {
+                    put("deloadState", JSONObject().apply {
+                        put("percentOff", p.deloadState.percentOff)
+                        put("remainingSessions", p.deloadState.remainingSessions)
+                        put("reduceSetsBy", p.deloadState.reduceSetsBy)
+                    })
+                } else {
+                    put("deloadState", JSONObject.NULL)
+                }
                 put("scheduledDays", JSONArray().apply { p.scheduledDays.forEach { put(it.name) } })
             })
         }

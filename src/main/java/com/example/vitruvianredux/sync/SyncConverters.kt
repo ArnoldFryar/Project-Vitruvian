@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.sync
 
 import com.example.vitruvianredux.data.ExerciseMode
+import com.example.vitruvianredux.data.ProgramDeloadState
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.data.WorkoutSessionRecord
@@ -16,6 +17,7 @@ fun SavedProgram.toSync(): SyncProgram = SyncProgram(
     name           = name,
     exerciseCount  = exerciseCount,
     items          = items.map { it.toSync() },
+    deloadState    = deloadState?.toSync(),
     updatedAt      = updatedAt,
     deletedAt      = deletedAt,
     deviceId       = deviceId,
@@ -27,10 +29,23 @@ fun SyncProgram.toDomain(): SavedProgram = SavedProgram(
     name           = name,
     exerciseCount  = exerciseCount,
     items          = items.map { it.toDomain() },
+    deloadState    = deloadState?.toDomain(),
     updatedAt      = updatedAt,
     deletedAt      = deletedAt,
     deviceId       = deviceId,
     sortOrder      = sortOrder,
+)
+
+fun ProgramDeloadState.toSync(): SyncProgramDeloadState = SyncProgramDeloadState(
+    percentOff = percentOff,
+    remainingSessions = remainingSessions,
+    reduceSetsBy = reduceSetsBy,
+)
+
+fun SyncProgramDeloadState.toDomain(): ProgramDeloadState = ProgramDeloadState(
+    percentOff = percentOff,
+    remainingSessions = remainingSessions,
+    reduceSetsBy = reduceSetsBy,
 )
 
 fun ProgramItemDraft.toSync(): SyncProgramItem = SyncProgramItem(

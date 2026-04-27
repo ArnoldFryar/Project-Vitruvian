@@ -47,6 +47,8 @@ import com.caverock.androidsvg.SVG
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.MuscleHeatmap
 import com.example.vitruvianredux.data.PrTracker
+import com.example.vitruvianredux.data.ProgramStore
+import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.data.TelemetryInsights
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
@@ -87,8 +89,10 @@ fun AnalyticsDashboardScreen(
     onNavigateToTelemetry: () -> Unit = {},
 ) {
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
+    val programs by ProgramStore.savedProgramsFlow.collectAsState()
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val context = LocalContext.current
+    val activeDeloadPrograms = remember(programs) { programs.filter { it.deloadState != null } }
 
     var catalogLookup by remember { mutableStateOf<MuscleHeatmap.CatalogLookup?>(null) }
     LaunchedEffect(Unit) {
@@ -142,6 +146,10 @@ fun AnalyticsDashboardScreen(
                     .padding(horizontal = hPad, vertical = AppDimens.Spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
+                if (activeDeloadPrograms.isNotEmpty()) {
+                    ActiveDeloadOverviewCard(activeDeloadPrograms)
+                }
+
                 // ── Summary stat cards (always full-width) ───────────────
                 SummaryStatsRow(allLogs, unitSystem, isTablet)
 
@@ -218,6 +226,33 @@ fun AnalyticsDashboardScreen(
                 }
 
                 Spacer(Modifier.height(AppDimens.Spacing.xl))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActiveDeloadOverviewCard(programs: List<SavedProgram>) {
+    val primaryProgram = programs.firstOrNull() ?: return
+    val primaryDeload = primaryProgram.deloadState ?: return
+    val accent = MaterialTheme.colorScheme.tertiary
+    PremiumChartCard(
+        title = if (programs.size == 1) "Active Deload Block" else "Active Deload Blocks",
+        subtitle = "Recovery mode is active in your saved programs.",
+        accent = accent,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+            Text(
+                text = "${primaryProgram.name}: -${primaryDeload.percentOff}% load for ${primaryDeload.remainingSessions} more session(s)${if (primaryDeload.reduceSetsBy > 0) " · ${primaryDeload.reduceSetsBy} set less/exercise" else ""}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (programs.size > 1) {
+                Text(
+                    text = "Also active: ${programs.drop(1).joinToString(limit = 3, truncated = "…") { it.name }}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

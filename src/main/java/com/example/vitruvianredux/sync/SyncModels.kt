@@ -47,11 +47,19 @@ data class SyncProgramItem(
 )
 
 @Serializable
+data class SyncProgramDeloadState(
+    val percentOff: Int = 10,
+    val remainingSessions: Int = 1,
+    val reduceSetsBy: Int = 0,
+)
+
+@Serializable
 data class SyncProgram(
     override val id: String,
     val name: String,
     val exerciseCount: Int,
     val items: List<SyncProgramItem> = emptyList(),
+    val deloadState: SyncProgramDeloadState? = null,
     override val updatedAt: Long,
     override val deletedAt: Long? = null,
     override val deviceId: String = "",

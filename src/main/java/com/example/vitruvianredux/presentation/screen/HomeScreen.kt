@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -76,6 +77,7 @@ fun HomeScreen(
             activeProgramId  = activeProgramId,
         )
     }
+    val activeDeloadPrograms = remember(programs) { programs.filter { it.deloadState != null } }
 
     // Load exercise catalog for video/thumbnail URLs
     val context = LocalContext.current
@@ -128,6 +130,16 @@ fun HomeScreen(
             }
         }
     ) {
+
+        if (activeDeloadPrograms.isNotEmpty()) {
+            HomeDeloadStatusCard(
+                programs = activeDeloadPrograms,
+                exerciseCatalog = exerciseCatalog,
+                workoutVM = workoutVM,
+                onNavigateToProgramDetail = onNavigateToProgramDetail,
+            )
+            Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+        }
 
         SectionHeader(
             title = stringResource(R.string.home_up_next),
@@ -263,6 +275,19 @@ private fun HomeUpNextCard(
                         color = cs.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    program.deloadState?.let { deload ->
+                        Surface(
+                            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                            color = cs.tertiaryContainer,
+                        ) {
+                            Text(
+                                text = buildDeloadSummary(program.name, deload.percentOff, deload.remainingSessions, deload.reduceSetsBy),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = cs.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+                            )
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                         HomeMetaPill(
                             label = exerciseCountLabel,
@@ -270,7 +295,7 @@ private fun HomeUpNextCard(
                             content = cs.onSecondaryContainer,
                         )
                         HomeMetaPill(
-                            label = "Program",
+                            label = if (program.deloadState != null) "Deload" else "Program",
                             background = cs.surfaceVariant,
                             content = cs.onSurfaceVariant,
                         )
@@ -280,12 +305,11 @@ private fun HomeUpNextCard(
                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                     ) {
                         GradientButton(
-                            text = stringResource(R.string.common_start),
+                            text = if (program.deloadState != null) "Continue Deload" else stringResource(R.string.common_start),
                             icon = AppIcons.PlayArrow,
                             modifier = Modifier.weight(1f),
                             onClick = {
-                                val sets = CircuitSetBuilder.build(program.items, exerciseCatalog)
-                                workoutVM?.startProgramWorkout(program.id, sets)
+                                startProgramFromHome(program, exerciseCatalog, workoutVM)
                             },
                         )
                         AppOutlinedButton(
@@ -320,6 +344,106 @@ private fun HomeUpNextCard(
             }
         }
     }
+}
+
+@Composable
+private fun HomeDeloadStatusCard(
+    programs: List<SavedProgram>,
+    exerciseCatalog: Map<String, Exercise>,
+    workoutVM: WorkoutSessionViewModel?,
+    onNavigateToProgramDetail: (String) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val primaryProgram = programs.first()
+    val primaryDeload = primaryProgram.deloadState ?: return
+
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = cs.tertiaryContainer.copy(alpha = 0.72f),
+        borderColor = cs.tertiary,
+    ) {
+        Column(
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            HomeMetaPill(
+                label = if (programs.size == 1) "Active deload" else "${programs.size} active deloads",
+                background = cs.tertiary,
+                content = cs.onTertiary,
+            )
+            Text(
+                text = primaryProgram.name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = buildDeloadSummary(
+                    programName = primaryProgram.name,
+                    percentOff = primaryDeload.percentOff,
+                    remainingSessions = primaryDeload.remainingSessions,
+                    reduceSetsBy = primaryDeload.reduceSetsBy,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = cs.onTertiaryContainer,
+            )
+            if (programs.size > 1) {
+                Text(
+                    text = "Also active: ${programs.drop(1).joinToString(limit = 2, truncated = "…") { it.name }}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onTertiaryContainer.copy(alpha = 0.86f),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                GradientButton(
+                    text = "Continue",
+                    icon = AppIcons.PlayArrow,
+                    modifier = Modifier.weight(1f),
+                    onClick = { startProgramFromHome(primaryProgram, exerciseCatalog, workoutVM) },
+                )
+                AppOutlinedButton(
+                    text = "Review",
+                    icon = AppIcons.Edit,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onNavigateToProgramDetail(primaryProgram.id) },
+                )
+            }
+        }
+    }
+}
+
+private fun startProgramFromHome(
+    program: SavedProgram,
+    exerciseCatalog: Map<String, Exercise>,
+    workoutVM: WorkoutSessionViewModel?,
+) {
+    val deloadState = program.deloadState
+    val sets = CircuitSetBuilder.build(
+        items = program.items,
+        exerciseCatalog = exerciseCatalog,
+        workingWeightScale = if (deloadState != null) 1f - (deloadState.percentOff / 100f) else 1f,
+        setReduction = deloadState?.reduceSetsBy ?: 0,
+    )
+    workoutVM?.startProgramWorkout(
+        programId = program.id,
+        sets = sets,
+        isDeload = deloadState != null,
+        deloadPercent = deloadState?.percentOff,
+        deloadRemainingSessions = deloadState?.remainingSessions,
+        deloadSetReduction = deloadState?.reduceSetsBy ?: 0,
+    )
+}
+
+private fun buildDeloadSummary(
+    programName: String,
+    percentOff: Int,
+    remainingSessions: Int,
+    reduceSetsBy: Int,
+): String {
+    val setText = if (reduceSetsBy > 0) " and $reduceSetsBy set less per exercise" else ""
+    return "$programName is $percentOff% under baseline for $remainingSessions more session(s)$setText."
 }
 
 @Composable
