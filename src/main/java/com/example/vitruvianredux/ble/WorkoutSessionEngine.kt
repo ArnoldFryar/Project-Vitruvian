@@ -235,6 +235,7 @@ sealed class SessionPhase {
         val targetDurationSec: Int?,
         /** Warmup reps the device counts before working reps begin. */
         val warmupReps: Int = 0,
+        val numCables: Int = 2,
         val programMode: String = "Old School",
     ) : SessionPhase()
 
@@ -332,6 +333,21 @@ internal fun nextStepAfterCompletedSet(
         exerciseName = nextSet.exerciseName,
         thumbnailUrl = nextSet.thumbnailUrl,
     )
+}
+
+internal fun completedSetRepCounts(
+    engineWarmupRepsCompleted: Int,
+    engineWorkingRepsCompleted: Int,
+    stateRepsCount: Int,
+    configuredWarmupReps: Int,
+): Pair<Int, Int> {
+    val warmupRepsCompleted = engineWarmupRepsCompleted.coerceAtLeast(0)
+    val workingRepsCompleted = if (engineWorkingRepsCompleted > 0 || warmupRepsCompleted > 0) {
+        engineWorkingRepsCompleted.coerceAtLeast(0)
+    } else {
+        (stateRepsCount - configuredWarmupReps).coerceAtLeast(0)
+    }
+    return warmupRepsCompleted to workingRepsCompleted
 }
 
 internal fun isReconnectablePhase(phase: SessionPhase): Boolean = when (phase) {
@@ -1682,6 +1698,7 @@ class WorkoutSessionEngine(
                 targetReps        = set.targetReps,
                 targetDurationSec = set.targetDurationSec,
                 warmupReps        = set.warmupReps,
+                numCables         = set.numCables,
                 programMode       = set.programMode,
             ),
             currentExerciseName = set.exerciseName,
@@ -1776,8 +1793,13 @@ class WorkoutSessionEngine(
         val set    = playerSets.getOrNull(completedIndex) ?: run { resetSetCompletionGuard(); return }
         val now    = System.currentTimeMillis()
         val durSec = ((now - setStartTimeMs) / 1_000L).toInt().coerceAtLeast(1)
-        val totalDeviceReps = _state.value.repsCount
-        val workingReps     = (totalDeviceReps - set.warmupReps).coerceAtLeast(0)
+        val stateRepsCount = _state.value.repsCount
+        val (warmupRepsCompleted, workingRepsCompleted) = completedSetRepCounts(
+            engineWarmupRepsCompleted = engineState.warmupRepsCompleted,
+            engineWorkingRepsCompleted = engineState.workingRepsCompleted,
+            stateRepsCount = stateRepsCount,
+            configuredWarmupReps = set.warmupReps,
+        )
         // Authoritative working volume comes from the per-rep accumulator — no lb recalculation.
         // Capture heuristic force data (left+right average) if available
         val heuristic = _machineHeuristic.value
@@ -1790,8 +1812,8 @@ class WorkoutSessionEngine(
             muscleGroups         = set.muscleGroups,
             muscles              = set.muscles,
             setIndex             = currentPlayerIndex,
-            repsCompleted        = workingReps,
-            warmupRepsCompleted  = set.warmupReps,
+            repsCompleted        = workingRepsCompleted,
+            warmupRepsCompleted  = warmupRepsCompleted,
             durationSec          = durSec,
             weightPerCableLb     = set.weightPerCableLb,
             numCables            = set.numCables,
@@ -1806,7 +1828,7 @@ class WorkoutSessionEngine(
         completedStats.add(stats)
         samplesLeft.clear()
         samplesRight.clear()
-        Log.i(TAG, "completeCurrentPlayerSet: set $completedIndex done — warmup=${set.warmupReps} working=$workingReps reps (device total=$totalDeviceReps), ${durSec}s, ${set.weightPerCableLb}lb")
+        Log.i(TAG, "completeCurrentPlayerSet: set $completedIndex done — warmup=$warmupRepsCompleted working=$workingRepsCompleted reps (state total=$stateRepsCount engine warmup=${engineState.warmupRepsCompleted} engine working=${engineState.workingRepsCompleted}), ${durSec}s, ${set.weightPerCableLb}lb")
 
         // Send STOP through the adapter (skip if not connected is handled internally)
         if (!set.isOffMachineTimer) {
@@ -2356,8 +2378,9 @@ class WorkoutSessionEngine(
                 }
                 is SessionEffect.VolumeAdd -> {
                     // Route to the accumulator — the single authoritative volume source.
-                    setVolumeAccumulator = setVolumeAccumulator.add(effect.phase, effect.loadKg, effect.reps)
-                    Log.d(TAG, "effect VolumeAdd[${effect.phase}] +${effect.loadKg}kg×${effect.reps}" +
+                    val effectiveLoadKg = resolveVolumeLoadKg(effect.loadKg)
+                    setVolumeAccumulator = setVolumeAccumulator.add(effect.phase, effectiveLoadKg, effect.reps)
+                    Log.d(TAG, "effect VolumeAdd[${effect.phase}] +${effectiveLoadKg}kg×${effect.reps}" +
                         " → warm=${setVolumeAccumulator.warmupKg}kg work=${setVolumeAccumulator.workingKg}kg")
                 }
                 is SessionEffect.StartRestTimer -> {
@@ -2391,6 +2414,22 @@ class WorkoutSessionEngine(
                 }
             }
         }
+    }
+
+    private fun resolveVolumeLoadKg(configuredLoadKg: Float): Float {
+        if (configuredLoadKg > 0f) return configuredLoadKg
+
+        val set = engineState.setDef ?: return configuredLoadKg
+        if (set.programMode != "Echo") return configuredLoadKg
+
+        val perCableForces = listOf(
+            _machineHeuristic.value?.left?.concentric?.kgAvg ?: 0f,
+            _machineHeuristic.value?.right?.concentric?.kgAvg ?: 0f,
+        ).filter { it > 0f }
+        if (perCableForces.isEmpty()) return configuredLoadKg
+
+        val avgPerActiveCableKg = perCableForces.average().toFloat()
+        return avgPerActiveCableKg * set.numCables.coerceAtLeast(1)
     }
 
     /**

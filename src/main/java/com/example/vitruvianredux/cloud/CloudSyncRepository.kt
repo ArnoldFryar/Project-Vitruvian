@@ -260,12 +260,22 @@ object CloudSyncRepository {
         val theme = ThemeStore.modeFlow.value
         val justLift = JustLiftStore.state.value
         val ledColors = LedColorStore.current()
+        val syncedExtras = settingsExtrasToJson()
 
         // Use the actual modification time of the most-recently-changed setting so
         // the remote timestamp reflects when the user truly made a change, not just
         // when a sync happened to run.  This prevents a future pull from treating a
         // sync-time stamp as newer than a real user edit on another device.
-        val settingsUpdatedAt = maxOf(ThemeStore.updatedAt, UnitsStore.updatedAt, lastSyncAt)
+        val settingsUpdatedAt = listOf(
+            ThemeStore.updatedAt,
+            UnitsStore.updatedAt,
+            JustLiftStore.updatedAt,
+            LedColorStore.updatedAt,
+            VoiceCoachingStore.updatedAt,
+            VitruvianFavoritesStore.updatedAt,
+            BodyWeightStore.updatedAt,
+            lastSyncAt,
+        ).maxOrNull() ?: 0L
 
         val settings = RemoteUserSettings(
             userId = userId,
@@ -273,6 +283,7 @@ object CloudSyncRepository {
             themeMode = theme.name,
             justLiftDefaults = json.parseToJsonElement(justLiftToJson(justLift)),
             ledColors = json.parseToJsonElement(ledColorsToJson(ledColors)),
+            goals = json.parseToJsonElement(syncedExtras),
             deviceId = deviceId,
             updatedAt = settingsUpdatedAt,
         )
@@ -507,32 +518,32 @@ object CloudSyncRepository {
         //  local preference the user changed before their first sync)
         try {
             val unit = UnitsStore.UnitSystem.valueOf(remote.unitSystem)
-            if (remote.updatedAt > UnitsStore.updatedAt) {
-                UnitsStore.setUnitSystem(unit)
-            }
+            UnitsStore.applyFromRemote(unit, remote.updatedAt)
         } catch (_: Exception) {}
 
         // Theme — same per-setting LWW guard
         try {
             val theme = ThemeStore.ThemeMode.valueOf(remote.themeMode)
-            if (remote.updatedAt > ThemeStore.updatedAt) {
-                ThemeStore.setMode(theme)
-            }
+            ThemeStore.applyFromRemote(theme, remote.updatedAt)
         } catch (_: Exception) {}
 
-        // JustLift defaults — no individual updatedAt; fall back to global lastSyncAt
+        // JustLift defaults — use the shared settings timestamp for LWW.
         try {
             val jl = justLiftFromJson(
                 jsonStr = remote.justLiftDefaults.toString(),
                 base = JustLiftStore.getJustLiftDefaults(),
             )
-            if (jl != null && remote.updatedAt > lastSyncAt) JustLiftStore.save(jl)
+            if (jl != null) JustLiftStore.applyFromRemote(jl, remote.updatedAt)
         } catch (_: Exception) {}
 
-        // LED colors — same fallback
+        // LED colors — same shared settings timestamp.
         try {
             val colors = ledColorsFromJson(remote.ledColors.toString())
-            if (colors != null && remote.updatedAt > lastSyncAt) LedColorStore.save(colors)
+            if (colors != null) LedColorStore.applyFromRemote(colors, remote.updatedAt)
+        } catch (_: Exception) {}
+
+        try {
+            pullSettingsExtras(remote.goals.toString())
         } catch (_: Exception) {}
     }
 
@@ -794,6 +805,81 @@ object CloudSyncRepository {
                 third = obj.optInt("third", 0xFF0000),
             )
         } catch (_: Exception) { null }
+    }
+
+    private fun settingsExtrasToJson(): String {
+        val voiceSettings = VoiceCoachingStore.settingsFlow.value
+        val favorites = VitruvianFavoritesStore.favoritesFlow.value.toList().sorted()
+
+        return JSONObject().apply {
+            put("voiceCoaching", JSONObject().apply {
+                put("coachingLevel", voiceSettings.coachingLevel.name)
+                put("coachingStyle", voiceSettings.coachingStyle.name)
+                put("recordedCountStyle", voiceSettings.recordedCountStyle.name)
+                put("repAnnouncementsEnabled", voiceSettings.repAnnouncementsEnabled)
+                put("restCountdownEnabled", voiceSettings.restCountdownEnabled)
+                put("updatedAt", VoiceCoachingStore.updatedAt)
+            })
+            put("vitruvianFavorites", JSONObject().apply {
+                put("updatedAt", VitruvianFavoritesStore.updatedAt)
+                put("ids", JSONArray().apply { favorites.forEach(::put) })
+            })
+            put("bodyWeight", JSONObject().apply {
+                put("updatedAt", BodyWeightStore.updatedAt)
+                put("kg", BodyWeightStore.manualWeightKg ?: JSONObject.NULL)
+            })
+        }.toString()
+    }
+
+    private fun pullSettingsExtras(jsonStr: String) {
+        val root = try {
+            JSONObject(jsonStr)
+        } catch (_: Exception) {
+            return
+        }
+
+        root.optJSONObject("voiceCoaching")?.let { obj ->
+            val settings = VoiceCoachingSettings(
+                coachingLevel = runCatching {
+                    VoiceCoachingLevel.valueOf(obj.optString("coachingLevel", VoiceCoachingLevel.STANDARD.name))
+                }.getOrDefault(VoiceCoachingLevel.STANDARD),
+                coachingStyle = runCatching {
+                    VoiceCoachingStyle.valueOf(obj.optString("coachingStyle", VoiceCoachingStyle.COACH.name))
+                }.getOrDefault(VoiceCoachingStyle.COACH),
+                recordedCountStyle = runCatching {
+                    RecordedCountStyle.valueOf(obj.optString("recordedCountStyle", RecordedCountStyle.BASE.name))
+                }.getOrDefault(RecordedCountStyle.BASE),
+                repAnnouncementsEnabled = obj.optBoolean("repAnnouncementsEnabled", true),
+                restCountdownEnabled = obj.optBoolean("restCountdownEnabled", true),
+            )
+            VoiceCoachingStore.applyFromRemote(
+                settings = settings,
+                remoteUpdatedAt = obj.optLong("updatedAt", 0L),
+            )
+        }
+
+        root.optJSONObject("vitruvianFavorites")?.let { obj ->
+            val ids = obj.optJSONArray("ids")?.let { arr ->
+                buildSet {
+                    for (index in 0 until arr.length()) {
+                        arr.optString(index)?.takeIf { it.isNotBlank() }?.let(::add)
+                    }
+                }
+            } ?: emptySet()
+            VitruvianFavoritesStore.applyFromRemote(
+                ids = ids,
+                remoteUpdatedAt = obj.optLong("updatedAt", 0L),
+            )
+        }
+
+        root.optJSONObject("bodyWeight")?.let { obj ->
+            val weightKg = if (obj.isNull("kg")) null else obj.optDouble("kg", Double.NaN)
+                .takeUnless { it.isNaN() }
+            BodyWeightStore.applyFromRemote(
+                kg = weightKg,
+                remoteUpdatedAt = obj.optLong("updatedAt", 0L),
+            )
+        }
     }
 
     // ═════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center" android:layout_gravity="center" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:minWidth="@dimen/ib_core_dialog_width_default" android:layout_marginHorizontal="24.0dip" android:paddingHorizontal="8.0dip" android:paddingVertical="16.0dip"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <androidx.core.widget.ContentLoadingProgressBar android:id="@id/ib_progress_bar" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginHorizontal="12.0dip" style="?android:progressBarStyle" />
+    <TextView android:gravity="center_vertical" android:id="@id/ib_progress_text" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/instabug_str_dialog_message_preparing" android:layout_weight="1.0" />
+</LinearLayout>

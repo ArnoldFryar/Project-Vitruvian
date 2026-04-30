@@ -1,0 +1,32 @@
+.class public final Lcom/vitruvian/app/ui/login/b$a;
+.super Lcom/vitruvian/app/ui/login/b;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lcom/vitruvian/app/ui/login/b;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x19
+    name = "a"
+.end annotation
+
+
+# static fields
+.field public static final a:Lcom/vitruvian/app/ui/login/b$a;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    new-instance v0, Lcom/vitruvian/app/ui/login/b$a;
+
+    invoke-direct {v0}, Lcom/vitruvian/app/ui/login/b;-><init>()V
+
+    sput-object v0, Lcom/vitruvian/app/ui/login/b$a;->a:Lcom/vitruvian/app/ui/login/b$a;
+
+    return-void
+.end method

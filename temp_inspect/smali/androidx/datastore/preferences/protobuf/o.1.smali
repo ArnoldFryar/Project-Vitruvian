@@ -1,0 +1,182 @@
+.class public final Landroidx/datastore/preferences/protobuf/o;
+.super Landroidx/datastore/preferences/protobuf/n;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Landroidx/datastore/preferences/protobuf/n<",
+        "Landroidx/datastore/preferences/protobuf/u$d;",
+        ">;"
+    }
+.end annotation
+
+
+# virtual methods
+.method public final a(Ljava/util/Map$Entry;)V
+    .locals 0
+
+    invoke-interface {p1}, Ljava/util/Map$Entry;->getKey()Ljava/lang/Object;
+
+    move-result-object p1
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$d;
+
+    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    return-void
+.end method
+
+.method public final b(Landroidx/datastore/preferences/protobuf/m;Landroidx/datastore/preferences/protobuf/M;I)Landroidx/datastore/preferences/protobuf/u$e;
+    .locals 1
+
+    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    new-instance v0, Landroidx/datastore/preferences/protobuf/m$a;
+
+    invoke-direct {v0, p3, p2}, Landroidx/datastore/preferences/protobuf/m$a;-><init>(ILjava/lang/Object;)V
+
+    iget-object p1, p1, Landroidx/datastore/preferences/protobuf/m;->a:Ljava/util/Map;
+
+    invoke-interface {p1, v0}, Ljava/util/Map;->get(Ljava/lang/Object;)Ljava/lang/Object;
+
+    move-result-object p1
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$e;
+
+    return-object p1
+.end method
+
+.method public final c(Ljava/lang/Object;)Landroidx/datastore/preferences/protobuf/q;
+    .locals 0
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/Object;",
+            ")",
+            "Landroidx/datastore/preferences/protobuf/q<",
+            "Landroidx/datastore/preferences/protobuf/u$d;",
+            ">;"
+        }
+    .end annotation
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$c;
+
+    iget-object p1, p1, Landroidx/datastore/preferences/protobuf/u$c;->extensions:Landroidx/datastore/preferences/protobuf/q;
+
+    return-object p1
+.end method
+
+.method public final d(Ljava/lang/Object;)Landroidx/datastore/preferences/protobuf/q;
+    .locals 2
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/Object;",
+            ")",
+            "Landroidx/datastore/preferences/protobuf/q<",
+            "Landroidx/datastore/preferences/protobuf/u$d;",
+            ">;"
+        }
+    .end annotation
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$c;
+
+    iget-object v0, p1, Landroidx/datastore/preferences/protobuf/u$c;->extensions:Landroidx/datastore/preferences/protobuf/q;
+
+    iget-boolean v1, v0, Landroidx/datastore/preferences/protobuf/q;->b:Z
+
+    if-eqz v1, :cond_0
+
+    invoke-virtual {v0}, Landroidx/datastore/preferences/protobuf/q;->a()Landroidx/datastore/preferences/protobuf/q;
+
+    move-result-object v0
+
+    iput-object v0, p1, Landroidx/datastore/preferences/protobuf/u$c;->extensions:Landroidx/datastore/preferences/protobuf/q;
+
+    :cond_0
+    iget-object p1, p1, Landroidx/datastore/preferences/protobuf/u$c;->extensions:Landroidx/datastore/preferences/protobuf/q;
+
+    return-object p1
+.end method
+
+.method public final e(Landroidx/datastore/preferences/protobuf/M;)Z
+    .locals 0
+
+    instance-of p1, p1, Landroidx/datastore/preferences/protobuf/u$c;
+
+    return p1
+.end method
+
+.method public final f(Ljava/lang/Object;)V
+    .locals 1
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$c;
+
+    iget-object p1, p1, Landroidx/datastore/preferences/protobuf/u$c;->extensions:Landroidx/datastore/preferences/protobuf/q;
+
+    iget-boolean v0, p1, Landroidx/datastore/preferences/protobuf/q;->b:Z
+
+    if-eqz v0, :cond_0
+
+    goto :goto_0
+
+    :cond_0
+    iget-object v0, p1, Landroidx/datastore/preferences/protobuf/q;->a:Landroidx/datastore/preferences/protobuf/f0;
+
+    invoke-virtual {v0}, Landroidx/datastore/preferences/protobuf/f0;->g()V
+
+    const/4 v0, 0x1
+
+    iput-boolean v0, p1, Landroidx/datastore/preferences/protobuf/q;->b:Z
+
+    :goto_0
+    return-void
+.end method
+
+.method public final g(Ljava/lang/Object;)Ljava/lang/Object;
+    .locals 0
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$e;
+
+    const/4 p1, 0x0
+
+    throw p1
+.end method
+
+.method public final h(Ljava/lang/Object;)V
+    .locals 0
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$e;
+
+    const/4 p1, 0x0
+
+    throw p1
+.end method
+
+.method public final i(Ljava/lang/Object;)V
+    .locals 0
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$e;
+
+    const/4 p1, 0x0
+
+    throw p1
+.end method
+
+.method public final j(Ljava/util/Map$Entry;)V
+    .locals 0
+
+    invoke-interface {p1}, Ljava/util/Map$Entry;->getKey()Ljava/lang/Object;
+
+    move-result-object p1
+
+    check-cast p1, Landroidx/datastore/preferences/protobuf/u$d;
+
+    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    const/4 p1, 0x0
+
+    throw p1
+.end method

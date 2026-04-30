@@ -1,0 +1,141 @@
+.class public final Landroidx/media3/exoplayer/audio/b;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Landroidx/media3/exoplayer/audio/b$a;
+    }
+.end annotation
+
+
+# static fields
+.field public static final d:Landroidx/media3/exoplayer/audio/b;
+
+
+# instance fields
+.field public final a:Z
+
+.field public final b:Z
+
+.field public final c:Z
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 1
+
+    new-instance v0, Landroidx/media3/exoplayer/audio/b$a;
+
+    invoke-direct {v0}, Ljava/lang/Object;-><init>()V
+
+    invoke-virtual {v0}, Landroidx/media3/exoplayer/audio/b$a;->a()Landroidx/media3/exoplayer/audio/b;
+
+    move-result-object v0
+
+    sput-object v0, Landroidx/media3/exoplayer/audio/b;->d:Landroidx/media3/exoplayer/audio/b;
+
+    return-void
+.end method
+
+.method public constructor <init>(Landroidx/media3/exoplayer/audio/b$a;)V
+    .locals 1
+
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    iget-boolean v0, p1, Landroidx/media3/exoplayer/audio/b$a;->a:Z
+
+    iput-boolean v0, p0, Landroidx/media3/exoplayer/audio/b;->a:Z
+
+    iget-boolean v0, p1, Landroidx/media3/exoplayer/audio/b$a;->b:Z
+
+    iput-boolean v0, p0, Landroidx/media3/exoplayer/audio/b;->b:Z
+
+    iget-boolean p1, p1, Landroidx/media3/exoplayer/audio/b$a;->c:Z
+
+    iput-boolean p1, p0, Landroidx/media3/exoplayer/audio/b;->c:Z
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public final equals(Ljava/lang/Object;)Z
+    .locals 4
+
+    const/4 v0, 0x1
+
+    if-ne p0, p1, :cond_0
+
+    return v0
+
+    :cond_0
+    const/4 v1, 0x0
+
+    if-eqz p1, :cond_3
+
+    invoke-virtual {p1}, Ljava/lang/Object;->getClass()Ljava/lang/Class;
+
+    move-result-object v2
+
+    const-class v3, Landroidx/media3/exoplayer/audio/b;
+
+    if-eq v3, v2, :cond_1
+
+    goto :goto_1
+
+    :cond_1
+    check-cast p1, Landroidx/media3/exoplayer/audio/b;
+
+    iget-boolean v2, p0, Landroidx/media3/exoplayer/audio/b;->a:Z
+
+    iget-boolean v3, p1, Landroidx/media3/exoplayer/audio/b;->a:Z
+
+    if-ne v2, v3, :cond_2
+
+    iget-boolean v2, p0, Landroidx/media3/exoplayer/audio/b;->b:Z
+
+    iget-boolean v3, p1, Landroidx/media3/exoplayer/audio/b;->b:Z
+
+    if-ne v2, v3, :cond_2
+
+    iget-boolean v2, p0, Landroidx/media3/exoplayer/audio/b;->c:Z
+
+    iget-boolean p1, p1, Landroidx/media3/exoplayer/audio/b;->c:Z
+
+    if-ne v2, p1, :cond_2
+
+    goto :goto_0
+
+    :cond_2
+    move v0, v1
+
+    :goto_0
+    return v0
+
+    :cond_3
+    :goto_1
+    return v1
+.end method
+
+.method public final hashCode()I
+    .locals 2
+
+    iget-boolean v0, p0, Landroidx/media3/exoplayer/audio/b;->a:Z
+
+    shl-int/lit8 v0, v0, 0x2
+
+    iget-boolean v1, p0, Landroidx/media3/exoplayer/audio/b;->b:Z
+
+    shl-int/lit8 v1, v1, 0x1
+
+    add-int/2addr v0, v1
+
+    iget-boolean v1, p0, Landroidx/media3/exoplayer/audio/b;->c:Z
+
+    add-int/2addr v0, v1
+
+    return v0
+.end method

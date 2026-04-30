@@ -21,13 +21,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 
 /**
  * Button-style +/âˆ’ stepper for integer values.
@@ -67,7 +66,7 @@ fun ValueStepper(
     enabled: Boolean = true,
     compact: Boolean = false,
 ) {
-    val haptic = LocalHapticFeedback.current
+    val haptics = rememberUiHaptics()
     val canDecrease = enabled && value - step >= range.first
     val canIncrease = enabled && value + step <= range.last
 
@@ -89,36 +88,14 @@ fun ValueStepper(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            // Minus — 48 dp touch target, smaller visual button
+            // Plus — 48 dp touch target, smaller visual button
             Box(
                 modifier = Modifier.size(touchTarget),
                 contentAlignment = Alignment.Center,
             ) {
                 FilledTonalIconButton(
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onValueChange((value - step).coerceIn(range))
-                    },
-                    enabled  = canDecrease,
-                    modifier = Modifier.size(buttonSize),
-                    shape    = RoundedCornerShape(AppDimens.Corner.sm),
-                ) {
-                    Icon(
-                        AppIcons.Remove,
-                        contentDescription = "Decrease",
-                        modifier = Modifier.size(iconSize),
-                    )
-                }
-            }
-
-            // Plus
-            Box(
-                modifier = Modifier.size(touchTarget),
-                contentAlignment = Alignment.Center,
-            ) {
-                FilledTonalIconButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        haptics.selection()
                         onValueChange((value + step).coerceIn(range))
                     },
                     enabled  = canIncrease,
@@ -128,6 +105,28 @@ fun ValueStepper(
                     Icon(
                         AppIcons.Add,
                         contentDescription = "Increase",
+                        modifier = Modifier.size(iconSize),
+                    )
+                }
+            }
+
+            // Minus
+            Box(
+                modifier = Modifier.size(touchTarget),
+                contentAlignment = Alignment.Center,
+            ) {
+                FilledTonalIconButton(
+                    onClick = {
+                        haptics.selection()
+                        onValueChange((value - step).coerceIn(range))
+                    },
+                    enabled  = canDecrease,
+                    modifier = Modifier.size(buttonSize),
+                    shape    = RoundedCornerShape(AppDimens.Corner.sm),
+                ) {
+                    Icon(
+                        AppIcons.Remove,
+                        contentDescription = "Decrease",
                         modifier = Modifier.size(iconSize),
                     )
                 }

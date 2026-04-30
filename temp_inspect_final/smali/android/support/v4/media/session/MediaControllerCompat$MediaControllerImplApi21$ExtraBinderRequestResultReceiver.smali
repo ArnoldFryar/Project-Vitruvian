@@ -1,0 +1,24 @@
+.class Landroid/support/v4/media/session/MediaControllerCompat$MediaControllerImplApi21$ExtraBinderRequestResultReceiver;
+.super Landroid/os/ResultReceiver;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Landroid/support/v4/media/session/MediaControllerCompat$MediaControllerImplApi21;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x9
+    name = "ExtraBinderRequestResultReceiver"
+.end annotation
+
+
+# virtual methods
+.method public final onReceiveResult(ILandroid/os/Bundle;)V
+    .locals 0
+
+    const/4 p1, 0x0
+
+    throw p1
+.end method

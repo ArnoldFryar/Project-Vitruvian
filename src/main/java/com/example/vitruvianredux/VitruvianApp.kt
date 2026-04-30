@@ -5,7 +5,6 @@ import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.BleForegroundService
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.data.BodyWeightStore
-import com.example.vitruvianredux.data.TtsVoiceStore
 import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.VoiceCoachingStore
@@ -15,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.vitruvian.trainer.BuildConfig
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import com.example.vitruvianredux.cloud.SupabaseProvider
 import com.example.vitruvianredux.workers.WorkoutReminderWorker
 import timber.log.Timber
@@ -67,12 +67,12 @@ class VitruvianApp : Application() {
         ProfileStore.init(this)
         // Load manually-entered body weight for relative strength calculations.
         BodyWeightStore.init(this)
-        // Load persisted TTS voice preference.
-        TtsVoiceStore.init(this)
         // Load persisted voice coaching preferences.
         VoiceCoachingStore.init(this)
         // Initialise Supabase client for cloud sync (reads config from resources).
         SupabaseProvider.init(this)
+        // Enable store-level preference writes to request an immediate cloud sync.
+        ImmediateCloudSyncTrigger.init(this)
         // Load hearted Vitruvian Library programs.
         VitruvianFavoritesStore.init(this)
         // Load official Vitruvian program library from bundled assets.

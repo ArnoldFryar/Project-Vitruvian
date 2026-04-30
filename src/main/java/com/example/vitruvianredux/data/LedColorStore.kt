@@ -3,6 +3,7 @@ package com.example.vitruvianredux.data
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.ui.graphics.Color
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 
 /**
  * Persists the user's selected LED colour scheme for the Vitruvian trainer.
@@ -17,6 +18,7 @@ object LedColorStore {
     private const val KEY_FIRST  = "color_first"
     private const val KEY_SECOND = "color_second"
     private const val KEY_THIRD  = "color_third"
+    private const val KEY_UPDATED_AT = "led_colors_updated_at"
 
     private lateinit var prefs: SharedPreferences
 
@@ -50,6 +52,9 @@ object LedColorStore {
     /** Default scheme (same as the hard-coded createInitPreset colours). */
     val default: ColorScheme = presets.first()
 
+    val updatedAt: Long
+        get() = if (::prefs.isInitialized) prefs.getLong(KEY_UPDATED_AT, 0L) else 0L
+
     // ── Init ──────────────────────────────────────────────────────────────────
 
     fun init(context: Context) {
@@ -71,11 +76,22 @@ object LedColorStore {
 
     /** Persist a new colour scheme. */
     fun save(scheme: ColorScheme) {
+        persist(scheme, System.currentTimeMillis(), triggerSync = true)
+    }
+
+    fun applyFromRemote(scheme: ColorScheme, remoteUpdatedAt: Long) {
+        if (!::prefs.isInitialized || remoteUpdatedAt <= updatedAt) return
+        persist(scheme, remoteUpdatedAt, triggerSync = false)
+    }
+
+    private fun persist(scheme: ColorScheme, writtenAt: Long, triggerSync: Boolean) {
         if (!::prefs.isInitialized) return
         prefs.edit()
             .putInt(KEY_FIRST, scheme.first)
             .putInt(KEY_SECOND, scheme.second)
             .putInt(KEY_THIRD, scheme.third)
+            .putLong(KEY_UPDATED_AT, writtenAt)
             .apply()
+        if (triggerSync) ImmediateCloudSyncTrigger.requestSettingsSync()
     }
 }

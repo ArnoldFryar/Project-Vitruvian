@@ -24,9 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +48,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 
 @Composable
 internal fun SetReadyContent(
@@ -113,7 +112,7 @@ internal fun SetReadyContent(
     eccentricPct: Int = 75,
     onEccentricPctChange: (Int) -> Unit = {},
 ) {
-    val haptic = LocalHapticFeedback.current
+    val haptics = rememberUiHaptics()
     val usesRepsMode = !isBodyweight && isRepsMode
     var showRestPicker by remember { mutableStateOf(false) }
 
@@ -357,13 +356,13 @@ internal fun SetReadyContent(
             ) {
                 FilterChip(
                     selected  = isRepsMode,
-                    onClick   = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onToggleMode(true) },
+                    onClick   = { haptics.selection(); onToggleMode(true) },
                     label     = { Text("Reps") },
                     modifier  = Modifier.weight(1f),
                 )
                 FilterChip(
                     selected  = !isRepsMode,
-                    onClick   = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onToggleMode(false) },
+                    onClick   = { haptics.selection(); onToggleMode(false) },
                     label     = { Text("Duration") },
                     modifier  = Modifier.weight(1f),
                 )
@@ -561,7 +560,7 @@ internal fun SetReadyContent(
             listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only").forEach { mode ->
                 FilterChip(
                     selected = selectedMode == mode,
-                    onClick  = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onModeSelect(mode) },
+                    onClick  = { haptics.selection(); onModeSelect(mode) },
                     label    = { Text(mode) },
                 )
             }
@@ -610,7 +609,7 @@ internal fun SetReadyContent(
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onEchoLevelChange(level) },
+                                .clickable { haptics.selection(); onEchoLevelChange(level) },
                             shape = RoundedCornerShape(AppDimens.Corner.sm),
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                                     else MaterialTheme.colorScheme.surfaceVariant,
@@ -684,11 +683,10 @@ internal fun SetReadyContent(
         // â”€â”€ GO button — primary action, visual center of gravity â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
-        val goHaptic = LocalHapticFeedback.current
         val goInteraction = remember { MutableInteractionSource() }
         val goPressed by goInteraction.collectIsPressedAsState()
         LaunchedEffect(goPressed) {
-            if (goPressed) goHaptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (goPressed) haptics.emphasis()
         }
         val goScale by animateFloatAsState(
             targetValue   = if (goPressed) 0.96f else 1f,

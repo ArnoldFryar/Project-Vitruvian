@@ -3,6 +3,7 @@ package com.example.vitruvianredux.presentation.repquality
 import com.example.vitruvianredux.ble.protocol.CableSample
 import com.example.vitruvianredux.presentation.coaching.ModeProfile
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
@@ -35,6 +36,15 @@ data class TelemetryFrame(
     val right: CableSample,
 )
 
+private data class SymmetryMetrics(
+    val loadedFrameCount: Int,
+    val avgLeftLoadedForce: Float,
+    val avgRightLoadedForce: Float,
+    val forceBiasRatio: Float,
+    val rangeGapRatio: Float,
+    val avgProgressDelta: Float,
+)
+
 /**
  * Stateless, pure-function calculator that grades a completed rep from a list
  * of [TelemetryFrame]s.
@@ -44,8 +54,8 @@ data class TelemetryFrame(
  * | Dimension      | What it measures                                        |
  * |----------------|---------------------------------------------------------|
  * | Range of motion| Peak-to-trough position swing vs. a 100 mm reference    |
- * | Tempo          | Coefficient of variation of velocity magnitude          |
- * | Symmetry       | Avg |leftPosition − rightPosition| normalised to range  |
+ * | Tempo          | Consistency through the active middle of the rep        |
+ * | Symmetry       | Loaded left/right balance with range + progress checks |
  * | Smoothness     | RMS of velocity deltas (jerk proxy), lower = smoother   |
  *
  * Purely presentation-layer code.  No BLE, rep-detection, resistance-command,
@@ -55,11 +65,12 @@ object RepQualityCalculator {
 
     /** Reference range-of-motion in mm — reps reaching this score full ROM marks. */
     private const val REFERENCE_ROM_MM = 100f
+    private const val MIN_CALIBRATED_ROM_MM = 40f
     /** Minimum frames required to produce a meaningful score. */
     private const val MIN_FRAMES = 4
 
     fun score(frames: List<TelemetryFrame>): RepQuality? {
-        return score(frames, null)
+        return score(frames, null, null)
     }
 
     /**
@@ -67,20 +78,40 @@ object RepQualityCalculator {
      * When [profile] is null the original equal-weight model is used.
      */
     fun score(frames: List<TelemetryFrame>, profile: ModeProfile?): RepQuality? {
+        return score(frames, profile, null)
+    }
+
+    /**
+     * Score a rep using optional [ModeProfile] weights and an optional
+     * warmup-derived ROM baseline for the current set.
+     */
+    fun score(
+        frames: List<TelemetryFrame>,
+        profile: ModeProfile?,
+        calibratedRomMm: Float?,
+        symmetryForceBiasOverride: Float? = null,
+        symmetryApplicable: Boolean = true,
+    ): RepQuality? {
         if (frames.size < MIN_FRAMES) return null
 
-        val rom        = scoreRom(frames)
+        val effectiveSymmetryApplicable = symmetryApplicable && !isEffectivelySingleCable(frames)
+
+        val romReferenceMm = calibratedRomMm?.coerceAtLeast(MIN_CALIBRATED_ROM_MM) ?: REFERENCE_ROM_MM
+        val rom        = scoreRom(frames, romReferenceMm)
         val tempo      = scoreTempo(frames)
-        val symmetry   = scoreSymmetry(frames)
+        val symmetry   = if (effectiveSymmetryApplicable) scoreSymmetry(frames, symmetryForceBiasOverride) else 100
         val smoothness = scoreSmoothness(frames)
 
         val composite = if (profile != null) {
-            (rom * profile.romWeight +
+            val effectiveSymmetryWeight = if (effectiveSymmetryApplicable) profile.symmetryWeight else 0f
+            val totalWeight = profile.romWeight + profile.tempoWeight + effectiveSymmetryWeight + profile.smoothnessWeight
+            ((rom * profile.romWeight +
              tempo * profile.tempoWeight +
-             symmetry * profile.symmetryWeight +
-             smoothness * profile.smoothnessWeight).toInt().coerceIn(0, 100)
+             symmetry * effectiveSymmetryWeight +
+             smoothness * profile.smoothnessWeight) / totalWeight).toInt().coerceIn(0, 100)
         } else {
-            ((rom + tempo + symmetry + smoothness) / 4f).toInt().coerceIn(0, 100)
+            val divisor = if (effectiveSymmetryApplicable) 4f else 3f
+            ((rom + tempo + smoothness + if (effectiveSymmetryApplicable) symmetry else 0) / divisor).toInt().coerceIn(0, 100)
         }
 
         return RepQuality(
@@ -95,49 +126,233 @@ object RepQualityCalculator {
 
     // ── Sub-scores ──────────────────────────────────────────────────────────
 
-    /** ROM: ratio of observed position swing to [REFERENCE_ROM_MM], clamped to 100. */
-    private fun scoreRom(frames: List<TelemetryFrame>): Int {
+    /** ROM: ratio of observed position swing to [romReferenceMm], clamped to 100. */
+    private fun scoreRom(frames: List<TelemetryFrame>, romReferenceMm: Float): Int {
         fun swing(selector: (TelemetryFrame) -> CableSample): Float {
             val positions = frames.map { selector(it).position }
             return (positions.max() - positions.min())
         }
         val avgSwing = (swing { it.left } + swing { it.right }) / 2f
-        return ((avgSwing / REFERENCE_ROM_MM) * 100f).toInt().coerceIn(0, 100)
+        return ((avgSwing / romReferenceMm) * 100f).toInt().coerceIn(0, 100)
     }
 
-    /** Tempo: inverse coefficient of variation of |velocity| — lower CV = higher score. */
+    /**
+     * Tempo: control through the active speed span of the rep.
+     *
+     * Start/end turnarounds naturally slow down, so scoring the entire rep's
+     * raw speed profile unfairly punishes smooth curls and presses. Instead,
+     * this isolates the contiguous working span around the peak velocity and
+     * grades whether speed builds to one peak and then settles cleanly, rather
+     * than repeatedly surging and crashing.
+     */
     private fun scoreTempo(frames: List<TelemetryFrame>): Int {
         val speeds = frames.map { f ->
             (abs(f.left.velocity) + abs(f.right.velocity)) / 2f
         }
-        val mean = speeds.average().toFloat()
-        if (mean < 1f) return 50 // essentially static — neutral score
-        val std = sqrt(speeds.map { (it - mean) * (it - mean) }.average().toFloat())
-        val cv = std / mean  // 0 = perfectly consistent, ≥1 = erratic
-        // Map CV 0→100, 0.8→0
-        return ((1f - cv / 0.8f) * 100f).toInt().coerceIn(0, 100)
-    }
+        val peak = speeds.maxOrNull() ?: return 50
+        if (peak < 1f) return 50 // essentially static — neutral score
 
-    /** Symmetry: average absolute left-right position delta, normalised to ROM. */
-    private fun scoreSymmetry(frames: List<TelemetryFrame>): Int {
-        val avgDelta = frames.map { abs(it.left.position - it.right.position) }.average().toFloat()
-        val avgRange = frames.map { (abs(it.left.position) + abs(it.right.position)) / 2f }
-            .average().toFloat().coerceAtLeast(1f)
-        val ratio = avgDelta / avgRange  // 0 = perfect symmetry
-        return ((1f - ratio / 0.5f) * 100f).toInt().coerceIn(0, 100)
-    }
+        val activeSpeeds = activeTempoSpan(speeds, peak)
+        if (activeSpeeds.size < 4) return 50
 
-    /** Smoothness: RMS of velocity deltas (jerk proxy) mapped to 0–100. */
-    private fun scoreSmoothness(frames: List<TelemetryFrame>): Int {
-        if (frames.size < 2) return 50
-        val jerks = frames.zipWithNext().map { (a, b) ->
-            val dv = ((abs(b.left.velocity) + abs(b.right.velocity)) -
-                      (abs(a.left.velocity) + abs(a.right.velocity))) / 2f
-            dv * dv
+        val peakIndex = activeSpeeds.indexOfFirst { it == activeSpeeds.maxOrNull() }
+            .takeIf { it >= 0 } ?: return 50
+        val deltas = activeSpeeds.zipWithNext { a, b -> b - a }
+        val meaningfulThreshold = maxOf(peak * 0.12f, 4f)
+        val directionChanges = countMeaningfulDirectionChanges(deltas, meaningfulThreshold)
+        val avgStep = deltas.map { abs(it) }.average().toFloat()
+
+        val shapeScore = when {
+            directionChanges <= 1 -> 100f
+            else -> (100f - (directionChanges - 1) * 24f).coerceAtLeast(0f)
         }
-        val rmsJerk = sqrt(jerks.average().toFloat())
-        // Map RMS jerk: 0→100, 250→0
-        return ((1f - rmsJerk / 250f) * 100f).toInt().coerceIn(0, 100)
+        val stepRatio = (avgStep / peak).coerceAtMost(1.5f)
+        val stabilityScore = ((1f - stepRatio / 0.7f) * 100f).coerceIn(0f, 100f)
+
+        val approachScore = monotonicScore(
+            values = activeSpeeds.take(peakIndex + 1),
+            expectedIncreasing = true,
+            tolerance = meaningfulThreshold,
+        )
+        val exitScore = monotonicScore(
+            values = activeSpeeds.drop(peakIndex),
+            expectedIncreasing = false,
+            tolerance = meaningfulThreshold,
+        )
+
+        return ((shapeScore * 0.4f) +
+            (stabilityScore * 0.35f) +
+            (((approachScore + exitScore) / 2f) * 0.25f))
+            .roundToInt()
+            .coerceIn(0, 100)
+    }
+
+    private fun activeTempoSpan(speeds: List<Float>, peak: Float): List<Float> {
+        val threshold = peak * 0.2f
+        val firstIndex = speeds.indexOfFirst { it >= threshold }
+        val lastIndex = speeds.indexOfLast { it >= threshold }
+        if (firstIndex == -1 || lastIndex <= firstIndex) return speeds
+        val activeSpan = speeds.subList(firstIndex, lastIndex + 1)
+        if (activeSpan.size >= 4) return activeSpan
+        return speeds
+    }
+
+    private fun countMeaningfulDirectionChanges(
+        deltas: List<Float>,
+        threshold: Float,
+    ): Int {
+        var previousDirection = 0
+        var directionChanges = 0
+        for (delta in deltas) {
+            val direction = when {
+                delta > threshold -> 1
+                delta < -threshold -> -1
+                else -> 0
+            }
+            if (direction == 0) continue
+            if (previousDirection != 0 && direction != previousDirection) {
+                directionChanges += 1
+            }
+            previousDirection = direction
+        }
+        return directionChanges
+    }
+
+    private fun monotonicScore(
+        values: List<Float>,
+        expectedIncreasing: Boolean,
+        tolerance: Float,
+    ): Float {
+        if (values.size < 2) return 100f
+
+        var violations = 0
+        val comparisons = values.zipWithNext()
+        for ((current, next) in comparisons) {
+            val outOfOrder = if (expectedIncreasing) {
+                next + tolerance < current
+            } else {
+                next - tolerance > current
+            }
+            if (outOfOrder) violations += 1
+        }
+
+        return ((1f - violations / comparisons.size.toFloat()) * 100f).coerceIn(0f, 100f)
+    }
+
+    /**
+     * Symmetry: balance left/right contribution without overreacting to phase drift.
+     *
+     * Left/right cables often have different zero points, so raw absolute
+     * position deltas are not a reliable symmetry signal. We anchor the score
+     * to force balance first, then use range balance and a light progress-sync
+     * check so a moderate side bias lowers the score without collapsing it.
+     */
+    private fun scoreSymmetry(frames: List<TelemetryFrame>, forceBiasOverride: Float?): Int {
+        val metrics = symmetryMetrics(frames, forceBiasOverride)
+        val progressScore = ((1f - metrics.avgProgressDelta / 0.55f) * 100f).coerceIn(0f, 100f)
+        val rangeBalanceScore = ((1f - metrics.rangeGapRatio / 0.4f) * 100f).coerceIn(0f, 100f)
+        val forceBalanceScore = ((1f - metrics.forceBiasRatio / 0.4f) * 100f).coerceIn(0f, 100f)
+
+        val forceWeight = if (forceBiasOverride != null) 0.75f else 0.45f
+        val rangeWeight = if (forceBiasOverride != null) 0.15f else 0.35f
+        val progressWeight = if (forceBiasOverride != null) 0.10f else 0.20f
+
+        return ((forceBalanceScore * forceWeight) +
+            (rangeBalanceScore * rangeWeight) +
+            (progressScore * progressWeight))
+            .roundToInt()
+            .coerceIn(0, 100)
+    }
+
+    private fun symmetryMetrics(frames: List<TelemetryFrame>, forceBiasOverride: Float? = null): SymmetryMetrics {
+        val loadedFrames = loadedFrames(frames)
+        val leftPositions = frames.map { it.left.position }
+        val rightPositions = frames.map { it.right.position }
+        val avgLeftForce = loadedFrames.map { abs(it.left.force) }.average().toFloat().coerceAtLeast(0.001f)
+        val avgRightForce = loadedFrames.map { abs(it.right.force) }.average().toFloat().coerceAtLeast(0.001f)
+
+        val leftMin = leftPositions.min()
+        val leftMax = leftPositions.max()
+        val rightMin = rightPositions.min()
+        val rightMax = rightPositions.max()
+        val leftRange = (leftMax - leftMin).coerceAtLeast(1f)
+        val rightRange = (rightMax - rightMin).coerceAtLeast(1f)
+
+        val avgProgressDelta = frames.map { frame ->
+            val leftProgress = (frame.left.position - leftMin) / leftRange
+            val rightProgress = (frame.right.position - rightMin) / rightRange
+            abs(leftProgress - rightProgress)
+        }.average().toFloat()
+
+        return SymmetryMetrics(
+            loadedFrameCount = loadedFrames.size,
+            avgLeftLoadedForce = avgLeftForce,
+            avgRightLoadedForce = avgRightForce,
+            forceBiasRatio = forceBiasOverride?.coerceIn(0f, 1f)
+                ?: (abs(avgLeftForce - avgRightForce) / (avgLeftForce + avgRightForce)),
+            rangeGapRatio = abs(leftRange - rightRange) / maxOf(leftRange, rightRange),
+            avgProgressDelta = avgProgressDelta,
+        )
+    }
+
+    private fun averageSwing(frames: List<TelemetryFrame>): Float {
+        fun swing(selector: (TelemetryFrame) -> CableSample): Float {
+            val positions = frames.map { selector(it).position }
+            return positions.max() - positions.min()
+        }
+
+        return (swing { it.left } + swing { it.right }) / 2f
+    }
+
+    private fun isEffectivelySingleCable(frames: List<TelemetryFrame>): Boolean {
+        val leftRange = frames.maxOf { it.left.position } - frames.minOf { it.left.position }
+        val rightRange = frames.maxOf { it.right.position } - frames.minOf { it.right.position }
+        val activeRange = maxOf(leftRange, rightRange)
+        val passiveRange = minOf(leftRange, rightRange)
+        if (activeRange < 12f) return false
+        return passiveRange / activeRange <= 0.2f
+    }
+
+    private fun loadedFrames(frames: List<TelemetryFrame>): List<TelemetryFrame> {
+        val forceLevels = frames.map { (abs(it.left.force) + abs(it.right.force)) / 2f }
+        val peakForce = forceLevels.maxOrNull() ?: return frames
+        if (peakForce < 0.5f) return frames
+
+        val threshold = maxOf(peakForce * 0.35f, 1f)
+        val loaded = frames.filterIndexed { index, _ -> forceLevels[index] >= threshold }
+        return if (loaded.size >= 3) loaded else frames
+    }
+
+    /**
+     * Smoothness: normalized jerk across the active span of the rep.
+     *
+     * Raw velocity deltas vary massively by exercise and effort level, so a
+     * fixed threshold unfairly punishes faster reps. Normalizing jerk against
+     * the rep's own peak speed makes the score scale-aware while still catching
+     * sudden surges and stalls.
+     */
+    private fun scoreSmoothness(frames: List<TelemetryFrame>): Int {
+        val speeds = frames.map { frame ->
+            (abs(frame.left.velocity) + abs(frame.right.velocity)) / 2f
+        }
+        val peak = speeds.maxOrNull() ?: return 50
+        if (peak < 1f) return 50
+
+        val activeSpeeds = activeTempoSpan(speeds, peak)
+        if (activeSpeeds.size < 4) return 50
+
+        val velocitySteps = activeSpeeds.zipWithNext { current, next -> next - current }
+        if (velocitySteps.size < 2) return 50
+
+        val jerkSquares = velocitySteps.zipWithNext { current, next ->
+            val jerk = next - current
+            val normalizedJerk = jerk / peak
+            normalizedJerk * normalizedJerk
+        }
+        val normalizedRmsJerk = sqrt(jerkSquares.average().toFloat())
+        return ((1f - normalizedRmsJerk / 0.6f) * 100f)
+            .roundToInt()
+            .coerceIn(0, 100)
     }
 
     // ── Label ───────────────────────────────────────────────────────────────

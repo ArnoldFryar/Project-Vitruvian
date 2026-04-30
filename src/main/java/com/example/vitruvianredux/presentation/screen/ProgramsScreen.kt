@@ -19,10 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.geometry.Offset
@@ -38,6 +36,7 @@ import com.example.vitruvianredux.data.VitruvianLibrary
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
+import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.AppEmptyState
@@ -111,7 +110,7 @@ fun ProgramsScreen(
     var draggingId   by remember { mutableStateOf<String?>(null) }
     var dragOffsetY  by remember { mutableFloatStateOf(0f) }
     var rowHeightPx  by remember { mutableFloatStateOf(0f) }
-    val haptic = LocalHapticFeedback.current
+    val haptics = rememberUiHaptics()
 
     // Favorites-first: non-favorites collapse unless expanded
     var showAllPrograms by remember { mutableStateOf(false) }
@@ -441,7 +440,7 @@ fun ProgramsScreen(
                         .pointerInput(p.id) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = { _ ->
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    haptics.gestureStart()
                                     if (isSelecting) {
                                         // In selection mode: long-press just toggles selection, no drag
                                         selectedIds = if (p.id in selectedIds) selectedIds - p.id else selectedIds + p.id

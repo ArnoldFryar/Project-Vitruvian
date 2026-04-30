@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.presentation.repquality
 
 import com.vitruvian.trainer.R
+import com.vitruvian.trainer.BuildConfig
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -8,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -76,23 +78,35 @@ fun RepQualityBadge(
             shape = RoundedCornerShape(AppDimens.Corner.pill),
             color = bgColor,
         ) {
-            Row(
+            Column(
                 modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = 3.dp),
-                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-                verticalAlignment     = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Icon(
-                    imageVector        = AppIcons.Star,
-                    contentDescription = stringResource(R.string.cd_personal_record),
-                    modifier           = Modifier.size(AppDimens.Icon.xs),
-                    tint               = fgColor,
-                )
-                Text(
-                    text       = "${q.label} ${q.score}",
-                    style      = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color      = fgColor,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector        = AppIcons.Star,
+                        contentDescription = stringResource(R.string.cd_personal_record),
+                        modifier           = Modifier.size(AppDimens.Icon.xs),
+                        tint               = fgColor,
+                    )
+                    Text(
+                        text       = "${q.label} ${q.score}",
+                        style      = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color      = fgColor,
+                    )
+                }
+
+                if (BuildConfig.IS_DEBUG_BUILD) {
+                    Text(
+                        text = "R ${q.rom}  T ${q.tempo}  S ${q.symmetry}  Sm ${q.smoothness}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = fgColor.copy(alpha = 0.9f),
+                    )
+                }
             }
         }
     }

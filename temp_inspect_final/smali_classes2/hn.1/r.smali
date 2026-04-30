@@ -1,0 +1,58 @@
+.class public final Lhn/r;
+.super LAm/p;
+.source "SourceFile"
+
+# interfaces
+.implements Lzm/l;
+
+
+# annotations
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "LAm/p;",
+        "Lzm/l<",
+        "LQm/b;",
+        "LGn/E;",
+        ">;"
+    }
+.end annotation
+
+
+# static fields
+.field public static final a:Lhn/r;
+
+
+# direct methods
+.method static constructor <clinit>()V
+    .locals 2
+
+    new-instance v0, Lhn/r;
+
+    const/4 v1, 0x1
+
+    invoke-direct {v0, v1}, LAm/p;-><init>(I)V
+
+    sput-object v0, Lhn/r;->a:Lhn/r;
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public final invoke(Ljava/lang/Object;)Ljava/lang/Object;
+    .locals 1
+
+    check-cast p1, LQm/b;
+
+    const-string v0, "it"
+
+    invoke-static {p1, v0}, LAm/n;->g(Ljava/lang/Object;Ljava/lang/String;)V
+
+    invoke-interface {p1}, LQm/a;->n()LGn/E;
+
+    move-result-object p1
+
+    invoke-static {p1}, LAm/n;->d(Ljava/lang/Object;)V
+
+    return-object p1
+.end method

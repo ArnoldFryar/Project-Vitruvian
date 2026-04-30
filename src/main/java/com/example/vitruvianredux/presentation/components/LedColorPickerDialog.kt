@@ -24,8 +24,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,6 +33,7 @@ import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 
 /**
  * Premium LED Control Panel dialog.
@@ -54,7 +53,7 @@ fun LedColorPickerDialog(
     onDismiss: () -> Unit,
 ) {
     val cs     = MaterialTheme.colorScheme
-    val haptic = LocalHapticFeedback.current
+    val haptics = rememberUiHaptics()
 
     // Ambient glow transitions smoothly when the user selects a new preset
     val glowColor by animateColorAsState(
@@ -127,7 +126,7 @@ fun LedColorPickerDialog(
                                 scheme     = scheme,
                                 isSelected = isSelected,
                                 onClick    = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    haptics.selection()
                                     onSelect(scheme)
                                 },
                             )

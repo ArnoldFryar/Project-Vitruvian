@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <ImageView android:textColor="@color/instabug_theme_tinting_color_dark" android:id="@id/imgSortActions" android:padding="0.0dip" android:clickable="false" android:layout_width="24.0dip" android:layout_height="24.0dip" android:tint="@color/instabug_theme_tinting_color_dark" android:layout_alignParentRight="true" android:layout_centerVertical="true" android:layout_alignParentEnd="true" app:srcCompat="@drawable/ibg_fr_ic_sort" />
+    <TextView android:textSize="11.0sp" android:textStyle="normal" android:textColor="@color/instabug_theme_tinting_color_dark" android:gravity="end" android:id="@id/spinnerItemTextView" android:layout_width="fill_parent" android:layout_height="wrap_content" android:tint="@color/instabug_theme_tinting_color_dark" android:layout_toLeftOf="@id/imgSortActions" android:layout_centerVertical="true" android:layout_toStartOf="@id/imgSortActions" style="@style/InstabugTopDialogButton" />
+</RelativeLayout>

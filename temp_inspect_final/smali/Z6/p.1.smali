@@ -1,0 +1,6 @@
+.class public interface abstract LZ6/p;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+# interfaces
+.implements Landroid/os/IInterface;

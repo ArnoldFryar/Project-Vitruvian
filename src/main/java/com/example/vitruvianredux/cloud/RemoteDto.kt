@@ -212,6 +212,9 @@ data class RemoteUserSettings(
     /** JSON-encoded LedColorStore.ColorScheme */
     @SerialName("led_colors")
     val ledColors: JsonElement = JsonObject(emptyMap()),
+    /** JSON-encoded synced app preference extras. */
+    @SerialName("goals")
+    val goals: JsonElement = JsonObject(emptyMap()),
     @SerialName("device_id")
     val deviceId: String = "",
     @SerialName("updated_at")

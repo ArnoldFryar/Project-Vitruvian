@@ -1,0 +1,35 @@
+.class public final synthetic LLj/G;
+.super LAm/k;
+.source "SourceFile"
+
+# interfaces
+.implements Lzm/a;
+
+
+# annotations
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "LAm/k;",
+        "Lzm/a<",
+        "Lkm/B;",
+        ">;"
+    }
+.end annotation
+
+
+# virtual methods
+.method public final invoke()Ljava/lang/Object;
+    .locals 1
+
+    iget-object v0, p0, LAm/c;->b:Ljava/lang/Object;
+
+    check-cast v0, LLj/O;
+
+    iget-object v0, v0, LLj/O;->c:LNj/C;
+
+    invoke-interface {v0}, LNj/C;->cancel()V
+
+    sget-object v0, Lkm/B;->a:Lkm/B;
+
+    return-object v0
+.end method

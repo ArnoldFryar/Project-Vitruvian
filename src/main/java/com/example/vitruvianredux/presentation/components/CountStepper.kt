@@ -20,9 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -31,6 +29,7 @@ import kotlinx.coroutines.flow.filter
 import kotlin.math.abs
 import kotlin.math.pow
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 
 /**
  * Vertical drum-style integer count picker.
@@ -88,7 +87,7 @@ fun CountStepper(
 
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val snapFling = rememberSnapFlingBehavior(listState)
-    val haptic    = LocalHapticFeedback.current
+    val haptics   = rememberUiHaptics()
     val density   = LocalDensity.current
     val itemHeightPx = with(density) { itemHeight.toPx() }
 
@@ -108,7 +107,7 @@ fun CountStepper(
         snapshotFlow { centredIndex }
             .distinctUntilChanged()
             .filter { listState.isScrollInProgress }
-            .collect { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+            .collect { haptics.selection() }
     }
 
     // ── Report snapped value once scrolling halts ───────────────────────────

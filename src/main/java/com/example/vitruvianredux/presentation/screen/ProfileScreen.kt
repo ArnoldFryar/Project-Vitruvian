@@ -44,6 +44,7 @@ import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.HealthConnectManager
 import com.vitruvian.trainer.BuildConfig
+import com.example.vitruvianredux.data.RecordedCountStyle
 import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.data.HevyClient
 import com.example.vitruvianredux.data.HevySyncStore
@@ -1521,164 +1522,10 @@ fun ProfileScreen(
 
         // -- TTS Voice ----------------------------------------------------
         if (workoutVM != null) {
-            val availableVoices by workoutVM.availableVoices.collectAsState()
-            val selectedVoiceName by workoutVM.selectedVoiceName.collectAsState()
             val voiceCoachingSettings by VoiceCoachingStore.settingsFlow.collectAsState()
-            if (availableVoices.isNotEmpty()) {
-                Spacer(Modifier.height(AppDimens.Spacing.sm))
-                var showVoicePicker by remember { mutableStateOf(false) }
-                var showCoachingDialog by remember { mutableStateOf(false) }
-                PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showVoicePicker = true }) {
-                    Row(
-                        modifier          = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            AppIcons.RecordVoiceOver, contentDescription = stringResource(R.string.cd_voice_coaching),
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(AppDimens.Icon.lg),
-                        )
-                        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_voice_label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                            Text(
-                                if (selectedVoiceName.isEmpty()) "Default"
-                                else {
-                                    val raw = selectedVoiceName.substringAfterLast("-x-").substringBeforeLast("-").uppercase()
-                                    when (raw) {
-                                        "IOB" -> "Neural - Voice 1"; "IOG" -> "Neural - Voice 2"
-                                        "IOM" -> "Neural - Voice 3"; "IOL" -> "Neural - Voice 4"
-                                        "TPF" -> "Standard - Voice A"; "TPD" -> "Standard - Voice B"
-                                        "TPC" -> "Standard - Voice C"; "SFG" -> "Standard - Voice D"
-                                        else  -> raw.ifEmpty { selectedVoiceName }
-                                    }
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                if (showVoicePicker) {
-                    AlertDialog(
-                        onDismissRequest = { showVoicePicker = false },
-                        title = { Text(stringResource(R.string.settings_voice_label)) },
-                        text = {
-                            Column(
-                                modifier = Modifier.verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
-                            ) {
-                                Text(stringResource(R.string.settings_voice_picker_help),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                // Tip about WaveNet voices
-                                if (availableVoices.any { it.isNetworkConnectionRequired }) {
-                                    Spacer(Modifier.height(AppDimens.Spacing.xs))
-                                    Surface(
-                                        shape = MaterialTheme.shapes.small,
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-                                        ) {
-                                            Icon(AppIcons.Wifi, null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(AppDimens.Icon.sm))
-                                            Text(
-                                                "WaveNet/neural voices sound more natural. Download them offline in your device\u2019s Text-to-Speech settings.",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            )
-                                        }
-                                    }
-                                }
-                                Spacer(Modifier.height(AppDimens.Spacing.xs))
-                                // Default option
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { workoutVM.setVoiceName(""); showVoicePicker = false }
-                                        .padding(vertical = AppDimens.Spacing.sm),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(stringResource(R.string.settings_voice_default), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                                    IconButton(
-                                        onClick = { workoutVM.previewVoice("") },
-                                        modifier = Modifier.size(AppDimens.Icon.lg),
-                                    ) {
-                                        Icon(AppIcons.VolumeUp, contentDescription = "Preview",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(AppDimens.Icon.md))
-                                    }
-                                    if (selectedVoiceName.isEmpty()) Icon(AppIcons.Check, contentDescription = stringResource(R.string.cd_check),
-                                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
-                                    else Spacer(Modifier.size(AppDimens.Icon.md))
-                                }
-                                Divider(color = MaterialTheme.colorScheme.outlineVariant)
-                                availableVoices.forEach { voice ->
-                                    // Google TTS: "io" prefix = WaveNet/neural; "tp"/"sf" = standard
-                                    val codeSegment = voice.name.substringAfterLast("-x-").take(2).lowercase()
-                                    val isNeural = codeSegment == "io"
-                                    val label = buildString {
-                                        // Map Google's internal codes to friendlier names
-                                        val raw = voice.name.substringAfterLast("-x-").substringBeforeLast("-").uppercase()
-                                        val friendly = when (raw) {
-                                            "IOB" -> "Neural - Voice 1"
-                                            "IOG" -> "Neural - Voice 2"
-                                            "IOM" -> "Neural - Voice 3"
-                                            "IOL" -> "Neural - Voice 4"
-                                            "TPF" -> "Standard - Voice A"
-                                            "TPD" -> "Standard - Voice B"
-                                            "TPC" -> "Standard - Voice C"
-                                            "SFG" -> "Standard - Voice D"
-                                            else  -> raw.ifEmpty { voice.name }
-                                        }
-                                        append(friendly)
-                                    }
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { workoutVM.setVoiceName(voice.name); showVoicePicker = false }
-                                            .padding(vertical = AppDimens.Spacing.sm),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(label, style = MaterialTheme.typography.bodyMedium)
-                                            if (voice.isNetworkConnectionRequired) {
-                                                Text(stringResource(R.string.settings_voice_requires_internet),
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                            }
-                                        }
-                                        IconButton(
-                                            onClick = { workoutVM.previewVoice(voice.name) },
-                                            modifier = Modifier.size(AppDimens.Icon.lg),
-                                        ) {
-                                            Icon(AppIcons.VolumeUp, contentDescription = "Preview",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(AppDimens.Icon.md))
-                                        }
-                                        if (selectedVoiceName == voice.name) Icon(AppIcons.Check, contentDescription = stringResource(R.string.cd_check),
-                                            tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(AppDimens.Icon.md))
-                                        else Spacer(Modifier.size(AppDimens.Icon.md))
-                                    }
-                                }
-                            }
-                        },
-                        confirmButton = {
-                            TextButton(onClick = { showVoicePicker = false }) { Text(stringResource(R.string.complete_done)) }
-                        },
-                    )
-                }
-
-                Spacer(Modifier.height(AppDimens.Spacing.sm))
-                PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showCoachingDialog = true }) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            var showCoachingDialog by remember { mutableStateOf(false) }
+            PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showCoachingDialog = true }) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1752,6 +1599,11 @@ fun ProfileScreen(
                                         )
                                     }
                                 }
+                                Text(
+                                    text = coachingLevelDetail(voiceCoachingSettings),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
 
                                 Text(
                                     stringResource(R.string.settings_voice_style_label),
@@ -1777,6 +1629,72 @@ fun ProfileScreen(
                                         )
                                     }
                                 }
+                                Text(
+                                    text = coachingStyleDetail(voiceCoachingSettings),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+
+                                Text(
+                                    stringResource(R.string.settings_voice_output_label),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    stringResource(R.string.settings_voice_output_recorded_only),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = coachingOutputModeDetail(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+
+                                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                                    Text(
+                                        stringResource(R.string.settings_voice_count_style_label),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    FlowRow(
+                                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                    ) {
+                                        RecordedCountStyle.entries.forEach { countStyle ->
+                                            FilterChip(
+                                                selected = voiceCoachingSettings.recordedCountStyle == countStyle,
+                                                onClick = { VoiceCoachingStore.setRecordedCountStyle(appContext, countStyle) },
+                                                label = {
+                                                    Text(
+                                                        when (countStyle) {
+                                                            RecordedCountStyle.BASE -> stringResource(R.string.settings_voice_count_style_base)
+                                                            RecordedCountStyle.STEADY -> stringResource(R.string.settings_voice_count_style_steady)
+                                                            RecordedCountStyle.FOCUS -> stringResource(R.string.settings_voice_count_style_focus)
+                                                        }
+                                                    )
+                                                },
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = recordedCountStyleDetail(voiceCoachingSettings),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                OutlinedButton(
+                                    onClick = { workoutVM.previewVoiceCoaching() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Icon(
+                                        AppIcons.PlayArrow,
+                                        contentDescription = stringResource(R.string.settings_voice_preview),
+                                        modifier = Modifier.size(AppDimens.Icon.sm),
+                                    )
+                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
+                                    Text(stringResource(R.string.settings_voice_preview))
+                                }
 
                                 VoiceToggleRow(
                                     title = stringResource(R.string.settings_voice_rep_counts),
@@ -1797,7 +1715,6 @@ fun ProfileScreen(
                         },
                     )
                 }
-            }
         }
         // â”€â”€ Samsung Health (Health Connect) sync toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         val hcAvailability = HealthConnectManager.availability
@@ -2290,10 +2207,14 @@ private fun VoiceToggleRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.width(AppDimens.Spacing.sm))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
@@ -2308,5 +2229,35 @@ private fun coachingSummary(settings: com.example.vitruvianredux.data.VoiceCoach
         VoiceCoachingStyle.COACH -> "Coach"
         VoiceCoachingStyle.TRAINER -> "Trainer"
     }
-    return "$levelLabel · $styleLabel"
+    val detailLabel = when (settings.coachingLevel) {
+        VoiceCoachingLevel.OFF -> "critical alerts only"
+        VoiceCoachingLevel.MINIMAL -> "lighter cues"
+        VoiceCoachingLevel.STANDARD -> "full cues"
+    }
+    val countStyleLabel = when (settings.recordedCountStyle) {
+        RecordedCountStyle.BASE -> "Base"
+        RecordedCountStyle.STEADY -> "Steady"
+        RecordedCountStyle.FOCUS -> "Focus"
+    }
+    return "$levelLabel · $styleLabel · Recorded/$countStyleLabel · $detailLabel"
+}
+
+private fun coachingLevelDetail(settings: com.example.vitruvianredux.data.VoiceCoachingSettings): String = when (settings.coachingLevel) {
+    VoiceCoachingLevel.OFF -> "Only critical connection alerts play."
+    VoiceCoachingLevel.MINIMAL -> "Ready and set cues stay on, with only key performance callouts."
+    VoiceCoachingLevel.STANDARD -> "Full set cues plus form, tempo, power, and strong-rep feedback."
+}
+
+private fun coachingStyleDetail(settings: com.example.vitruvianredux.data.VoiceCoachingSettings): String = when (settings.coachingStyle) {
+    VoiceCoachingStyle.COACH -> "Competitive, pressure-up phrasing with a steadier delivery."
+    VoiceCoachingStyle.TRAINER -> "Shorter, more direct phrasing with faster callouts."
+}
+
+private fun coachingOutputModeDetail(): String =
+    "Workout voice now uses the recorded pack for counts, timers, start and stop cues, connection alerts, and coaching lines. Android TTS is no longer used during workouts."
+
+private fun recordedCountStyleDetail(settings: com.example.vitruvianredux.data.VoiceCoachingSettings): String = when (settings.recordedCountStyle) {
+    RecordedCountStyle.BASE -> "Uses the default recorded count set. Counts 26 through 30 use the new ElevenLabs clips."
+    RecordedCountStyle.STEADY -> "Uses a slower recorded cadence for every count from 1 through 30."
+    RecordedCountStyle.FOCUS -> "Keeps standard recorded counts, but swaps in emphasized clips for 1, 5, and 10."
 }

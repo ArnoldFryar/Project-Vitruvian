@@ -2,6 +2,7 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,11 +50,12 @@ object UnitsStore {
     // ── Public API ────────────────────────────────────────────────────────────
 
     fun setUnitSystem(system: UnitSystem) {
-        _unitSystem.value = system
-        prefs.edit()
-            .putString(KEY_UNIT, system.name)
-            .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
-            .apply()
+        persist(system, System.currentTimeMillis(), triggerSync = true)
+    }
+
+    fun applyFromRemote(system: UnitSystem, remoteUpdatedAt: Long) {
+        if (!::prefs.isInitialized || remoteUpdatedAt <= updatedAt) return
+        persist(system, remoteUpdatedAt, triggerSync = false)
     }
 
     // ── Internal ──────────────────────────────────────────────────────────────
@@ -61,6 +63,15 @@ object UnitsStore {
     private fun load(): UnitSystem {
         val stored = prefs.getString(KEY_UNIT, null) ?: return UnitSystem.IMPERIAL_LB
         return runCatching { UnitSystem.valueOf(stored) }.getOrDefault(UnitSystem.IMPERIAL_LB)
+    }
+
+    private fun persist(system: UnitSystem, writtenAt: Long, triggerSync: Boolean) {
+        _unitSystem.value = system
+        prefs.edit()
+            .putString(KEY_UNIT, system.name)
+            .putLong(KEY_UPDATED_AT, writtenAt)
+            .apply()
+        if (triggerSync) ImmediateCloudSyncTrigger.requestSettingsSync()
     }
 
     /**

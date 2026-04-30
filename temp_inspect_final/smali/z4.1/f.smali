@@ -1,0 +1,61 @@
+.class public final Lz4/f;
+.super Lb4/d;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Lb4/d;"
+    }
+.end annotation
+
+
+# virtual methods
+.method public final c()Ljava/lang/String;
+    .locals 1
+
+    const-string v0, "INSERT OR REPLACE INTO `Preference` (`key`,`long_value`) VALUES (?,?)"
+
+    return-object v0
+.end method
+
+.method public final e(Lg4/f;Ljava/lang/Object;)V
+    .locals 3
+
+    check-cast p2, Lz4/d;
+
+    iget-object v0, p2, Lz4/d;->a:Ljava/lang/String;
+
+    const/4 v1, 0x1
+
+    if-nez v0, :cond_0
+
+    invoke-interface {p1, v1}, Lg4/d;->b1(I)V
+
+    goto :goto_0
+
+    :cond_0
+    invoke-interface {p1, v1, v0}, Lg4/d;->R(ILjava/lang/String;)V
+
+    :goto_0
+    const/4 v0, 0x2
+
+    iget-object p2, p2, Lz4/d;->b:Ljava/lang/Long;
+
+    if-nez p2, :cond_1
+
+    invoke-interface {p1, v0}, Lg4/d;->b1(I)V
+
+    goto :goto_1
+
+    :cond_1
+    invoke-virtual {p2}, Ljava/lang/Long;->longValue()J
+
+    move-result-wide v1
+
+    invoke-interface {p1, v0, v1, v2}, Lg4/d;->p0(IJ)V
+
+    :goto_1
+    return-void
+.end method

@@ -2,6 +2,7 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,15 +36,25 @@ object ThemeStore {
     }
 
     fun setMode(mode: ThemeMode) {
-        _mode.value = mode
-        prefs.edit()
-            .putString(KEY_MODE, mode.name)
-            .putLong(KEY_UPDATED_AT, System.currentTimeMillis())
-            .apply()
+        persist(mode, System.currentTimeMillis(), triggerSync = true)
+    }
+
+    fun applyFromRemote(mode: ThemeMode, remoteUpdatedAt: Long) {
+        if (!::prefs.isInitialized || remoteUpdatedAt <= updatedAt) return
+        persist(mode, remoteUpdatedAt, triggerSync = false)
     }
 
     private fun load(): ThemeMode {
         val stored = prefs.getString(KEY_MODE, null) ?: return ThemeMode.SYSTEM
         return runCatching { ThemeMode.valueOf(stored) }.getOrDefault(ThemeMode.SYSTEM)
+    }
+
+    private fun persist(mode: ThemeMode, writtenAt: Long, triggerSync: Boolean) {
+        _mode.value = mode
+        prefs.edit()
+            .putString(KEY_MODE, mode.name)
+            .putLong(KEY_UPDATED_AT, writtenAt)
+            .apply()
+        if (triggerSync) ImmediateCloudSyncTrigger.requestSettingsSync()
     }
 }

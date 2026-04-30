@@ -1,0 +1,72 @@
+.class public final Llo/N;
+.super LAm/p;
+.source "SourceFile"
+
+# interfaces
+.implements Lzm/l;
+
+
+# annotations
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "LAm/p;",
+        "Lzm/l<",
+        "Lko/i;",
+        "Lkm/B;",
+        ">;"
+    }
+.end annotation
+
+
+# instance fields
+.field public final synthetic a:LAm/F;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "LAm/F<",
+            "Lko/i;",
+            ">;"
+        }
+    .end annotation
+.end field
+
+
+# direct methods
+.method public constructor <init>(LAm/F;)V
+    .locals 0
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "LAm/F<",
+            "Lko/i;",
+            ">;)V"
+        }
+    .end annotation
+
+    iput-object p1, p0, Llo/N;->a:LAm/F;
+
+    const/4 p1, 0x1
+
+    invoke-direct {p0, p1}, LAm/p;-><init>(I)V
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public final invoke(Ljava/lang/Object;)Ljava/lang/Object;
+    .locals 1
+
+    check-cast p1, Lko/i;
+
+    const-string v0, "it"
+
+    invoke-static {p1, v0}, LAm/n;->g(Ljava/lang/Object;Ljava/lang/String;)V
+
+    iget-object v0, p0, Llo/N;->a:LAm/F;
+
+    iput-object p1, v0, LAm/F;->a:Ljava/lang/Object;
+
+    sget-object p1, Lkm/B;->a:Lkm/B;
+
+    return-object p1
+.end method

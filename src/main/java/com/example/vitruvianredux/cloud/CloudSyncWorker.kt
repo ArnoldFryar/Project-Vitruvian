@@ -49,6 +49,7 @@ class CloudSyncWorker(
     companion object {
         private const val TAG = "CloudSyncWorker"
         const val WORK_NAME = "cloud_sync_periodic"
+        const val IMMEDIATE_WORK_NAME = "cloud_sync_immediate"
 
         /**
          * Enqueue a periodic sync that runs every 30 minutes when the device
@@ -94,8 +95,12 @@ class CloudSyncWorker(
                 .setConstraints(constraints)
                 .build()
 
-            WorkManager.getInstance(context).enqueue(request)
-            Timber.tag(TAG).i("One-shot cloud sync enqueued")
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                IMMEDIATE_WORK_NAME,
+                ExistingWorkPolicy.REPLACE,
+                request,
+            )
+            Timber.tag(TAG).i("One-shot cloud sync enqueued (unique)")
         }
     }
 }

@@ -3,6 +3,7 @@ package com.example.vitruvianredux.data
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.vitruvianredux.ble.protocol.EchoLevel
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import com.example.vitruvianredux.presentation.screen.JustLiftMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 object JustLiftStore {
 
     private const val PREFS = "vitruvian_just_lift"
+    private const val KEY_UPDATED_AT      = "updated_at"
 
     // Keys
     private const val KEY_WEIGHT_KG       = "weight_kg_per_cable"
@@ -71,6 +73,9 @@ object JustLiftStore {
     /** Observable snapshot — collectors are notified on every [saveJustLiftDefaults]. */
     val state: StateFlow<JustLiftDefaults> = _state.asStateFlow()
 
+    val updatedAt: Long
+        get() = if (::prefs.isInitialized) prefs.getLong(KEY_UPDATED_AT, 0L) else 0L
+
     // ── Internals ─────────────────────────────────────────────────────────────
 
     private lateinit var prefs: SharedPreferences
@@ -97,25 +102,16 @@ object JustLiftStore {
 
     /** Persist a new set of defaults and push to [state] flow. */
     fun saveJustLiftDefaults(defaults: JustLiftDefaults) {
-        if (!::prefs.isInitialized) return
-        prefs.edit()
-            .putFloat(KEY_WEIGHT_KG, defaults.weightPerCableKg)
-            .putString(KEY_MODE, defaults.workoutModeId.name)
-            .putFloat(KEY_PROGRESSION_KG, defaults.weightChangePerRep)
-            .putInt(KEY_REST_SECONDS, defaults.restSeconds)
-            .putBoolean(KEY_SOUND, defaults.soundEnabled)
-            .putBoolean(KEY_MIRROR, defaults.mirrorEnabled)
-            .putBoolean(KEY_BEAST_MODE, defaults.isBeastMode)
-            .putInt(KEY_ECCENTRIC_PCT, defaults.eccentricLoadPercentage)
-            .putString(KEY_ECHO_LEVEL, defaults.echoLevelValue.name)
-            .putBoolean(KEY_STALL_DETECTION, defaults.stallDetectionEnabled)
-            .putString(KEY_REP_COUNT_TIMING, defaults.repCountTimingName)
-            .apply()
-        _state.value = defaults
+        persist(defaults, System.currentTimeMillis(), triggerSync = true)
     }
 
     /** @see saveJustLiftDefaults */
     fun save(defaults: JustLiftDefaults) = saveJustLiftDefaults(defaults)
+
+    fun applyFromRemote(defaults: JustLiftDefaults, remoteUpdatedAt: Long) {
+        if (!::prefs.isInitialized || remoteUpdatedAt <= updatedAt) return
+        persist(defaults, remoteUpdatedAt, triggerSync = false)
+    }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
@@ -140,5 +136,25 @@ object JustLiftStore {
             repCountTimingName     = prefs.getString(KEY_REP_COUNT_TIMING, default.repCountTimingName)
                                         ?: default.repCountTimingName,
         )
+    }
+
+    private fun persist(defaults: JustLiftDefaults, writtenAt: Long, triggerSync: Boolean) {
+        if (!::prefs.isInitialized) return
+        prefs.edit()
+            .putFloat(KEY_WEIGHT_KG, defaults.weightPerCableKg)
+            .putString(KEY_MODE, defaults.workoutModeId.name)
+            .putFloat(KEY_PROGRESSION_KG, defaults.weightChangePerRep)
+            .putInt(KEY_REST_SECONDS, defaults.restSeconds)
+            .putBoolean(KEY_SOUND, defaults.soundEnabled)
+            .putBoolean(KEY_MIRROR, defaults.mirrorEnabled)
+            .putBoolean(KEY_BEAST_MODE, defaults.isBeastMode)
+            .putInt(KEY_ECCENTRIC_PCT, defaults.eccentricLoadPercentage)
+            .putString(KEY_ECHO_LEVEL, defaults.echoLevelValue.name)
+            .putBoolean(KEY_STALL_DETECTION, defaults.stallDetectionEnabled)
+            .putString(KEY_REP_COUNT_TIMING, defaults.repCountTimingName)
+            .putLong(KEY_UPDATED_AT, writtenAt)
+            .apply()
+        _state.value = defaults
+        if (triggerSync) ImmediateCloudSyncTrigger.requestSettingsSync()
     }
 }

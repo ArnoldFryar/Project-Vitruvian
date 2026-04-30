@@ -3,9 +3,6 @@
 import android.app.Application
 import android.media.AudioManager
 import android.media.ToneGenerator
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
-import android.speech.tts.Voice
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
@@ -17,7 +14,6 @@ import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.HandleState
 import com.example.vitruvianredux.ble.session.NextStep
 import com.example.vitruvianredux.data.ProgramDeloadState
-import com.example.vitruvianredux.data.TtsVoiceStore
 import com.example.vitruvianredux.data.VoiceCoachingSettings
 import com.example.vitruvianredux.data.VoiceCoachingStore
 import com.example.vitruvianredux.model.Exercise
@@ -32,8 +28,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-import java.util.Locale
 import java.util.UUID
+
+internal fun shouldPlayRestCompleteCue(previous: SessionPhase?, current: SessionPhase): Boolean =
+    previous is SessionPhase.Resting &&
+        (current is SessionPhase.SetReady || current is SessionPhase.ExerciseActive)
 
 /**
  * Activity-scoped ViewModel that wraps [WorkoutSessionEngine].
@@ -44,7 +43,7 @@ import java.util.UUID
 class WorkoutSessionViewModel(
     app: Application,
     bleClient: AndroidBleClient,
-) : AndroidViewModel(app), TextToSpeech.OnInitListener {
+) : AndroidViewModel(app) {
 
     companion object {
         private const val VOICE_TAG = "WorkoutVoice"
@@ -74,13 +73,6 @@ class WorkoutSessionViewModel(
 
     /** When false, workout audio cues are silenced. */
     val soundEnabled = MutableStateFlow(true)
-
-    /** Available TTS voices for the current locale — populated after TTS init. */
-    private val _availableVoices = MutableStateFlow<List<Voice>>(emptyList())
-    val availableVoices: StateFlow<List<Voice>> = _availableVoices.asStateFlow()
-
-    /** The currently selected voice name (empty = engine default). */
-    val selectedVoiceName: StateFlow<String> = TtsVoiceStore.voiceNameFlow
 
     /** Persisted workout audio and coaching preferences. */
     val voiceCoachingSettings: StateFlow<VoiceCoachingSettings> = VoiceCoachingStore.settingsFlow
@@ -198,10 +190,7 @@ class WorkoutSessionViewModel(
     /** ViewModel-owned rep-quality tracker so scoring does not depend on Compose visibility. */
     private val repQualityTracker = RepQualityTracker()
 
-    private var tts: TextToSpeech? = null
-    private var previewVoiceToRestore: Voice? = null
     private val warmupToneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
-    private var isTtsInitialized = false
     private var lastSpokenWorkingRep = 0
     private var lastCuedWarmupRep = 0
     private var lastSetPhase: com.example.vitruvianredux.ble.session.SetPhase? = null
@@ -211,33 +200,12 @@ class WorkoutSessionViewModel(
     private var lastAudioSessionPhase: SessionPhase? = null
     private var lastRepQualitySessionPhase: SessionPhase? = null
     private val audioArbiter = WorkoutAudioArbiter()
+    private val audioOutputRouter = WorkoutAudioOutputRouter()
+    private val recordedVoicePlayer = RecordedVoicePlayer(app)
     private val currentSetVoiceQualities = mutableListOf<RepQuality>()
+    private val currentSetVoiceRepSignals = mutableListOf<VoiceRepSignal>()
     private var bestConcentricWattMaxForSet: Float? = null
-    private val ttsProgressListener = object : UtteranceProgressListener() {
-        override fun onStart(utteranceId: String) {
-            if (utteranceId.startsWith("rep_")) {
-                Log.d(
-                    VOICE_TAG,
-                    "VOICE_TTS_START utteranceId=$utteranceId displayed=${state.value.workingRepsCompleted} announced=${state.value.announcedWorkingReps}",
-                )
-            }
-        }
-
-        override fun onDone(utteranceId: String) {
-            if (utteranceId == "voice_preview") {
-                tts?.voice = previewVoiceToRestore
-                previewVoiceToRestore = null
-            }
-        }
-
-        @Suppress("OVERRIDE_DEPRECATION")
-        override fun onError(utteranceId: String) {
-            if (utteranceId == "voice_preview") {
-                tts?.voice = previewVoiceToRestore
-                previewVoiceToRestore = null
-            }
-        }
-    }
+    private var bestConcentricVelocityMaxForSet: Float? = null
 
     /**
      * Passive desync watchdog — observes BLE metrics, rep counter, and session
@@ -257,8 +225,7 @@ class WorkoutSessionViewModel(
 
     init {
         watchdog.start(viewModelScope)
-        tts = TextToSpeech(app, this)
-        
+
         // Voice rep counter — matches Phoenix: only announce WORKING rep numbers.
         // Warmup reps are silent. Working reps are spoken via TTS (1, 2, 3...).
         viewModelScope.launch {
@@ -277,7 +244,15 @@ class WorkoutSessionViewModel(
                     lastRepQualitySessionPhase = sessionPhase
                 }
 
-                val scoredQuality = repQualityTracker.onSessionState(currentState)
+                val scoredQuality = repQualityTracker.onSessionState(
+                    currentState,
+                    symmetryForceBiasOverride = if (sessionPhase is SessionPhase.ExerciseActive && sessionPhase.numCables > 1) {
+                        machineHeuristic.value?.concentricForceBiasRatio()
+                    } else {
+                        null
+                    },
+                    symmetryApplicable = sessionPhase !is SessionPhase.ExerciseActive || sessionPhase.numCables > 1,
+                )
                 if (scoredQuality != null) {
                     _lastRepQuality.value = scoredQuality
                     FatigueTrendAnalyzer.recordRep(scoredQuality)
@@ -377,98 +352,69 @@ class WorkoutSessionViewModel(
         }
     }
 
-    override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) {
-            tts?.language = Locale.US
-            isTtsInitialized = true
-            // Use language+country matching instead of exact Locale equality —
-            // some voices register locale variants that don't equal Locale.US directly.
-            val allVoices = tts?.voices ?: emptySet()
-            android.util.Log.d("TtsVoices", "Total voices from engine: ${allVoices.size}")
-            allVoices.forEach { v ->
-                android.util.Log.d("TtsVoices", "  ${v.name}  locale=${v.locale}  network=${v.isNetworkConnectionRequired}  quality=${v.quality}")
+    fun previewVoiceCoaching() {
+        if (!soundEnabled.value) return
+        recordedVoicePlayer.stop()
+        val settings = voiceCoachingSettings.value
+        audioArbiter.previewSequence(settings).forEach { previewLine ->
+            when (val request = if (previewLine.event == null) {
+                WorkoutAudioPlaybackRequest.Recorded(audioOutputRouter.previewPlan(settings))
+            } else {
+                audioOutputRouter.route(previewLine.event, previewLine.utterance, settings)
+            }) {
+                is WorkoutAudioPlaybackRequest.None -> Unit
+                is WorkoutAudioPlaybackRequest.Recorded -> recordedVoicePlayer.play(request.plan)
             }
-            val voices = allVoices
-                .filter { it.locale.language == "en" && it.locale.country == "US" }
-                .sortedWith(compareBy({ it.isNetworkConnectionRequired }, { it.quality * -1 }, { it.name }))
-            android.util.Log.d("TtsVoices", "Filtered to ${voices.size} en-US voices")
-            _availableVoices.value = voices
-            // Apply saved voice preference
-            applyVoiceByName(TtsVoiceStore.voiceNameFlow.value)
-            tts?.setOnUtteranceProgressListener(ttsProgressListener)
         }
-    }
-
-    /** Apply a voice by name and persist the choice. */
-    fun setVoiceName(name: String) {
-        TtsVoiceStore.setVoiceName(getApplication(), name)
-        applyVoiceByName(name)
-    }
-
-    /**
-     * Speak a short sample phrase using the given voice name without changing
-     * the persisted selection.  Restores the active voice afterwards.
-     */
-    fun previewVoice(name: String) {
-        if (!isTtsInitialized) return
-        previewVoiceToRestore = tts?.voice
-        // Temporarily apply the preview voice
-        if (name.isEmpty()) {
-            tts?.voice = tts?.defaultVoice
-        } else {
-            val voice = _availableVoices.value.firstOrNull { it.name == name }
-            if (voice != null) tts?.voice = voice
-        }
-        tts?.speak("1, 2, 3", TextToSpeech.QUEUE_FLUSH, null, "voice_preview")
-    }
-
-    private fun applyVoiceByName(name: String) {
-        if (!isTtsInitialized) return
-        if (name.isEmpty()) {
-            tts?.voice = tts?.defaultVoice
-            return
-        }
-        val voice = _availableVoices.value.firstOrNull { it.name == name }
-        if (voice != null) tts?.voice = voice
     }
 
     private fun speakEvent(event: WorkoutAudioEvent) {
-        if (isTtsInitialized && soundEnabled.value) {
-            val utterance = audioArbiter.nextUtterance(event, voiceCoachingSettings.value) ?: return
-            if (utterance.utteranceId.startsWith("rep_")) {
-                Log.d(
-                    VOICE_TAG,
-                    "VOICE_TTS_ENQUEUE utteranceId=${utterance.utteranceId} text=${utterance.text} queue=${utterance.queueMode} displayed=${state.value.workingRepsCompleted} announced=${state.value.announcedWorkingReps}",
-                )
-            }
-            tts?.speak(utterance.text, utterance.queueMode, null, utterance.utteranceId)
+        if (!soundEnabled.value) return
+        val settings = voiceCoachingSettings.value
+        val utterance = audioArbiter.nextUtterance(event, settings)
+        when (val request = audioOutputRouter.route(event, utterance, settings)) {
+            is WorkoutAudioPlaybackRequest.None -> Unit
+            is WorkoutAudioPlaybackRequest.Recorded -> recordedVoicePlayer.play(request.plan)
         }
     }
 
     private fun playWarmupRepCue(isLastWarmupRep: Boolean) {
-        viewModelScope.launch {
-            warmupToneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
-            if (isLastWarmupRep) {
-                delay(170)
-                warmupToneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
-            }
-        }
+        val settings = voiceCoachingSettings.value
+        if (!soundEnabled.value || !settings.repAnnouncementsEnabled) return
+        recordedVoicePlayer.play(audioOutputRouter.warmupPlan(isLastWarmupRep))
+    }
+
+    private fun playRestCompleteCue() {
+        if (!soundEnabled.value || !voiceCoachingSettings.value.restCountdownEnabled) return
+        recordedVoicePlayer.play(audioOutputRouter.restCompletePlan())
     }
 
     private fun handleAudioPhaseTransition(previous: SessionPhase?, current: SessionPhase) {
+        val restCompleted = shouldPlayRestCompleteCue(previous, current)
+        if (restCompleted) {
+            playRestCompleteCue()
+        }
         when {
             current is SessionPhase.SetReady && previous !is SessionPhase.SetReady -> {
                 currentSetVoiceQualities.clear()
-                bestConcentricWattMaxForSet = null
+                currentSetVoiceRepSignals.clear()
+                resetVoiceCueMetricsForSet()
                 audioArbiter.resetSet()
-                speakEvent(WorkoutAudioEvent.Ready)
+                audioOutputRouter.resetSet()
+                if (!restCompleted) {
+                    speakEvent(WorkoutAudioEvent.Ready)
+                }
             }
 
             current is SessionPhase.ExerciseActive && previous !is SessionPhase.ExerciseActive -> {
                 currentSetVoiceQualities.clear()
-                bestConcentricWattMaxForSet = null
+                currentSetVoiceRepSignals.clear()
+                resetVoiceCueMetricsForSet()
                 audioArbiter.resetSet()
-                speakEvent(WorkoutAudioEvent.SetStarted)
+                audioOutputRouter.resetSet()
+                if (!restCompleted) {
+                    speakEvent(WorkoutAudioEvent.SetStarted)
+                }
             }
 
             current is SessionPhase.Resting && previous !is SessionPhase.Resting -> {
@@ -484,10 +430,18 @@ class WorkoutSessionViewModel(
                 current is SessionPhase.Stopped ||
                 current is SessionPhase.Error -> {
                 currentSetVoiceQualities.clear()
-                bestConcentricWattMaxForSet = null
+                currentSetVoiceRepSignals.clear()
+                resetVoiceCueMetricsForSet()
                 audioArbiter.resetSession()
+                audioOutputRouter.resetSession()
+                recordedVoicePlayer.stop()
             }
         }
+    }
+
+    private fun resetVoiceCueMetricsForSet() {
+        bestConcentricWattMaxForSet = null
+        bestConcentricVelocityMaxForSet = null
     }
 
     private fun handleRepQualityPhaseTransition(previous: SessionPhase?, current: SessionPhase) {
@@ -520,8 +474,7 @@ class WorkoutSessionViewModel(
 
     override fun onCleared() {
         super.onCleared()
-        tts?.stop()
-        tts?.shutdown()
+        recordedVoicePlayer.release()
         warmupToneGenerator.release()
     }
 
@@ -536,7 +489,8 @@ class WorkoutSessionViewModel(
             repQualityTracker.discardCurrentSet()
             _lastRepQuality.value = null
             currentSetVoiceQualities.clear()
-            bestConcentricWattMaxForSet = null
+            currentSetVoiceRepSignals.clear()
+            resetVoiceCueMetricsForSet()
             engine.startPlayerWorkout(
                 listOf(
                     PlayerSetParams(
@@ -586,7 +540,8 @@ class WorkoutSessionViewModel(
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
-        bestConcentricWattMaxForSet = null
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
         resetAudioStateForNewWorkout()
         return engine.startPlayerWorkout(sets)
     }
@@ -612,7 +567,8 @@ class WorkoutSessionViewModel(
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
-        bestConcentricWattMaxForSet = null
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
         resetAudioStateForNewWorkout()
         val started = engine.startPlayerWorkout(sets, programName = programName)
         if (started) {
@@ -786,7 +742,8 @@ class WorkoutSessionViewModel(
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
-        bestConcentricWattMaxForSet = null
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
         resetAudioStateForNewWorkout()
         val isBodyweight = exercise.isBodyweightOnly
         val sets = listOf(
@@ -840,7 +797,8 @@ class WorkoutSessionViewModel(
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
-        bestConcentricWattMaxForSet = null
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
         FatigueTrendAnalyzer.clearSet()
         CoachingCueEngine.dismiss()
         engine.skipSet()
@@ -862,7 +820,8 @@ class WorkoutSessionViewModel(
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
-        bestConcentricWattMaxForSet = null
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
         FatigueTrendAnalyzer.clearSet()
         CoachingCueEngine.dismiss()
         engine.skipExercise()
@@ -926,7 +885,8 @@ class WorkoutSessionViewModel(
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null
         currentSetVoiceQualities.clear()
-        bestConcentricWattMaxForSet = null
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
         resetAudioStateForNewWorkout()
         engine.resetAfterWorkout()
     }
@@ -967,24 +927,46 @@ class WorkoutSessionViewModel(
     fun recordRepQuality(quality: RepQuality, mode: String) {
         val profile = ModeProfile.forMode(mode)
         val currentHeuristic = machineHeuristic.value
+        val currentWattMax = VoiceCoachingEvaluator.currentConcentricWattMax(currentHeuristic)
+        val currentVelocityMax = VoiceCoachingEvaluator.currentConcentricVelocityMax(currentHeuristic)
+        val currentRepSignal = if (currentWattMax != null && currentVelocityMax != null) {
+            VoiceRepSignal(
+                wattMax = currentWattMax,
+                velocityMax = currentVelocityMax,
+            )
+        } else {
+            null
+        }
         val cue = VoiceCoachingEvaluator.evaluate(
             quality = quality,
             profile = profile,
             recentQualities = currentSetVoiceQualities,
+            recentRepSignals = currentSetVoiceRepSignals,
+            currentRepSignal = currentRepSignal,
             machineHeuristic = currentHeuristic,
             bestConcentricWattMax = bestConcentricWattMaxForSet,
+            bestConcentricVelocityMax = bestConcentricVelocityMaxForSet,
         )
         currentSetVoiceQualities.add(quality)
-
-        val currentWattMax = VoiceCoachingEvaluator.currentConcentricWattMax(currentHeuristic)
+        currentRepSignal?.let(currentSetVoiceRepSignals::add)
         if (currentWattMax != null) {
             bestConcentricWattMaxForSet = maxOf(bestConcentricWattMaxForSet ?: currentWattMax, currentWattMax)
+        }
+        if (currentVelocityMax != null) {
+            bestConcentricVelocityMaxForSet = maxOf(bestConcentricVelocityMaxForSet ?: currentVelocityMax, currentVelocityMax)
         }
 
         if (cue != null) {
             val repIndex = state.value.workingRepsCompleted.coerceAtLeast(currentSetVoiceQualities.size)
             speakEvent(WorkoutAudioEvent.Coaching(cue, repIndex))
         }
+    }
+
+    private fun MachineHeuristic.concentricForceBiasRatio(): Float {
+        val leftConKgAvg = left.concentric.kgAvg
+        val rightConKgAvg = right.concentric.kgAvg
+        val totalConcentric = (leftConKgAvg + rightConKgAvg).coerceAtLeast(0.001f)
+        return (kotlin.math.abs(leftConKgAvg - rightConKgAvg) / totalConcentric).coerceIn(0f, 1f)
     }
 
     /**

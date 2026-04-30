@@ -1,0 +1,56 @@
+.class public final LJi/o;
+.super LAm/p;
+.source "SourceFile"
+
+# interfaces
+.implements Lzm/l;
+
+
+# annotations
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "LAm/p;",
+        "Lzm/l<",
+        "Lcom/vitruvian/app/ui/firmware/a;",
+        "Lkm/B;",
+        ">;"
+    }
+.end annotation
+
+
+# instance fields
+.field public final synthetic a:LS3/l;
+
+
+# direct methods
+.method public constructor <init>(LS3/N;)V
+    .locals 0
+
+    iput-object p1, p0, LJi/o;->a:LS3/l;
+
+    const/4 p1, 0x1
+
+    invoke-direct {p0, p1}, LAm/p;-><init>(I)V
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public final invoke(Ljava/lang/Object;)Ljava/lang/Object;
+    .locals 1
+
+    check-cast p1, Lcom/vitruvian/app/ui/firmware/a;
+
+    const-string v0, "<anonymous parameter 0>"
+
+    invoke-static {p1, v0}, LAm/n;->g(Ljava/lang/Object;Ljava/lang/String;)V
+
+    iget-object p1, p0, LJi/o;->a:LS3/l;
+
+    invoke-virtual {p1}, LS3/l;->u()V
+
+    sget-object p1, Lkm/B;->a:Lkm/B;
+
+    return-object p1
+.end method

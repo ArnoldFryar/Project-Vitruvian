@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
@@ -387,6 +388,7 @@ fun TrainerScreen(
                 TrainerInfoRow(
                     label = "Firmware package",
                     value = firmwarePackageVersion?.let { "$it • $firmwarePackageStatus" } ?: firmwarePackageStatus,
+                    multilineValue = true,
                 )
                 Divider(color = cs.outlineVariant)
                 TrainerInfoRow(
@@ -505,17 +507,19 @@ private fun TrainerInfoRow(
     label: String,
     value: String? = null,
     modifier: Modifier = Modifier,
+    multilineValue: Boolean = false,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = if (multilineValue) Alignment.Top else Alignment.CenterVertically,
+        horizontalArrangement = if (multilineValue) Arrangement.spacedBy(AppDimens.Spacing.md) else Arrangement.SpaceBetween,
     ) {
         Text(
             text = label,
+            modifier = if (multilineValue) Modifier.weight(0.42f) else Modifier,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Normal,
         )
@@ -524,8 +528,10 @@ private fun TrainerInfoRow(
         } else {
             Text(
                 text = value ?: "\u2013",
+                modifier = if (multilineValue) Modifier.weight(0.58f) else Modifier,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = if (multilineValue) TextAlign.End else TextAlign.Start,
             )
         }
     }

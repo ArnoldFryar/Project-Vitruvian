@@ -1,0 +1,83 @@
+.class public final Lm4/b$a;
+.super Landroid/util/Property;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingClass;
+    value = Lm4/b;
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x9
+    name = null
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "Landroid/util/Property<",
+        "Landroid/graphics/drawable/Drawable;",
+        "Landroid/graphics/PointF;",
+        ">;"
+    }
+.end annotation
+
+
+# instance fields
+.field public a:Landroid/graphics/Rect;
+
+
+# virtual methods
+.method public final get(Ljava/lang/Object;)Ljava/lang/Object;
+    .locals 2
+
+    check-cast p1, Landroid/graphics/drawable/Drawable;
+
+    iget-object v0, p0, Lm4/b$a;->a:Landroid/graphics/Rect;
+
+    invoke-virtual {p1, v0}, Landroid/graphics/drawable/Drawable;->copyBounds(Landroid/graphics/Rect;)V
+
+    new-instance p1, Landroid/graphics/PointF;
+
+    iget v1, v0, Landroid/graphics/Rect;->left:I
+
+    int-to-float v1, v1
+
+    iget v0, v0, Landroid/graphics/Rect;->top:I
+
+    int-to-float v0, v0
+
+    invoke-direct {p1, v1, v0}, Landroid/graphics/PointF;-><init>(FF)V
+
+    return-object p1
+.end method
+
+.method public final set(Ljava/lang/Object;Ljava/lang/Object;)V
+    .locals 2
+
+    check-cast p1, Landroid/graphics/drawable/Drawable;
+
+    check-cast p2, Landroid/graphics/PointF;
+
+    iget-object v0, p0, Lm4/b$a;->a:Landroid/graphics/Rect;
+
+    invoke-virtual {p1, v0}, Landroid/graphics/drawable/Drawable;->copyBounds(Landroid/graphics/Rect;)V
+
+    iget v1, p2, Landroid/graphics/PointF;->x:F
+
+    invoke-static {v1}, Ljava/lang/Math;->round(F)I
+
+    move-result v1
+
+    iget p2, p2, Landroid/graphics/PointF;->y:F
+
+    invoke-static {p2}, Ljava/lang/Math;->round(F)I
+
+    move-result p2
+
+    invoke-virtual {v0, v1, p2}, Landroid/graphics/Rect;->offsetTo(II)V
+
+    invoke-virtual {p1, v0}, Landroid/graphics/drawable/Drawable;->setBounds(Landroid/graphics/Rect;)V
+
+    return-void
+.end method

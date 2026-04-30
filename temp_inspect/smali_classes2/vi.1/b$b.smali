@@ -1,0 +1,142 @@
+.class public final Lvi/b$b;
+.super LAm/p;
+.source "SourceFile"
+
+# interfaces
+.implements Lzm/a;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingMethod;
+    value = Lvi/b;->a(Landroidx/compose/ui/e;Ljava/lang/String;Lzm/l;Lt0/j;II)V
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x19
+    name = null
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "LAm/p;",
+        "Lzm/a<",
+        "Lkm/B;",
+        ">;"
+    }
+.end annotation
+
+
+# instance fields
+.field public final synthetic a:LU/g;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "LU/g<",
+            "Lvi/a;",
+            ">;"
+        }
+    .end annotation
+.end field
+
+.field public final synthetic b:LU/J;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "LU/J<",
+            "Lvi/a;",
+            ">;"
+        }
+    .end annotation
+.end field
+
+
+# direct methods
+.method public constructor <init>(LU/g;LU/Q;)V
+    .locals 0
+
+    iput-object p1, p0, Lvi/b$b;->a:LU/g;
+
+    iput-object p2, p0, Lvi/b$b;->b:LU/J;
+
+    const/4 p1, 0x0
+
+    invoke-direct {p0, p1}, LAm/p;-><init>(I)V
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public final invoke()Ljava/lang/Object;
+    .locals 4
+
+    iget-object v0, p0, Lvi/b$b;->a:LU/g;
+
+    iget-object v1, v0, LU/g;->j:Lt0/v0;
+
+    invoke-virtual {v1}, Lt0/j1;->b()F
+
+    move-result v1
+
+    invoke-static {v1}, Ljava/lang/Float;->isNaN(F)Z
+
+    move-result v1
+
+    iget-object v2, v0, LU/g;->i:Lt0/H;
+
+    iget-object v3, p0, Lvi/b$b;->b:LU/J;
+
+    if-nez v1, :cond_0
+
+    iget-object v1, v0, LU/g;->j:Lt0/v0;
+
+    invoke-virtual {v1}, Lt0/j1;->b()F
+
+    move-result v1
+
+    invoke-interface {v3, v1}, LU/J;->c(F)Ljava/lang/Object;
+
+    move-result-object v1
+
+    if-nez v1, :cond_1
+
+    invoke-virtual {v2}, Lt0/H;->getValue()Ljava/lang/Object;
+
+    move-result-object v1
+
+    goto :goto_0
+
+    :cond_0
+    invoke-virtual {v2}, Lt0/H;->getValue()Ljava/lang/Object;
+
+    move-result-object v1
+
+    :cond_1
+    :goto_0
+    invoke-virtual {v0}, LU/g;->b()LU/J;
+
+    move-result-object v2
+
+    invoke-static {v2, v3}, LAm/n;->b(Ljava/lang/Object;Ljava/lang/Object;)Z
+
+    move-result v2
+
+    if-nez v2, :cond_2
+
+    iget-object v2, v0, LU/g;->m:Lt0/y0;
+
+    invoke-virtual {v2, v3}, Lt0/m1;->setValue(Ljava/lang/Object;)V
+
+    invoke-virtual {v0, v1}, LU/g;->g(Ljava/lang/Object;)Z
+
+    move-result v2
+
+    if-nez v2, :cond_2
+
+    iget-object v0, v0, LU/g;->l:Lt0/y0;
+
+    invoke-virtual {v0, v1}, Lt0/m1;->setValue(Ljava/lang/Object;)V
+
+    :cond_2
+    sget-object v0, Lkm/B;->a:Lkm/B;
+
+    return-object v0
+.end method

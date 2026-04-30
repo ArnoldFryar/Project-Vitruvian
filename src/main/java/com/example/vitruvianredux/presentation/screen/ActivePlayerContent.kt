@@ -26,10 +26,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -65,6 +63,7 @@ import com.example.vitruvianredux.presentation.repquality.RepQuality
 import com.example.vitruvianredux.presentation.repquality.RepQualityBadge
 import com.example.vitruvianredux.ble.MachineHeuristic
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.UnitsStore
@@ -118,7 +117,7 @@ internal fun ActivePlayerContent(
 ) {
     val isActive   = phase is SessionPhase.ExerciseActive
     val isComplete = phase is SessionPhase.ExerciseComplete
-    val haptic     = LocalHapticFeedback.current
+    val haptics    = rememberUiHaptics()
     val usesRepsMode = !isBodyweight && isRepsMode
 
     // â”€â”€ Unit-aware weight helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -578,13 +577,13 @@ internal fun ActivePlayerContent(
                         ) {
                             FilterChip(
                                 selected  = usesRepsMode,
-                                onClick   = { if (!isActive) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); WiringRegistry.hit(A_PLAYER_MODE_REPS); WiringRegistry.recordOutcome(A_PLAYER_MODE_REPS, ActualOutcome.StateChanged("modeReps")); onToggleMode(true) } },
+                                onClick   = { if (!isActive) { haptics.selection(); WiringRegistry.hit(A_PLAYER_MODE_REPS); WiringRegistry.recordOutcome(A_PLAYER_MODE_REPS, ActualOutcome.StateChanged("modeReps")); onToggleMode(true) } },
                                 label     = { Text(stringResource(R.string.session_stat_reps)) },
                                 modifier  = Modifier.weight(1f),
                             )
                             FilterChip(
                                 selected  = !usesRepsMode,
-                                onClick   = { if (!isActive) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); WiringRegistry.hit(A_PLAYER_MODE_DURATION); WiringRegistry.recordOutcome(A_PLAYER_MODE_DURATION, ActualOutcome.StateChanged("modeDuration")); onToggleMode(false) } },
+                                onClick   = { if (!isActive) { haptics.selection(); WiringRegistry.hit(A_PLAYER_MODE_DURATION); WiringRegistry.recordOutcome(A_PLAYER_MODE_DURATION, ActualOutcome.StateChanged("modeDuration")); onToggleMode(false) } },
                                 label     = { Text(stringResource(R.string.session_stat_duration)) },
                                 modifier  = Modifier.weight(1f),
                             )

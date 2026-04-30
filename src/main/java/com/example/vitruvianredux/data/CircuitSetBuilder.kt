@@ -35,7 +35,7 @@ object CircuitSetBuilder {
             if (item.circuitGroup == null) {
                 // Normal item — expand sets sequentially
                 val ex = exerciseCatalog[item.exerciseId]
-                repeat(effectiveSetCount(item.sets, setReduction)) {
+                repeat(effectiveSetCount(item.sets, setReduction, ex)) {
                     result += makeParams(item, ex, item.restTimerSec, workingWeightScale)
                 }
                 i++
@@ -49,11 +49,13 @@ object CircuitSetBuilder {
                     j++
                 }
                 // Number of rounds = max(sets) across items in the group
-                val rounds = groupItems.maxOf { effectiveSetCount(it.sets, setReduction) }
+                val rounds = groupItems.maxOf { gi ->
+                    effectiveSetCount(gi.sets, setReduction, exerciseCatalog[gi.exerciseId])
+                }
                 val lastInGroup = groupItems.last()
                 for (round in 0 until rounds) {
                     groupItems.forEachIndexed { idx, gi ->
-                        if (round < effectiveSetCount(gi.sets, setReduction)) {
+                        if (round < effectiveSetCount(gi.sets, setReduction, exerciseCatalog[gi.exerciseId])) {
                             val ex = exerciseCatalog[gi.exerciseId]
                             val isLastInRound = (idx == groupItems.size - 1)
                             val rest = if (isLastInRound) lastInGroup.restTimerSec else 10
@@ -120,6 +122,15 @@ object CircuitSetBuilder {
         return (targetWeightLb * scale).roundToInt().coerceAtLeast(1)
     }
 
-    private fun effectiveSetCount(sets: Int, setReduction: Int): Int =
-        (sets - setReduction.coerceAtLeast(0)).coerceAtLeast(1)
+    internal fun effectiveSetCount(sets: Int, setReduction: Int, exercise: Exercise?): Int {
+        val effectiveReduction = effectiveSetReduction(setReduction, exercise)
+        return (sets - effectiveReduction).coerceAtLeast(1)
+    }
+
+    internal fun effectiveSetReduction(setReduction: Int, exercise: Exercise?): Int {
+        val normalizedReduction = setReduction.coerceAtLeast(0)
+        if (normalizedReduction == 0) return 0
+        val isPerSideUnilateral = exercise?.perSide == true || exercise?.sidedness == "unilateral"
+        return if (isPerSideUnilateral) normalizedReduction * 2 else normalizedReduction
+    }
 }

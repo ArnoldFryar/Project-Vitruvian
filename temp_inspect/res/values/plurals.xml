@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="accessories">
+        <item quantity="other">%d Accessories</item>
+        <item quantity="one">%d Accessory</item>
+    </plurals>
+    <plurals name="activate_or_try_it">
+        <item quantity="other">To use this feature you need to activate your machine, or you can try it %d times for free.</item>
+        <item quantity="one">To use this feature you need to activate your machine, or you can try it 1 time for free.</item>
+    </plurals>
+    <plurals name="add_x_exercises">
+        <item quantity="other">Add %d exercises</item>
+        <item quantity="one">Add 1 exercise</item>
+    </plurals>
+    <plurals name="completed_n_times">
+        <item quantity="other">Completed %1$s times</item>
+        <item quantity="one">Completed %1$s time</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="other">%1$s Days</item>
+        <item quantity="one">%1$s Day</item>
+    </plurals>
+    <plurals name="days_until">
+        <item quantity="other">(In %d days)</item>
+        <item quantity="one">(In %d day)</item>
+    </plurals>
+    <plurals name="exercises_in_workout">
+        <item quantity="other">%d exercises</item>
+        <item quantity="one">1 exercise</item>
+    </plurals>
+    <plurals name="exercises_in_workout_desc">
+        <item quantity="other">%d exercises in workout</item>
+        <item quantity="one">1 exercise in workout</item>
+    </plurals>
+    <plurals name="exercises_in_workout_included">
+        <item quantity="other">%d exercises included</item>
+        <item quantity="one">1 exercise included</item>
+    </plurals>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+        <item quantity="other">Fast forward %d seconds</item>
+        <item quantity="one">Fast forward %d second</item>
+    </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+        <item quantity="other">Rewind %d seconds</item>
+        <item quantity="one">Rewind %d second</item>
+    </plurals>
+    <plurals name="hours">
+        <item quantity="other">%1$s Hours</item>
+        <item quantity="one">%1$s Hour</item>
+    </plurals>
+    <plurals name="hours_short">
+        <item quantity="other">%1$s hrs</item>
+        <item quantity="one">%1$s hr</item>
+    </plurals>
+    <plurals name="instabug_feature_rq_str_days_ago">
+        <item quantity="other">%d days ago</item>
+        <item quantity="one">%d day ago</item>
+    </plurals>
+    <plurals name="instabug_feature_rq_str_hours_ago">
+        <item quantity="other">%d hrs ago</item>
+        <item quantity="one">%d hr ago</item>
+    </plurals>
+    <plurals name="instabug_feature_rq_str_minutes_ago">
+        <item quantity="other">%d mins ago</item>
+        <item quantity="one">%d min ago</item>
+    </plurals>
+    <plurals name="mins">
+        <item quantity="other">%1$s Mins</item>
+        <item quantity="one">%1$s Min</item>
+    </plurals>
+    <plurals name="n_exercises">
+        <item quantity="other">%1$s exercises</item>
+        <item quantity="one">%1$s exercise</item>
+    </plurals>
+    <plurals name="n_reps">
+        <item quantity="other">%1$s reps</item>
+        <item quantity="one">1 rep</item>
+    </plurals>
+    <plurals name="n_rounds">
+        <item quantity="other">%d rounds</item>
+        <item quantity="one">1 round</item>
+    </plurals>
+    <plurals name="n_workouts">
+        <item quantity="other">%1$s Workouts</item>
+        <item quantity="one">%1$s Workout</item>
+    </plurals>
+    <plurals name="pts">
+        <item quantity="other">pts</item>
+        <item quantity="one">pt</item>
+    </plurals>
+    <plurals name="reps">
+        <item quantity="other">Reps</item>
+        <item quantity="one">Rep</item>
+    </plurals>
+    <plurals name="sets_in_workout">
+        <item quantity="other">%d sets</item>
+        <item quantity="one">1 set</item>
+    </plurals>
+    <plurals name="show_n_exercises">
+        <item quantity="other">Show %d exercises</item>
+        <item quantity="one">Show %d exercise</item>
+    </plurals>
+    <plurals name="show_n_programs">
+        <item quantity="other">Show %d programs</item>
+        <item quantity="one">Show %d program</item>
+    </plurals>
+    <plurals name="show_n_workouts">
+        <item quantity="other">Show %d workouts</item>
+        <item quantity="one">Show %d workout</item>
+    </plurals>
+    <plurals name="starts_in_days">
+        <item quantity="other">Starts in %1$s days</item>
+        <item quantity="one">Starts in %1$s day</item>
+    </plurals>
+    <plurals name="tries_left">
+        <item quantity="other">%d tries left</item>
+        <item quantity="one">%d try left</item>
+    </plurals>
+    <plurals name="weeks">
+        <item quantity="other">%1$s Weeks</item>
+        <item quantity="one">%1$s Week</item>
+    </plurals>
+</resources>

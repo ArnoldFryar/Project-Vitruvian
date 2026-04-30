@@ -95,6 +95,7 @@ data class Exercise(
          * All names stored in lowercase.
          */
         private val SINGLE_CABLE_EXERCISES: Set<String> = setOf(
+            "face pull",
             "pull through",
             "kneeling pull through",
         )

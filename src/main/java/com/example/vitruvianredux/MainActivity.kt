@@ -2,7 +2,6 @@ package com.example.vitruvianredux
 
 import android.os.Bundle
 import android.view.WindowManager
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
@@ -34,7 +33,6 @@ import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.AppScaffold
 import com.example.vitruvianredux.presentation.util.loadAllExercises
 import com.example.vitruvianredux.sync.SyncServiceLocator
-import com.vitruvian.trainer.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -54,16 +52,6 @@ class MainActivity : ComponentActivity() {
         HevyStore.init(applicationContext)
         HevySyncStore.init(applicationContext)
         HealthConnectSyncStore.init(applicationContext)
-
-        // Warn the user (and any tester) that this is a debug build so it is
-        // never silently distributed as a production APK.
-        if (BuildConfig.IS_DEBUG_BUILD) {
-            Toast.makeText(
-                this,
-                "\u26a0\ufe0f DEBUG BUILD — Not for distribution (${BuildConfig.BUILD_TYPE})",
-                Toast.LENGTH_LONG,
-            ).show()
-        }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

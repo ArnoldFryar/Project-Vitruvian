@@ -1,0 +1,76 @@
+.class public final Lcom/vitruvian/app/ui/settings/G$f;
+.super LAm/p;
+.source "SourceFile"
+
+# interfaces
+.implements Lzm/a;
+
+
+# annotations
+.annotation system Ldalvik/annotation/EnclosingMethod;
+    value = Lcom/vitruvian/app/ui/settings/G;->c(Lzm/l;Lni/b;Lhi/a;Lki/a;ZLzm/l;Lzm/l;Lzm/l;Lzm/a;Lk0/J1;Lt0/j;II)V
+.end annotation
+
+.annotation system Ldalvik/annotation/InnerClass;
+    accessFlags = 0x19
+    name = null
+.end annotation
+
+.annotation system Ldalvik/annotation/Signature;
+    value = {
+        "LAm/p;",
+        "Lzm/a<",
+        "Lkm/B;",
+        ">;"
+    }
+.end annotation
+
+
+# instance fields
+.field public final synthetic a:Lt0/q0;
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "Lt0/q0<",
+            "Lij/A;",
+            ">;"
+        }
+    .end annotation
+.end field
+
+
+# direct methods
+.method public constructor <init>(Lt0/q0;)V
+    .locals 0
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Lt0/q0<",
+            "Lij/A;",
+            ">;)V"
+        }
+    .end annotation
+
+    iput-object p1, p0, Lcom/vitruvian/app/ui/settings/G$f;->a:Lt0/q0;
+
+    const/4 p1, 0x0
+
+    invoke-direct {p0, p1}, LAm/p;-><init>(I)V
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public final invoke()Ljava/lang/Object;
+    .locals 2
+
+    sget-object v0, Lij/A;->C:Lij/A;
+
+    iget-object v1, p0, Lcom/vitruvian/app/ui/settings/G$f;->a:Lt0/q0;
+
+    invoke-interface {v1, v0}, Lt0/q0;->setValue(Ljava/lang/Object;)V
+
+    sget-object v0, Lkm/B;->a:Lkm/B;
+
+    return-object v0
+.end method
