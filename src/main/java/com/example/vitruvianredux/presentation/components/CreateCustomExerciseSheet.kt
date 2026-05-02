@@ -21,6 +21,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import androidx.compose.ui.res.stringResource
 import com.vitruvian.trainer.R
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * ModalBottomSheet form for creating **or editing** a custom exercise.
@@ -52,7 +53,7 @@ fun CreateCustomExerciseSheet(
         onDismissRequest = onDismiss,
         sheetState       = sheetState,
         windowInsets     = WindowInsets(0),
-        containerColor   = MaterialTheme.colorScheme.surface,
+        containerColor   = LocalExtendedColors.current.surface2,
         tonalElevation   = 0.dp,
     ) {
         Column(
@@ -66,7 +67,7 @@ fun CreateCustomExerciseSheet(
         ) {
             // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Text(
-                text       = if (isEdit) "Edit Exercise" else "New Custom Exercise",
+                text       = if (isEdit) "Edit exercise" else "New exercise",
                 style      = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )

@@ -96,6 +96,9 @@ fun AppNavHost(
                 onStartExercise  = { exercise ->
                     workoutVM.setPlayerExercise(exercise)
                 },
+                onStartOneRepMaxTest = { exercise ->
+                    workoutVM.startOneRepMaxTest(exercise)
+                },
             )
         }
         composable(Route.Coaching.path)  {

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -17,6 +18,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * Full-screen-style dialog that plays a looping exercise demo video.
@@ -30,6 +32,7 @@ fun ExerciseVideoPreviewDialog(
     videoUrl: String?,
     onDismiss: () -> Unit,
 ) {
+    val ext = LocalExtendedColors.current
     Dialog(
         onDismissRequest = onDismiss,
         properties       = DialogProperties(usePlatformDefaultWidth = false),
@@ -45,7 +48,11 @@ fun ExerciseVideoPreviewDialog(
                 MaterialTheme.colorScheme.outline,
             ),
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Brush.verticalGradient(listOf(ext.surface3, ext.surface2))),
+            ) {
 
                 // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Row(
@@ -95,7 +102,7 @@ fun ExerciseVideoPreviewDialog(
                             )
                             Spacer(Modifier.height(AppDimens.Spacing.sm))
                             Text(
-                                "No video available",
+                                "Video unavailable",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

@@ -50,6 +50,7 @@ import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.data.WorkoutSessionRecord
 import com.example.vitruvianredux.data.HealthConnectStore
+import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.sync.SyncServiceLocator
 import com.example.vitruvianredux.presentation.screen.OnboardingScreen
 import com.example.vitruvianredux.presentation.screen.ExercisePlayerScreen
@@ -226,7 +227,13 @@ fun AppScaffold() {
                     val sessionId = workoutVM.ensureCompletionSessionId()
                     val taggedExercise = workoutVM.justLiftTaggedExercise
                         ?.takeIf { workoutVM.isJustLiftSession }
-                    val trainingMode = if (workoutVM.isJustLiftSession) "JUST_LIFT" else null
+                    val strengthTest = completePhase.strengthTest ?: workoutVM.strengthTestSessionMetadata
+                    val strengthTestSetMetadata = workoutVM.strengthTestSetMetadataBySetIndex
+                    val trainingMode = when {
+                        workoutVM.isJustLiftSession -> "JUST_LIFT"
+                        strengthTest?.protocolType == StrengthTestProtocolType.ONE_REP_MAX -> "ONE_REP_MAX"
+                        else -> null
+                    }
 
                     if (taggedExercise != null) {
                         WorkoutHistoryStore.retagLatestJustLiftRecord(
@@ -272,6 +279,7 @@ fun AppScaffold() {
                             telemetryBalancePct = telemetry?.balancePct ?: 0,
                             telemetryFinishForcePct = telemetry?.finishForcePct ?: 100,
                             telemetrySampleCount = telemetry?.sampleCount ?: 0,
+                            strengthTest   = strengthTestSetMetadata[es.setIndex],
                             cableSamplesLeft  = es.cableSamplesLeft,
                             cableSamplesRight = es.cableSamplesRight,
                         )
@@ -295,6 +303,7 @@ fun AppScaffold() {
                         dayName       = workoutVM.activeDayName,
                         notes         = fullNotes,
                         trainingMode  = trainingMode,
+                        strengthTest  = strengthTest,
                     )
                     com.example.vitruvianredux.data.ActivityStatsStore.seedFromAnalytics()
 
@@ -304,6 +313,7 @@ fun AppScaffold() {
                         completedAtMs  = endMs,
                         originMode     = trainingMode,
                         taggedExercise = taggedExercise,
+                        setStrengthTestsBySetIndex = strengthTestSetMetadata,
                     )
 
                     WorkoutSessionRecorder.record(
@@ -318,6 +328,7 @@ fun AppScaffold() {
                             ?.average()?.toInt(),
                         trainingMode    = trainingMode,
                         taggedExercise  = taggedExercise,
+                        strengthTest    = strengthTest,
                     )
 
                     if (SyncServiceLocator.isInitialized) {
@@ -336,6 +347,11 @@ fun AppScaffold() {
                                 totalSets     = stats.totalSets,
                                 totalVolumeKg = stats.totalVolumeKg,
                                 durationSec   = stats.durationSec,
+                                strengthTestProtocolType = strengthTest?.protocolType,
+                                strengthTestedExerciseId = strengthTest?.testedExerciseId,
+                                strengthTestedExerciseName = strengthTest?.testedExerciseName,
+                                certifiedOneRepMaxLb = strengthTest?.certifiedOneRepMaxLb,
+                                failedOneRepMaxLb = strengthTest?.failedOneRepMaxLb,
                             )
                         )
                     }

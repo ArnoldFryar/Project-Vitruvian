@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * A bottom sheet exposing Mirror Mode settings that are purely UI-level —
@@ -49,7 +50,7 @@ fun MirrorSettingsSheet(onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         sheetState       = sheetState,
         windowInsets     = WindowInsets(0),
-        containerColor   = MaterialTheme.colorScheme.surface,
+        containerColor   = LocalExtendedColors.current.surface2,
         tonalElevation   = 0.dp,
     ) {
         Column(
@@ -85,7 +86,7 @@ fun MirrorSettingsSheet(onDismiss: () -> Unit) {
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text  = "Vertical centre line, shoulder markers and hip line",
+                        text  = "Subtle alignment markers",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

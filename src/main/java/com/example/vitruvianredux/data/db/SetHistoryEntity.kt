@@ -85,6 +85,18 @@ data class SetHistoryEntity(
     @ColumnInfo(name = "eccentric_load_pct")
     val eccentricLoadPct: Int = 100,
 
+    /** Optional protocol type for a certified strength-test attempt. */
+    @ColumnInfo(name = "protocol_type")
+    val protocolType: String? = null,
+
+    /** Attempt number within the certified strength-test protocol, if applicable. */
+    @ColumnInfo(name = "attempt_number")
+    val attemptNumber: Int? = null,
+
+    /** Recorded outcome for this certified strength-test attempt, if applicable. */
+    @ColumnInfo(name = "attempt_outcome")
+    val attemptOutcome: String? = null,
+
     /** Origin mode for the set history row, e.g. JUST_LIFT, when applicable. */
     @ColumnInfo(name = "origin_mode")
     val originMode: String? = null,

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.TelemetryInsights
 import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.presentation.components.AppErrorState
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.theme.Success
@@ -66,37 +67,14 @@ fun SessionDetailScreen(
         },
     ) { innerPadding ->
         if (session == null) {
-            Box(
-                Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
-                ) {
-                    Icon(
-                        AppIcons.FitnessCenter, contentDescription = stringResource(R.string.cd_fitness),
-                        modifier = Modifier.size(AppDimens.Icon.xxl),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        "Session not found",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        "This session may have been deleted.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.sm))
-                    OutlinedButton(
-onClick = onBack) {
-                        Text("Go Back")
-                    }
-                }
-            }
+            AppErrorState(
+                icon = AppIcons.FitnessCenter,
+                headline = "Session not found",
+                description = "This workout may have been removed or is unavailable right now.",
+                actionLabel = "Back to History",
+                onAction = onBack,
+                modifier = Modifier.padding(innerPadding),
+            )
             return@Scaffold
         }
 
@@ -222,7 +200,7 @@ onClick = onBack) {
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            "${timeFmt.format(startInstant)} - ${timeFmt.format(endInstant)} | ${formatSessionDuration(session.durationSec)}",
+                            "${timeFmt.format(startInstant)} - ${timeFmt.format(endInstant)} / ${formatSessionDuration(session.durationSec)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = cs.onSurfaceVariant,
                         )

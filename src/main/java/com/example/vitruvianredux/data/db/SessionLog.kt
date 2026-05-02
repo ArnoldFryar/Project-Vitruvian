@@ -73,6 +73,26 @@ data class SessionLog(
     @ColumnInfo(name = "tagged_exercise_source")
     val taggedExerciseSource: String? = null,
 
+    /** Optional protocol type for a certified strength test session. */
+    @ColumnInfo(name = "strength_test_protocol_type")
+    val strengthTestProtocolType: String? = null,
+
+    /** Exercise id targeted by a certified strength test session, if any. */
+    @ColumnInfo(name = "strength_tested_exercise_id")
+    val strengthTestedExerciseId: String? = null,
+
+    /** Exercise name targeted by a certified strength test session, if any. */
+    @ColumnInfo(name = "strength_tested_exercise_name")
+    val strengthTestedExerciseName: String? = null,
+
+    /** Heaviest successful tested single load in lb, if this session certified one. */
+    @ColumnInfo(name = "certified_one_rep_max_lb")
+    val certifiedOneRepMaxLb: Int? = null,
+
+    /** First failed or terminating tested single load in lb, when captured. */
+    @ColumnInfo(name = "failed_one_rep_max_lb")
+    val failedOneRepMaxLb: Int? = null,
+
     /** Epoch millis when this record was inserted into the database. */
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),

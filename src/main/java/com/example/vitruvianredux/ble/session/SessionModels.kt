@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.ble.session
 
 import com.example.vitruvianredux.ble.protocol.CableSample
+import com.example.vitruvianredux.data.OneRepMaxProtocol
 
 /** Per-set statistics captured during a player-mode set. */
 data class ExerciseStats(
@@ -38,6 +39,12 @@ data class ExerciseStats(
     val echoLevel: String? = null,
     /** Eccentric load percentage (default 100 = no reduction). */
     val eccentricLoadPct: Int = 100,
+    /** Optional protocol type for a strength-test attempt. */
+    val strengthTestProtocolType: String? = null,
+    /** Attempt number within the active strength-test protocol, if any. */
+    val strengthTestAttemptNumber: Int? = null,
+    /** Outcome for the completed strength-test attempt, if any. */
+    val strengthTestAttemptOutcome: String? = null,
     /** Raw per-sample cable telemetry collected during this set (WORKING phase only). Not persisted. */
     val cableSamplesLeft: List<CableSample> = emptyList(),
     val cableSamplesRight: List<CableSample> = emptyList(),
@@ -103,4 +110,10 @@ data class PlayerSetParams(
     val repRangeMin: Int? = null,
     /** Double-progression rep range upper bound (null → legacy exact-reps mode). */
     val repRangeMax: Int? = null,
+    /** Optional protocol type when this queued set is part of a strength test. */
+    val strengthTestProtocolType: String? = null,
+    /** Attempt number within the active strength-test protocol, if any. */
+    val strengthTestAttemptNumber: Int? = null,
+    /** In-memory protocol config for a queued one-rep-max attempt. */
+    val strengthTestConfig: OneRepMaxProtocol.Config? = null,
 )

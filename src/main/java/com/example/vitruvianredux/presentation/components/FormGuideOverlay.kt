@@ -38,8 +38,8 @@ fun FormGuideOverlay(modifier: Modifier = Modifier) {
         val w = size.width
         val h = size.height
 
-        val guideColor = Color.White.copy(alpha = 0.42f)
-        val stroke = 1.5.dp.toPx()
+        val guideColor = Color.White.copy(alpha = 0.32f)
+        val stroke = 1.25.dp.toPx()
         val dash = PathEffect.dashPathEffect(
             intervals = floatArrayOf(7.dp.toPx(), 5.dp.toPx()),
             phase = 0f,

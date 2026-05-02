@@ -40,6 +40,7 @@ object ExerciseHistoryRecorder {
         completedAtMs: Long = System.currentTimeMillis(),
         originMode: String? = null,
         taggedExercise: Exercise? = null,
+        setStrengthTestsBySetIndex: Map<Int, StrengthTestSetMetadata> = emptyMap(),
     ) = withContext(Dispatchers.IO) {
         if (completedStats.isEmpty()) return@withContext
 
@@ -83,6 +84,7 @@ object ExerciseHistoryRecorder {
 
             val setEntities = statsForHistory.map { stat ->
                 val exerciseId = deterministicId(sessionId, stat.exerciseName)
+                val strengthTest = setStrengthTestsBySetIndex[stat.setIndex]
                 SetHistoryEntity(
                     id                = deterministicId(sessionId, stat.exerciseName, stat.setIndex),
                     exerciseHistoryId = exerciseId,
@@ -102,6 +104,9 @@ object ExerciseHistoryRecorder {
                     peakForce         = stat.peakForce,
                     echoLevel         = stat.echoLevel,
                     eccentricLoadPct  = stat.eccentricLoadPct,
+                    protocolType      = strengthTest?.protocolType,
+                    attemptNumber     = strengthTest?.attemptNumber,
+                    attemptOutcome    = strengthTest?.attemptOutcome,
                     completedAt       = completedAtMs,
                     originMode        = originMode,
                     updatedAt         = now,

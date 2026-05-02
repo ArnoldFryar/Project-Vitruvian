@@ -34,6 +34,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * Premium LED Control Panel dialog.
@@ -53,6 +54,7 @@ fun LedColorPickerDialog(
     onDismiss: () -> Unit,
 ) {
     val cs     = MaterialTheme.colorScheme
+    val ext    = LocalExtendedColors.current
     val haptics = rememberUiHaptics()
 
     // Ambient glow transitions smoothly when the user selects a new preset
@@ -72,7 +74,7 @@ fun LedColorPickerDialog(
                 .fillMaxWidth(0.94f)
                 .wrapContentHeight(),
             shape          = RoundedCornerShape(AppDimens.Corner.lg),
-            color          = cs.surface,
+            color          = ext.surface2,
             border         = androidx.compose.foundation.BorderStroke(
                 AppDimens.Stroke.thin,
                 cs.outline,
@@ -84,14 +86,14 @@ fun LedColorPickerDialog(
             ) {
                 // â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 Text(
-                    text       = "LED Control Panel",
-                    style      = MaterialTheme.typography.headlineSmall,
+                    text       = "LED color",
+                    style      = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color      = cs.onSurface,
                 )
                 Spacer(Modifier.height(AppDimens.Spacing.xs))
                 Text(
-                    text      = "Select a light scheme for your trainer",
+                    text      = "Choose a trainer light scheme",
                     style     = MaterialTheme.typography.bodyMedium,
                     color     = cs.onSurfaceVariant,
                     textAlign = TextAlign.Center,

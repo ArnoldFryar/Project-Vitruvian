@@ -156,7 +156,7 @@ private fun VolumeContent(onBack: () -> Unit) {
                     val latestWeek = weeklyData.lastOrNull()
                     PremiumChartCard(
                         title = stringResource(R.string.metric_6_week_trend),
-                        subtitle = "Weekly training output with the current window pinned for fast comparison.",
+                        subtitle = "Current six-week window.",
                         accent = MaterialTheme.colorScheme.primary,
                         metrics = listOf(
                             ChartMetric(

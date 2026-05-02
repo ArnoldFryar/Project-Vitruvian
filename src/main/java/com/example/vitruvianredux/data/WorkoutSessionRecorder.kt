@@ -40,6 +40,7 @@ object WorkoutSessionRecorder {
         avgQualityScore: Int? = stats.avgQualityScore,
         trainingMode: String? = null,
         taggedExercise: Exercise? = null,
+        strengthTest: StrengthTestSessionMetadata? = null,
     ): SessionLog {
         val resolvedStart = if (startTimeMs > 0L) startTimeMs
                             else endTimeMs - stats.durationSec * 1_000L
@@ -59,6 +60,11 @@ object WorkoutSessionRecorder {
             taggedExerciseId = taggedExercise?.id,
             taggedExerciseName = taggedExercise?.name,
             taggedExerciseSource = taggedExercise?.source?.name,
+            strengthTestProtocolType = strengthTest?.protocolType,
+            strengthTestedExerciseId = strengthTest?.testedExerciseId,
+            strengthTestedExerciseName = strengthTest?.testedExerciseName,
+            certifiedOneRepMaxLb = strengthTest?.certifiedOneRepMaxLb,
+            failedOneRepMaxLb = strengthTest?.failedOneRepMaxLb,
             createdAt       = endTimeMs,
         )
     }
@@ -86,6 +92,7 @@ object WorkoutSessionRecorder {
         avgQualityScore: Int? = stats.avgQualityScore,
         trainingMode: String? = null,
         taggedExercise: Exercise? = null,
+        strengthTest: StrengthTestSessionMetadata? = null,
     ) {
         try {
             val endTimeMs     = System.currentTimeMillis()
@@ -105,6 +112,7 @@ object WorkoutSessionRecorder {
                 avgQualityScore = avgQualityScore,
                 trainingMode = trainingMode,
                 taggedExercise = taggedExercise,
+                strengthTest = strengthTest,
             )
 
             SessionLogRepository.saveSession(log)

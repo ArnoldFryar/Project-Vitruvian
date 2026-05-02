@@ -54,9 +54,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.TelemetryInsights
+import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.PremiumChartCard
+import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
@@ -111,6 +113,9 @@ fun TelemetryInsightsScreen(
             }
     }
     val overview = remember(sessionSummaries) { buildTelemetryOverview(sessionSummaries) }
+    val telemetryInsight = remember(allLogs, selectedExercise) {
+        TrainingInsightEngine.telemetryFormFlag(allLogs, selectedExercise)
+    }
     val windowedSessions = remember(sessionSummaries, trendWindow) {
         if (trendWindow.limit == null) sessionSummaries else sessionSummaries.take(trendWindow.limit)
     }
@@ -135,7 +140,7 @@ fun TelemetryInsightsScreen(
             AppEmptyState(
                 icon = AppIcons.BarChart,
                 headline = "No cable telemetry yet",
-                description = "Finish a session with left and right cable force samples and this screen will show balance, finish trend, and coverage details.",
+                description = "Finish a telemetry-enabled session to see balance and finish trends.",
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -152,6 +157,9 @@ fun TelemetryInsightsScreen(
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
             TelemetryOverviewCard(overview = overview)
+            if (telemetryInsight != null) {
+                TrainingInsightCard(telemetryInsight, compact = true)
+            }
             ExerciseFocusCard(
                 exercises = exerciseOptions,
                 selectedExercise = selectedExercise,
@@ -184,7 +192,7 @@ private fun TelemetryOverviewCard(overview: TelemetryDrilldownOverview) {
 
     PremiumChartCard(
         title = "Overview",
-        subtitle = "Balance and finish trend summaries across sessions that captured cable telemetry.",
+        subtitle = "Cable balance and finish trend.",
         accent = accent,
         metrics = listOf(
             ChartMetric("Sessions", overview.sessionCount.toString(), cs.primary),
@@ -232,9 +240,7 @@ private fun RecentTelemetrySessionsCard(
 
     PremiumChartCard(
         title = "Telemetry Trend",
-        subtitle = selectedExercise?.let {
-            "Longer trend view for $it. Open any session to inspect the full workout next to its telemetry summary."
-        } ?: "Longer trend view across tracked sessions. Open any session to inspect the full workout next to its telemetry summary.",
+        subtitle = selectedExercise?.let { "Trend view for $it." } ?: "Tracked-session trend.",
         accent = MaterialTheme.colorScheme.primary,
         metrics = listOf(
             ChartMetric("Tracked", sessions.size.toString(), MaterialTheme.colorScheme.primary),
@@ -375,7 +381,7 @@ private fun ExerciseFocusCard(
 ) {
     PremiumChartCard(
         title = "Exercise Focus",
-        subtitle = "Filter the telemetry drill-down to one movement without losing the session context.",
+        subtitle = "Focus the telemetry view.",
         accent = MaterialTheme.colorScheme.primary,
         metrics = listOf(
             ChartMetric("Exercises", exercises.size.toString(), MaterialTheme.colorScheme.primary),
@@ -422,7 +428,7 @@ private fun ExerciseCoverageCard(
 
     PremiumChartCard(
         title = "Exercise Coverage",
-        subtitle = "Exercises with the most telemetry samples, so you can see where balance data is strongest.",
+        subtitle = "Where balance data is strongest.",
         accent = AccentAmber,
         metrics = listOf(
             ChartMetric("Exercises", exercises.size.toString(), cs.primary),

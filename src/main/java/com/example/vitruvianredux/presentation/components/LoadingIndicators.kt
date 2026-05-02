@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 /**
  * Standardised loading indicators for consistent UX across the app.
@@ -46,28 +48,35 @@ fun LoadingOverlay(
     modifier: Modifier = Modifier,
     scrim: Color = MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
 ) {
+    val ext = LocalExtendedColors.current
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(scrim),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+        Surface(
+            shape = RoundedCornerShape(AppDimens.Corner.md),
+            color = ext.surface2.copy(alpha = 0.94f),
         ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(AppDimens.Icon.xxl),
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = AppDimens.Stroke.thick,
-                strokeCap = StrokeCap.Round,
-            )
-            if (message != null) {
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Column(
+                modifier = Modifier.padding(AppDimens.Spacing.lg),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(AppDimens.Icon.xxl),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = AppDimens.Stroke.thick,
+                    strokeCap = StrokeCap.Round,
                 )
+                if (message != null) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

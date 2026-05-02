@@ -85,3 +85,65 @@ fun AppEmptyState(
         }
     }
 }
+
+@Composable
+fun AppErrorState(
+    icon: ImageVector,
+    headline: String,
+    description: String? = null,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    val cs = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(AppDimens.Spacing.xl)
+                .widthIn(max = 320.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .background(cs.error.copy(alpha = 0.10f), CircleShape)
+                    .border(1.dp, cs.error.copy(alpha = 0.24f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(AppDimens.Icon.xl),
+                    tint = cs.error,
+                )
+            }
+            Text(
+                text = headline,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = cs.onSurface,
+            )
+            if (description != null) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = cs.onSurfaceVariant,
+                )
+            }
+            if (actionLabel != null && onAction != null) {
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
+                AppTonalButton(
+                    text = actionLabel,
+                    onClick = onAction,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}

@@ -55,39 +55,36 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private val jsonParser = Json { ignoreUnknownKeys = true }
 
-private const val WORKOUT_GUIDE_TEXT = "Use the library when you want exercise-specific setup, filters, and video previews. Use Just Lift for a fast freeform session."
-
 private fun formatWeightLbForDisplay(lb: Int, unitSystem: UnitsStore.UnitSystem): String =
     when (unitSystem) {
         UnitsStore.UnitSystem.IMPERIAL_LB -> "$lb lb"
         UnitsStore.UnitSystem.METRIC_KG -> "%.1f kg".format(UnitConversions.lbToKg(lb.toDouble()))
     }
 
-
 @Composable
 fun WorkoutScreen(
     innerPadding: PaddingValues = PaddingValues(),
     workoutVM: WorkoutSessionViewModel,
     onStartExercise: (Exercise) -> Unit = {},
+    onStartOneRepMaxTest: (Exercise) -> Boolean = { false },
 ) {
     val context = LocalContext.current
     val sessionState by workoutVM.state.collectAsState()
-    val isReady      by workoutVM.bleIsReady.collectAsState()
+    val isReady by workoutVM.bleIsReady.collectAsState()
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
 
-    // â”€â”€ Load state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var allExercises by remember { mutableStateOf<List<Exercise>?>(null) }
-    var loadError    by remember { mutableStateOf<String?>(null) }
-    var retryKey     by remember { mutableIntStateOf(0) }
+    var loadError by remember { mutableStateOf<String?>(null) }
+    var retryKey by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(retryKey) {
         allExercises = null
-        loadError    = null
+        loadError = null
         try {
             allExercises = withContext(Dispatchers.IO) {
                 val raw = context.assets.open("exercises.json").bufferedReader().readText()
                 jsonParser.decodeFromString<List<Exercise>>(raw)
-                    .filter { it.archived == null }   // hide retired exercises
+                    .filter { it.archived == null }
             } + CustomExerciseStore.getAll()
         } catch (e: Exception) {
             loadError = e.message ?: "Failed to load exercises"
@@ -103,22 +100,18 @@ fun WorkoutScreen(
     var showJustLift     by remember { mutableStateOf(false) }
     var videoPreviewExercise by remember { mutableStateOf<Exercise?>(null) }
 
-    // Use capitalised group labels ("Arms", "Back", â€¦) for chips
     val allGroups = remember(allExercises) {
         allExercises?.flatMap { it.groupLabels }?.distinct()?.sorted() ?: emptyList()
     }
     val filtered = remember(allExercises, searchQuery, selectedMuscles, sortOrder) {
-        // toList() snapshots the list, preventing ConcurrentModificationException
         var list: List<Exercise> = allExercises?.toList() ?: emptyList()
         val q = searchQuery.trim()
-        if (q.isNotBlank())
-            list = list.filter { it.name.contains(q, ignoreCase = true) }
-        if (selectedMuscles.isNotEmpty())
-            list = list.filter { ex -> ex.groupLabels.any { it in selectedMuscles } }
+        if (q.isNotBlank()) list = list.filter { it.name.contains(q, ignoreCase = true) }
+        if (selectedMuscles.isNotEmpty()) list = list.filter { ex -> ex.groupLabels.any { it in selectedMuscles } }
         when (sortOrder) {
-            ExerciseSortOrder.NAME_ASC        -> list.sortedBy  { it.name.trim().lowercase(java.util.Locale.ROOT) }
+            ExerciseSortOrder.NAME_ASC        -> list.sortedBy { it.name.trim().lowercase(java.util.Locale.ROOT) }
             ExerciseSortOrder.NAME_DESC       -> list.sortedByDescending { it.name.trim().lowercase(java.util.Locale.ROOT) }
-            ExerciseSortOrder.POPULARITY_DESC -> list  // order from JSON is already by popularity
+            ExerciseSortOrder.POPULARITY_DESC -> list
         }
     }
 
@@ -127,21 +120,22 @@ fun WorkoutScreen(
         onDismiss = { showJustLift = false },
     )
 
-    // â”€â”€ Bottom sheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            selectedExercise?.let { ex ->
+    selectedExercise?.let { ex ->
         ExerciseDetailSheet(
-            exercise  = ex,
-            onStart   = { WiringRegistry.hit(A_WORKOUT_DETAIL_START); WiringRegistry.recordOutcome(A_WORKOUT_DETAIL_START, ActualOutcome.Navigated("player")); onStartExercise(ex); selectedExercise = null },
+            exercise = ex,
+            onStart = { WiringRegistry.hit(A_WORKOUT_DETAIL_START); WiringRegistry.recordOutcome(A_WORKOUT_DETAIL_START, ActualOutcome.Navigated("player")); onStartExercise(ex); selectedExercise = null },
+            onStartOneRepMaxTest = {
+                if (onStartOneRepMaxTest(ex)) selectedExercise = null
+            },
             onDismiss = { selectedExercise = null },
         )
     }
 
-    // â”€â”€ Video preview dialog (long-press) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     videoPreviewExercise?.let { ex ->
         ExerciseVideoPreviewDialog(
             exerciseName = ex.name,
-            videoUrl     = ex.videoUrl,
-            onDismiss    = { videoPreviewExercise = null },
+            videoUrl = ex.videoUrl,
+            onDismiss = { videoPreviewExercise = null },
         )
     }
 
@@ -149,90 +143,122 @@ fun WorkoutScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top    = innerPadding.calculateTopPadding() + AppDimens.Spacing.sm,
+                top = innerPadding.calculateTopPadding() + AppDimens.Spacing.sm,
                 bottom = innerPadding.calculateBottomPadding() + 88.dp,
-                start  = AppDimens.Spacing.md,
-                end    = AppDimens.Spacing.md,
+                start = AppDimens.Spacing.md,
+                end = AppDimens.Spacing.md,
             ),
         ) {
-            // Connection status pill
             item {
                 ConnectionStatusPill(
                     bleState = sessionState.connectionState,
-                    isReady  = isReady,
-                    modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
+                    isReady = isReady,
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.xs),
                 )
             }
 
-            // Workout Library header
             item {
-                Column(modifier = Modifier.padding(bottom = AppDimens.Spacing.md)) {
-                    Text(
-                        text       = "Pick an exercise",
-                        style      = MaterialTheme.typography.headlineSmall,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    )
-                    Spacer(Modifier.height(AppDimens.Spacing.xs))
-                    Text(
-                        text  = "Search the library for guided setup, or jump into Just Lift for a freeform session.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = AppDimens.Spacing.sm),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Pick an exercise",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = "Guided library",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = { WiringRegistry.hit(A_WORKOUT_JUSTLIFT_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_JUSTLIFT_OPEN, ActualOutcome.SheetOpened("just_lift")); showJustLift = true },
+                        shape = RoundedCornerShape(AppDimens.Corner.pill),
+                    ) {
+                        Icon(AppIcons.PlayArrow, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                        Text("Just Lift", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
 
-            // â”€â”€ Active session banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item {
                 ActiveSessionBanner(
-                    state     = sessionState,
+                    state = sessionState,
                     unitSystem = unitSystem,
-                    onStop    = { WiringRegistry.hit(A_WORKOUT_BANNER_STOP); WiringRegistry.recordOutcome(A_WORKOUT_BANNER_STOP, ActualOutcome.BleWriteAttempt("PANIC_STOP")); workoutVM.panicStop() },
+                    onStop = { WiringRegistry.hit(A_WORKOUT_BANNER_STOP); WiringRegistry.recordOutcome(A_WORKOUT_BANNER_STOP, ActualOutcome.BleWriteAttempt("PANIC_STOP")); workoutVM.panicStop() },
                     onDismiss = { WiringRegistry.hit(A_WORKOUT_BANNER_DISMISS); WiringRegistry.recordOutcome(A_WORKOUT_BANNER_DISMISS, ActualOutcome.StateChanged("bannerDismissed")); workoutVM.dismiss() },
                 )
             }
 
             item {
-                WorkoutModeGuide(
-                    onOpenJustLift = {
-                        WiringRegistry.hit(A_WORKOUT_JUSTLIFT_OPEN)
-                        WiringRegistry.recordOutcome(A_WORKOUT_JUSTLIFT_OPEN, ActualOutcome.SheetOpened("just_lift"))
-                        showJustLift = true
-                    },
-                )
-                Spacer(Modifier.height(AppDimens.Spacing.md))
-            }
-            // â”€â”€ Search · Chips · Sort — grouped control block â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
-                    // Search field
-                    OutlinedTextField(
-                        value         = searchQuery,
-                        onValueChange = { WiringRegistry.hit(A_WORKOUT_SEARCH_CHANGE); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CHANGE, ActualOutcome.StateChanged("searchQuery")); searchQuery = it },
-                        modifier      = Modifier.fillMaxWidth(),
-                        placeholder   = { Text("Search exercises") },
-                        leadingIcon   = { Icon(AppIcons.Search, contentDescription = stringResource(R.string.cd_search)) },
-                        trailingIcon  = if (searchQuery.isNotEmpty()) {
-                            { IconButton(onClick = { WiringRegistry.hit(A_WORKOUT_SEARCH_CLEAR); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CLEAR, ActualOutcome.StateChanged("searchCleared")); searchQuery = "" }) {
-                                Icon(AppIcons.Close, contentDescription = "Clear search")
-                            } }
-                        } else null,
-                        singleLine = true,
-                        shape      = RoundedCornerShape(AppDimens.Corner.lg),
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { WiringRegistry.hit(A_WORKOUT_SEARCH_CHANGE); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CHANGE, ActualOutcome.StateChanged("searchQuery")); searchQuery = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Search") },
+                            leadingIcon = { Icon(AppIcons.Search, contentDescription = stringResource(R.string.cd_search)) },
+                            trailingIcon = if (searchQuery.isNotEmpty()) {
+                                { IconButton(onClick = { WiringRegistry.hit(A_WORKOUT_SEARCH_CLEAR); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CLEAR, ActualOutcome.StateChanged("searchCleared")); searchQuery = "" }) { Icon(AppIcons.Close, contentDescription = "Clear search") } }
+                            } else null,
+                            singleLine = true,
+                            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                        )
 
-                    // Filter chips
+                        ExposedDropdownMenuBox(
+                            expanded = sortMenuExpanded,
+                            onExpandedChange = { if (it) { WiringRegistry.hit(A_WORKOUT_SORT_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_SORT_OPEN, ActualOutcome.SheetOpened("sort_menu")) }; sortMenuExpanded = it },
+                        ) {
+                            OutlinedTextField(
+                                value = sortOrder.label,
+                                onValueChange = {},
+                                readOnly = true,
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .width(118.dp),
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(sortMenuExpanded) },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.labelMedium,
+                                shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            )
+                            ExposedDropdownMenu(
+                                expanded = sortMenuExpanded,
+                                onDismissRequest = { sortMenuExpanded = false },
+                            ) {
+                                ExerciseSortOrder.entries.forEach { order ->
+                                    DropdownMenuItem(
+                                        text = { Text(order.label, style = MaterialTheme.typography.bodySmall) },
+                                        onClick = { WiringRegistry.hit(A_WORKOUT_SORT_SELECT); WiringRegistry.recordOutcome(A_WORKOUT_SORT_SELECT, ActualOutcome.StateChanged("sortOrder")); sortOrder = order; sortMenuExpanded = false },
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     if (allGroups.isNotEmpty()) {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                             if (selectedMuscles.isNotEmpty()) {
                                 item {
                                     InputChip(
-                                        selected     = true,
-                                        onClick      = { WiringRegistry.hit(A_WORKOUT_FILTER_CLEAR); WiringRegistry.recordOutcome(A_WORKOUT_FILTER_CLEAR, ActualOutcome.StateChanged("filterCleared")); selectedMuscles = emptySet() },
-                                        label        = { Text("Clear") },
-                                        trailingIcon = {
-                                            Icon(AppIcons.Close, contentDescription = stringResource(R.string.cd_close),
-                                                modifier = Modifier.size(AppDimens.Icon.sm))
-                                        },
+                                        selected = true,
+                                        onClick = { WiringRegistry.hit(A_WORKOUT_FILTER_CLEAR); WiringRegistry.recordOutcome(A_WORKOUT_FILTER_CLEAR, ActualOutcome.StateChanged("filterCleared")); selectedMuscles = emptySet() },
+                                        label = { Text("Clear") },
+                                        trailingIcon = { Icon(AppIcons.Close, contentDescription = stringResource(R.string.cd_close), modifier = Modifier.size(AppDimens.Icon.sm)) },
                                     )
                                 }
                             }
@@ -240,50 +266,9 @@ fun WorkoutScreen(
                                 val active = group in selectedMuscles
                                 FilterChip(
                                     selected = active,
-                                    onClick  = {
-                                        WiringRegistry.hit(A_WORKOUT_FILTER_CHIP)
-                                        WiringRegistry.recordOutcome(A_WORKOUT_FILTER_CHIP, ActualOutcome.StateChanged("filterApplied"))
-                                        selectedMuscles = if (active)
-                                            selectedMuscles - group else selectedMuscles + group
-                                    },
+                                    onClick = { WiringRegistry.hit(A_WORKOUT_FILTER_CHIP); WiringRegistry.recordOutcome(A_WORKOUT_FILTER_CHIP, ActualOutcome.StateChanged("filterApplied")); selectedMuscles = if (active) selectedMuscles - group else selectedMuscles + group },
                                     label = { Text(group) },
                                 )
-                            }
-                        }
-                    }
-
-                    // Sort dropdown
-                    Row(
-                        modifier              = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment     = Alignment.CenterVertically,
-                    ) {
-                        ExposedDropdownMenuBox(
-                            expanded          = sortMenuExpanded,
-                            onExpandedChange  = { if (it) { WiringRegistry.hit(A_WORKOUT_SORT_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_SORT_OPEN, ActualOutcome.SheetOpened("sort_menu")) }; sortMenuExpanded = it },
-                        ) {
-                            OutlinedTextField(
-                                value         = sortOrder.label,
-                                onValueChange = {},
-                                readOnly      = true,
-                                modifier      = Modifier
-                                    .menuAnchor()
-                                    .width(AppDimens.Component.cardFixedWidth),
-                                trailingIcon  = { ExposedDropdownMenuDefaults.TrailingIcon(sortMenuExpanded) },
-                                singleLine    = true,
-                                textStyle     = MaterialTheme.typography.bodySmall,
-                                colors        = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                            )
-                            ExposedDropdownMenu(
-                                expanded          = sortMenuExpanded,
-                                onDismissRequest  = { sortMenuExpanded = false },
-                            ) {
-                                ExerciseSortOrder.entries.forEach { order ->
-                                    DropdownMenuItem(
-                                        text    = { Text(order.label, style = MaterialTheme.typography.bodySmall) },
-                                        onClick = { WiringRegistry.hit(A_WORKOUT_SORT_SELECT); WiringRegistry.recordOutcome(A_WORKOUT_SORT_SELECT, ActualOutcome.StateChanged("sortOrder")); sortOrder = order; sortMenuExpanded = false },
-                                    )
-                                }
                             }
                         }
                     }
@@ -291,7 +276,6 @@ fun WorkoutScreen(
                 Spacer(Modifier.height(AppDimens.Spacing.sm))
             }
 
-            // ── Content ────────────────────────────────────────────────
             when {
                 loadError != null -> item {
                     ExerciseEmptyState(
@@ -308,9 +292,9 @@ fun WorkoutScreen(
                 }
                 else -> items(filtered, key = { it.stableKey }) { ex ->
                     ExerciseCard(
-                        exercise    = ex,
-                        onStart     = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
-                        onClick     = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
+                        exercise = ex,
+                        onStart = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
+                        onClick = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
                         onLongPress = { videoPreviewExercise = ex },
                     )
                     Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -318,74 +302,16 @@ fun WorkoutScreen(
             }
         }
 
-        // ── JustLift FAB ───────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(
-                    end    = AppDimens.Spacing.md,
+                    end = AppDimens.Spacing.md,
                     bottom = innerPadding.calculateBottomPadding() + 24.dp,
                 ),
         ) {
             JustLiftFab(onClick = { WiringRegistry.hit(A_WORKOUT_JUSTLIFT_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_JUSTLIFT_OPEN, ActualOutcome.SheetOpened("just_lift")); showJustLift = true })
         }
-    }
-}
-
-@Composable
-private fun WorkoutModeGuide(
-    onOpenJustLift: () -> Unit,
-) {
-    AppCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(AppDimens.Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-        ) {
-            Text(
-                text = "Choose how you want to train",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = WORKOUT_GUIDE_TEXT,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm)) {
-                WorkoutModeBadge(title = "Library", subtitle = "guided")
-                WorkoutModeBadge(title = "Just Lift", subtitle = "freeform")
-            }
-            Text(
-                text = "Tap a card for details. Long press a card to preview the movement.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            AppTonalButton(
-                text = "Open Just Lift",
-                icon = AppIcons.PlayArrow,
-                onClick = onOpenJustLift,
-            )
-        }
-    }
-}
-
-@Composable
-private fun WorkoutModeBadge(
-    title: String,
-    subtitle: String,
-) {
-    Surface(
-        shape = RoundedCornerShape(AppDimens.Corner.pill),
-        color = MaterialTheme.colorScheme.primaryContainer,
-    ) {
-        Text(
-            text = "$title = $subtitle",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 6.dp),
-        )
     }
 }
 // â”€â”€â”€ Exercise card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -528,6 +454,7 @@ private fun ExerciseCard(
 private fun ExerciseDetailSheet(
     exercise: Exercise,
     onStart: () -> Unit,
+    onStartOneRepMaxTest: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -600,6 +527,15 @@ private fun ExerciseDetailSheet(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { onStart(); onDismiss() },
             )
+
+            if (!exercise.isBodyweightOnly) {
+                AppTonalButton(
+                    text = "Test 1RM",
+                    icon = AppIcons.FitnessCenter,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onStartOneRepMaxTest,
+                )
+            }
         }
     }
 }

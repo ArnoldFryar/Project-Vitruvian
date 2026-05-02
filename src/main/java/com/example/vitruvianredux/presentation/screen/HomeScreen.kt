@@ -28,6 +28,7 @@ import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
+import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.audit.*
@@ -36,6 +37,7 @@ import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.SectionHeader
 import com.example.vitruvianredux.presentation.components.StatCard
+import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.ScreenScaffold
@@ -63,6 +65,8 @@ fun HomeScreen(
 ) {
     val cs = MaterialTheme.colorScheme
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
+    // Real stats from AnalyticsStore — rolling 7-day window matches the "Last 7 days" label.
+    val allLogs by AnalyticsStore.logsFlow.collectAsState()
     // Up Next: resolved via UpNextResolver — accounts for active program and history.
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
     val workoutHistory by WorkoutHistoryStore.historyFlow.collectAsState()
@@ -78,6 +82,13 @@ fun HomeScreen(
         )
     }
     val activeDeloadPrograms = remember(programs) { programs.filter { it.deloadState != null } }
+    val readinessInsight = remember(allLogs, nextProgram, activeDeloadPrograms) {
+        TrainingInsightEngine.homeReadiness(
+            logs = allLogs,
+            hasUpNext = nextProgram != null,
+            activeDeloadCount = activeDeloadPrograms.size,
+        )
+    }
 
     // Load exercise catalog for video/thumbnail URLs
     val context = LocalContext.current
@@ -88,8 +99,6 @@ fun HomeScreen(
         } catch (_: Exception) { emptyMap() }
     }
 
-    // Real stats from AnalyticsStore — rolling 7-day window matches the "Last 7 days" label.
-    val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val weekVolumeKg  = remember(allLogs) { AnalyticsStore.rollingVolumeKg(7) }
     val weekSessions  = remember(allLogs) { AnalyticsStore.rollingSessionCount(7) }
     val currentStreak = remember(allLogs) { AnalyticsStore.currentStreak() }
@@ -130,20 +139,9 @@ fun HomeScreen(
             }
         }
     ) {
-
-        if (activeDeloadPrograms.isNotEmpty()) {
-            HomeDeloadStatusCard(
-                programs = activeDeloadPrograms,
-                exerciseCatalog = exerciseCatalog,
-                workoutVM = workoutVM,
-                onNavigateToProgramDetail = onNavigateToProgramDetail,
-            )
-            Spacer(Modifier.height(AppDimens.Spacing.md_lg))
-        }
-
         SectionHeader(
             title = stringResource(R.string.home_up_next),
-            subtitle = "Your next workout should be the first thing you see.",
+            subtitle = "Today's recommendation.",
         )
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         HomeUpNextCard(
@@ -152,12 +150,23 @@ fun HomeScreen(
             workoutVM = workoutVM,
             onNavigateToProgramDetail = onNavigateToProgramDetail,
         )
+        if (readinessInsight != null) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            TrainingInsightCard(readinessInsight, compact = true)
+        }
+        if (activeDeloadPrograms.isNotEmpty()) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            HomeDeloadStatusCard(
+                programs = activeDeloadPrograms,
+                onNavigateToProgramDetail = onNavigateToProgramDetail,
+            )
+        }
 
         Spacer(Modifier.height(AppDimens.Spacing.md_lg))
 
         SectionHeader(
             title = stringResource(R.string.home_last_7_days),
-            subtitle = "Tap any metric for detail.",
+            subtitle = "Recent training load.",
             actionLabel = stringResource(R.string.home_action_history),
         ) {
             WiringRegistry.hit(A_ACTIVITY_HISTORY)
@@ -271,7 +280,7 @@ private fun HomeUpNextCard(
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = "Start your next programmed session or jump in to make edits.",
+                        text = "Start the next planned session or adjust it first.",
                         color = cs.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -349,66 +358,58 @@ private fun HomeUpNextCard(
 @Composable
 private fun HomeDeloadStatusCard(
     programs: List<SavedProgram>,
-    exerciseCatalog: Map<String, Exercise>,
-    workoutVM: WorkoutSessionViewModel?,
     onNavigateToProgramDetail: (String) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
     val primaryProgram = programs.first()
     val primaryDeload = primaryProgram.deloadState ?: return
 
-    AppCard(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = cs.tertiaryContainer.copy(alpha = 0.72f),
-        borderColor = cs.tertiary,
+        shape = RoundedCornerShape(AppDimens.Corner.sm),
+        color = ext.surface2.copy(alpha = 0.72f),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            cs.tertiary.copy(alpha = 0.22f),
+        ),
     ) {
-        Column(
-            modifier = Modifier.padding(AppDimens.Spacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        Row(
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            HomeMetaPill(
-                label = if (programs.size == 1) "Active deload" else "${programs.size} active deloads",
-                background = cs.tertiary,
-                content = cs.onTertiary,
-            )
-            Text(
-                text = primaryProgram.name,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = buildDeloadSummary(
-                    programName = primaryProgram.name,
-                    percentOff = primaryDeload.percentOff,
-                    remainingSessions = primaryDeload.remainingSessions,
-                    reduceSetsBy = primaryDeload.reduceSetsBy,
-                ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = cs.onTertiaryContainer,
-            )
-            if (programs.size > 1) {
+            Surface(
+                shape = RoundedCornerShape(AppDimens.Corner.pill),
+                color = cs.tertiary.copy(alpha = 0.16f),
+            ) {
                 Text(
-                    text = "Also active: ${programs.drop(1).joinToString(limit = 2, truncated = "…") { it.name }}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = cs.onTertiaryContainer.copy(alpha = 0.86f),
+                    text = if (programs.size == 1) "Deload" else "${programs.size} deloads",
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cs.tertiary,
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-            ) {
-                GradientButton(
-                    text = "Continue",
-                    icon = AppIcons.PlayArrow,
-                    modifier = Modifier.weight(1f),
-                    onClick = { startProgramFromHome(primaryProgram, exerciseCatalog, workoutVM) },
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = primaryProgram.name,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cs.onSurface,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
-                AppOutlinedButton(
-                    text = "Review",
-                    icon = AppIcons.Edit,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onNavigateToProgramDetail(primaryProgram.id) },
+                Text(
+                    text = "${primaryDeload.percentOff}% under baseline, ${primaryDeload.remainingSessions} session(s) left",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
+            }
+            TextButton(onClick = { onNavigateToProgramDetail(primaryProgram.id) }) {
+                Text("Review", style = MaterialTheme.typography.labelMedium)
             }
         }
     }

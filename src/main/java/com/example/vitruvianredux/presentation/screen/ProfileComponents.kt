@@ -151,7 +151,7 @@ internal fun VolumeDetailSheet(
     val maxDay = dailyVolumes.maxOfOrNull { it.third } ?: 1.0
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = LocalExtendedColors.current.surface2,
         tonalElevation = 0.dp) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text("Volume \u2014 This Week", style = MaterialTheme.typography.titleMedium,
@@ -212,7 +212,7 @@ internal fun SessionsDetailSheet(
     val dateFmt = DateTimeFormatter.ofPattern("EEE, MMM d")
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = LocalExtendedColors.current.surface2,
         tonalElevation = 0.dp) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text("Sessions \u2014 This Week", style = MaterialTheme.typography.titleMedium,
@@ -307,7 +307,7 @@ internal fun StreakDetailSheet(
     val dayLabels = listOf("M", "T", "W", "T", "F", "S", "S")
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = LocalExtendedColors.current.surface2,
         tonalElevation = 0.dp) {
         Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
             Text(stringResource(R.string.metric_day_streak), style = MaterialTheme.typography.titleMedium,

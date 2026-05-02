@@ -115,9 +115,9 @@ fun ExercisePickerSheet(
 
             Text(
                 text = if (singleSelect) {
-                    "Pick one exercise to label this workout. Long press any exercise to preview it."
+                    "Choose one exercise."
                 } else {
-                    "Tap to add, tap again to remove, and long press any exercise to preview it. Selection order becomes workout order."
+                    "Choose exercises in workout order."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

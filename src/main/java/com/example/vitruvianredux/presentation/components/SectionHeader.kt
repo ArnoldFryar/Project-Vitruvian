@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import com.vitruvian.trainer.R
 
@@ -37,15 +38,19 @@ fun SectionHeader(
         Column {
             Text(
                 text       = title,
-                style      = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                style      = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 color      = MaterialTheme.colorScheme.onSurface,
+                maxLines   = 1,
+                overflow   = TextOverflow.Ellipsis,
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -55,7 +60,7 @@ fun SectionHeader(
             ) {
                 Text(
                     text  = actionLabel,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }

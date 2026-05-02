@@ -433,7 +433,7 @@ fun JustLiftDialog(
 
                     SectionHeader(
                         title = "Setup",
-                        subtitle = "Choose the resistance style and the controls that shape each rep.",
+                        subtitle = "Resistance controls.",
                         modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
                     )
                     Spacer(Modifier.height(AppDimens.Spacing.sm))
@@ -627,7 +627,7 @@ fun JustLiftDialog(
 
                     SectionHeader(
                         title = "Session Defaults",
-                        subtitle = "Applies to each Just Lift set once you start.",
+                        subtitle = "Applied at start.",
                         modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
                     )
                     Spacer(Modifier.height(AppDimens.Spacing.sm))

@@ -44,7 +44,10 @@ import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
 import com.example.vitruvianredux.presentation.components.ValueStepper
 import com.example.vitruvianredux.data.PersonalBestStore
+import com.example.vitruvianredux.data.StrengthTestProtocolType
+import com.example.vitruvianredux.data.TrainingInsight
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
 import com.example.vitruvianredux.presentation.ui.AppIcons
@@ -63,6 +66,8 @@ internal fun SetReadyContent(
     warmupReps: Int,
     resistanceLb: Float,
     isRepsMode: Boolean,
+    strengthTestProtocolType: String? = null,
+    strengthTestAttemptNumber: Int? = null,
     autoPlay: Boolean,
     onTargetRepsChange: (Int) -> Unit,
     onTargetDurationChange: (Int) -> Unit,
@@ -92,6 +97,7 @@ internal fun SetReadyContent(
     progressionSuggestionLb: Int? = null,
     /** When non-null, show a deload suggestion banner (user struggling below rep floor). */
     progressionDeloadLb: Int? = null,
+    progressionInsight: TrainingInsight? = null,
     onAcceptProgression: (Int) -> Unit = {},
     /** When non-null, the current workout was launched in deload mode. */
     deloadPercentOff: Int? = null,
@@ -113,8 +119,10 @@ internal fun SetReadyContent(
     onEccentricPctChange: (Int) -> Unit = {},
 ) {
     val haptics = rememberUiHaptics()
+    val isStrengthTest = strengthTestProtocolType == StrengthTestProtocolType.ONE_REP_MAX
     val usesRepsMode = !isBodyweight && isRepsMode
     var showRestPicker by remember { mutableStateOf(false) }
+    var showSetupOptions by remember { mutableStateOf(false) }
 
     val pbMap           by PersonalBestStore.summariesFlow.collectAsState()
     val prLb             = pbMap[exerciseName.lowercase().trim()]?.bestWeightLb ?: 0
@@ -159,13 +167,13 @@ internal fun SetReadyContent(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Ready to level up!",
+                            progressionInsight?.title ?: "Ready to level up!",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         Text(
-                            "You've hit the top of your rep range 2 sessions in a row. Try $progressionSuggestionLb lb.",
+                            "${progressionInsight?.detail ?: "Recent sessions cleared the progression target."} Try $progressionSuggestionLb lb.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
@@ -233,13 +241,13 @@ internal fun SetReadyContent(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Consider a deload",
+                            progressionInsight?.title ?: "Consider a deload",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
                         Text(
-                            "You've missed the rep floor 2 sessions in a row. Try $progressionDeloadLb lb.",
+                            "${progressionInsight?.detail ?: "Recent sessions missed the target floor."} Try $progressionDeloadLb lb.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
@@ -271,11 +279,65 @@ internal fun SetReadyContent(
         )
         Spacer(Modifier.height(AppDimens.Spacing.xs))
         Text(
-            text  = "Set ${setIndex + 1} of $totalSets",
+            text  = if (isStrengthTest) "1RM attempt ${strengthTestAttemptNumber ?: setIndex + 1}" else "Set ${setIndex + 1} of $totalSets",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(AppDimens.Spacing.sm))
+        SetReadyHero(
+            targetLabel = when {
+                isStrengthTest -> "1 rep"
+                isOpenEnded -> "Open set"
+                usesRepsMode -> "$targetReps reps"
+                else -> "$targetDuration sec"
+            },
+            loadLabel = when {
+                isBodyweight -> "Bodyweight"
+                isEchoMode -> "Adaptive"
+                else -> "${resistanceLb.roundToInt()} lb / cable"
+            },
+            accent = if (isStrengthTest) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        if (isStrengthTest) {
+            Surface(
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                color = com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors.current.surface2.copy(alpha = 0.84f),
+                border = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.20f),
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = AppIcons.FitnessCenter,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Certified 1RM test",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = "Clean single. Automatic next load.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+        }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
@@ -283,21 +345,6 @@ internal fun SetReadyContent(
         ) {
             if (!isBodyweight) {
                 ReadyInfoPill(label = "Mode", value = selectedMode)
-            }
-            ReadyInfoPill(
-                label = "Plan",
-                value = when {
-                    isOpenEnded -> "Open set"
-                    usesRepsMode -> "$targetReps reps"
-                    else -> "$targetDuration sec"
-                },
-            )
-            if (!isBodyweight) {
-                ReadyInfoPill(
-                    label = "Load",
-                    value = if (isEchoMode) "Adaptive"
-                            else "${resistanceLb.roundToInt()} lb / cable",
-                )
             }
             if (showRestTimerPicker) {
                 ReadyInfoPill(label = "Rest", value = formatRestDuration(restAfterSec))
@@ -309,6 +356,11 @@ internal fun SetReadyContent(
 
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
+
+        if (progressionSuggestionLb == null && progressionDeloadLb == null && progressionInsight != null) {
+            TrainingInsightCard(progressionInsight, compact = true)
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+        }
         // â”€â”€ Video / thumbnail preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Box(
             modifier = Modifier
@@ -349,7 +401,7 @@ internal fun SetReadyContent(
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
         // â”€â”€ Adjustable settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (!isOpenEnded && !isBodyweight) {
+        if (!isOpenEnded && !isBodyweight && !isStrengthTest) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
@@ -370,13 +422,53 @@ internal fun SetReadyContent(
             Spacer(Modifier.height(AppDimens.Spacing.sm))
         }
 
+        if (!isStrengthTest) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                    .clickable { showSetupOptions = !showSetupOptions },
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                color = com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors.current.surface2.copy(alpha = 0.56f),
+                border = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.48f),
+                ),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = "Setup options",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Icon(
+                        imageVector = if (showSetupOptions) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+        }
+
+        AnimatedVisibility(
+            visible = isStrengthTest || showSetupOptions,
+            enter = expandVertically(tween(180)) + fadeIn(tween(150)),
+            exit = shrinkVertically(tween(150)) + fadeOut(tween(120)),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
             SelectorCard(modifier = if (isBodyweight) Modifier.fillMaxWidth() else Modifier.weight(1f)) {
                 AnimatedContent(
-                    targetState = if (isOpenEnded) 0 else if (usesRepsMode) 1 else 2,
+                    targetState = if (isStrengthTest) 3 else if (isOpenEnded) 0 else if (usesRepsMode) 1 else 2,
                     transitionSpec = { fadeIn(tween(170)) togetherWith fadeOut(tween(120)) },
                     label = "setReadyPickerContent",
                 ) { pickerState ->
@@ -402,7 +494,7 @@ internal fun SetReadyContent(
                             compact       = true,
                             modifier      = Modifier.fillMaxWidth(),
                         )
-                        else -> SmoothValuePicker(
+                        2 -> SmoothValuePicker(
                             value         = targetDuration.toFloat(),
                             onValueChange = { onTargetDurationChange(it.toInt()) },
                             range         = 5f..300f,
@@ -414,6 +506,19 @@ internal fun SetReadyContent(
                             itemHeight    = 32.dp,
                             surfaceColor  = MaterialTheme.colorScheme.surfaceVariant,
                         )
+                        else -> Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = AppDimens.Spacing.md_sm),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "1 certified rep",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
                     }
                 }
             }
@@ -429,6 +534,20 @@ internal fun SetReadyContent(
                             text  = "Adaptive",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.secondary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                } else if (isStrengthTest) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = AppDimens.Spacing.md_sm),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text  = "${resistanceLb.roundToInt()} lb / cable",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -479,7 +598,7 @@ internal fun SetReadyContent(
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
         // Warmup reps picker
-        if (!isBodyweight) SelectorCard(
+        if (!isBodyweight && !isStrengthTest) SelectorCard(
             title    = stringResource(R.string.ready_warmup),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -494,7 +613,7 @@ internal fun SetReadyContent(
 
         // Sets plan picker — shown for JustLift and exercise-menu launches.
         // Hidden for program workouts where the engine controls set count.
-        if (showSetsStepper) {
+        if (showSetsStepper && !isStrengthTest) {
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             SelectorCard(
                 title    = stringResource(R.string.session_stat_sets),
@@ -510,7 +629,7 @@ internal fun SetReadyContent(
             }
         }
 
-        if (showRestTimerPicker) {
+        if (showRestTimerPicker && !isStrengthTest) {
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             SelectorCard(
                 title    = stringResource(R.string.edit_rest_timer),
@@ -550,7 +669,7 @@ internal fun SetReadyContent(
         }
 
         // â”€â”€ Mode selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (!isBodyweight) {
+        if (!isBodyweight && !isStrengthTest) {
         Spacer(Modifier.height(AppDimens.Spacing.sm))
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -640,6 +759,8 @@ internal fun SetReadyContent(
         }
         } // end !isBodyweight
         Spacer(Modifier.height(AppDimens.Spacing.md))
+            }
+        }
 
         Divider(
             color    = MaterialTheme.colorScheme.outlineVariant,
@@ -649,7 +770,7 @@ internal fun SetReadyContent(
         Spacer(Modifier.height(AppDimens.Spacing.md))
 
         // â”€â”€ Autoplay toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Surface(
+        if (!isStrengthTest) Surface(
             shape          = RoundedCornerShape(AppDimens.Corner.md_sm),
             color          = MaterialTheme.colorScheme.surfaceVariant,
             border         = androidx.compose.foundation.BorderStroke(
@@ -697,7 +818,7 @@ internal fun SetReadyContent(
             label = "goScale",
         )
         GradientButton(
-            text = "GO",
+            text = if (isStrengthTest) "Start Attempt" else "GO",
             icon = AppIcons.PlayArrow,
             onClick = onGo,
             modifier = Modifier.graphicsLayer {
@@ -714,21 +835,21 @@ internal fun SetReadyContent(
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
         ) {
             AppOutlinedButton(
-                text = "Skip Set",
+                text = if (isStrengthTest) "Abort Attempt" else "Skip Set",
                 icon = AppIcons.SkipNext,
                 onClick = onSkipSet,
                 modifier = Modifier.weight(1f),
             )
 
             AppOutlinedButton(
-                text = "Skip Exercise",
+                text = if (isStrengthTest) "End Test" else "Skip Exercise",
                 icon = AppIcons.SkipNext,
                 onClick = onSkipExercise,
                 modifier = Modifier.weight(1f),
             )
         }
 
-        Row(
+        if (!isStrengthTest) Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
         ) {
@@ -790,6 +911,64 @@ private fun ReadyInfoPill(label: String, value: String) {
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+        }
+    }
+}
+
+@Composable
+private fun SetReadyHero(
+    targetLabel: String,
+    loadLabel: String,
+    accent: androidx.compose.ui.graphics.Color,
+) {
+    val ext = com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+        color = ext.surface2.copy(alpha = 0.88f),
+        border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, accent.copy(alpha = 0.22f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Target",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = targetLabel,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(44.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.52f)),
+            )
+            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Load",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = loadLabel,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black,
+                    color = accent,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

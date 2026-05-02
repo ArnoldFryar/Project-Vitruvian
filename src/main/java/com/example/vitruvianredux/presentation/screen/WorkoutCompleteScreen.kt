@@ -46,12 +46,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.StrengthTestSessionMetadata
+import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.PremiumChartCard
 import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
+import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
@@ -80,11 +83,24 @@ fun WorkoutCompleteContent(
     prCount: Int = 0,
     exerciseSets: List<AnalyticsStore.ExerciseSetLog> = emptyList(),
     deloadMessage: String? = null,
+    strengthTest: StrengthTestSessionMetadata? = null,
     modifier: Modifier = Modifier,
 ) {
     val ext = LocalExtendedColors.current
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
+    val sessionPts = AnalyticsStore.sessionPoints(
+        stats.totalVolumeKg.toDouble(), avgQualityScore)
+    val workoutInsight = remember(exerciseSets, allLogs, stats, avgQualityScore, prCount, strengthTest) {
+        TrainingInsightEngine.workoutRecap(
+            exerciseSets = exerciseSets,
+            allLogs = allLogs,
+            totalVolumeKg = stats.totalVolumeKg.toDouble(),
+            avgQualityScore = avgQualityScore,
+            prCount = prCount,
+            strengthTest = strengthTest,
+        )
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
     WorkoutCelebrationConfetti(
@@ -128,11 +144,29 @@ fun WorkoutCompleteContent(
             )
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
-                text  = "Review the session, save your notes, and move on when you're ready.",
+                text  = "Saved when you are ready.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        CompletionResultHero(
+            label = when {
+                strengthTest?.certifiedOneRepMaxLb != null -> "Tested 1RM"
+                prCount > 0 -> "Records"
+                else -> "Session points"
+            },
+            value = when {
+                strengthTest?.certifiedOneRepMaxLb != null -> formatStrengthTestLoad(strengthTest.certifiedOneRepMaxLb, unitSystem)
+                prCount > 0 -> prCount.toString()
+                else -> sessionPts.toString()
+            },
+            detail = when {
+                strengthTest?.testedExerciseName != null -> strengthTest.testedExerciseName
+                prCount == 1 -> "personal record moved"
+                prCount > 1 -> "personal records moved"
+                else -> "training output saved"
+            },
+        )
 
         // â”€â”€ PR badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (prCount > 0) {
@@ -181,6 +215,18 @@ fun WorkoutCompleteContent(
             allLogs = allLogs,
             prCount = prCount,
         )
+
+        if (workoutInsight != null) {
+            TrainingInsightCard(workoutInsight, modifier = Modifier.fillMaxWidth())
+        }
+
+        if (strengthTest != null) {
+            StrengthTestResultCard(
+                strengthTest = strengthTest,
+                unitSystem = unitSystem,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
 
         // â”€â”€ Stats grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Column(
@@ -259,8 +305,6 @@ fun WorkoutCompleteContent(
             }
         }
 
-        val sessionPts = AnalyticsStore.sessionPoints(
-            stats.totalVolumeKg.toDouble(), avgQualityScore)
         val breakdown = remember(exerciseSets) {
             AnalyticsStore.exercisePointsBreakdown(exerciseSets)
                 .entries.sortedByDescending { it.value }
@@ -326,7 +370,7 @@ fun WorkoutCompleteContent(
                 }
             }
             Text(
-                text = "This only labels the completed workout. It does not change how Just Lift ran.",
+                text = "Labels this completed workout only.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
@@ -385,6 +429,117 @@ fun WorkoutCompleteContent(
     }
     } // end Box
 }
+
+@Composable
+private fun CompletionResultHero(
+    label: String,
+    value: String,
+    detail: String,
+) {
+    val ext = LocalExtendedColors.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+        color = ext.surface2.copy(alpha = 0.90f),
+        border = BorderStroke(AppDimens.Stroke.thin, ext.gold.copy(alpha = 0.20f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+        ) {
+            Text(
+                text = label.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Black,
+                color = ext.gold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StrengthTestResultCard(
+    strengthTest: StrengthTestSessionMetadata,
+    unitSystem: UnitsStore.UnitSystem,
+    modifier: Modifier = Modifier,
+) {
+    val certifiedLb = strengthTest.certifiedOneRepMaxLb
+    val failedLb = strengthTest.failedOneRepMaxLb
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(AppDimens.Corner.sm),
+        color = LocalExtendedColors.current.surface2.copy(alpha = 0.86f),
+        border = BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Tested 1RM",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = strengthTest.testedExerciseName ?: "Strength test",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(
+                    imageVector = AppIcons.EmojiEvents,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(AppDimens.Icon.lg),
+                )
+            }
+            Text(
+                text = certifiedLb?.let { formatStrengthTestLoad(it, unitSystem) } ?: "No certified max",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            if (failedLb != null) {
+                Text(
+                    text = "Final miss: ${formatStrengthTestLoad(failedLb, unitSystem)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun formatStrengthTestLoad(lb: Int, unitSystem: UnitsStore.UnitSystem): String =
+    when (unitSystem) {
+        UnitsStore.UnitSystem.IMPERIAL_LB -> "$lb lb"
+        UnitsStore.UnitSystem.METRIC_KG -> "%.1f kg".format(UnitConversions.lbToKg(lb.toDouble()))
+    }
 
 private data class ConfettiPiece(
     val startXPct: Float,
@@ -541,7 +696,7 @@ private fun SessionBenchmarkCard(
 
     PremiumChartCard(
         title = "Session Signature",
-        subtitle = "Current workout against your recent saved baseline.",
+        subtitle = "Against recent baseline.",
         accent = BrandBrass,
         metrics = listOf(
             ChartMetric("Points", AnalyticsStore.sessionPoints(stats.totalVolumeKg.toDouble(), avgQualityScore).toString(), ext.gold),
@@ -637,7 +792,7 @@ private fun ExercisePointsBreakdownCard(
 
     PremiumChartCard(
         title = "Point Breakdown",
-        subtitle = "Where this workout's points came from across the exercises you completed.",
+        subtitle = "Exercise contribution.",
         accent = ext.gold,
         metrics = listOf(
             ChartMetric("Session", sessionPts.toString(), ext.gold),

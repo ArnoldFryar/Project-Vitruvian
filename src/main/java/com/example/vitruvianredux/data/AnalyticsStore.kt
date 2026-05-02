@@ -62,6 +62,7 @@ object AnalyticsStore {
         val telemetryBalancePct: Int = 0,
         val telemetryFinishForcePct: Int = 100,
         val telemetrySampleCount: Int = 0,
+        val strengthTest: StrengthTestSetMetadata? = null,
         /** Raw cable telemetry for Vitruvian API upload. NOT persisted to SharedPreferences. */
         val cableSamplesLeft: List<CableSample> = emptyList(),
         val cableSamplesRight: List<CableSample> = emptyList(),
@@ -86,6 +87,7 @@ object AnalyticsStore {
         val avgQualityScore: Int? = null,
         val notes: String = "",
         val trainingMode: String? = null,
+        val strengthTest: StrengthTestSessionMetadata? = null,
     )
 
     // ── State ────────────────────────────────────────────────────────────────
@@ -337,6 +339,7 @@ object AnalyticsStore {
         exerciseSets: List<ExerciseSetLog> = emptyList(),
         notes: String = "",
         trainingMode: String? = null,
+        strengthTest: StrengthTestSessionMetadata? = null,
     ): SessionLog {
         val endMs = System.currentTimeMillis()
         val startMs = endMs - (durationSec * 1_000L)
@@ -360,6 +363,7 @@ object AnalyticsStore {
                                    .takeIf { it.isNotEmpty() }?.average()?.toInt(),
             notes            = notes,
             trainingMode     = trainingMode,
+            strengthTest     = strengthTest,
         )
     }
 
@@ -414,12 +418,28 @@ object AnalyticsStore {
                                     put("telemetryFinishForcePct", s.telemetryFinishForcePct)
                                     put("telemetrySampleCount", s.telemetrySampleCount)
                                 }
+                                s.strengthTest?.let { strengthTest ->
+                                    put("strengthTest", JSONObject().apply {
+                                        put("protocolType", strengthTest.protocolType)
+                                        if (strengthTest.attemptNumber != null) put("attemptNumber", strengthTest.attemptNumber)
+                                        if (strengthTest.attemptOutcome != null) put("attemptOutcome", strengthTest.attemptOutcome)
+                                    })
+                                }
                             })
                         }
                     })
                     if (log.avgQualityScore != null) put("avgQualityScore", log.avgQualityScore)
                     if (log.notes.isNotEmpty()) put("notes", log.notes)
                     if (log.trainingMode != null) put("trainingMode", log.trainingMode)
+                    log.strengthTest?.let { strengthTest ->
+                        put("strengthTest", JSONObject().apply {
+                            put("protocolType", strengthTest.protocolType)
+                            put("testedExerciseId", strengthTest.testedExerciseId ?: JSONObject.NULL)
+                            put("testedExerciseName", strengthTest.testedExerciseName ?: JSONObject.NULL)
+                            put("certifiedOneRepMaxLb", strengthTest.certifiedOneRepMaxLb ?: JSONObject.NULL)
+                            put("failedOneRepMaxLb", strengthTest.failedOneRepMaxLb ?: JSONObject.NULL)
+                        })
+                    }
                 })
             }
             prefs.edit().putString(KEY_LOGS, arr.toString()).commit()
@@ -483,12 +503,34 @@ object AnalyticsStore {
                                 telemetryBalancePct = so.optInt("telemetryBalancePct", 0),
                                 telemetryFinishForcePct = so.optInt("telemetryFinishForcePct", 100),
                                 telemetrySampleCount = so.optInt("telemetrySampleCount", 0),
+                                strengthTest    = so.optJSONObject("strengthTest")?.let { strengthTest ->
+                                    StrengthTestSetMetadata(
+                                        protocolType = strengthTest.getString("protocolType"),
+                                        attemptNumber = if (strengthTest.has("attemptNumber") && !strengthTest.isNull("attemptNumber")) {
+                                            strengthTest.getInt("attemptNumber")
+                                        } else null,
+                                        attemptOutcome = strengthTest.optString("attemptOutcome", "").takeIf { it.isNotEmpty() },
+                                    )
+                                },
                             )
                         }
                     } ?: emptyList(),
                     avgQualityScore = if (o.has("avgQualityScore")) o.getInt("avgQualityScore") else null,
                     notes           = o.optString("notes", ""),
                     trainingMode    = o.optString("trainingMode", "").takeIf { it.isNotEmpty() },
+                    strengthTest    = o.optJSONObject("strengthTest")?.let { strengthTest ->
+                        StrengthTestSessionMetadata(
+                            protocolType = strengthTest.getString("protocolType"),
+                            testedExerciseId = strengthTest.optString("testedExerciseId", "").takeIf { it.isNotEmpty() && it != "null" },
+                            testedExerciseName = strengthTest.optString("testedExerciseName", "").takeIf { it.isNotEmpty() && it != "null" },
+                            certifiedOneRepMaxLb = if (strengthTest.has("certifiedOneRepMaxLb") && !strengthTest.isNull("certifiedOneRepMaxLb")) {
+                                strengthTest.getInt("certifiedOneRepMaxLb")
+                            } else null,
+                            failedOneRepMaxLb = if (strengthTest.has("failedOneRepMaxLb") && !strengthTest.isNull("failedOneRepMaxLb")) {
+                                strengthTest.getInt("failedOneRepMaxLb")
+                            } else null,
+                        )
+                    },
                 )
             }
         } catch (e: Exception) {

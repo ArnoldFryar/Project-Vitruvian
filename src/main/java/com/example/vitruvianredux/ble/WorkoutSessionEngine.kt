@@ -25,6 +25,11 @@ import com.example.vitruvianredux.ble.session.SessionEvent
 import com.example.vitruvianredux.ble.session.SessionReducer
 import com.example.vitruvianredux.ble.session.SetPhase
 import com.example.vitruvianredux.ble.session.WorkoutStats
+import com.example.vitruvianredux.data.OneRepMaxProtocol
+import com.example.vitruvianredux.data.StrengthTestAttemptOutcome
+import com.example.vitruvianredux.data.StrengthTestProtocolType
+import com.example.vitruvianredux.data.StrengthTestSessionMetadata
+import com.example.vitruvianredux.data.StrengthTestSetMetadata
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -223,6 +228,8 @@ sealed class SessionPhase {
         val isJustLift: Boolean = false,
         val repRangeMin: Int? = null,
         val repRangeMax: Int? = null,
+        val strengthTestProtocolType: String? = null,
+        val strengthTestAttemptNumber: Int? = null,
     ) : SessionPhase()
 
     data class ExerciseActive(
@@ -237,6 +244,8 @@ sealed class SessionPhase {
         val warmupReps: Int = 0,
         val numCables: Int = 2,
         val programMode: String = "Old School",
+        val strengthTestProtocolType: String? = null,
+        val strengthTestAttemptNumber: Int? = null,
     ) : SessionPhase()
 
     data class Resting(
@@ -253,6 +262,7 @@ sealed class SessionPhase {
 
     data class WorkoutComplete(
         val workoutStats: WorkoutStats,
+        val strengthTest: StrengthTestSessionMetadata? = null,
     ) : SessionPhase()
 
     /**
@@ -365,6 +375,8 @@ class WorkoutSessionEngine(
     private val _state = MutableStateFlow(SessionState())
     val state: StateFlow<SessionState> = _state.asStateFlow()
 
+    var completedSetStatsEnricher: (ExerciseStats) -> ExerciseStats = { it }
+
     /** Last WiFi credentials broadcast by the machine (null until first WIFI_STATE notification). */
     private val _machineWifiState = MutableStateFlow<MachineWifiState?>(null)
     val machineWifiState: StateFlow<MachineWifiState?> = _machineWifiState.asStateFlow()
@@ -442,6 +454,17 @@ class WorkoutSessionEngine(
     private val skippedStatsList = mutableListOf<ExerciseStats>()
     /** Sets skipped (not completed) during this workout — merged into final stats. */
     val skippedStats: List<ExerciseStats> get() = skippedStatsList.toList()
+    private var activeStrengthTestProtocolType: String? = null
+    private var activeStrengthTestConfig: OneRepMaxProtocol.Config? = null
+    private var activeStrengthTestExerciseId: String? = null
+    private var activeStrengthTestExerciseName: String? = null
+    private var activeStrengthTestHistory = OneRepMaxProtocol.AttemptHistory()
+    private val completedStrengthTestSetMetadata = linkedMapOf<Int, StrengthTestSetMetadata>()
+    private var completedStrengthTestSessionMetadata: StrengthTestSessionMetadata? = null
+    val strengthTestSessionMetadata: StrengthTestSessionMetadata? get() = completedStrengthTestSessionMetadata
+    val strengthTestSetMetadataBySetIndex: Map<Int, StrengthTestSetMetadata>
+        get() = completedStrengthTestSetMetadata.toMap()
+    val currentStrengthTestProtocolType: String? get() = activeStrengthTestProtocolType
     /** Reducer's canonical session state — single source of truth for phase/rep tracking. */
     private var engineState = EngineState()
     /**
@@ -1101,6 +1124,7 @@ class WorkoutSessionEngine(
         activeWorkoutProgramName = programName
         if (sets.isEmpty()) { Log.w(TAG, "startPlayerWorkout: empty sets list"); return false }
         resetSetCompletionGuard()
+        resetStrengthTestRuntime()
         
         // Set phase immediately so the UI overlay appears — start with SetReady
         // so the user can get into position before warmup begins.
@@ -1108,6 +1132,10 @@ class WorkoutSessionEngine(
         currentPlayerIndex = 0
 
         val firstSet = sets.first()
+        activeStrengthTestProtocolType = firstSet.strengthTestProtocolType
+        activeStrengthTestConfig = firstSet.strengthTestConfig
+        activeStrengthTestExerciseId = firstSet.exerciseId.ifBlank { null }
+        activeStrengthTestExerciseName = firstSet.exerciseName
         val (exSetIndex, exTotalSets) = perExerciseSetInfo(0)
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.SetReady(
@@ -1124,6 +1152,8 @@ class WorkoutSessionEngine(
                 isJustLift        = firstSet.isJustLift,
                 repRangeMin       = firstSet.repRangeMin,
                 repRangeMax       = firstSet.repRangeMax,
+                strengthTestProtocolType = firstSet.strengthTestProtocolType,
+                strengthTestAttemptNumber = firstSet.strengthTestAttemptNumber,
             )
         )
         completedStats.clear()
@@ -1285,6 +1315,7 @@ class WorkoutSessionEngine(
         val nextIndex = currentPlayerIndex + 1
         // Record a skipped-set marker before advancing
         playerSets.getOrNull(currentPlayerIndex)?.let { s ->
+            recordStrengthTestAbort(s, currentPlayerIndex)
             skippedStatsList.add(ExerciseStats(
                 exerciseId       = s.exerciseId,
                 exerciseName     = s.exerciseName,
@@ -1293,6 +1324,11 @@ class WorkoutSessionEngine(
                 setIndex         = currentPlayerIndex,
                 weightPerCableLb = s.weightPerCableLb,
                 numCables        = s.numCables,
+                strengthTestProtocolType = s.strengthTestProtocolType,
+                strengthTestAttemptNumber = s.strengthTestAttemptNumber,
+                strengthTestAttemptOutcome = if (s.strengthTestProtocolType == StrengthTestProtocolType.ONE_REP_MAX) {
+                    StrengthTestAttemptOutcome.ABORTED
+                } else null,
                 skipped          = true,
             ))
         }
@@ -1416,6 +1452,7 @@ class WorkoutSessionEngine(
         // Record skipped-set markers for every bypassed set
         for (i in currentPlayerIndex until nextIndex) {
             playerSets.getOrNull(i)?.let { s ->
+                recordStrengthTestAbort(s, i)
                 skippedStatsList.add(ExerciseStats(
                     exerciseId       = s.exerciseId,
                     exerciseName     = s.exerciseName,
@@ -1424,6 +1461,11 @@ class WorkoutSessionEngine(
                     setIndex         = i,
                     weightPerCableLb = s.weightPerCableLb,
                     numCables        = s.numCables,
+                    strengthTestProtocolType = s.strengthTestProtocolType,
+                    strengthTestAttemptNumber = s.strengthTestAttemptNumber,
+                    strengthTestAttemptOutcome = if (s.strengthTestProtocolType == StrengthTestProtocolType.ONE_REP_MAX) {
+                        StrengthTestAttemptOutcome.ABORTED
+                    } else null,
                     skipped          = true,
                 ))
             }
@@ -1456,6 +1498,23 @@ class WorkoutSessionEngine(
             )
         }
         Log.d(TAG, "patchCurrentSetMode[$index]: reps=$targetReps  dur=$targetDurationSec")
+    }
+
+    fun patchCurrentSetResistanceProfile(
+        programMode: String? = null,
+        echoLevel: com.example.vitruvianredux.ble.protocol.EchoLevel? = null,
+        eccentricLoadPct: Int? = null,
+    ) {
+        val index = currentPlayerIndex
+        val original = playerSets.getOrNull(index) ?: return
+        playerSets = playerSets.toMutableList().also { list ->
+            list[index] = original.copy(
+                programMode = programMode ?: original.programMode,
+                echoLevel = echoLevel ?: original.echoLevel,
+                eccentricLoadPct = eccentricLoadPct ?: original.eccentricLoadPct,
+            )
+        }
+        Log.d(TAG, "patchCurrentSetResistanceProfile[$index]: mode=${programMode ?: original.programMode}")
     }
 
     fun updateUpcomingSets(newSets: List<PlayerSetParams>) {
@@ -1532,6 +1591,7 @@ class WorkoutSessionEngine(
         previousAvgCablePosition = null
         setVolumeAccumulator = VolumeAccumulator.ZERO
         justLiftArmed = false
+        resetStrengthTestRuntime()
         _state.value = _state.value.copy(
             sessionPhase         = sessionPhase,
             repsCount            = 0,
@@ -1541,6 +1601,94 @@ class WorkoutSessionEngine(
             announcedWorkingReps = 0,
             durationCountdownSec = null,
         )
+    }
+
+    private fun resetStrengthTestRuntime() {
+        activeStrengthTestProtocolType = null
+        activeStrengthTestConfig = null
+        activeStrengthTestExerciseId = null
+        activeStrengthTestExerciseName = null
+        activeStrengthTestHistory = OneRepMaxProtocol.AttemptHistory()
+        completedStrengthTestSetMetadata.clear()
+        completedStrengthTestSessionMetadata = null
+    }
+
+    private fun evaluateStrengthTestAttempt(
+        set: PlayerSetParams,
+        stats: ExerciseStats,
+    ): OneRepMaxProtocol.AttemptEvaluation? {
+        if (set.strengthTestProtocolType != StrengthTestProtocolType.ONE_REP_MAX) return null
+        return OneRepMaxProtocol.evaluateAttempt(
+            attemptNumber = set.strengthTestAttemptNumber ?: (activeStrengthTestHistory.attemptsCompleted + 1),
+            input = OneRepMaxProtocol.AttemptInput(
+                stats = stats,
+                completedNormally = stats.repsCompleted > 0,
+            ),
+            config = set.strengthTestConfig ?: activeStrengthTestConfig ?: OneRepMaxProtocol.Config(),
+        )
+    }
+
+    private fun recordStrengthTestAbort(set: PlayerSetParams, setIndex: Int) {
+        if (set.strengthTestProtocolType != StrengthTestProtocolType.ONE_REP_MAX) return
+        completedStrengthTestSetMetadata[setIndex] = StrengthTestSetMetadata(
+            protocolType = set.strengthTestProtocolType,
+            attemptNumber = set.strengthTestAttemptNumber,
+            attemptOutcome = StrengthTestAttemptOutcome.ABORTED,
+        )
+        if (completedStrengthTestSessionMetadata == null) {
+            completedStrengthTestSessionMetadata = StrengthTestSessionMetadata(
+                protocolType = activeStrengthTestProtocolType ?: StrengthTestProtocolType.ONE_REP_MAX,
+                testedExerciseId = activeStrengthTestExerciseId ?: set.exerciseId.ifBlank { null },
+                testedExerciseName = activeStrengthTestExerciseName ?: set.exerciseName,
+                certifiedOneRepMaxLb = activeStrengthTestHistory.bestPassedLoadLb,
+                failedOneRepMaxLb = null,
+            )
+        }
+    }
+
+    private fun handleStrengthTestProgression(
+        set: PlayerSetParams,
+        evaluation: OneRepMaxProtocol.AttemptEvaluation,
+    ) {
+        val updatedHistory = OneRepMaxProtocol.AttemptHistory(
+            attemptsCompleted = maxOf(activeStrengthTestHistory.attemptsCompleted, evaluation.attemptNumber),
+            passedLoadsLb = if (evaluation.outcome == StrengthTestAttemptOutcome.PASS) {
+                activeStrengthTestHistory.passedLoadsLb + evaluation.totalLoadLb
+            } else {
+                activeStrengthTestHistory.passedLoadsLb
+            },
+        )
+        activeStrengthTestHistory = updatedHistory
+
+        when (val next = OneRepMaxProtocol.planNextStep(
+            history = updatedHistory,
+            evaluation = evaluation,
+            numCables = set.numCables,
+            config = set.strengthTestConfig ?: activeStrengthTestConfig ?: OneRepMaxProtocol.Config(),
+        )) {
+            is OneRepMaxProtocol.NextStep.Continue -> {
+                val nextSet = set.copy(
+                    targetReps = 1,
+                    targetDurationSec = null,
+                    warmupReps = 0,
+                    weightPerCableLb = next.attempt.perCableLoadLb,
+                    restAfterSec = next.attempt.restAfterSec,
+                    strengthTestAttemptNumber = next.attempt.attemptNumber,
+                    strengthTestConfig = set.strengthTestConfig ?: activeStrengthTestConfig,
+                )
+                playerSets = playerSets.take(currentPlayerIndex + 1) + listOf(nextSet)
+            }
+            is OneRepMaxProtocol.NextStep.Finish -> {
+                playerSets = playerSets.take(currentPlayerIndex + 1)
+                completedStrengthTestSessionMetadata = StrengthTestSessionMetadata(
+                    protocolType = activeStrengthTestProtocolType ?: StrengthTestProtocolType.ONE_REP_MAX,
+                    testedExerciseId = activeStrengthTestExerciseId,
+                    testedExerciseName = activeStrengthTestExerciseName,
+                    certifiedOneRepMaxLb = next.certifiedOneRepMaxLb,
+                    failedOneRepMaxLb = next.failedOneRepMaxLb,
+                )
+            }
+        }
     }
 
     // ── Player internals ──────────────────────────────────────────────────────
@@ -1612,6 +1760,8 @@ class WorkoutSessionEngine(
                 isJustLift        = set.isJustLift,
                 repRangeMin       = set.repRangeMin,
                 repRangeMax       = set.repRangeMax,
+                strengthTestProtocolType = set.strengthTestProtocolType,
+                strengthTestAttemptNumber = set.strengthTestAttemptNumber,
             ),
             currentExerciseName = set.exerciseName,
             targetWeightLb      = set.weightPerCableLb,
@@ -1632,6 +1782,9 @@ class WorkoutSessionEngine(
         targetDurationOverride: Int? = null,
         weightOverride: Int? = null,
         warmupOverride: Int? = null,
+        programModeOverride: String? = null,
+        echoLevelOverride: com.example.vitruvianredux.ble.protocol.EchoLevel? = null,
+        eccentricLoadPctOverride: Int? = null,
     ) {
         val phase = _state.value.sessionPhase
         if (phase !is SessionPhase.SetReady) {
@@ -1643,12 +1796,16 @@ class WorkoutSessionEngine(
 
         // Apply any user overrides from the ready screen
         val draftSet = if (targetRepsOverride != null || targetDurationOverride != null ||
-                      weightOverride != null || warmupOverride != null) {
+                      weightOverride != null || warmupOverride != null ||
+                      programModeOverride != null || echoLevelOverride != null || eccentricLoadPctOverride != null) {
             original.copy(
                 targetReps        = targetRepsOverride ?: original.targetReps,
                 targetDurationSec = targetDurationOverride ?: original.targetDurationSec,
                 weightPerCableLb  = weightOverride ?: original.weightPerCableLb,
                 warmupReps        = warmupOverride ?: original.warmupReps,
+                programMode       = programModeOverride ?: original.programMode,
+                echoLevel         = echoLevelOverride ?: original.echoLevel,
+                eccentricLoadPct  = eccentricLoadPctOverride ?: original.eccentricLoadPct,
             ).also { playerSets = playerSets.toMutableList().also { list -> list[index] = it } }
         } else original
         val set = if (draftSet.isOffMachineTimer) {
@@ -1700,6 +1857,8 @@ class WorkoutSessionEngine(
                 warmupReps        = set.warmupReps,
                 numCables         = set.numCables,
                 programMode       = set.programMode,
+                strengthTestProtocolType = set.strengthTestProtocolType,
+                strengthTestAttemptNumber = set.strengthTestAttemptNumber,
             ),
             currentExerciseName = set.exerciseName,
             targetWeightLb      = set.weightPerCableLb,
@@ -1806,7 +1965,7 @@ class WorkoutSessionEngine(
         val hAvgForce  = heuristic?.let { (it.left.concentric.kgAvg + it.right.concentric.kgAvg) / 2f } ?: 0f
         val hPeakForce = heuristic?.let { maxOf(it.left.concentric.kgMax, it.right.concentric.kgMax) } ?: 0f
         val isEcho = set.programMode == "Echo"
-        val stats  = ExerciseStats(
+        val baseStats = ExerciseStats(
             exerciseId           = set.exerciseId,
             exerciseName         = set.exerciseName,
             muscleGroups         = set.muscleGroups,
@@ -1822,10 +1981,27 @@ class WorkoutSessionEngine(
             peakForce            = hPeakForce,
             echoLevel            = if (isEcho) set.echoLevel.displayName else null,
             eccentricLoadPct     = set.eccentricLoadPct,
+            strengthTestProtocolType = set.strengthTestProtocolType,
+            strengthTestAttemptNumber = set.strengthTestAttemptNumber,
             cableSamplesLeft     = samplesLeft.toList(),
             cableSamplesRight    = samplesRight.toList(),
         )
+        val enrichedStats = completedSetStatsEnricher(baseStats)
+        val strengthTestEvaluation = evaluateStrengthTestAttempt(set, enrichedStats)
+        val stats = enrichedStats.copy(
+            strengthTestProtocolType = set.strengthTestProtocolType,
+            strengthTestAttemptNumber = set.strengthTestAttemptNumber,
+            strengthTestAttemptOutcome = strengthTestEvaluation?.outcome,
+        )
         completedStats.add(stats)
+        strengthTestEvaluation?.let { evaluation ->
+            completedStrengthTestSetMetadata[stats.setIndex] = StrengthTestSetMetadata(
+                protocolType = set.strengthTestProtocolType ?: StrengthTestProtocolType.ONE_REP_MAX,
+                attemptNumber = set.strengthTestAttemptNumber,
+                attemptOutcome = evaluation.outcome,
+            )
+            handleStrengthTestProgression(set, evaluation)
+        }
         samplesLeft.clear()
         samplesRight.clear()
         Log.i(TAG, "completeCurrentPlayerSet: set $completedIndex done — warmup=$warmupRepsCompleted working=$workingRepsCompleted reps (state total=$stateRepsCount engine warmup=${engineState.warmupRepsCompleted} engine working=${engineState.workingRepsCompleted}), ${durSec}s, ${set.weightPerCableLb}lb")
@@ -2285,7 +2461,12 @@ class WorkoutSessionEngine(
                 programName   = activeWorkoutProgramName,
             )
         )
-        _state.value = _state.value.copy(sessionPhase = SessionPhase.WorkoutComplete(stats))
+        _state.value = _state.value.copy(
+            sessionPhase = SessionPhase.WorkoutComplete(
+                workoutStats = stats,
+                strengthTest = completedStrengthTestSessionMetadata,
+            )
+        )
     }
 
     private fun sendPacket(bytes: ByteArray, note: String = "") {

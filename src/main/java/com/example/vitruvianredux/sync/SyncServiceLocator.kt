@@ -8,6 +8,8 @@ import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SessionRepository
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.data.WorkoutSessionRecord
+import com.example.vitruvianredux.data.StrengthTestSessionMetadata
+import com.example.vitruvianredux.data.StrengthTestSetMetadata
 import com.example.vitruvianredux.data.db.ExerciseHistoryEntity
 import com.example.vitruvianredux.data.db.SetHistoryEntity
 import com.example.vitruvianredux.data.SessionLogRepository
@@ -251,6 +253,15 @@ object SyncServiceLocator {
                 ?.toInt(),
             notes = existingLog?.notes.orEmpty(),
             trainingMode = existingLog?.trainingMode,
+            strengthTest = existingLog?.strengthTest ?: session.strengthTestProtocolType?.let { protocolType ->
+                StrengthTestSessionMetadata(
+                    protocolType = protocolType,
+                    testedExerciseId = session.strengthTestedExerciseId,
+                    testedExerciseName = session.strengthTestedExerciseName,
+                    certifiedOneRepMaxLb = session.certifiedOneRepMaxLb,
+                    failedOneRepMaxLb = session.failedOneRepMaxLb,
+                )
+            },
         )
     }
 
@@ -294,6 +305,13 @@ object SyncServiceLocator {
                     telemetryBalancePct = existing?.telemetryBalancePct ?: 0,
                     telemetryFinishForcePct = existing?.telemetryFinishForcePct ?: 100,
                     telemetrySampleCount = existing?.telemetrySampleCount ?: 0,
+                    strengthTest = existing?.strengthTest ?: roomSet.protocolType?.let { protocolType ->
+                        StrengthTestSetMetadata(
+                            protocolType = protocolType,
+                            attemptNumber = roomSet.attemptNumber,
+                            attemptOutcome = roomSet.attemptOutcome,
+                        )
+                    },
                     cableSamplesLeft = existing?.cableSamplesLeft.orEmpty(),
                     cableSamplesRight = existing?.cableSamplesRight.orEmpty(),
                 )

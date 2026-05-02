@@ -37,7 +37,7 @@ internal data class ChartMetric(
 @Composable
 internal fun PremiumChartCard(
     title: String,
-    subtitle: String,
+    subtitle: String = "",
     accent: Color,
     metrics: List<ChartMetric> = emptyList(),
     selectionBadge: String? = null,
@@ -46,13 +46,13 @@ internal fun PremiumChartCard(
 ) {
     val ext = LocalExtendedColors.current
     val cs = MaterialTheme.colorScheme
-    val shape = MaterialTheme.shapes.large
+    val shape = RoundedCornerShape(AppDimens.Corner.md_sm)
 
     Surface(
         modifier = modifier,
         color = Color.Transparent,
         shape = shape,
-        border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant),
+        border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant.copy(alpha = 0.72f)),
     ) {
         Box(
             modifier = Modifier
@@ -61,7 +61,7 @@ internal fun PremiumChartCard(
                         colors = listOf(ext.surface2.copy(alpha = 0.98f), ext.surface1.copy(alpha = 0.94f)),
                     )
                 )
-                .padding(AppDimens.Spacing.md),
+                .padding(AppDimens.Spacing.md_sm),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                 PremiumChartHeader(
@@ -80,18 +80,20 @@ internal fun PremiumChartCard(
 @Composable
 internal fun PremiumChartHeader(
     title: String,
-    subtitle: String,
+    subtitle: String = "",
     accent: Color,
     metrics: List<ChartMetric> = emptyList(),
     selectionBadge: String? = null,
 ) {
     val cs = MaterialTheme.colorScheme
+    val displayedMetrics = metrics.take(2)
+    val extraMetricCount = (metrics.size - displayedMetrics.size).coerceAtLeast(0)
 
-    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm)) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.42f)
-                .height(3.dp)
+                .fillMaxWidth(0.26f)
+                .height(2.dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(
                     Brush.horizontalGradient(
@@ -105,11 +107,15 @@ internal fun PremiumChartHeader(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = cs.onSurfaceVariant,
-            )
+            if (subtitle.isNotBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         if (selectionBadge != null) {
             Surface(
@@ -128,19 +134,19 @@ internal fun PremiumChartHeader(
                 )
             }
         }
-        if (metrics.isNotEmpty()) {
+        if (displayedMetrics.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
             ) {
-                metrics.forEach { metric ->
+                displayedMetrics.forEach { metric ->
                     Surface(
-                        modifier = Modifier.widthIn(min = 104.dp),
-                        color = cs.surfaceVariant.copy(alpha = 0.42f),
-                        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-                        border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant.copy(alpha = 0.65f)),
+                        modifier = Modifier.widthIn(min = 92.dp),
+                        color = cs.surfaceVariant.copy(alpha = 0.30f),
+                        shape = RoundedCornerShape(AppDimens.Corner.sm),
+                        border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant.copy(alpha = 0.46f)),
                     ) {
                         Column(
                             modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs_sm),
@@ -150,6 +156,8 @@ internal fun PremiumChartHeader(
                                 text = metric.label,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = cs.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = metric.value,
@@ -160,6 +168,21 @@ internal fun PremiumChartHeader(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                    }
+                }
+                if (extraMetricCount > 0) {
+                    Surface(
+                        color = cs.surfaceVariant.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(AppDimens.Corner.pill),
+                        border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant.copy(alpha = 0.34f)),
+                    ) {
+                        Text(
+                            text = "+$extraMetricCount",
+                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs_sm),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 }
             }
@@ -177,9 +200,9 @@ internal fun PremiumChartPlotSurface(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = ext.surface3.copy(alpha = 0.42f),
-        shape = RoundedCornerShape(AppDimens.Corner.md),
-        border = BorderStroke(AppDimens.Stroke.thin, accent.copy(alpha = 0.16f)),
+        color = ext.surface3.copy(alpha = 0.30f),
+        shape = RoundedCornerShape(AppDimens.Corner.sm),
+        border = BorderStroke(AppDimens.Stroke.thin, accent.copy(alpha = 0.12f)),
     ) {
         Column(
             modifier = Modifier.padding(AppDimens.Spacing.sm),

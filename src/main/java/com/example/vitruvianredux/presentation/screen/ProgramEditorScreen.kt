@@ -32,6 +32,7 @@ import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
 import com.example.vitruvianredux.data.ExerciseMode
+import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
@@ -65,6 +66,7 @@ fun ProgramEditorScreen(
     var showDaysDialog by remember { mutableStateOf(false) }
 
     val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
+    val analyticsLogs by AnalyticsStore.logsFlow.collectAsState()
 
     val isSaveEnabled = programName.isNotBlank() && draftItems.isNotEmpty() && draftItems.all { it.isValid }
 
@@ -104,7 +106,11 @@ fun ProgramEditorScreen(
                 draftItems = normalizeProgramSupersetDrafts(
                     picked.map { ex ->
                         existingById[ex.id.ifBlank { ex.name }] ?: run {
-                            val suggested = ProgressionEngine.suggestedStartingWeightLb(ex.name)
+                            val suggested = ProgressionEngine.suggestedStartingWeightLb(
+                                exerciseName = ex.name,
+                                sessions = analyticsLogs,
+                                numCables = ex.numCables,
+                            )
                             if (ex.isBodyweightOnly) {
                                 ProgramItemDraft(
                                     exerciseId     = ex.id.ifBlank { ex.name },

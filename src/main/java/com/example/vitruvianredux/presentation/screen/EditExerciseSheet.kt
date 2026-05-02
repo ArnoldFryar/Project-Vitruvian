@@ -25,15 +25,18 @@ import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.data.ExerciseMode
+import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgressionEngine
+import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
+import com.example.vitruvianredux.presentation.components.TrainingInsightInline
 import com.example.vitruvianredux.presentation.components.ValueStepper
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.util.UnitConversions
@@ -74,8 +77,23 @@ fun EditExerciseSheet(
         confirmValueChange    = { it != SheetValue.Hidden },
     )
 
-    val suggestedWeightLb = remember(item.exerciseName) {
-        ProgressionEngine.suggestedStartingWeightLb(item.exerciseName)
+    val analyticsLogs by AnalyticsStore.logsFlow.collectAsState()
+    val suggestedWeightLb = remember(item.exerciseName, exercise?.numCables, analyticsLogs) {
+        ProgressionEngine.suggestedStartingWeightLb(
+            exerciseName = item.exerciseName,
+            sessions = analyticsLogs,
+            numCables = exercise?.numCables ?: 2,
+            targetReps = item.reps ?: item.repRangeMin ?: 10,
+        )
+    }
+    val autoTuneInsight = remember(item.exerciseName, exercise?.numCables, item.reps, item.repRangeMin, analyticsLogs, suggestedWeightLb) {
+        TrainingInsightEngine.programAutoTune(
+            exerciseName = item.exerciseName,
+            sessions = analyticsLogs,
+            suggestedWeightLb = suggestedWeightLb,
+            numCables = exercise?.numCables ?: 2,
+            targetReps = item.reps ?: item.repRangeMin ?: 10,
+        )
     }
     val isBodyweight = exercise?.isBodyweightOnly == true
 
@@ -318,11 +336,9 @@ fun EditExerciseSheet(
                             surfaceColor    = MaterialTheme.colorScheme.surfaceVariant,
                         )
                     }
-                    if (suggestedWeightLb != null) {
-                        Text(
-                            "Suggested starting weight: ${suggestedWeightLb} lb",
-                            style  = MaterialTheme.typography.bodySmall,
-                            color  = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (autoTuneInsight != null) {
+                        TrainingInsightInline(
+                            insight = autoTuneInsight,
                             modifier = Modifier.padding(start = AppDimens.Spacing.xs),
                         )
                     }
@@ -395,7 +411,7 @@ fun EditExerciseSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     SupersetOptionCard(
                         title = "Train solo",
-                        subtitle = "No linked block. Rest runs after this exercise as normal.",
+                        subtitle = "No linked block.",
                         selected = supersetPlacement == EditExerciseSupersetPlacement.Solo,
                         onClick = { supersetPlacement = EditExerciseSupersetPlacement.Solo },
                     )

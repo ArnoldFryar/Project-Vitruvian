@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 @Database(
     entities  = [SessionLog::class, ExerciseHistoryEntity::class, SetHistoryEntity::class, CachedVideoEntity::class],
-    version   = 7,
+    version   = 8,
     exportSchema = true,
 )
 abstract class SessionLogDatabase : RoomDatabase() {
@@ -123,6 +123,19 @@ abstract class SessionLogDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE session_log ADD COLUMN strength_test_protocol_type TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE session_log ADD COLUMN strength_tested_exercise_id TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE session_log ADD COLUMN strength_tested_exercise_name TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE session_log ADD COLUMN certified_one_rep_max_lb INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE session_log ADD COLUMN failed_one_rep_max_lb INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN protocol_type TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN attempt_number INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN attempt_outcome TEXT DEFAULT NULL")
+            }
+        }
+
         /** Return the process-wide singleton, creating it on first call. */
         fun getInstance(context: Context): SessionLogDatabase =
             INSTANCE ?: synchronized(this) {
@@ -131,7 +144,7 @@ abstract class SessionLogDatabase : RoomDatabase() {
                     SessionLogDatabase::class.java,
                     DB_NAME,
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .build().also { INSTANCE = it }
             }
     }

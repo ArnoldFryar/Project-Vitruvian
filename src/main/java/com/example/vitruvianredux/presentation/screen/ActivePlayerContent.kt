@@ -66,6 +66,7 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.data.PersonalBestStore
+import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.ResistanceStepPolicy
@@ -114,9 +115,12 @@ internal fun ActivePlayerContent(
     lastRepQuality: RepQuality?,
     deloadPercentOff: Int? = null,
     machineHeuristic: MachineHeuristic? = null,
+    strengthTestProtocolType: String? = null,
+    strengthTestAttemptNumber: Int? = null,
 ) {
     val isActive   = phase is SessionPhase.ExerciseActive
     val isComplete = phase is SessionPhase.ExerciseComplete
+    val isStrengthTest = strengthTestProtocolType == StrengthTestProtocolType.ONE_REP_MAX
     val haptics    = rememberUiHaptics()
     val usesRepsMode = !isBodyweight && isRepsMode
 
@@ -149,6 +153,7 @@ internal fun ActivePlayerContent(
         else          -> null
     }
     val phaseLabel = when {
+        isStrengthTest -> "1RM ATTEMPT ${strengthTestAttemptNumber ?: activePhase?.setIndex?.plus(1) ?: 1}"
         isWarmupPhase -> "WARMUP"
         isActive      -> "WORK SET"
         else          -> "READY"
@@ -188,6 +193,7 @@ internal fun ActivePlayerContent(
         label         = "SetPointFade",
     )
     val stateSummary = when {
+        isStrengthTest -> "1 certified rep at ${rawWeightLb.roundToInt()} lb per cable"
         isComplete -> "Set logged and ready to continue"
         isDurationMode && isActive && durationCountdown != null -> "$durationCountdown sec remaining"
         isActive && displayTarget != null -> "$displayReps of $displayTarget reps"
@@ -196,9 +202,10 @@ internal fun ActivePlayerContent(
         else -> "$targetDuration sec target"
     }
     val stateSubcopy = when {
+        isStrengthTest -> "Locked protocol attempt"
         isWarmupPhase -> "Warmup set · $selectedMode"
-        isActive -> "Mode locked while the set is running"
-        else -> "Adjust mode and load before you start"
+        isActive -> "Live set in progress"
+        else -> "Ready to start"
     }
 
     // â”€â”€ Personal Best indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -539,11 +546,11 @@ internal fun ActivePlayerContent(
                                             fontWeight = FontWeight.SemiBold,
                                         )
                                         Text(
-                                            text = "â”‚",
+                                            text = "/",
                                             color = MaterialTheme.colorScheme.outlineVariant,
                                         )
                                         Text(
-                                            text = if (isActive) "Locked during set" else "Adjust before start",
+                                            text = if (isActive) "Locked" else "Editable",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
@@ -731,42 +738,22 @@ internal fun ActivePlayerContent(
                         )
                     }
 
-                    if (!isActive) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                        ) {
-                            AppOutlinedButton(
-                                text = "Skip Set",
-                                icon = AppIcons.SkipNext,
-                                onClick = onSkipSet,
-                                modifier = Modifier.weight(1f),
-                            )
-                            AppOutlinedButton(
-                                text = "Skip Exercise",
-                                icon = AppIcons.SkipNext,
-                                onClick = onSkipExercise,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                        ) {
-                            AppOutlinedButton(
-                                text = "Skip Set",
-                                icon = AppIcons.SkipNext,
-                                onClick = onSkipSet,
-                                modifier = Modifier.weight(1f),
-                            )
-                            AppOutlinedButton(
-                                text = "Skip Exercise",
-                                icon = AppIcons.SkipNext,
-                                onClick = onSkipExercise,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    ) {
+                        AppOutlinedButton(
+                            text = if (isStrengthTest) "Abort" else "Skip Set",
+                            icon = AppIcons.SkipNext,
+                            onClick = onSkipSet,
+                            modifier = Modifier.weight(1f),
+                        )
+                        AppOutlinedButton(
+                            text = if (isStrengthTest) "End Test" else "Skip Exercise",
+                            icon = AppIcons.SkipNext,
+                            onClick = onSkipExercise,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
 
                     // â•â•â•â•â•â•â• EXPANDED SETTINGS (visible when sheet pulled up) â•

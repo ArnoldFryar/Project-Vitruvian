@@ -49,6 +49,7 @@ import com.example.vitruvianredux.data.MuscleHeatmap
 import com.example.vitruvianredux.data.PrTracker
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
+import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.TelemetryInsights
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
@@ -131,7 +132,7 @@ fun AnalyticsDashboardScreen(
                 AppEmptyState(
                     icon = AppIcons.BarChart,
                     headline = "No analytics yet",
-                    description = "Complete a workout and this dashboard will start showing volume, frequency, PRs, and muscle trends.",
+                    description = "Complete a workout to unlock analytics.",
                     modifier = Modifier.fillMaxSize(),
                 )
                 return@BoxWithConstraints
@@ -238,7 +239,7 @@ private fun ActiveDeloadOverviewCard(programs: List<SavedProgram>) {
     val accent = MaterialTheme.colorScheme.tertiary
     PremiumChartCard(
         title = if (programs.size == 1) "Active Deload Block" else "Active Deload Blocks",
-        subtitle = "Recovery mode is active in your saved programs.",
+        subtitle = "Recovery mode is active.",
         accent = accent,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
@@ -380,7 +381,7 @@ private fun VolumePerSessionChart(logs: List<AnalyticsStore.SessionLog>, unitSys
 
     PremiumChartCard(
         title = "Volume Per Session",
-        subtitle = "A premium view of your last ${recent.size} workouts, weighted by session output.",
+        subtitle = "Last ${recent.size} workouts by output.",
         accent = barColor,
         metrics = listOf(
             ChartMetric("Peak", UnitConversions.formatVolumeFromKg(maxVol, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), highlightColor),
@@ -504,7 +505,7 @@ private fun WeeklyFrequencyChart(logs: List<AnalyticsStore.SessionLog>) {
 
     PremiumChartCard(
         title = "Weekly Frequency",
-        subtitle = "Twelve-week cadence view, emphasizing consistency over isolated spikes.",
+        subtitle = "Twelve-week cadence.",
         accent = highlightColor,
         metrics = listOf(
             ChartMetric("Peak Week", maxCount.toString(), highlightColor),
@@ -617,7 +618,7 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
 
     PremiumChartCard(
         title = "Most Trained Exercises",
-        subtitle = "Your most repeated movements across completed sessions.",
+        subtitle = "Most repeated movements.",
         accent = Success,
         metrics = listOf(
             ChartMetric("Leader", ranked.first().value.toString(), Success),
@@ -782,7 +783,7 @@ private fun MuscleSilhouetteSection(
 
     PremiumChartCard(
         title = "Muscle Group Heatmap",
-        subtitle = "Body-region emphasis over the selected training window.",
+        subtitle = "Body-region emphasis.",
         accent = BrandBrass,
         metrics = listOf(
             ChartMetric("Regions", distribution.count { it.value > 0.0 }.toString(), BrandBrass),
@@ -964,7 +965,7 @@ private fun ForceTrendSection(logs: List<AnalyticsStore.SessionLog>, unitSystem:
 
     PremiumChartCard(
         title = "Force Trend",
-        subtitle = "Peak bars with average-force markers from sessions that reported machine heuristics.",
+        subtitle = "Peak and average force.",
         accent = highlightColor,
         metrics = listOf(
             ChartMetric("Peak", UnitConversions.formatWeightFromKg(maxPeak, unitSystem), highlightColor),
@@ -1085,7 +1086,7 @@ private fun EchoEccentricUsageSection(logs: List<AnalyticsStore.SessionLog>) {
 
     PremiumChartCard(
         title = "Echo / Eccentric",
-        subtitle = "How often machine-assisted resistance settings appeared in your logged sets.",
+        subtitle = "Resistance-setting usage.",
         accent = topEcho?.color ?: BrandBrass,
         metrics = listOf(
             ChartMetric("Echo Sets", relevantSetCount.toString(), topEcho?.color ?: BrandBrass),
@@ -1183,7 +1184,7 @@ private fun TelemetryBalanceSection(
 
     PremiumChartCard(
         title = "Cable Balance",
-        subtitle = "Compact telemetry summary from sessions that captured left/right cable force data.",
+        subtitle = "Left/right cable summary.",
         accent = accent,
         metrics = listOf(
             ChartMetric("Avg Balance", "$avgBalance%", Success),
@@ -1309,7 +1310,7 @@ private fun ModeBreakdownSection(logs: List<AnalyticsStore.SessionLog>) {
     val topMode = modeData.firstOrNull()
     PremiumChartCard(
         title = "Training Modes",
-        subtitle = "How your logged sessions distribute across mode presets.",
+        subtitle = "Mode distribution.",
         accent = topMode?.let { MODE_COLORS[it.key]?.color } ?: MaterialTheme.colorScheme.primary,
         metrics = listOf(
             ChartMetric("Modes", modeData.size.toString(), MaterialTheme.colorScheme.onSurface),
@@ -1373,6 +1374,34 @@ private fun PersonalRecordsSection(
     logs: List<AnalyticsStore.SessionLog>,
     unitSystem: UnitsStore.UnitSystem,
 ) {
+    data class TestedRecord(
+        val exerciseName: String,
+        val certifiedOneRepMaxLb: Int,
+        val testedAtMs: Long,
+    )
+
+    val testedRecords = remember(logs) {
+        logs
+            .asSequence()
+            .mapNotNull { session ->
+                val test = session.strengthTest ?: return@mapNotNull null
+                if (test.protocolType != StrengthTestProtocolType.ONE_REP_MAX) return@mapNotNull null
+                val certified = test.certifiedOneRepMaxLb?.takeIf { it > 0 } ?: return@mapNotNull null
+                val name = test.testedExerciseName?.takeIf { it.isNotBlank() }
+                    ?: session.exerciseNames.firstOrNull()
+                    ?: return@mapNotNull null
+                TestedRecord(
+                    exerciseName = name,
+                    certifiedOneRepMaxLb = certified,
+                    testedAtMs = session.endTimeMs,
+                )
+            }
+            .groupBy { it.exerciseName.trim().lowercase() }
+            .values
+            .mapNotNull { records -> records.maxByOrNull { it.certifiedOneRepMaxLb } }
+            .sortedByDescending { it.certifiedOneRepMaxLb }
+            .take(5)
+    }
     val pbs = remember(logs) {
         PrTracker.bestSummary(logs)
             .values
@@ -1380,21 +1409,102 @@ private fun PersonalRecordsSection(
             .sortedByDescending { it.bestEst1RmLb }
             .take(10)
     }
-    if (pbs.isEmpty()) return
+    if (pbs.isEmpty() && testedRecords.isEmpty()) return
 
     val isLb = unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB
     val unitLabel = if (isLb) "lb" else "kg"
     val accent = MaterialTheme.colorScheme.primary
+    val testedAccent = Success
+    val topTested = testedRecords.firstOrNull()
 
     PremiumChartCard(
         title = "Personal Records",
-        subtitle = "Top lifts ranked by estimated one-rep max.",
+        subtitle = "Tested and estimated strength records.",
         accent = accent,
         metrics = listOf(
-            ChartMetric("Records", pbs.size.toString(), accent),
-            ChartMetric("Top 1RM", if (pbs.isNotEmpty()) "~${if (isLb) pbs.first().bestEst1RmPerCableLb.roundToInt() else (pbs.first().bestEst1RmPerCableLb * UnitConversions.KG_PER_LB).roundToInt()} $unitLabel" else "-", MaterialTheme.colorScheme.onSurface),
+            ChartMetric("Tested", testedRecords.size.toString(), testedAccent),
+            ChartMetric("Estimated", pbs.size.toString(), accent),
+            ChartMetric("Top Tested", topTested?.let { "${if (isLb) it.certifiedOneRepMaxLb else (it.certifiedOneRepMaxLb * UnitConversions.KG_PER_LB).roundToInt()} $unitLabel" } ?: "-", MaterialTheme.colorScheme.onSurface),
         ),
     ) {
+        if (testedRecords.isNotEmpty()) {
+            Text(
+                text = "Certified tests",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = testedAccent,
+            )
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            val maxTested = testedRecords.first().certifiedOneRepMaxLb.coerceAtLeast(1)
+            testedRecords.forEachIndexed { index, record ->
+                val display = if (isLb) record.certifiedOneRepMaxLb
+                              else (record.certifiedOneRepMaxLb * UnitConversions.KG_PER_LB).roundToInt()
+                val fraction = (record.certifiedOneRepMaxLb.toFloat() / maxTested).coerceIn(0f, 1f)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        AppIcons.EmojiEvents,
+                        contentDescription = null,
+                        tint = testedAccent,
+                        modifier = Modifier.size(AppDimens.Icon.sm),
+                    )
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text(
+                        record.exerciseName,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Box(modifier = Modifier.width(AnalyticsLayout.recordBarWidth).height(AnalyticsLayout.recordBarHeight)) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            drawRoundRect(
+                                color = testedAccent.copy(alpha = 0.15f),
+                                size = Size(size.width, size.height),
+                                cornerRadius = CornerRadius(4f, 4f),
+                            )
+                            drawRoundRect(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(testedAccent.copy(alpha = 0.85f), testedAccent),
+                                    endX = size.width * fraction,
+                                ),
+                                size = Size(size.width * fraction, size.height),
+                                cornerRadius = CornerRadius(4f, 4f),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text(
+                        "$display $unitLabel",
+                        modifier = Modifier.width(72.dp),
+                        textAlign = TextAlign.End,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = testedAccent,
+                    )
+                }
+                if (index < testedRecords.lastIndex) Spacer(Modifier.height(AppDimens.Spacing.xs))
+            }
+            if (pbs.isNotEmpty()) {
+                Spacer(Modifier.height(AppDimens.Spacing.md))
+                Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                Spacer(Modifier.height(AppDimens.Spacing.sm))
+            }
+        }
+
+        if (pbs.isEmpty()) return@PremiumChartCard
+
+        Text(
+            text = "Estimated records",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = accent,
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.xs))
         val maxE1Rm = pbs.first().bestEst1RmLb.coerceAtLeast(1.0)
         pbs.forEachIndexed { index, pb ->
             val e1rmDisplay = if (isLb) pb.bestEst1RmPerCableLb.roundToInt()
@@ -1505,7 +1615,7 @@ private fun RecentPrsSection(
 
     PremiumChartCard(
         title = "Recent PRs",
-        subtitle = "Latest personal record breakthroughs across your logged sessions.",
+        subtitle = "Latest record breakthroughs.",
         accent = accent,
         metrics = listOf(
             ChartMetric("Entries", events.size.toString(), accent),
@@ -1646,7 +1756,7 @@ private fun StallDetectorSection(logs: List<AnalyticsStore.SessionLog>) {
 
     PremiumChartCard(
         title = "Stalled Exercises",
-        subtitle = "Frequent lately but no new PR in 3+ weeks.",
+        subtitle = "Frequent lately, no recent PR.",
         accent = Warning,
         metrics = listOf(
             ChartMetric("Stalled", stalls.size.toString(), Warning),

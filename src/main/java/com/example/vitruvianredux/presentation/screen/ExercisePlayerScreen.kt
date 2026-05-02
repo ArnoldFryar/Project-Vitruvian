@@ -33,6 +33,8 @@ import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.ProgressionResult
+import com.example.vitruvianredux.data.StrengthTestProtocolType
+import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.UnitConversions
@@ -167,6 +169,7 @@ fun ExercisePlayerScreen(
     val isBodyweight = remember(exercise) { exercise?.isBodyweightOnly == true }
     val effectiveResistanceLb = if (isBodyweight) 0f else resistanceLb
     val effectiveSelectedMode = if (isBodyweight) "Old School" else selectedMode
+    val effectiveProgramMode = if (isBodyweight) "Old School" else if (selectedMode == "TUT" && isBeastMode) "TUT Beast" else selectedMode
     val canRepeatPreviousSet = when (phase) {
         is SessionPhase.SetReady -> phase.setIndex > 0
         is SessionPhase.Resting -> workoutVM.completedExerciseStats.isNotEmpty()
@@ -376,6 +379,7 @@ fun ExercisePlayerScreen(
                             onClearTaggedExercise = { workoutVM.justLiftTaggedExercise = null },
                             prCount      = prCount,
                             deloadMessage = deloadMessage,
+                            strengthTest = completePhase.strengthTest ?: workoutVM.strengthTestSessionMetadata,
                             exerciseSets = workoutVM.completedExerciseStats.map { es ->
                                 com.example.vitruvianredux.data.AnalyticsStore.ExerciseSetLog(
                                     exerciseId = es.exerciseId,
@@ -400,7 +404,8 @@ fun ExercisePlayerScreen(
                     val readyPhase = phase as? SessionPhase.SetReady
                     if (readyPhase != null) {
                         val isOpenEnded = readyPhase.isJustLift
-                        val isExerciseMenuLaunch = !isOpenEnded && workoutVM.activeProgramId == null
+                        val isStrengthTest = readyPhase.strengthTestProtocolType == StrengthTestProtocolType.ONE_REP_MAX
+                        val isExerciseMenuLaunch = !isOpenEnded && workoutVM.activeProgramId == null && !isStrengthTest
                         val canEditExerciseMenuPlan = isExerciseMenuLaunch && readyPhase.setIndex == 0
                         val activeDeloadPercent = workoutVM.activeProgramDeloadPercent
 
@@ -419,6 +424,13 @@ fun ExercisePlayerScreen(
                                 )
                             else null
                         }
+                        val progressionInsight = remember(progressionSuggestion, readyPhase.repRangeMin, readyPhase.repRangeMax) {
+                            TrainingInsightEngine.progressionExplanation(
+                                result = progressionSuggestion,
+                                repRangeMin = readyPhase.repRangeMin,
+                                repRangeMax = readyPhase.repRangeMax,
+                            )
+                        }
                         SetReadyContent(
                             exerciseName      = readyPhase.exerciseName,
                             setIndex          = readyPhase.setIndex,
@@ -432,6 +444,8 @@ fun ExercisePlayerScreen(
                             warmupReps        = warmupReps,
                             resistanceLb      = effectiveResistanceLb,
                             isRepsMode        = isRepsMode,
+                            strengthTestProtocolType = readyPhase.strengthTestProtocolType,
+                            strengthTestAttemptNumber = readyPhase.strengthTestAttemptNumber,
                             isOpenEnded       = isOpenEnded,
                             showSetsStepper   = isOpenEnded || canEditExerciseMenuPlan,
                             showRestTimerPicker = canEditExerciseMenuPlan,
@@ -453,7 +467,9 @@ fun ExercisePlayerScreen(
                             },
                             onAutoPlayChange   = { autoPlay = it; workoutVM.autoPlay = it },
                             onGo = {
-                                if (canEditExerciseMenuPlan) {
+                                if (isStrengthTest) {
+                                    workoutVM.confirmReady()
+                                } else if (canEditExerciseMenuPlan) {
                                     // Re-queue the engine with the user's desired number of sets.
                                     // All sets share the same configuration, including rest.
                                     workoutVM.startPlayerWorkout(
@@ -469,7 +485,7 @@ fun ExercisePlayerScreen(
                                                 weightPerCableLb  = if (isBodyweight) 0 else effectiveResistanceLb.roundToInt(),
                                                 restAfterSec      = restAfterSec,
                                                 warmupReps        = if (isBodyweight) 0 else warmupReps,
-                                                programMode       = effectiveSelectedMode,
+                                                programMode       = effectiveProgramMode,
                                                 muscleGroups      = exercise?.muscleGroups ?: emptyList(),
                                                 muscles           = exercise?.muscles ?: emptyList(),
                                                 numCables         = exercise?.numCables ?: 2,
@@ -485,6 +501,9 @@ fun ExercisePlayerScreen(
                                         targetDurationOverride = if (!isOpenEnded && !isRepsMode) targetDuration else null,
                                         weightOverride         = effectiveResistanceLb.roundToInt(),
                                         warmupOverride         = warmupReps,
+                                        programModeOverride    = effectiveProgramMode,
+                                        echoLevelOverride      = echoLevel,
+                                        eccentricLoadPctOverride = eccentricPct,
                                     )
                                 }
                             },
@@ -505,17 +524,34 @@ fun ExercisePlayerScreen(
                             },
                             progressionSuggestionLb = (progressionSuggestion as? ProgressionResult.Increase)?.newWeightLb,
                             progressionDeloadLb     = (progressionSuggestion as? ProgressionResult.Deload)?.newWeightLb,
+                            progressionInsight      = progressionInsight,
                             onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
                             deloadPercentOff    = activeDeloadPercent,
                             isEchoMode          = (effectiveSelectedMode == "Echo"),
                             selectedMode        = effectiveSelectedMode,
-                            onModeSelect        = { selectedMode = it },
+                            onModeSelect        = {
+                                selectedMode = it
+                                workoutVM.patchCurrentSetResistanceProfile(
+                                    programMode = if (it == "TUT" && isBeastMode) "TUT Beast" else it,
+                                )
+                            },
                             isBeastMode         = isBeastMode,
-                            onBeastModeChange   = { isBeastMode = it },
+                            onBeastModeChange   = {
+                                isBeastMode = it
+                                workoutVM.patchCurrentSetResistanceProfile(
+                                    programMode = if (selectedMode == "TUT" && it) "TUT Beast" else selectedMode,
+                                )
+                            },
                             echoLevel           = echoLevel,
-                            onEchoLevelChange   = { echoLevel = it },
+                            onEchoLevelChange   = {
+                                echoLevel = it
+                                workoutVM.patchCurrentSetResistanceProfile(echoLevel = it)
+                            },
                             eccentricPct        = eccentricPct,
-                            onEccentricPctChange = { eccentricPct = it },
+                            onEccentricPctChange = {
+                                eccentricPct = it
+                                workoutVM.patchCurrentSetResistanceProfile(eccentricLoadPct = it)
+                            },
                             modifier            = Modifier.fillMaxSize(),
                         )
                     }
@@ -551,7 +587,13 @@ fun ExercisePlayerScreen(
                         onBeastModeChange     = { isBeastMode = it },
                         modeExpanded          = modeExpanded,
                         onModeExpandChange    = { if (it) { WiringRegistry.hit(A_PLAYER_MODE_DROPDOWN); WiringRegistry.recordOutcome(A_PLAYER_MODE_DROPDOWN, ActualOutcome.SheetOpened("mode_dropdown")) }; modeExpanded = it },
-                        onModeSelect          = { selectedMode = it; modeExpanded = false },
+                        onModeSelect          = {
+                            selectedMode = it
+                            modeExpanded = false
+                            workoutVM.patchCurrentSetResistanceProfile(
+                                programMode = if (it == "TUT" && isBeastMode) "TUT Beast" else it,
+                            )
+                        },
                         echoLevel             = echoLevel,
                         onEchoLevelChange     = { echoLevel = it },
                         eccentricPct          = eccentricPct,
@@ -589,7 +631,7 @@ fun ExercisePlayerScreen(
                                         targetDurationSec  = if (isBodyweight) targetDuration else if (!isRepsMode) targetDuration else null,
                                         weightPerCableLb   = effectiveResistanceLb.roundToInt(),
                                         warmupReps         = warmupReps,
-                                        programMode        = if (isBodyweight) "Old School" else if (selectedMode == "TUT" && isBeastMode) "TUT Beast" else selectedMode,
+                                        programMode        = effectiveProgramMode,
                                         echoLevel          = echoLevel,
                                         eccentricLoadPct   = eccentricPct,
                                     )
@@ -603,6 +645,8 @@ fun ExercisePlayerScreen(
                         lastRepQuality         = lastRepQuality,
                         deloadPercentOff       = workoutVM.activeProgramDeloadPercent,
                         machineHeuristic       = machineHeuristic,
+                        strengthTestProtocolType = (phase as? SessionPhase.ExerciseActive)?.strengthTestProtocolType,
+                        strengthTestAttemptNumber = (phase as? SessionPhase.ExerciseActive)?.strengthTestAttemptNumber,
                     )
                 }
 

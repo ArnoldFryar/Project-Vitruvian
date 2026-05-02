@@ -43,11 +43,13 @@ import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.data.TemplateRepository
+import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ProgramPreviewCard
 import com.example.vitruvianredux.presentation.components.ProgramPreviewChip
+import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.components.ValueStepper
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.util.loadExercises
@@ -128,6 +130,7 @@ onClick = { showDeleteDialog = false }) {
     val daysLabel = formatScheduledDays(program.scheduledDays)
     val activeDeload = program.deloadState
     val deloadRecommendation = remember(program, allLogs) { buildProgramDeloadRecommendation(program, allLogs) }
+    val programInsight = remember(program, allLogs) { TrainingInsightEngine.programQuality(program, allLogs) }
     val bottomBarPadding = 112.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     SideEffect {
@@ -199,7 +202,7 @@ onClick = { showDeleteDialog = false }) {
                         }
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            "Starts in the saved order with your programmed load and rest.",
+                            "Saved order, load, and rest.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.9f),
                         )
@@ -208,6 +211,17 @@ onClick = { showDeleteDialog = false }) {
             }
 
             item(key = "exercises_gap") { Spacer(Modifier.height(12.dp)) }
+
+            if (programInsight != null) {
+                item(key = "program_insight") {
+                    TrainingInsightCard(
+                        insight = programInsight,
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        compact = true,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
 
             // ── Exercise cards ────────────────────────────────────────────
             itemsIndexed(program.items, key = { _, item -> item.exerciseId + item.exerciseName }) { index, item ->

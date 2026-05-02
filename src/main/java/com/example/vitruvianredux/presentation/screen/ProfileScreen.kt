@@ -63,6 +63,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
+import com.example.vitruvianredux.presentation.components.DialogContainer
 import com.example.vitruvianredux.presentation.components.PremiumChartHeader
 import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.components.TrainingMomentumCard
@@ -261,40 +262,60 @@ fun ProfileScreen(
     if (showEditNameDialog) {
         var editText by remember { mutableStateOf(displayName) }
         val focusRequester = remember { FocusRequester() }
-        AlertDialog(
-            onDismissRequest = { showEditNameDialog = false },
-            title = { Text(stringResource(R.string.profile_edit_name_title)) },
-            text = {
+        DialogContainer(onDismiss = { showEditNameDialog = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(AppDimens.Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+            ) {
+                Text(
+                    stringResource(R.string.profile_edit_name_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
                 OutlinedTextField(
                     value = editText,
                     onValueChange = { editText = it },
                     label = { Text(stringResource(R.string.profile_edit_name_label)) },
                     singleLine = true,
                     isError = editText.isBlank(),
-                    supportingText = if (editText.isBlank()) {
-                        { Text(stringResource(R.string.profile_edit_name_error)) }
-                    } else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
                 )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val trimmed = editText.trim()
-                        if (trimmed.isNotBlank()) {
-                            ProfileStore.setDisplayName(trimmed)
-                            showEditNameDialog = false
-                        }
-                    },
-                    enabled = editText.isNotBlank(),
-                ) { Text(stringResource(R.string.cd_save)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditNameDialog = false }) { Text(stringResource(R.string.common_cancel)) }
-            },
-        )
+                if (editText.isBlank()) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.54f),
+                    ) {
+                        Text(
+                            stringResource(R.string.profile_edit_name_error),
+                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = { showEditNameDialog = false }) { Text(stringResource(R.string.common_cancel)) }
+                    TextButton(
+                        onClick = {
+                            val trimmed = editText.trim()
+                            if (trimmed.isNotBlank()) {
+                                ProfileStore.setDisplayName(trimmed)
+                                showEditNameDialog = false
+                            }
+                        },
+                        enabled = editText.isNotBlank(),
+                    ) { Text(stringResource(R.string.cd_save)) }
+                }
+            }
+        }
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
     }
 
@@ -454,8 +475,8 @@ fun ProfileScreen(
             // -- Empty state --
             AppEmptyState(
                 icon = AppIcons.FitnessCenter,
-                headline = "No workouts yet",
-                description = "Complete a session to start seeing your history and personal records.",
+                headline = "No training history yet",
+                description = "Log a workout to start building momentum.",
                 modifier = Modifier.padding(vertical = AppDimens.Spacing.xl),
             )
         } else {
@@ -510,8 +531,8 @@ fun ProfileScreen(
                     // -- Date section header --
                     Text(
                         text = bucket.label,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
                         color = cs.primary,
                         modifier = Modifier.padding(top = AppDimens.Spacing.md, bottom = AppDimens.Spacing.xs_sm),
                     )
@@ -921,7 +942,7 @@ fun ProfileScreen(
 
                     ProfileChartBlock(
                         title = "Weekly Volume",
-                        subtitle = "Day-by-day workload across the current seven-day window.",
+                        subtitle = "Current seven-day workload.",
                         accent = barColor,
                         metrics = listOf(
                             ChartMetric("Total", UnitConversions.formatVolumeFromKg(weekTotal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), barColor),
@@ -1016,7 +1037,7 @@ fun ProfileScreen(
                     val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ProfileChartBlock(
                         title = "Monthly Volume",
-                        subtitle = "Weekly rollup for the selected month so volume spikes read cleanly.",
+                        subtitle = "Weekly rollup.",
                         accent = barColor,
                         metrics = listOf(
                             ChartMetric("Total", UnitConversions.formatVolumeFromKg(monthTotal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), barColor),
@@ -1085,7 +1106,7 @@ fun ProfileScreen(
                     val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ProfileChartBlock(
                         title = "Yearly Volume",
-                        subtitle = "Month-by-month workload across the selected year.",
+                        subtitle = "Monthly workload.",
                         accent = barColor,
                         metrics = listOf(
                             ChartMetric("Total", UnitConversions.formatVolumeFromKg(yearTotal, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), barColor),
@@ -1170,7 +1191,7 @@ fun ProfileScreen(
                     val todayIndex = if (periodOffset == 0) today.dayOfWeek.value - 1 else -1
                     ProfileChartBlock(
                         title = "Weekly Sessions",
-                        subtitle = "Frequency across the active week, with today emphasized when relevant.",
+                        subtitle = "Active-week frequency.",
                         accent = sessColor,
                         metrics = listOf(
                             ChartMetric("Total", "$weekTotal", sessColor),
@@ -1212,7 +1233,7 @@ fun ProfileScreen(
                     val maxVal = weeklyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
                     ProfileChartBlock(
                         title = "Monthly Sessions",
-                        subtitle = "Weekly frequency clusters for the selected month.",
+                        subtitle = "Weekly frequency.",
                         accent = sessColor,
                         metrics = listOf(
                             ChartMetric("Total", monthTotal.toString(), sessColor),
@@ -1251,7 +1272,7 @@ fun ProfileScreen(
                     val maxVal = monthlyBuckets.maxOrNull()?.takeIf { it > 0 } ?: 1
                     ProfileChartBlock(
                         title = "Yearly Sessions",
-                        subtitle = "Month-by-month training frequency across the selected year.",
+                        subtitle = "Monthly frequency.",
                         accent = sessColor,
                         metrics = listOf(
                             ChartMetric("Total", yearTotal.toString(), sessColor),

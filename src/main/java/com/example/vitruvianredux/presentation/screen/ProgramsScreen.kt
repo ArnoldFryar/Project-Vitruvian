@@ -4,12 +4,10 @@ package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,13 +36,11 @@ import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 import com.example.vitruvianredux.presentation.audit.*
-import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
 import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.ui.MotionTokens
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -67,6 +63,74 @@ private fun Set<DayOfWeek>.toggle(day: DayOfWeek): Set<DayOfWeek> =
 val savedProgramsFlow: StateFlow<List<SavedProgram>> get() = ProgramStore.savedProgramsFlow
 
 fun deleteProgram(id: String) = ProgramStore.deleteProgram(id)
+
+@Composable
+private fun ProgramActionRail(
+    hevyEnabled: Boolean,
+    onCreate: () -> Unit,
+    onImport: () -> Unit,
+    onHevyImport: () -> Unit,
+    onTemplates: () -> Unit,
+) {
+    val actions = buildList {
+        add(Triple("Create", AppIcons.AddCircleOutline, onCreate))
+        add(Triple("Import", AppIcons.FileDownload, onImport))
+        if (hevyEnabled) add(Triple("Hevy", AppIcons.CloudDownload, onHevyImport))
+        add(Triple("Templates", AppIcons.GridView, onTemplates))
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+    ) {
+        actions.forEach { (label, icon, onClick) ->
+            ProgramActionTile(
+                label = label,
+                icon = icon,
+                onClick = onClick,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProgramActionTile(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(AppDimens.Corner.sm),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f),
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs, vertical = AppDimens.Spacing.sm),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(AppDimens.Icon.sm),
+            )
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
 
 @Composable
 fun ProgramsScreen(
@@ -160,7 +224,7 @@ fun ProgramsScreen(
         }
         AlertDialog(
             onDismissRequest = { showBulkDeleteDialog = false },
-            title = { Text("Confirm bulk remove") },
+            title = { Text("Remove selected?") },
             text = { Text(deleteSummary) },
             confirmButton = {
                 TextButton(
@@ -230,16 +294,16 @@ fun ProgramsScreen(
 
             item(key = "subtitle") {
                 val listGuidance = when {
-                    orderedPrograms.isEmpty() -> "Build repeatable workouts, save favorites, or import a plan in a couple of taps."
-                    scheduledTodayCount > 0 && hiddenProgramsCount > 0 -> "$scheduledTodayCount scheduled today. Favorites and today\'s workouts stay visible first."
-                    hiddenProgramsCount > 0 -> "Favorites stay pinned here. Show more to browse the rest of your saved workouts."
-                    scheduledTodayCount > 0 -> "$scheduledTodayCount scheduled today. Use the calendar on a row to adjust workout days quickly."
-                    else -> "Tap a program to open it, or use the calendar on a row to adjust workout days without leaving the list."
+                    orderedPrograms.isEmpty() -> "Build or import a repeatable plan."
+                    scheduledTodayCount > 0 && hiddenProgramsCount > 0 -> "$scheduledTodayCount today · $hiddenProgramsCount hidden"
+                    hiddenProgramsCount > 0 -> "Favorites pinned · $hiddenProgramsCount hidden"
+                    scheduledTodayCount > 0 -> "$scheduledTodayCount scheduled today"
+                    else -> "Saved training plans"
                 }
                 Text(listGuidance,
-                    style    = MaterialTheme.typography.bodyMedium,
+                    style    = MaterialTheme.typography.labelMedium,
                     color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = AppDimens.Spacing.lg),
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
                 )
             }
 
@@ -255,91 +319,23 @@ fun ProgramsScreen(
 
 
 
-            item(key = "create") {
-                val createInteraction = remember { MutableInteractionSource() }
-                val createPressed by createInteraction.collectIsPressedAsState()
-                val createScale by animateFloatAsState(
-                    targetValue = if (createPressed) MotionTokens.PRESS_SCALE else 1f,
-                    animationSpec = MotionTokens.SnapSpring, label = "createScale",
+            item(key = "program_actions") {
+                ProgramActionRail(
+                    hevyEnabled = hevyEnabled,
+                    onCreate = {
+                        WiringRegistry.hit(A_PROGRAMS_CREATE_OPEN)
+                        WiringRegistry.recordOutcome(A_PROGRAMS_CREATE_OPEN, ActualOutcome.SheetOpened("program_builder"))
+                        showBuilder = true
+                    },
+                    onImport = onNavigateToImport,
+                    onHevyImport = onNavigateToHevyImport,
+                    onTemplates = {
+                        WiringRegistry.hit(A_PROGRAMS_TEMPLATES)
+                        WiringRegistry.recordOutcome(A_PROGRAMS_TEMPLATES, ActualOutcome.Navigated("templates"))
+                        onNavigateToTemplates()
+                    },
                 )
-                AppCard(
-                    modifier = Modifier.fillMaxWidth()
-                        .graphicsLayer(scaleX = createScale, scaleY = createScale)
-                        .clickable(interactionSource = createInteraction, indication = null) {
-                            WiringRegistry.hit(A_PROGRAMS_CREATE_OPEN)
-                            WiringRegistry.recordOutcome(A_PROGRAMS_CREATE_OPEN, ActualOutcome.SheetOpened("program_builder"))
-                            showBuilder = true
-                        },
-                ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(AppIcons.AddCircleOutline, contentDescription = stringResource(R.string.cd_add), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
-                        Spacer(Modifier.width(AppDimens.Spacing.md))
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.programs_create_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                            Text(stringResource(R.string.programs_create_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
-            }
-
-            item(key = "import_group") {
-                AppCard(modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                    val importInteraction = remember { MutableInteractionSource() }
-                    val importPressed by importInteraction.collectIsPressedAsState()
-                    val importScale by animateFloatAsState(
-                        targetValue = if (importPressed) MotionTokens.PRESS_SCALE else 1f,
-                        animationSpec = MotionTokens.SnapSpring, label = "importScale",
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer(scaleX = importScale, scaleY = importScale)
-                            .clickable(interactionSource = importInteraction, indication = null) { onNavigateToImport() }
-                            .padding(AppDimens.Spacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(AppIcons.FileDownload, contentDescription = stringResource(R.string.cd_download), tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(36.dp))
-                        Spacer(Modifier.width(AppDimens.Spacing.md))
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.programs_import_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                            Text(stringResource(R.string.programs_import_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (hevyEnabled) {
-                        Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant)
-                        val hevyInteraction = remember { MutableInteractionSource() }
-                        val hevyPressed by hevyInteraction.collectIsPressedAsState()
-                        val hevyScale by animateFloatAsState(
-                            targetValue   = if (hevyPressed) MotionTokens.PRESS_SCALE else 1f,
-                            animationSpec = MotionTokens.SnapSpring, label = "hevyScale",
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer(scaleX = hevyScale, scaleY = hevyScale)
-                                .clickable(interactionSource = hevyInteraction, indication = null) { onNavigateToHevyImport() }
-                                .padding(AppDimens.Spacing.md),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(AppIcons.CloudDownload, contentDescription = stringResource(R.string.cd_cloud_download), tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(36.dp))
-                            Spacer(Modifier.width(AppDimens.Spacing.md))
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(R.string.programs_hevy_import_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                Text(stringResource(R.string.programs_hevy_import_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    } // Column
-                }
-                Spacer(Modifier.height(AppDimens.Spacing.lg))
+                Spacer(Modifier.height(AppDimens.Spacing.md))
             }
 
             item(key = "programs_header") {
@@ -389,7 +385,7 @@ fun ProgramsScreen(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                             ) {
                                 Text(
-                                    "$hiddenProgramsCount hidden until Show more",
+                                    "$hiddenProgramsCount hidden",
                                     modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -604,9 +600,9 @@ fun ProgramsScreen(
                                     Spacer(Modifier.height(AppDimens.Spacing.xs))
                                     val scheduleActionActive = editingScheduleId == p.id || isScheduledToday
                                     val scheduleActionLabel = when {
-                                        editingScheduleId == p.id -> "Hide workout days"
-                                        scheduleSummary == null -> "Set workout days"
-                                        else -> "Edit workout days"
+                                        editingScheduleId == p.id -> "Hide"
+                                        scheduleSummary == null -> "Schedule"
+                                        else -> "Days"
                                     }
                                     Surface(
                                         shape = RoundedCornerShape(999.dp),
@@ -633,22 +629,6 @@ fun ProgramsScreen(
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = if (scheduleActionActive) MaterialTheme.colorScheme.onPrimaryContainer
                                                         else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
-                                }
-                                if (scheduleSummary == null) {
-                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-                                        Surface(
-                                            shape = RoundedCornerShape(999.dp),
-                                            color = MaterialTheme.colorScheme.surfaceVariant,
-                                        ) {
-                                            Text(
-                                                "No days set",
-                                                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 2.dp),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             )
                                         }
                                     }
@@ -792,10 +772,7 @@ fun ProgramsScreen(
                             modifier = Modifier.size(AppDimens.Icon.sm),
                         )
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
-                        Text(
-                            if (showAllPrograms) "Show less"
-                            else "${nonFavoritePrograms.size} more program${if (nonFavoritePrograms.size != 1) "s" else ""}",
-                        )
+                        Text(if (showAllPrograms) "Show less" else "${nonFavoritePrograms.size} more")
                     }
                 }
             }
@@ -909,8 +886,8 @@ fun ProgramsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        if (vitExpanded || vitRoutines.isEmpty()) "Vitruvian Programs"
-                        else "Vitruvian Programs (${vitRoutines.size})",
+                        if (vitExpanded || vitRoutines.isEmpty()) "Vitruvian Library"
+                        else "Vitruvian Library (${vitRoutines.size})",
                         style    = MaterialTheme.typography.labelLarge,
                         color    = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f),
@@ -932,7 +909,7 @@ fun ProgramsScreen(
                         ) {
                             Icon(AppIcons.Search, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
                             Spacer(Modifier.width(AppDimens.Spacing.xxs))
-                            Text("Search", style = MaterialTheme.typography.labelMedium)
+                            Text("Browse", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -1013,35 +990,6 @@ fun ProgramsScreen(
                 item(key = "vit_spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
             }
 
-            item(key = "templates_header") {
-                Text(
-                    stringResource(R.string.programs_templates),
-                    style    = MaterialTheme.typography.labelLarge,
-                    color    = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.sm),
-                )
-            }
-
-            item(key = "browse_templates") {
-                AppCard(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        WiringRegistry.hit(A_PROGRAMS_TEMPLATES)
-                        WiringRegistry.recordOutcome(A_PROGRAMS_TEMPLATES, ActualOutcome.Navigated("templates"))
-                        onNavigateToTemplates()
-                    },
-                ) {
-                    Row(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(AppIcons.GridView, contentDescription = stringResource(R.string.cd_grid_view), tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(AppDimens.Icon.xl))
-                        Spacer(Modifier.width(AppDimens.Spacing.md))
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.programs_browse_templates), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                            Text(stringResource(R.string.programs_browse_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Icon(AppIcons.ChevronRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
         }
     }
 }

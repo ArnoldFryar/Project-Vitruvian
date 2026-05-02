@@ -80,8 +80,8 @@ fun ActivityHistoryScreen(
             // â”€â”€ Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             AppEmptyState(
                 icon = AppIcons.FitnessCenter,
-                headline = "No workouts yet",
-                description = "Complete your first session to start building your training history.",
+                headline = "Your training log is empty",
+                description = "Finish a workout to start tracking momentum.",
                 modifier = Modifier.padding(innerPadding),
             )
             return@Scaffold
@@ -100,10 +100,9 @@ fun ActivityHistoryScreen(
                     val dateLabel = formatDateHeader(date, today)
                     Text(
                         dateLabel,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = AppDimens.LetterSpacing.tight,
                         modifier = Modifier.padding(
                             top = AppDimens.Spacing.lg,
                             bottom = AppDimens.Spacing.sm,

@@ -171,17 +171,38 @@ fun DevicePickerSheet(
                     // â”€â”€ Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     connectionState is BleConnectionState.Error -> {
                         val msg = (connectionState as BleConnectionState.Error).message
-                        Icon(
-                            imageVector = AppIcons.BluetoothDisabled, contentDescription = stringResource(R.string.cd_bluetooth_disconnected),
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(AppDimens.Icon.xxl),
-                        )
-                        Text(
-                            text = msg,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center,
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(AppDimens.Corner.md),
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.46f),
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(AppDimens.Spacing.md),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.BluetoothDisabled,
+                                    contentDescription = stringResource(R.string.cd_bluetooth_disconnected),
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(AppDimens.Icon.xxl),
+                                )
+                                Text(
+                                    text = "Connection failed",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Text(
+                                    text = msg,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.82f),
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                             modifier = Modifier.fillMaxWidth(),
@@ -201,7 +222,7 @@ fun DevicePickerSheet(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(AppDimens.Corner.lg),
                             ) {
-                                Text("Retry")
+                                Text("Scan Again")
                             }
                         }
                     }

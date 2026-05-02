@@ -13,7 +13,13 @@ import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.HandleState
 import com.example.vitruvianredux.ble.session.NextStep
+import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.OneRepMaxProtocol
 import com.example.vitruvianredux.data.ProgramDeloadState
+import com.example.vitruvianredux.data.ProgressionEngine
+import com.example.vitruvianredux.data.StrengthTestProtocolType
+import com.example.vitruvianredux.data.StrengthTestSessionMetadata
+import com.example.vitruvianredux.data.StrengthTestSetMetadata
 import com.example.vitruvianredux.data.VoiceCoachingSettings
 import com.example.vitruvianredux.data.VoiceCoachingStore
 import com.example.vitruvianredux.model.Exercise
@@ -163,6 +169,9 @@ class WorkoutSessionViewModel(
     var isJustLiftSession: Boolean = false
         private set
 
+    var activeStrengthTestProtocolType: String? = null
+        private set
+
     /** User-entered notes for the current workout session. */
     var sessionNotes: String = ""
 
@@ -182,6 +191,13 @@ class WorkoutSessionViewModel(
     private val _completedExerciseStats = mutableListOf<ExerciseStats>()
     val completedExerciseStats: List<ExerciseStats>
         get() = (_completedExerciseStats + engine.skippedStats).sortedBy { it.setIndex }
+
+    val strengthTestSessionMetadata: StrengthTestSessionMetadata?
+        get() = (state.value.sessionPhase as? SessionPhase.WorkoutComplete)?.strengthTest
+            ?: engine.strengthTestSessionMetadata
+
+    val strengthTestSetMetadataBySetIndex: Map<Int, StrengthTestSetMetadata>
+        get() = engine.strengthTestSetMetadataBySetIndex
 
     /** Most recent scored rep for the current set. */
     private val _lastRepQuality = MutableStateFlow<RepQuality?>(null)
@@ -225,6 +241,7 @@ class WorkoutSessionViewModel(
 
     init {
         watchdog.start(viewModelScope)
+        engine.completedSetStatsEnricher = ::enrichCompletedSetStats
 
         // Voice rep counter — matches Phoenix: only announce WORKING rep numbers.
         // Warmup reps are silent. Working reps are spoken via TTS (1, 2, 3...).
@@ -302,17 +319,7 @@ class WorkoutSessionViewModel(
                 // ── Capture per-set stats for "Save Changes" feature ─────
                 if (sessionPhase is SessionPhase.ExerciseComplete &&
                     _completedExerciseStats.none { it.setIndex == sessionPhase.stats.setIndex }) {
-                    val aggregate = repQualityTracker.consumeCurrentSetAggregate()
-                    val enriched = if (aggregate != null) {
-                        sessionPhase.stats.copy(
-                            avgQualityScore = aggregate.avgQualityScore,
-                            avgRom          = aggregate.avgRom,
-                            avgTempo        = aggregate.avgTempo,
-                            avgSymmetry     = aggregate.avgSymmetry,
-                            avgSmoothness   = aggregate.avgSmoothness,
-                        )
-                    } else sessionPhase.stats
-                    _completedExerciseStats.add(enriched)
+                    _completedExerciseStats.add(enrichCompletedSetStats(sessionPhase.stats))
                 }
 
                 // ── Rest countdown — speak final 10 seconds ──────────────
@@ -452,7 +459,6 @@ class WorkoutSessionViewModel(
                 FatigueTrendAnalyzer.clearSet()
                 CoachingCueEngine.dismiss()
             }
-
             current is SessionPhase.ExerciseActive && previous !is SessionPhase.ExerciseActive -> {
                 repQualityTracker.clearInFlightRep()
                 _lastRepQuality.value = null
@@ -472,6 +478,17 @@ class WorkoutSessionViewModel(
         }
     }
 
+    private fun enrichCompletedSetStats(stats: ExerciseStats): ExerciseStats {
+        val aggregate = repQualityTracker.consumeCurrentSetAggregate() ?: return stats
+        return stats.copy(
+            avgQualityScore = aggregate.avgQualityScore,
+            avgRom          = aggregate.avgRom,
+            avgTempo        = aggregate.avgTempo,
+            avgSymmetry     = aggregate.avgSymmetry,
+            avgSmoothness   = aggregate.avgSmoothness,
+        )
+    }
+
     override fun onCleared() {
         super.onCleared()
         recordedVoicePlayer.release()
@@ -484,6 +501,7 @@ class WorkoutSessionViewModel(
     fun setPlayerExercise(exercise: Exercise?) {
         _playerExercise.value = exercise
         if (exercise != null) {
+            activeStrengthTestProtocolType = null
             val isBodyweight = exercise.isBodyweightOnly
             sessionStartMs = System.currentTimeMillis()
             repQualityTracker.discardCurrentSet()
@@ -531,6 +549,7 @@ class WorkoutSessionViewModel(
 
     fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
         isJustLiftSession = false
+        activeStrengthTestProtocolType = sets.firstOrNull()?.strengthTestProtocolType
         activeProgramIsDeload = false
         activeProgramDeloadPercent = null
         activeProgramDeloadRemainingSessions = null
@@ -544,6 +563,70 @@ class WorkoutSessionViewModel(
         resetVoiceCueMetricsForSet()
         resetAudioStateForNewWorkout()
         return engine.startPlayerWorkout(sets)
+    }
+
+    fun startOneRepMaxTest(
+        exercise: Exercise,
+        fallbackWeightPerCableLb: Int? = null,
+        config: OneRepMaxProtocol.Config = OneRepMaxProtocol.Config(),
+    ): Boolean {
+        isJustLiftSession = false
+        activeProgramId = null
+        activeProgramName = null
+        activeDayName = null
+        activeProgramIsDeload = false
+        activeProgramDeloadPercent = null
+        activeProgramDeloadRemainingSessions = null
+        activeProgramDeloadSetReduction = 0
+        activeStrengthTestProtocolType = StrengthTestProtocolType.ONE_REP_MAX
+        _playerExercise.value = exercise
+        sessionStartMs = System.currentTimeMillis()
+        _completedExerciseStats.clear()
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
+        currentSetVoiceQualities.clear()
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
+        resetAudioStateForNewWorkout()
+
+        val opener = OneRepMaxProtocol.planOpeningAttempt(
+            exerciseName = exercise.name,
+            logs = AnalyticsStore.logsFlow.value,
+            numCables = exercise.numCables,
+            exerciseId = exercise.stableKey,
+            fallbackWeightPerCableLb = fallbackWeightPerCableLb
+                ?: ProgressionEngine.suggestedStartingWeightLb(
+                    exerciseName = exercise.name,
+                    sessions = AnalyticsStore.logsFlow.value,
+                    numCables = exercise.numCables,
+                )
+                ?: 40,
+            config = config,
+        ) ?: return false
+
+        return engine.startPlayerWorkout(
+            listOf(
+                PlayerSetParams(
+                    exerciseId = exercise.stableKey,
+                    exerciseName = exercise.name,
+                    thumbnailUrl = exercise.thumbnailUrl,
+                    videoUrl = exercise.videoUrl,
+                    targetReps = 1,
+                    targetDurationSec = null,
+                    isOffMachineTimer = false,
+                    weightPerCableLb = opener.opener.perCableLoadLb,
+                    restAfterSec = opener.opener.restAfterSec,
+                    warmupReps = 0,
+                    programMode = "Old School",
+                    muscleGroups = exercise.muscleGroups,
+                    muscles = exercise.muscles,
+                    numCables = exercise.numCables,
+                    strengthTestProtocolType = StrengthTestProtocolType.ONE_REP_MAX,
+                    strengthTestAttemptNumber = opener.opener.attemptNumber,
+                    strengthTestConfig = config,
+                )
+            )
+        )
     }
 
     /**
@@ -560,6 +643,7 @@ class WorkoutSessionViewModel(
         deloadSetReduction: Int = 0,
     ): Boolean {
         isJustLiftSession = false
+        activeStrengthTestProtocolType = null
         val programName = com.example.vitruvianredux.data.ProgramStore
             .savedProgramsFlow.value.find { it.id == programId }?.name
         sessionStartMs    = System.currentTimeMillis()
@@ -738,6 +822,7 @@ class WorkoutSessionViewModel(
             com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
     ) {
         isJustLiftSession = isJustLift
+        activeStrengthTestProtocolType = null
         _playerExercise.value = exercise
         repQualityTracker.discardCurrentSet()
         _lastRepQuality.value = null
@@ -813,7 +898,18 @@ class WorkoutSessionViewModel(
         targetDurationOverride: Int? = null,
         weightOverride: Int? = null,
         warmupOverride: Int? = null,
-    ) = engine.confirmReady(targetRepsOverride, targetDurationOverride, weightOverride, warmupOverride)
+        programModeOverride: String? = null,
+        echoLevelOverride: com.example.vitruvianredux.ble.protocol.EchoLevel? = null,
+        eccentricLoadPctOverride: Int? = null,
+    ) = engine.confirmReady(
+        targetRepsOverride = targetRepsOverride,
+        targetDurationOverride = targetDurationOverride,
+        weightOverride = weightOverride,
+        warmupOverride = warmupOverride,
+        programModeOverride = programModeOverride,
+        echoLevelOverride = echoLevelOverride,
+        eccentricLoadPctOverride = eccentricLoadPctOverride,
+    )
 
     /** Skip the current exercise entirely and advance to the next different exercise. */
     fun skipExercise() {
@@ -854,6 +950,12 @@ class WorkoutSessionViewModel(
     fun patchCurrentSetMode(targetReps: Int?, targetDurationSec: Int?) =
         engine.patchCurrentSetMode(targetReps, targetDurationSec)
 
+    fun patchCurrentSetResistanceProfile(
+        programMode: String? = null,
+        echoLevel: com.example.vitruvianredux.ble.protocol.EchoLevel? = null,
+        eccentricLoadPct: Int? = null,
+    ) = engine.patchCurrentSetResistanceProfile(programMode, echoLevel, eccentricLoadPct)
+
     /** Update the upcoming sets in the player workout. */
     fun updateUpcomingSets(newSets: List<PlayerSetParams>) = engine.updateUpcomingSets(newSets)
 
@@ -869,6 +971,7 @@ class WorkoutSessionViewModel(
     /** Reset from WorkoutComplete back to Idle. Call after user dismisses the summary. */
     fun resetAfterWorkout() {
         isJustLiftSession = false
+        activeStrengthTestProtocolType = null
         activeProgramId   = null
         activeProgramName = null
         activeDayName     = null

@@ -39,11 +39,14 @@ import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.PrTracker
+import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.TelemetryInsights
+import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.PremiumChartCard
 import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
+import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.Error
 import com.example.vitruvianredux.presentation.ui.theme.Success
@@ -72,6 +75,13 @@ private data class BestSetResult(
     val reps: Int,
     val weightLb: Int,
     val est1RmLb: Double,
+)
+
+private data class TestedOneRepMaxResult(
+    val exerciseName: String,
+    val certifiedOneRepMaxLb: Int,
+    val failedOneRepMaxLb: Int?,
+    val testedAtMs: Long,
 )
 
 /** Side-by-side comparison of this exercise instance vs the nearest prior one. */
@@ -253,6 +263,29 @@ private object ExerciseAnalytics {
         }
         .filter { (_, w) -> w > 0 }
 
+    fun latestTestedOneRepMax(
+        exerciseName: String,
+        allSessions: List<AnalyticsStore.SessionLog>,
+    ): TestedOneRepMaxResult? {
+        val targetName = exerciseName.normalisedExerciseName()
+        return allSessions
+            .asSequence()
+            .mapNotNull { session ->
+                val test = session.strengthTest ?: return@mapNotNull null
+                if (test.protocolType != StrengthTestProtocolType.ONE_REP_MAX) return@mapNotNull null
+                val testedName = test.testedExerciseName.orEmpty()
+                if (testedName.normalisedExerciseName() != targetName) return@mapNotNull null
+                val certified = test.certifiedOneRepMaxLb?.takeIf { it > 0 } ?: return@mapNotNull null
+                TestedOneRepMaxResult(
+                    exerciseName = testedName.ifBlank { exerciseName },
+                    certifiedOneRepMaxLb = certified,
+                    failedOneRepMaxLb = test.failedOneRepMaxLb?.takeIf { it > 0 },
+                    testedAtMs = session.endTimeMs,
+                )
+            }
+            .maxByOrNull { it.testedAtMs }
+    }
+
     fun buildTelemetryOverview(
         sets: List<AnalyticsStore.ExerciseSetLog>,
         preferredSetIndex: Int? = null,
@@ -389,6 +422,12 @@ fun ExerciseDataScreen(
     val allTimePbs = remember(pbSummaries, exerciseName) {
         pbSummaries[exerciseName.lowercase().trim()]
     }
+    val testedOneRepMax = remember(allSessions, exerciseName) {
+        ExerciseAnalytics.latestTestedOneRepMax(exerciseName, allSessions)
+    }
+    val coachNote = remember(allSessions, exerciseName) {
+        TrainingInsightEngine.exerciseCoachNote(exerciseName, allSessions)
+    }
 
     // â”€â”€ Multi-session progression (for line chart) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val progressionPoints = remember(allSessions, exerciseName) {
@@ -501,9 +540,18 @@ onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
             }
 
             // â”€â”€ ALL-TIME PERSONAL BESTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            if (allTimePbs != null) {
+            if (allTimePbs != null || testedOneRepMax != null) {
                 EdsSection("Personal Bests")
-                AllTimePbsCard(pbs = allTimePbs, unitSystem = unitSystem)
+                AllTimePbsCard(
+                    pbs = allTimePbs,
+                    testedOneRepMax = testedOneRepMax,
+                    unitSystem = unitSystem,
+                )
+            }
+
+            if (coachNote != null) {
+                EdsSection("Coach Note")
+                TrainingInsightCard(coachNote, compact = true)
             }
 
             // â”€â”€ STATS + ANALYTICS — only when set data is available â”€â”€â”€â”€â”€â”€â”€â”€
@@ -594,7 +642,7 @@ onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                 }
                 PremiumChartCard(
                     title = "Load by Set",
-                    subtitle = "Per-set load distribution for this exercise, with the strongest effort isolated.",
+                    subtitle = "Per-set load distribution.",
                     accent = cs.primary,
                     metrics = listOf(
                         ChartMetric("Sets", sets.size.toString(), cs.onSurface),
@@ -632,7 +680,7 @@ onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                     val latestProgressPoint = progressionPoints.lastOrNull()
                     PremiumChartCard(
                         title = "Progress",
-                        subtitle = "Historical best-set progression across your most recent sessions for this movement.",
+                        subtitle = "Recent best-set progression.",
                         accent = Success,
                         metrics = listOf(
                             ChartMetric("Sessions", progressionPoints.size.toString(), cs.onSurface),
@@ -692,7 +740,7 @@ onClick = onBack) { Text(stringResource(R.string.common_go_back)) }
                     if (telemetryOverview.representativeLeftTraceKg.isNotEmpty() && telemetryOverview.representativeRightTraceKg.isNotEmpty()) {
                         PremiumChartCard(
                             title = "Force Balance Trace",
-                            subtitle = "Representative left and right cable force from your strongest sampled set.",
+                            subtitle = "Left and right force trace.",
                             accent = cs.secondary,
                             metrics = listOf(
                                 ChartMetric("Sampled Sets", telemetryOverview.sampledSets.size.toString(), cs.onSurface),
@@ -807,42 +855,50 @@ private fun BestSetCard(result: BestSetResult, unitSystem: UnitsStore.UnitSystem
  */
 @Composable
 private fun AllTimePbsCard(
-    pbs: PrTracker.PersonalBestSummary,
+    pbs: PrTracker.PersonalBestSummary?,
+    testedOneRepMax: TestedOneRepMaxResult?,
     unitSystem: UnitsStore.UnitSystem,
 ) {
     val cs = MaterialTheme.colorScheme
     EdsCard {
         Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-            if (pbs.bestWeightLb > 0) {
+            if (testedOneRepMax != null) {
+                PbRow("Tested 1RM", formatWeightLb(testedOneRepMax.certifiedOneRepMaxLb, unitSystem))
+                testedOneRepMax.failedOneRepMaxLb?.let { failed ->
+                    PbRow("Final Miss", formatWeightLb(failed, unitSystem))
+                }
+            }
+            if (pbs != null && pbs.bestWeightLb > 0) {
                 PbRow("Best Weight", formatWeightLb(pbs.bestWeightPerCableLb, unitSystem))
             }
-            if (pbs.bestEst1RmLb > 0.0) {
+            if (pbs != null && pbs.bestEst1RmLb > 0.0) {
                 PbRow("Best Est. 1RM", formatWeightLb(pbs.bestEst1RmPerCableLb.roundToInt(), unitSystem))
             }
-            if (pbs.bestSetWeightLb > 0 && pbs.bestSetReps > 0) {
+            if (pbs != null && pbs.bestSetWeightLb > 0 && pbs.bestSetReps > 0) {
                 PbRow(
                     "Best Set",
                     "${pbs.bestSetReps} x ${formatWeightLb(pbs.bestSetWeightPerCableLb, unitSystem)}",
                 )
             }
-            if (pbs.bestVolumeKg > 0.0) {
+            if (pbs != null && pbs.bestVolumeKg > 0.0) {
                 PbRow(
                     "Best Volume / Session",
                     "${UnitConversions.formatVolumeFromKg(pbs.bestVolumeKg, unitSystem)} ${UnitConversions.unitLabel(unitSystem)}",
                 )
             }
-            if (pbs.bestTotalReps > 0) {
+            if (pbs != null && pbs.bestTotalReps > 0) {
                 PbRow("Best Reps / Session", "${pbs.bestTotalReps} reps")
             }
         }
-        if (pbs.latestPbAchievedAtMs > 0L) {
+        val lastEventMs = maxOf(testedOneRepMax?.testedAtMs ?: 0L, pbs?.latestPbAchievedAtMs ?: 0L)
+        if (lastEventMs > 0L) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             Divider(color = cs.outlineVariant, thickness = 0.5.dp)
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             val dateStr = DateTimeFormatter.ofPattern("d MMM yyyy")
-                .format(Instant.ofEpochMilli(pbs.latestPbAchievedAtMs).atZone(ZoneId.systemDefault()))
+                .format(Instant.ofEpochMilli(lastEventMs).atZone(ZoneId.systemDefault()))
             Text(
-                "Last PB: $dateStr",
+                if (testedOneRepMax != null && lastEventMs == testedOneRepMax.testedAtMs) "Last tested: $dateStr" else "Last PB: $dateStr",
                 style = MaterialTheme.typography.labelSmall,
                 color = cs.onSurfaceVariant.copy(alpha = 0.70f),
             )
@@ -1686,6 +1742,8 @@ private fun EdsStatTile(label: String, value: String, modifier: Modifier = Modif
 private fun formatWeightLb(lb: Int, unitSystem: UnitsStore.UnitSystem): String =
     if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) "$lb lb"
     else "%.1f kg".format(UnitConversions.lbToKg(lb.toDouble()))
+
+private fun String.normalisedExerciseName(): String = trim().lowercase()
 
 private fun forceForDisplay(forceKg: Float, unitSystem: UnitsStore.UnitSystem): Float =
     if (unitSystem == UnitsStore.UnitSystem.IMPERIAL_LB) (forceKg * 2.20462f) else forceKg

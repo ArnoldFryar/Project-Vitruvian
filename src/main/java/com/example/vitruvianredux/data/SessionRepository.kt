@@ -31,6 +31,16 @@ data class WorkoutSessionRecord(
     val totalVolumeKg: Float = 0f,
     /** Duration in seconds. */
     val durationSec: Int = 0,
+    /** Optional protocol type for a certified strength test session. */
+    val strengthTestProtocolType: String? = null,
+    /** Exercise id targeted by the certified strength test, if any. */
+    val strengthTestedExerciseId: String? = null,
+    /** Exercise name targeted by the certified strength test, if any. */
+    val strengthTestedExerciseName: String? = null,
+    /** Heaviest successful tested single load in lb, if one was certified. */
+    val certifiedOneRepMaxLb: Int? = null,
+    /** First failed or terminating tested single load in lb, if captured. */
+    val failedOneRepMaxLb: Int? = null,
 
     // ── Sync metadata ─────────────────────────────────────────────────────
     /** Epoch millis of last modification. */
@@ -108,6 +118,11 @@ class SessionRepository(
                     totalSets     = obj.optInt("totalSets", 0),
                     totalVolumeKg = obj.optDouble("totalVolumeKg", 0.0).toFloat(),
                     durationSec   = obj.optInt("durationSec", 0),
+                    strengthTestProtocolType = obj.optString("strengthTestProtocolType", "").takeIf { it.isNotEmpty() },
+                    strengthTestedExerciseId = obj.optString("strengthTestedExerciseId", "").takeIf { it.isNotEmpty() },
+                    strengthTestedExerciseName = obj.optString("strengthTestedExerciseName", "").takeIf { it.isNotEmpty() },
+                    certifiedOneRepMaxLb = if (obj.has("certifiedOneRepMaxLb") && !obj.isNull("certifiedOneRepMaxLb")) obj.optInt("certifiedOneRepMaxLb") else null,
+                    failedOneRepMaxLb = if (obj.has("failedOneRepMaxLb") && !obj.isNull("failedOneRepMaxLb")) obj.optInt("failedOneRepMaxLb") else null,
                     updatedAt     = obj.optLong("updatedAt", 0L),
                     deletedAt     = if (obj.has("deletedAt") && !obj.isNull("deletedAt")) obj.optLong("deletedAt") else null,
                     deviceId      = obj.optString("deviceId", ""),
@@ -132,6 +147,11 @@ class SessionRepository(
                 put("totalSets", s.totalSets)
                 put("totalVolumeKg", s.totalVolumeKg.toDouble())
                 put("durationSec", s.durationSec)
+                if (s.strengthTestProtocolType != null) put("strengthTestProtocolType", s.strengthTestProtocolType) else put("strengthTestProtocolType", JSONObject.NULL)
+                if (s.strengthTestedExerciseId != null) put("strengthTestedExerciseId", s.strengthTestedExerciseId) else put("strengthTestedExerciseId", JSONObject.NULL)
+                if (s.strengthTestedExerciseName != null) put("strengthTestedExerciseName", s.strengthTestedExerciseName) else put("strengthTestedExerciseName", JSONObject.NULL)
+                if (s.certifiedOneRepMaxLb != null) put("certifiedOneRepMaxLb", s.certifiedOneRepMaxLb) else put("certifiedOneRepMaxLb", JSONObject.NULL)
+                if (s.failedOneRepMaxLb != null) put("failedOneRepMaxLb", s.failedOneRepMaxLb) else put("failedOneRepMaxLb", JSONObject.NULL)
                 put("updatedAt", s.updatedAt)
                 if (s.deletedAt != null) put("deletedAt", s.deletedAt) else put("deletedAt", JSONObject.NULL)
                 put("deviceId", s.deviceId)

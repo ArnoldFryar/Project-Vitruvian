@@ -105,7 +105,7 @@ fun FrontCameraOverlay(
                     brush = Brush.radialGradient(
                         0.00f to Color.Transparent,
                         0.68f to Color.Transparent,
-                        1.00f to Color.Black.copy(alpha = 0.48f),
+                        1.00f to Color.Black.copy(alpha = 0.56f),
                     ),
                     size  = size,
                 )

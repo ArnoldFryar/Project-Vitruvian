@@ -44,6 +44,7 @@ object AnalyticsRecorder {
         exerciseSets: List<AnalyticsStore.ExerciseSetLog> = emptyList(),
         notes: String = "",
         trainingMode: String? = null,
+        strengthTest: StrengthTestSessionMetadata? = null,
     ) {
         try {
             val log = AnalyticsStore.buildLog(
@@ -60,6 +61,7 @@ object AnalyticsRecorder {
                 exerciseSets   = exerciseSets,
                 notes          = notes,
                 trainingMode   = trainingMode,
+                strengthTest   = strengthTest,
             )
             AnalyticsStore.record(log)
             Timber.tag("analytics").i("Session logged: ${log.id} (${stats.totalSets} sets, ${stats.totalReps} reps, ${stats.durationSec}s)")
