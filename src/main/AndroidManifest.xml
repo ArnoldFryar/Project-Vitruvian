@@ -5,6 +5,9 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- POST_NOTIFICATIONS required for workout reminders on Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Photo picker permissions for profile avatar -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <!-- Camera is used for the front-camera live overlay during workouts
          (FrontCameraOverlay). It is NOT used for QR code scanning — QR codes
          are generated only (encoded via ZXing). Front camera is a non-core

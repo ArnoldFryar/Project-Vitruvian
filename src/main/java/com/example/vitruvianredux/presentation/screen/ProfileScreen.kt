@@ -399,6 +399,7 @@ fun ProfileScreen(
                         border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
+                            .offset(x = 2.dp, y = 2.dp)
                             .size(22.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
