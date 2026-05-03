@@ -101,7 +101,8 @@ fun DevicePickerSheet(
     ) {
         Card(
             modifier = Modifier
-                .widthIn(max = 320.dp)
+                .widthIn(max = AppDimens.Layout.maxDialogWidth)
+                .fillMaxWidth(0.9f)
                 .padding(AppDimens.Spacing.md),
             shape = RoundedCornerShape(AppDimens.Corner.lg),
             colors = CardDefaults.cardColors(

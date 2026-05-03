@@ -1,7 +1,9 @@
 package com.example.vitruvianredux.presentation.components
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +20,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -86,8 +92,10 @@ internal fun PremiumChartHeader(
     selectionBadge: String? = null,
 ) {
     val cs = MaterialTheme.colorScheme
-    val displayedMetrics = metrics.take(2)
+    var metricsExpanded by remember(metrics) { mutableStateOf(false) }
+    val displayedMetrics = if (metricsExpanded) metrics else metrics.take(2)
     val extraMetricCount = (metrics.size - displayedMetrics.size).coerceAtLeast(0)
+    val hasHiddenMetrics = metrics.size > 2
 
     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm)) {
         Box(
@@ -138,6 +146,7 @@ internal fun PremiumChartHeader(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .animateContentSize()
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
             ) {
@@ -170,14 +179,15 @@ internal fun PremiumChartHeader(
                         }
                     }
                 }
-                if (extraMetricCount > 0) {
+                if (hasHiddenMetrics) {
                     Surface(
+                        modifier = Modifier.clickable { metricsExpanded = !metricsExpanded },
                         color = cs.surfaceVariant.copy(alpha = 0.18f),
                         shape = RoundedCornerShape(AppDimens.Corner.pill),
                         border = BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant.copy(alpha = 0.34f)),
                     ) {
                         Text(
-                            text = "+$extraMetricCount",
+                            text = if (metricsExpanded) "Less" else "+$extraMetricCount",
                             modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs_sm),
                             style = MaterialTheme.typography.labelSmall,
                             color = cs.onSurfaceVariant,

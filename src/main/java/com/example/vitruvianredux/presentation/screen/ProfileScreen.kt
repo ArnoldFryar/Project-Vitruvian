@@ -2,6 +2,9 @@ package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -27,12 +30,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.ActualOutcome
@@ -132,6 +137,8 @@ fun ProfileScreen(
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val history by WorkoutHistoryStore.historyFlow.collectAsState()
     val displayName by ProfileStore.displayNameFlow.collectAsState()
+    val profilePhotoUri by ProfileStore.photoUriFlow.collectAsState()
+    val profileAvatarDataUri by ProfileStore.avatarDataUriFlow.collectAsState()
     val scheduledDays by ProfileStore.scheduledDaysFlow.collectAsState()
     val programs by savedProgramsFlow.collectAsState()
     // Union of all active program days; fall back to user-level profile schedule when none are set.
@@ -151,6 +158,24 @@ fun ProfileScreen(
 
     // â”€â”€ Exercise catalog lookup for weighted muscle group distribution â”€â”€â”€â”€â”€â”€â”€â”€
     val context = androidx.compose.ui.platform.LocalContext.current
+    val profileScope = rememberCoroutineScope()
+    val profilePhotoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        }
+        profileScope.launch {
+            val avatarDataUri = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                ProfileStore.encodeAvatarDataUri(context, uri)
+            }
+            ProfileStore.setAvatarPhoto(uri.toString(), avatarDataUri)
+        }
+    }
     val exerciseLookup = remember {
         mutableStateOf<Map<String, List<String>>>(emptyMap())
     }
@@ -194,6 +219,12 @@ fun ProfileScreen(
     val weekSessionsFromRoom by roomDb.sessionLogDao()
         .currentWeekSessionCountFlow(thisWeekStartMs)
         .collectAsState(initial = 0)
+    val weekPointsFromRoom by roomDb.sessionLogDao()
+        .currentWeekPointsFlow(thisWeekStartMs)
+        .collectAsState(initial = 0)
+    val lifetimePointsFromRoom by roomDb.sessionLogDao()
+        .lifetimePointsFlow()
+        .collectAsState(initial = 0)
 
     // â”€â”€ Real 7-day stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Room Flow is primary; fall back to shared-prefs stores for devices where Room
@@ -222,13 +253,15 @@ fun ProfileScreen(
             else                      -> weekSessionsFromRoom
         }
     }
-    val weekPoints = remember(allLogs, thisWeekStartMs) {
-        allLogs
+    val weekPoints = remember(weekPointsFromRoom, allLogs, thisWeekStartMs) {
+        val analyticsWeekPoints = allLogs
             .filter { it.startTimeMs >= thisWeekStartMs }
             .sumOf { AnalyticsStore.sessionPoints(it.totalVolumeKg, it.avgQualityScore) }
+        if (weekPointsFromRoom > 0) weekPointsFromRoom else analyticsWeekPoints
     }
-    val lifetimePoints = remember(allLogs) {
-        allLogs.sumOf { AnalyticsStore.sessionPoints(it.totalVolumeKg, it.avgQualityScore) }
+    val lifetimePoints = remember(lifetimePointsFromRoom, allLogs) {
+        val analyticsLifetimePoints = allLogs.sumOf { AnalyticsStore.sessionPoints(it.totalVolumeKg, it.avgQualityScore) }
+        if (lifetimePointsFromRoom > 0) lifetimePointsFromRoom else analyticsLifetimePoints
     }
     val rank = remember(lifetimePoints) {
         when {
@@ -321,7 +354,12 @@ fun ProfileScreen(
 
     val cs = MaterialTheme.colorScheme
 
-    ScreenScaffold(title = stringResource(R.string.nav_profile), innerPadding = innerPadding, fillWidth = true) {
+    ScreenScaffold(
+        title = stringResource(R.string.nav_profile),
+        innerPadding = innerPadding,
+        fillWidth = false,
+        maxContentWidth = 960.dp,
+    ) {
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  Profile header
@@ -334,15 +372,44 @@ fun ProfileScreen(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-                modifier = Modifier.size(64.dp),
+                modifier = Modifier
+                    .size(64.dp)
+                    .clickable { profilePhotoPicker.launch(arrayOf("image/*")) },
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "A",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
+                    val avatarModel = profileAvatarDataUri ?: profilePhotoUri
+                    if (avatarModel != null) {
+                        AsyncImage(
+                            model = avatarModel,
+                            contentDescription = "Profile photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Text(
+                            displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "A",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(22.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                AppIcons.Edit,
+                                contentDescription = "Change profile photo",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(12.dp),
+                            )
+                        }
+                    }
                 }
             }
             Spacer(Modifier.width(AppDimens.Spacing.md))
@@ -739,9 +806,9 @@ fun ProfileScreen(
                             record.durationSec >= 60   -> "${record.durationSec / 60} min"
                             else -> "${record.durationSec}s"
                         }
-                        val workoutTitle = record.programName ?: if (record.exerciseNames.size <= 1) "Quick Lift" else
-                            record.exerciseNames.take(2).joinToString(", ") +
-                                if (record.exerciseNames.size > 2) " +${record.exerciseNames.size - 2}" else ""
+                        val workoutTitle = record.programName
+                            ?: record.exerciseNames.takeIf { it.isNotEmpty() }?.joinToString(", ")
+                            ?: "Quick Lift"
                         Card(
                             modifier = Modifier.fillMaxWidth().padding(bottom = AppDimens.Spacing.sm),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),

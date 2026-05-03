@@ -20,6 +20,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.presentation.components.QrScannerView
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.SecondaryScreenScaffold
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.sync.LanSyncManager
 import com.example.vitruvianredux.sync.LanSyncState
@@ -107,26 +108,11 @@ fun SyncScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Wi-Fi Sync") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
-        },
-    ) { scaffoldPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(scaffoldPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.md_sm),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
-        ) {
+    SecondaryScreenScaffold(
+        title = "Wi-Fi Sync",
+        innerPadding = innerPadding,
+        onBack = onBack,
+    ) {
             Text("Choose Role", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
                 "Both devices must be on the same Wi-Fi network.",
@@ -393,7 +379,6 @@ onClick = { lanSyncManager.reset() }, modifier = Modifier.fillMaxWidth()) {
                     }
                 }
             }
-        }
     }
 }
 

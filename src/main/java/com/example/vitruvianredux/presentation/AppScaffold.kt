@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -431,42 +432,55 @@ private fun AppTopBar(
         tonalElevation = 0.dp,
     ) {
         Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = AppDimens.Spacing.md_lg, vertical = AppDimens.Spacing.md_sm),
-            verticalAlignment     = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column {
-                Text(
-                    text       = title,
-                    style      = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(text = stringResource(R.string.project_tagline),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.combinedClickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication        = null,
-                        onClick           = {},
-                        onLongClick       = {
-                            longPressCount++
-                            if (longPressCount >= 5) {
-                                longPressCount = 0
-                                onNavigateToAudit()
-                            }
-                        },
+        BoxWithConstraints {
+            val compact = maxWidth < 380.dp
+            val veryCompact = maxWidth < 330.dp
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(
+                        horizontal = if (compact) AppDimens.Spacing.md else AppDimens.Spacing.md_lg,
+                        vertical = AppDimens.Spacing.md_sm,
                     ),
-                )
-            }
+                verticalAlignment     = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text       = title,
+                        style      = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (!veryCompact) {
+                        Text(text = stringResource(R.string.project_tagline),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.combinedClickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication        = null,
+                                onClick           = {},
+                                onLongClick       = {
+                                    longPressCount++
+                                    if (longPressCount >= 5) {
+                                        longPressCount = 0
+                                        onNavigateToAudit()
+                                    }
+                                },
+                            ),
+                        )
+                    }
+                }
 
-            // LAN sync status indicator — tap to open Sync screen
-            SyncStatusPill(lanState = lanSyncState, onClick = onSyncPillClick)
+                if (!compact) {
+                    SyncStatusPill(lanState = lanSyncState, onClick = onSyncPillClick)
+                }
 
-            when (bleState) {
+                when (bleState) {
                 is BleConnectionState.Connected -> {
                     FilledTonalButton(
                         onClick = onDisconnectClick,
@@ -479,7 +493,13 @@ private fun AppTopBar(
                     ) {
                         Icon(AppIcons.BluetoothConnected, contentDescription = stringResource(R.string.cd_bluetooth_connected), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
-                        Text(bleState.device.name, style = MaterialTheme.typography.labelMedium)
+                        Text(
+                            bleState.device.name,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = if (compact) 72.dp else 132.dp),
+                        )
                     }
                 }
                 is BleConnectionState.Scanning, is BleConnectionState.Connecting -> {
@@ -496,7 +516,7 @@ private fun AppTopBar(
                         } else {
                             stringResource(R.string.trainer_status_connecting)
                         }
-                        Text(label, style = MaterialTheme.typography.labelMedium)
+                        if (!veryCompact) Text(label, style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 else -> {
@@ -507,9 +527,10 @@ private fun AppTopBar(
                     ) {
                         Icon(AppIcons.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
-                        Text(stringResource(R.string.trainer_connect), style = MaterialTheme.typography.labelLarge)
+                        if (!veryCompact) Text(stringResource(R.string.trainer_connect), style = MaterialTheme.typography.labelLarge)
                     }
                 }
+            }
             }
         }
         // Bottom hairline grounds the header against page content

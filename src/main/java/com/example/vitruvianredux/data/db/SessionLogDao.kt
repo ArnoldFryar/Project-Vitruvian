@@ -87,4 +87,29 @@ interface SessionLogDao {
     /** Reactive session count for the current week. */
     @Query("SELECT COUNT(*) FROM session_log WHERE start_time >= :weekStartMs")
     fun currentWeekSessionCountFlow(weekStartMs: Long): Flow<Int>
+
+    /** Reactive points total for the current week, using the same formula as AnalyticsStore.sessionPoints. */
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN total_volume_kg IS NULL OR total_volume_kg <= 0 THEN 0
+                ELSE CAST((total_volume_kg * (0.50 + COALESCE(avg_quality_score, 50) / 200.0) / 10.0) + 0.5 AS INTEGER)
+            END
+        ), 0)
+        FROM session_log
+        WHERE start_time >= :weekStartMs
+    """)
+    fun currentWeekPointsFlow(weekStartMs: Long): Flow<Int>
+
+    /** Reactive lifetime points total, derived from persisted session rows. */
+    @Query("""
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN total_volume_kg IS NULL OR total_volume_kg <= 0 THEN 0
+                ELSE CAST((total_volume_kg * (0.50 + COALESCE(avg_quality_score, 50) / 200.0) / 10.0) + 0.5 AS INTEGER)
+            END
+        ), 0)
+        FROM session_log
+    """)
+    fun lifetimePointsFlow(): Flow<Int>
 }

@@ -70,7 +70,7 @@ fun LedColorPickerDialog(
     ) {
         Surface(
             modifier = Modifier
-                .widthIn(max = AppDimens.Layout.maxContentWidth)
+                .widthIn(max = AppDimens.Layout.maxDialogWidth)
                 .fillMaxWidth(0.94f)
                 .wrapContentHeight(),
             shape          = RoundedCornerShape(AppDimens.Corner.lg),

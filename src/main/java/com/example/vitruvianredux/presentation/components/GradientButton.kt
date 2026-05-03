@@ -4,6 +4,7 @@ import com.vitruvian.trainer.R
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -66,8 +67,8 @@ fun GradientButton(
     } else {
         Brush.verticalGradient(
             listOf(
-                cs.onSurface.copy(alpha = 0.12f),
-                cs.onSurface.copy(alpha = 0.08f),
+                cs.surfaceVariant.copy(alpha = 0.72f),
+                cs.surfaceVariant.copy(alpha = 0.52f),
             )
         )
     }
@@ -88,6 +89,11 @@ fun GradientButton(
                 .graphicsLayer(scaleX = pressScale, scaleY = pressScale)
                 .clip(shape)
                 .background(gradient)
+                .border(
+                    width = AppDimens.Stroke.thin,
+                    color = if (enabled) Color.Transparent else cs.outlineVariant.copy(alpha = 0.64f),
+                    shape = shape,
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication        = null,

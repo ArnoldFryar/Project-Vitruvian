@@ -161,7 +161,15 @@ object AppDimens {
     }
 
     object Layout {
-        /** Maximum content width for tablets / foldables */
-        val maxContentWidth: Dp = 600.dp
+        /** Comfortable prose/form width for secondary flows. */
+        val maxReadableWidth: Dp = 600.dp
+        /** Default screen width for adaptive tablet / foldable layouts. */
+        val maxContentWidth: Dp = 960.dp
+        /** Maximum width for bottom-sheet content on wide screens. */
+        val maxSheetWidth: Dp = 720.dp
+        /** Maximum width for centered dialogs on wide screens. */
+        val maxDialogWidth: Dp = 560.dp
+        /** Maximum width for dense analytics/dashboard surfaces. */
+        val maxDashboardWidth: Dp = 1180.dp
     }
 }

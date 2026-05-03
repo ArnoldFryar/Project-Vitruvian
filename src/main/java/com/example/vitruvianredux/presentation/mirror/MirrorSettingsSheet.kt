@@ -3,12 +3,13 @@ package com.example.vitruvianredux.presentation.mirror
 import com.vitruvian.trainer.R
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
@@ -53,12 +55,11 @@ fun MirrorSettingsSheet(onDismiss: () -> Unit) {
         containerColor   = LocalExtendedColors.current.surface2,
         tonalElevation   = 0.dp,
     ) {
-        Column(
+        AdaptiveSheetColumn(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppDimens.Spacing.md)
                 .navigationBarsPadding()
                 .padding(bottom = AppDimens.Spacing.xl),
+            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md),
         ) {
             Text(text = stringResource(R.string.cd_mirror_settings),
                 style      = MaterialTheme.typography.titleMedium,

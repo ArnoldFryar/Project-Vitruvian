@@ -40,6 +40,7 @@ import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
@@ -182,7 +183,7 @@ onClick = { showDiscardDialog = false }) {
         containerColor   = MaterialTheme.colorScheme.surface,
         tonalElevation   = 0.dp,
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        AdaptiveSheetColumn(contentPadding = PaddingValues()) {
 
             // â”€â”€ Premium Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(

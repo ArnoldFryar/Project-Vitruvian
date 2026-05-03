@@ -7,11 +7,20 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -60,12 +69,16 @@ fun DialogContainer(
             )
         }
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(AppDimens.Spacing.md),
             contentAlignment = Alignment.Center,
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth(0.88f)
+                    .widthIn(max = AppDimens.Layout.maxDialogWidth)
+                    .fillMaxWidth()
                     .graphicsLayer {
                         val p = revealProgress.value
                         scaleX = 0.92f + 0.08f * p
@@ -78,6 +91,60 @@ fun DialogContainer(
                     .padding(vertical = AppDimens.Spacing.sm),
             ) {
                 content()
+            }
+        }
+    }
+}
+
+@Composable
+fun PremiumAlertDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    dismissLabel: String = "Cancel",
+    destructive: Boolean = false,
+) {
+    DialogContainer(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 480.dp)
+                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = AppDimens.Spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss) {
+                    Text(dismissLabel)
+                }
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
+                TextButton(
+                    onClick = onConfirm,
+                    colors = if (destructive) {
+                        ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    } else {
+                        ButtonDefaults.textButtonColors()
+                    },
+                ) {
+                    Text(confirmLabel)
+                }
             }
         }
     }

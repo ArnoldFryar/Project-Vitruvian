@@ -577,6 +577,7 @@ object CloudSyncRepository {
                 RemoteProfile(
                     userId = userId,
                     displayName = emailPrefix,
+                    avatarDataUri = ProfileStore.avatarDataUriFlow.value,
                     updatedAt = now,
                 )
             )
@@ -587,20 +588,22 @@ object CloudSyncRepository {
         val updatedAt = ProfileStore.updatedAt
         if (updatedAt == 0L) return  // never locally modified
         val name = ProfileStore.displayNameFlow.value
+        val avatarDataUri = ProfileStore.avatarDataUriFlow.value
         RemoteDataSource.upsertProfile(
             RemoteProfile(
                 userId = userId,
                 displayName = name,
+                avatarDataUri = avatarDataUri,
                 updatedAt = updatedAt,
             )
         )
-        Timber.tag(TAG).d("Pushed profile displayName=$name")
+        Timber.tag(TAG).d("Pushed profile displayName=$name avatar=${avatarDataUri != null}")
     }
 
     private suspend fun pullProfile(userId: String) {
         val remote = RemoteDataSource.getProfile(userId) ?: return
-        ProfileStore.applyFromRemote(remote.displayName, remote.updatedAt)
-        Timber.tag(TAG).d("Pulled profile displayName=${remote.displayName}")
+        ProfileStore.applyFromRemote(remote.displayName, remote.updatedAt, remote.avatarDataUri)
+        Timber.tag(TAG).d("Pulled profile displayName=${remote.displayName} avatar=${remote.avatarDataUri != null}")
     }
 
     // ═════════════════════════════════════════════════════════════════════════

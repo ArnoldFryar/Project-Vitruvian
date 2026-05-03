@@ -12,6 +12,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -70,6 +71,7 @@ import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SectionHeader
 import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.theme.WarningContainer
@@ -223,10 +225,8 @@ fun JustLiftDialog(
         dragHandle = null,
         tonalElevation = 0.dp,
     ) {
-        Column(
+        AdaptiveSheetColumn(
             modifier = Modifier
-                .widthIn(max = AppDimens.Layout.maxContentWidth)
-                .fillMaxWidth()
                 .padding(horizontal = AppDimens.Spacing.sm)
                 .navigationBarsPadding()
                 .padding(bottom = AppDimens.Spacing.sm)
@@ -241,6 +241,8 @@ fun JustLiftDialog(
                     RoundedCornerShape(topStart = AppDimens.Spacing.lg, topEnd = AppDimens.Spacing.lg),
                 )
                 .verticalScroll(rememberScrollState()),
+            maxWidth = AppDimens.Layout.maxSheetWidth,
+            contentPadding = PaddingValues(),
         ) {
                     Box(
                         modifier = Modifier

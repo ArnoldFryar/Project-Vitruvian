@@ -361,6 +361,31 @@ internal fun SetReadyContent(
             TrainingInsightCard(progressionInsight, compact = true)
             Spacer(Modifier.height(AppDimens.Spacing.sm))
         }
+
+        val goInteraction = remember { MutableInteractionSource() }
+        val goPressed by goInteraction.collectIsPressedAsState()
+        LaunchedEffect(goPressed) {
+            if (goPressed) haptics.emphasis()
+        }
+        val goScale by animateFloatAsState(
+            targetValue   = if (goPressed) 0.96f else 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness    = Spring.StiffnessHigh,
+            ),
+            label = "goScale",
+        )
+        GradientButton(
+            text = if (isStrengthTest) "Start Attempt" else "GO",
+            icon = AppIcons.PlayArrow,
+            onClick = onGo,
+            modifier = Modifier.graphicsLayer {
+                scaleX = goScale
+                scaleY = goScale
+            },
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+
         // â”€â”€ Video / thumbnail preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Box(
             modifier = Modifier
@@ -800,32 +825,6 @@ internal fun SetReadyContent(
                 Switch(checked = autoPlay, onCheckedChange = onAutoPlayChange)
             }
         }
-
-        // â”€â”€ GO button — primary action, visual center of gravity â”€â”€â”€â”€â”€â”€â”€â”€
-        Spacer(Modifier.height(AppDimens.Spacing.xl))
-
-        val goInteraction = remember { MutableInteractionSource() }
-        val goPressed by goInteraction.collectIsPressedAsState()
-        LaunchedEffect(goPressed) {
-            if (goPressed) haptics.emphasis()
-        }
-        val goScale by animateFloatAsState(
-            targetValue   = if (goPressed) 0.96f else 1f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness    = Spring.StiffnessHigh,
-            ),
-            label = "goScale",
-        )
-        GradientButton(
-            text = if (isStrengthTest) "Start Attempt" else "GO",
-            icon = AppIcons.PlayArrow,
-            onClick = onGo,
-            modifier = Modifier.graphicsLayer {
-                scaleX = goScale
-                scaleY = goScale
-            },
-        )
 
         // â”€â”€ Secondary actions — visually subordinate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         Spacer(Modifier.height(AppDimens.Spacing.lg))

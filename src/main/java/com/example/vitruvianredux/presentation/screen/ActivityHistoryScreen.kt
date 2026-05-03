@@ -151,8 +151,11 @@ private fun WorkoutHistoryCard(
         isProgramWorkout && !session.dayName.isNullOrBlank() ->
             session.dayName
         isProgramWorkout -> "Workout"
-        session.exerciseNames.isNotEmpty() -> session.exerciseNames.take(2).joinToString(", ") +
-            if (session.exerciseNames.size > 2) " +${session.exerciseNames.size - 2}" else ""
+        session.exerciseNames.isNotEmpty() -> {
+            val preview = if (expanded) session.exerciseNames else session.exerciseNames.take(2)
+            preview.joinToString(", ") +
+                if (!expanded && session.exerciseNames.size > 2) " +${session.exerciseNames.size - 2}" else ""
+        }
         else -> "Workout"
     }
 

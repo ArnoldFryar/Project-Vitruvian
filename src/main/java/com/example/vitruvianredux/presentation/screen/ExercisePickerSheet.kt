@@ -14,10 +14,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +39,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.model.ExerciseSource
+import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.components.CreateCustomExerciseSheet
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPreviewDialog
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -94,7 +97,10 @@ fun ExercisePickerSheet(
         containerColor   = MaterialTheme.colorScheme.surface,
         tonalElevation   = 0.dp,
     ) {
-        Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
+        AdaptiveSheetColumn(
+            modifier = Modifier.navigationBarsPadding(),
+            contentPadding = PaddingValues(),
+        ) {
             // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(
                 modifier          = Modifier.fillMaxWidth().padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
@@ -276,12 +282,16 @@ fun ExercisePickerSheet(
                     items(filtered, key = { it.stableKey }) { ex ->
                         val isSelected = ex.stableKey in selectedKeys
                         val tags        = ex.groupLabels
-                        val visibleTags = tags.take(2)
-                        val overflow    = tags.size - visibleTags.size
-                        val equipmentLabels = ex.equipment.take(2).map {
+                        var showAllTags by rememberSaveable(ex.stableKey, "tags") { mutableStateOf(false) }
+                        var showAllEquipment by rememberSaveable(ex.stableKey, "equipment") { mutableStateOf(false) }
+                        val visibleTags = if (showAllTags) tags else tags.take(2)
+                        val overflow    = (tags.size - visibleTags.size).coerceAtLeast(0)
+                        val allEquipmentLabels = ex.equipment.map {
                             it.replace('_', ' ').lowercase(java.util.Locale.ROOT)
                                 .replaceFirstChar { c -> c.uppercaseChar() }
                         }
+                        val equipmentLabels = if (showAllEquipment) allEquipmentLabels else allEquipmentLabels.take(2)
+                        val equipmentOverflow = (allEquipmentLabels.size - equipmentLabels.size).coerceAtLeast(0)
 
                         @OptIn(ExperimentalFoundationApi::class)
                         Card(
@@ -358,28 +368,40 @@ fun ExercisePickerSheet(
                                         )
                                     }
                                     if (tags.isNotEmpty()) {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                                        Row(
+                                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                        ) {
                                             visibleTags.forEach { t ->
                                                 SuggestionChip(
                                                     onClick = {},
                                                     label   = { Text(t, style = MaterialTheme.typography.labelSmall) },
                                                 )
                                             }
-                                            if (overflow > 0) {
+                                            if (tags.size > 2) {
                                                 SuggestionChip(
-                                                    onClick = {},
-                                                    label   = { Text("+$overflow", style = MaterialTheme.typography.labelSmall) },
+                                                    onClick = { showAllTags = !showAllTags },
+                                                    label   = { Text(if (showAllTags) "Less" else "+$overflow", style = MaterialTheme.typography.labelSmall) },
                                                 )
                                             }
                                         }
                                     }
                                     if (equipmentLabels.isNotEmpty()) {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                                        Row(
+                                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                        ) {
                                             equipmentLabels.forEach { equip ->
                                                 SuggestionChip(
                                                     onClick = {},
                                                     icon    = { Icon(AppIcons.Link, contentDescription = stringResource(R.string.cd_link_exercises), modifier = Modifier.size(AppDimens.Icon.xs)) },
                                                     label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
+                                                )
+                                            }
+                                            if (allEquipmentLabels.size > 2) {
+                                                SuggestionChip(
+                                                    onClick = { showAllEquipment = !showAllEquipment },
+                                                    label   = { Text(if (showAllEquipment) "Less" else "+$equipmentOverflow", style = MaterialTheme.typography.labelSmall) },
                                                 )
                                             }
                                         }

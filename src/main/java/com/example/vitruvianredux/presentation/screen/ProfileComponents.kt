@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
+import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
@@ -153,7 +154,10 @@ internal fun VolumeDetailSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = LocalExtendedColors.current.surface2,
         tonalElevation = 0.dp) {
-        Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
+        AdaptiveSheetColumn(
+            modifier = Modifier.padding(vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl),
+            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.lg),
+        ) {
             Text("Volume \u2014 This Week", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(AppDimens.Spacing.xs))
@@ -214,7 +218,10 @@ internal fun SessionsDetailSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = LocalExtendedColors.current.surface2,
         tonalElevation = 0.dp) {
-        Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
+        AdaptiveSheetColumn(
+            modifier = Modifier.padding(vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl),
+            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.lg),
+        ) {
             Text("Sessions \u2014 This Week", style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(AppDimens.Spacing.xs))
@@ -309,7 +316,10 @@ internal fun StreakDetailSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState,
         containerColor = LocalExtendedColors.current.surface2,
         tonalElevation = 0.dp) {
-        Column(Modifier.padding(horizontal = AppDimens.Spacing.lg, vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl)) {
+        AdaptiveSheetColumn(
+            modifier = Modifier.padding(vertical = AppDimens.Spacing.sm).padding(bottom = AppDimens.Spacing.xl),
+            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.lg),
+        ) {
             Text(stringResource(R.string.metric_day_streak), style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(AppDimens.Spacing.md))

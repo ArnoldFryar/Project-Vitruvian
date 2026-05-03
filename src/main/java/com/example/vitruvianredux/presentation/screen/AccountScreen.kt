@@ -37,6 +37,7 @@ import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.ui.SecondaryScreenScaffold
 import com.example.vitruvianredux.presentation.util.loadAllExercises
 import io.github.jan.supabase.gotrue.SessionStatus
 import kotlinx.coroutines.Dispatchers
@@ -95,34 +96,12 @@ private fun AccountShell(
     onBack: () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_cloud_not_signed_in)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = AppDimens.Spacing.md)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
-        ) {
-            Spacer(Modifier.height(AppDimens.Spacing.xs))
-            content()
-            Spacer(Modifier.height(AppDimens.Spacing.lg))
-        }
+    SecondaryScreenScaffold(
+        title = stringResource(R.string.settings_cloud_not_signed_in),
+        onBack = onBack,
+    ) {
+        content()
+        Spacer(Modifier.height(AppDimens.Spacing.lg))
     }
 }
 

@@ -35,6 +35,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.GradientButton
+import com.example.vitruvianredux.presentation.components.PremiumAlertDialog
 import com.example.vitruvianredux.presentation.components.SectionHeader
 import com.example.vitruvianredux.presentation.components.StatCard
 import com.example.vitruvianredux.presentation.components.TrainingInsightCard
@@ -107,25 +108,16 @@ fun HomeScreen(
     var showResetStatsDialog by remember { mutableStateOf(false) }
 
     if (showResetStatsDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetStatsDialog = false },
-            title = { Text("Reset analytics") },
-            text = { Text("This clears recorded analytics sessions and the Home stats derived from them. This can't be undone.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        AnalyticsStore.clear()
-                        showResetStatsDialog = false
-                    }
-                ) {
-                    Text("Reset", color = MaterialTheme.colorScheme.error)
-                }
+        PremiumAlertDialog(
+            title = "Reset analytics",
+            message = "This clears recorded analytics sessions and the Home stats derived from them. This can't be undone.",
+            confirmLabel = "Reset",
+            destructive = true,
+            onConfirm = {
+                AnalyticsStore.clear()
+                showResetStatsDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showResetStatsDialog = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
+            onDismiss = { showResetStatsDialog = false },
         )
     }
 

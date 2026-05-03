@@ -56,13 +56,12 @@ fun CreateCustomExerciseSheet(
         containerColor   = LocalExtendedColors.current.surface2,
         tonalElevation   = 0.dp,
     ) {
-        Column(
+        AdaptiveSheetColumn(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppDimens.Spacing.md)
                 .navigationBarsPadding()
                 .padding(bottom = AppDimens.Spacing.xl)
                 .verticalScroll(rememberScrollState()),
+            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
             // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

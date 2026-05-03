@@ -39,6 +39,7 @@ fun ExerciseVideoPreviewDialog(
     ) {
         Surface(
             modifier = Modifier
+                .widthIn(max = AppDimens.Layout.maxSheetWidth)
                 .fillMaxWidth(0.92f)
                 .wrapContentHeight(),
             shape    = RoundedCornerShape(AppDimens.Corner.lg),

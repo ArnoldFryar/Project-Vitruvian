@@ -12,6 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
+import com.vitruvian.trainer.R
+import com.example.vitruvianredux.presentation.ui.AppIcons
 import com.example.vitruvianredux.presentation.components.PremiumGradientBackground
 import com.example.vitruvianredux.presentation.ui.AppDimens
 
@@ -33,8 +37,9 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
  * @param actions         Optional icon buttons placed in the TopAppBar end-slot.
  * @param fillWidth        When true the content column expands to fill all available width
  *                          (suitable for dashboard screens on tablets). When false (default)
- *                          the content is capped at [AppDimens.Layout.maxContentWidth] and
+ *                          the content is capped at [maxContentWidth] and
  *                          centred, preventing over-stretched layouts on large screens.
+ * @param maxContentWidth  Width cap used when [fillWidth] is false.
  * @param content         Screen body, rendered inside a scrollable [Column] with
  *                        [AppDimens.Spacing.md] horizontal and [AppDimens.Spacing.sm] vertical padding.
  */
@@ -44,6 +49,7 @@ fun ScreenScaffold(
     innerPadding: PaddingValues,
     collapseOnScroll: Boolean = false,
     fillWidth: Boolean = false,
+    maxContentWidth: Dp = AppDimens.Layout.maxContentWidth,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -100,7 +106,7 @@ fun ScreenScaffold(
                 modifier = Modifier
                     .then(
                         if (fillWidth) Modifier.fillMaxWidth()
-                        else Modifier.widthIn(max = AppDimens.Layout.maxContentWidth)
+                        else Modifier.widthIn(max = maxContentWidth)
                     )
                     .fillMaxHeight()
                     .verticalScroll(rememberScrollState())
@@ -112,6 +118,66 @@ fun ScreenScaffold(
             )
         }
     }
+    }
+}
+
+@Composable
+fun SecondaryScreenScaffold(
+    title: String,
+    innerPadding: PaddingValues = PaddingValues(),
+    onBack: () -> Unit,
+    actions: @Composable RowScope.() -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    PremiumScreenBackdrop {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            containerColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(AppIcons.ArrowBack, contentDescription = stringResource(R.string.cd_back))
+                        }
+                    },
+                    actions = actions,
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                    ),
+                )
+            },
+            contentWindowInsets = WindowInsets(0),
+        ) { scaffoldPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(scaffoldPadding),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = AppDimens.Layout.maxReadableWidth)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm)
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(bottom = AppDimens.Spacing.xl),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                    content = content,
+                )
+            }
+        }
     }
 }
 

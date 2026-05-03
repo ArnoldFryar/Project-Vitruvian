@@ -33,6 +33,8 @@ data class RemoteProfile(
     val userId: String,
     @SerialName("display_name")
     val displayName: String? = null,
+    @SerialName("avatar_data_uri")
+    val avatarDataUri: String? = null,
     @SerialName("created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @SerialName("updated_at")

@@ -27,6 +27,7 @@ import com.example.vitruvianredux.ble.MachineHeuristic
 import com.example.vitruvianredux.ble.MachineBleUpdateRequest
 import com.example.vitruvianredux.ble.MachineUpdateState
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.GradientButton
@@ -274,10 +275,11 @@ internal fun UpcomingSetsSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
     ) {
-        Column(
+        AdaptiveSheetColumn(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(AppDimens.Spacing.md)
+                .navigationBarsPadding()
+                .padding(bottom = AppDimens.Spacing.xl),
+            contentPadding = PaddingValues(AppDimens.Spacing.md),
         ) {
             Text(text = stringResource(R.string.player_edit_sets_title),
                 style = MaterialTheme.typography.headlineSmall,

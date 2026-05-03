@@ -128,5 +128,6 @@ data class Exercise(
 enum class ExerciseSortOrder(val label: String) {
     NAME_ASC("Name A–Z"),
     NAME_DESC("Name Z–A"),
+    CUSTOM("Custom"),
     POPULARITY_DESC("Most Popular"),
 }

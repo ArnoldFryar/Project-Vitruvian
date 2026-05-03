@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     display_name TEXT,
+    avatar_data_uri TEXT,
     created_at  BIGINT NOT NULL DEFAULT (extract(epoch from now()) * 1000)::bigint,
     updated_at  BIGINT NOT NULL DEFAULT (extract(epoch from now()) * 1000)::bigint,
     UNIQUE(user_id)

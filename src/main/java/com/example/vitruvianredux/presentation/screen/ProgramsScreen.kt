@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -39,6 +40,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
 import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
+import com.example.vitruvianredux.presentation.components.PremiumAlertDialog
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import kotlinx.coroutines.flow.StateFlow
@@ -78,17 +80,20 @@ private fun ProgramActionRail(
         if (hevyEnabled) add(Triple("Hevy", AppIcons.CloudDownload, onHevyImport))
         add(Triple("Templates", AppIcons.GridView, onTemplates))
     }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-    ) {
-        actions.forEach { (label, icon, onClick) ->
-            ProgramActionTile(
-                label = label,
-                icon = icon,
-                onClick = onClick,
-                modifier = Modifier.weight(1f),
-            )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val railWidth = if (maxWidth >= 600.dp) Modifier.widthIn(max = 560.dp) else Modifier.fillMaxWidth()
+        Row(
+            modifier = railWidth.align(Alignment.Center),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+        ) {
+            actions.forEach { (label, icon, onClick) ->
+                ProgramActionTile(
+                    label = label,
+                    icon = icon,
+                    onClick = onClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
@@ -222,30 +227,21 @@ fun ProgramsScreen(
             }
             append(". This can't be undone.")
         }
-        AlertDialog(
-            onDismissRequest = { showBulkDeleteDialog = false },
-            title = { Text("Remove selected?") },
-            text = { Text(deleteSummary) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        selectedIds.forEach { id ->
-                            if (id.startsWith("hv_")) VitruvianFavoritesStore.toggle(id.removePrefix("hv_"))
-                            else ProgramStore.deleteProgram(id)
-                        }
-                        selectedIds = emptySet()
-                        isSelecting = false
-                        showBulkDeleteDialog = false
-                    }
-                ) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
+        PremiumAlertDialog(
+            title = "Remove selected?",
+            message = deleteSummary,
+            confirmLabel = "Remove",
+            destructive = true,
+            onConfirm = {
+                selectedIds.forEach { id ->
+                    if (id.startsWith("hv_")) VitruvianFavoritesStore.toggle(id.removePrefix("hv_"))
+                    else ProgramStore.deleteProgram(id)
                 }
+                selectedIds = emptySet()
+                isSelecting = false
+                showBulkDeleteDialog = false
             },
-            dismissButton = {
-                TextButton(onClick = { showBulkDeleteDialog = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
+            onDismiss = { showBulkDeleteDialog = false },
         )
     }
 
@@ -576,16 +572,24 @@ fun ProgramsScreen(
                                     }
                                 }
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                // Exercise name preview (up to 3, with overflow count)
-                                val exercisePreview = if (p.items.isNotEmpty())
-                                    p.items.take(3).joinToString(" · ") { it.exerciseName } +
-                                        if (p.items.size > 3) "  +${p.items.size - 3} more" else ""
-                                else "${p.exerciseCount} exercise${if (p.exerciseCount != 1) "s" else ""}"
+                                var exercisePreviewExpanded by rememberSaveable(p.id, "exercisePreview") { mutableStateOf(false) }
+                                val hiddenExerciseCount = (p.items.size - 3).coerceAtLeast(0)
+                                val exercisePreview = if (p.items.isNotEmpty()) {
+                                    val previewItems = if (exercisePreviewExpanded) p.items else p.items.take(3)
+                                    previewItems.joinToString(" · ") { it.exerciseName } + when {
+                                        exercisePreviewExpanded && hiddenExerciseCount > 0 -> "  Show less"
+                                        hiddenExerciseCount > 0 -> "  +$hiddenExerciseCount more"
+                                        else -> ""
+                                    }
+                                } else "${p.exerciseCount} exercise${if (p.exerciseCount != 1) "s" else ""}"
                                 Text(
                                     exercisePreview,
                                     style    = MaterialTheme.typography.bodySmall,
-                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
+                                    color    = if (hiddenExerciseCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = if (hiddenExerciseCount > 0) {
+                                        Modifier.clickable { exercisePreviewExpanded = !exercisePreviewExpanded }
+                                    } else Modifier,
+                                    maxLines = if (exercisePreviewExpanded) 3 else 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))

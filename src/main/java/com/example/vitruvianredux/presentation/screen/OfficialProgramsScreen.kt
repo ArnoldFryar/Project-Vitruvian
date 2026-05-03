@@ -56,37 +56,46 @@ fun OfficialProgramsScreen(
             )
         },
     ) { innerPadding ->
-        LazyColumn(
-            modifier       = Modifier.fillMaxSize().padding(innerPadding),
-            contentPadding = PaddingValues(
-                horizontal = AppDimens.Spacing.md,
-                vertical   = AppDimens.Spacing.sm,
-            ),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            item(key = "search") {
-                OutlinedTextField(
-                    value         = query,
-                    onValueChange = { query = it },
-                    placeholder   = { Text("Search programs…") },
-                    leadingIcon   = { Icon(AppIcons.Search, contentDescription = null) },
-                    singleLine    = true,
-                    modifier      = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = AppDimens.Spacing.md),
-                )
-            }
+            LazyColumn(
+                modifier       = Modifier
+                    .widthIn(max = AppDimens.Layout.maxContentWidth)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(
+                    horizontal = AppDimens.Spacing.md,
+                    vertical   = AppDimens.Spacing.sm,
+                ),
+            ) {
+                item(key = "search") {
+                    OutlinedTextField(
+                        value         = query,
+                        onValueChange = { query = it },
+                        placeholder   = { Text("Search programs…") },
+                        leadingIcon   = { Icon(AppIcons.Search, contentDescription = null) },
+                        singleLine    = true,
+                        modifier      = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = AppDimens.Spacing.md),
+                    )
+                }
 
-            if (filtered.isEmpty()) {
-                item(key = "empty") {
-                    Box(Modifier.fillMaxWidth().padding(top = 48.dp), Alignment.Center) {
-                        Text("No programs found", style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (filtered.isEmpty()) {
+                    item(key = "empty") {
+                        Box(Modifier.fillMaxWidth().padding(top = 48.dp), Alignment.Center) {
+                            Text("No programs found", style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
-            }
 
-            items(filtered, key = { it.id }) { routine ->
-                RoutineCard(routine = routine, onClick = { onRoutineClick(routine.id) })
+                items(filtered, key = { it.id }) { routine ->
+                    RoutineCard(routine = routine, onClick = { onRoutineClick(routine.id) })
+                }
             }
         }
     }

@@ -104,10 +104,13 @@ onClick = { showConfirmDialog = false }) {
                         .fillMaxWidth()
                         .navigationBarsPadding()
                         .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                    horizontalArrangement = Arrangement.Center,
                 ) {
                     Button(
                         onClick = { showConfirmDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .widthIn(max = AppDimens.Layout.maxContentWidth)
+                            .fillMaxWidth(),
                     ) {
                         Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
                         Spacer(Modifier.width(AppDimens.Spacing.sm))
@@ -118,13 +121,19 @@ onClick = { showConfirmDialog = false }) {
         },
     ) { innerPadding ->
 
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
+            contentAlignment = Alignment.TopCenter,
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .widthIn(max = AppDimens.Layout.maxContentWidth)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
+            ) {
             // â”€â”€ Template overview card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             item(key = "overview") {
                 TemplateOverviewCard(template)
@@ -169,6 +178,7 @@ onClick = { showConfirmDialog = false }) {
             // Bottom spacing so content isn't hidden behind the bottom bar
             item { Spacer(Modifier.height(64.dp)) }
         }
+    }
     }
 }
 

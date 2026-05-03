@@ -5,6 +5,7 @@ package com.example.vitruvianredux.presentation.screen
 import com.vitruvian.trainer.R
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -40,6 +41,7 @@ import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.model.ExerciseSortOrder
 import com.example.vitruvianredux.model.ExerciseVideo
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.AppTonalButton
 import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
@@ -47,6 +49,7 @@ import com.example.vitruvianredux.presentation.components.ExerciseVideoPreviewDi
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ShimmerBox
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -69,6 +72,7 @@ fun WorkoutScreen(
     onStartOneRepMaxTest: (Exercise) -> Boolean = { false },
 ) {
     val context = LocalContext.current
+    val ext = LocalExtendedColors.current
     val sessionState by workoutVM.state.collectAsState()
     val isReady by workoutVM.bleIsReady.collectAsState()
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
@@ -111,6 +115,9 @@ fun WorkoutScreen(
         when (sortOrder) {
             ExerciseSortOrder.NAME_ASC        -> list.sortedBy { it.name.trim().lowercase(java.util.Locale.ROOT) }
             ExerciseSortOrder.NAME_DESC       -> list.sortedByDescending { it.name.trim().lowercase(java.util.Locale.ROOT) }
+            ExerciseSortOrder.CUSTOM          -> list
+                .filter { it.source == ExerciseSource.CUSTOM }
+                .sortedBy { it.name.trim().lowercase(java.util.Locale.ROOT) }
             ExerciseSortOrder.POPULARITY_DESC -> list
         }
     }
@@ -144,7 +151,7 @@ fun WorkoutScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding() + AppDimens.Spacing.sm,
-                bottom = innerPadding.calculateBottomPadding() + 88.dp,
+                bottom = innerPadding.calculateBottomPadding() + AppDimens.Spacing.md,
                 start = AppDimens.Spacing.md,
                 end = AppDimens.Spacing.md,
             ),
@@ -179,13 +186,39 @@ fun WorkoutScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    FilledTonalButton(
-                        onClick = { WiringRegistry.hit(A_WORKOUT_JUSTLIFT_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_JUSTLIFT_OPEN, ActualOutcome.SheetOpened("just_lift")); showJustLift = true },
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(AppDimens.Corner.pill))
+                            .clickable {
+                                WiringRegistry.hit(A_WORKOUT_JUSTLIFT_OPEN)
+                                WiringRegistry.recordOutcome(A_WORKOUT_JUSTLIFT_OPEN, ActualOutcome.SheetOpened("just_lift"))
+                                showJustLift = true
+                            },
                         shape = RoundedCornerShape(AppDimens.Corner.pill),
+                        color = ext.surface2.copy(alpha = 0.72f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            AppDimens.Stroke.thin,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
+                        ),
                     ) {
-                        Icon(AppIcons.PlayArrow, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
-                        Spacer(Modifier.width(AppDimens.Spacing.xs))
-                        Text("Just Lift", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                        ) {
+                            Icon(
+                                AppIcons.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(AppDimens.Icon.sm),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                "Just Lift",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 }
             }
@@ -302,16 +335,6 @@ fun WorkoutScreen(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(
-                    end = AppDimens.Spacing.md,
-                    bottom = innerPadding.calculateBottomPadding() + 24.dp,
-                ),
-        ) {
-            JustLiftFab(onClick = { WiringRegistry.hit(A_WORKOUT_JUSTLIFT_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_JUSTLIFT_OPEN, ActualOutcome.SheetOpened("just_lift")); showJustLift = true })
-        }
     }
 }
 // â”€â”€â”€ Exercise card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -330,12 +353,14 @@ private fun ExerciseCard(
         if (exercise.source == ExerciseSource.CUSTOM) add("Custom")
         addAll(exercise.groupLabels)
     }
-    val visibleTags = tags.take(1)
-    val overflow    = tags.size - visibleTags.size
+    var showAllTags by rememberSaveable(exercise.stableKey, "tags") { mutableStateOf(false) }
+    var showAllEquipment by rememberSaveable(exercise.stableKey, "equipment") { mutableStateOf(false) }
+    val visibleTags = if (showAllTags) tags else tags.take(1)
+    val overflow    = (tags.size - visibleTags.size).coerceAtLeast(0)
     // Equipment: show first item only with an overflow indicator if there are more
     val allEquipment    = exercise.equipment.map { it.replace('_', ' ').lowercase(java.util.Locale.ROOT).replaceFirstChar { c -> c.uppercaseChar() } }
-    val visibleEquip    = allEquipment.take(1)
-    val equipOverflow   = allEquipment.size - visibleEquip.size
+    val visibleEquip    = if (showAllEquipment) allEquipment else allEquipment.take(1)
+    val equipOverflow   = (allEquipment.size - visibleEquip.size).coerceAtLeast(0)
 
     AppCard(
         modifier  = Modifier.fillMaxWidth().combinedClickable(
@@ -390,7 +415,10 @@ private fun ExerciseCard(
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
                     if (tags.isNotEmpty()) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                        ) {
                             visibleTags.forEach { t ->
                                 SuggestionChip(
                                     onClick = {},
@@ -405,10 +433,10 @@ private fun ExerciseCard(
                                     },
                                 )
                             }
-                            if (overflow > 0) {
+                            if (tags.size > 1) {
                                 SuggestionChip(
-                                    onClick = {},
-                                    label   = { Text("+$overflow", style = MaterialTheme.typography.labelSmall) },
+                                    onClick = { showAllTags = !showAllTags },
+                                    label   = { Text(if (showAllTags) "Less" else "+$overflow", style = MaterialTheme.typography.labelSmall) },
                                 )
                             }
                         }
@@ -417,17 +445,20 @@ private fun ExerciseCard(
                     }
 
                     if (visibleEquip.isNotEmpty()) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                        ) {
                             visibleEquip.forEach { equip ->
                                 SuggestionChip(
                                     onClick = {},
                                     label   = { Text(equip, style = MaterialTheme.typography.labelSmall) },
                                 )
                             }
-                            if (equipOverflow > 0) {
+                            if (allEquipment.size > 1) {
                                 SuggestionChip(
-                                    onClick = {},
-                                    label   = { Text("+$equipOverflow", style = MaterialTheme.typography.labelSmall) },
+                                    onClick = { showAllEquipment = !showAllEquipment },
+                                    label   = { Text(if (showAllEquipment) "Less" else "+$equipOverflow", style = MaterialTheme.typography.labelSmall) },
                                 )
                             }
                         }
@@ -465,12 +496,11 @@ private fun ExerciseDetailSheet(
         containerColor   = MaterialTheme.colorScheme.surface,
         tonalElevation   = 0.dp,
     ) {
-        Column(
+        AdaptiveSheetColumn(
             modifier            = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppDimens.Spacing.md)
                 .navigationBarsPadding()
                 .padding(bottom = AppDimens.Spacing.xl),
+            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
             // Thumbnail

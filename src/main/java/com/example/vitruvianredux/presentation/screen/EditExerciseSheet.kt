@@ -32,6 +32,7 @@ import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.audit.*
+import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.ResistanceTumbler
 import com.example.vitruvianredux.presentation.components.SelectorCard
@@ -132,11 +133,11 @@ fun EditExerciseSheet(
         containerColor   = MaterialTheme.colorScheme.surface,
         tonalElevation   = 0.dp,
     ) {
-        Column(
+        AdaptiveSheetColumn(
             modifier = Modifier
-                .fillMaxWidth()
                 .padding(bottom = AppDimens.Spacing.xl)
                 .navigationBarsPadding(),
+            contentPadding = PaddingValues(),
         ) {
             // â”€â”€ Header with close â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Row(

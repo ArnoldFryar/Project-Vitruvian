@@ -143,6 +143,8 @@ fun AnalyticsDashboardScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .widthIn(max = AppDimens.Layout.maxDashboardWidth)
+                    .align(Alignment.TopCenter)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = hPad, vertical = AppDimens.Spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
