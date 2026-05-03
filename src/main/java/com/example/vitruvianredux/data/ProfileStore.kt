@@ -115,25 +115,41 @@ object ProfileStore {
 
     fun encodeAvatarDataUri(context: Context, uri: Uri): String? {
         return runCatching {
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-
-            val sampleSize = calculateSampleSize(bounds.outWidth, bounds.outHeight, AVATAR_MAX_SIZE_PX)
-            val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
-            val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) }
-                ?: return null
-            val scaled = scaleToMax(decoded, AVATAR_MAX_SIZE_PX)
-            if (scaled !== decoded) decoded.recycle()
-
-            val bytes = ByteArrayOutputStream().use { output ->
-                scaled.compress(Bitmap.CompressFormat.JPEG, AVATAR_JPEG_QUALITY, output)
-                output.toByteArray()
+            val decoded = decodeAvatarBitmap(context, uri, AVATAR_MAX_SIZE_PX) ?: return null
+            try {
+                encodeAvatarDataUri(decoded)
+            } finally {
+                decoded.recycle()
             }
-            if (scaled !== decoded) scaled.recycle()
-            "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
         }.getOrElse { error ->
             Timber.tag(TAG).w(error, "encodeAvatarDataUri failed")
+            null
+        }
+    }
+
+    fun decodeAvatarBitmap(context: Context, uri: Uri, maxSizePx: Int = AVATAR_MAX_SIZE_PX): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        val sampleSize = calculateSampleSize(bounds.outWidth, bounds.outHeight, maxSizePx)
+        val decodeOptions = BitmapFactory.Options().apply { inSampleSize = sampleSize }
+        val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, decodeOptions) }
+            ?: return null
+        val scaled = scaleToMax(decoded, maxSizePx)
+        if (scaled !== decoded) decoded.recycle()
+        return scaled
+    }
+
+    fun encodeAvatarDataUri(bitmap: Bitmap): String? {
+        return runCatching {
+            val bytes = ByteArrayOutputStream().use { output ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, AVATAR_JPEG_QUALITY, output)
+                output.toByteArray()
+            }
+            "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+        }.getOrElse { error ->
+            Timber.tag(TAG).w(error, "encodeAvatarDataUri(bitmap) failed")
             null
         }
     }

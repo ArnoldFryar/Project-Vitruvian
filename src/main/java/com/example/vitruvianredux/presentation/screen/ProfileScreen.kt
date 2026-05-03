@@ -3,6 +3,12 @@ package com.example.vitruvianredux.presentation.screen
 import com.vitruvian.trainer.R
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas as AndroidCanvas
+import android.graphics.BitmapFactory
+import android.graphics.Rect
+import android.net.Uri
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -14,6 +20,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
@@ -26,16 +36,23 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.vitruvianredux.ble.BleConnectionState
@@ -159,6 +176,7 @@ fun ProfileScreen(
     // â”€â”€ Exercise catalog lookup for weighted muscle group distribution â”€â”€â”€â”€â”€â”€â”€â”€
     val context = androidx.compose.ui.platform.LocalContext.current
     val profileScope = rememberCoroutineScope()
+    var pendingAvatarUri by remember { mutableStateOf<Uri?>(null) }
     val profilePhotoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -169,12 +187,7 @@ fun ProfileScreen(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
         }
-        profileScope.launch {
-            val avatarDataUri = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                ProfileStore.encodeAvatarDataUri(context, uri)
-            }
-            ProfileStore.setAvatarPhoto(uri.toString(), avatarDataUri)
-        }
+        pendingAvatarUri = uri
     }
     val exerciseLookup = remember {
         mutableStateOf<Map<String, List<String>>>(emptyMap())
@@ -368,48 +381,63 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+            Box(
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(72.dp)
                     .clickable { profilePhotoPicker.launch(arrayOf("image/*")) },
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    val avatarModel = profileAvatarDataUri ?: profilePhotoUri
-                    if (avatarModel != null) {
-                        AsyncImage(
-                            model = avatarModel,
-                            contentDescription = "Profile photo",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    } else {
-                        Text(
-                            displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "A",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface,
-                        border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 2.dp, y = 2.dp)
-                            .size(22.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                AppIcons.Edit,
-                                contentDescription = "Change profile photo",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(12.dp),
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .align(Alignment.Center),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        val avatarBitmap = remember(profileAvatarDataUri) {
+                            decodeProfileAvatar(profileAvatarDataUri)
+                        }
+                        if (avatarBitmap != null) {
+                            Image(
+                                bitmap = avatarBitmap,
+                                contentDescription = "Profile photo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else if (profilePhotoUri != null) {
+                            AsyncImage(
+                                model = profilePhotoUri,
+                                contentDescription = "Profile photo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            Text(
+                                displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "A",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                             )
                         }
+                    }
+                }
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
+                    shadowElevation = 2.dp,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(24.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            AppIcons.Edit,
+                            contentDescription = "Change profile photo",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(13.dp),
+                        )
                     }
                 }
             }
@@ -2285,6 +2313,280 @@ fun ProfileScreen(
             currentStreak = currentStreak,
             onDismiss = { showStreakDetail = false },
         )
+    }
+
+    pendingAvatarUri?.let { sourceUri ->
+        AvatarCropDialog(
+            sourceUri = sourceUri,
+            onDismiss = { pendingAvatarUri = null },
+            onConfirm = { avatarDataUri ->
+                profileScope.launch {
+                    ProfileStore.setAvatarPhoto(sourceUri.toString(), avatarDataUri)
+                    pendingAvatarUri = null
+                }
+            },
+        )
+    }
+}
+
+private fun decodeProfileAvatar(dataUri: String?): ImageBitmap? {
+    if (dataUri.isNullOrBlank()) return null
+    val base64Payload = dataUri.substringAfter("base64,", missingDelimiterValue = "")
+        .trim()
+        .takeIf { it.isNotEmpty() }
+        ?: return null
+    return runCatching {
+        val bytes = Base64.decode(base64Payload, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+    }.getOrNull()
+}
+
+@Composable
+private fun AvatarCropDialog(
+    sourceUri: Uri,
+    onDismiss: () -> Unit,
+    onConfirm: (String?) -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val previewBitmap = remember(sourceUri, context) {
+        ProfileStore.decodeAvatarBitmap(context, sourceUri, maxSizePx = 1024)
+    }
+    val imageBitmap = remember(previewBitmap) { previewBitmap?.asImageBitmap() }
+    var zoom by remember(sourceUri) { mutableStateOf(1f) }
+    var offset by remember(sourceUri) { mutableStateOf(Offset.Zero) }
+    var cropViewportPx by remember(sourceUri) { mutableStateOf(0f) }
+    var isSaving by remember(sourceUri) { mutableStateOf(false) }
+
+    DisposableEffect(previewBitmap) {
+        onDispose {
+            previewBitmap?.recycle()
+        }
+    }
+
+    DialogContainer(onDismiss = { if (!isSaving) onDismiss() }) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+        ) {
+            Text(
+                text = "Adjust avatar",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(AppDimens.Spacing.xs))
+            Text(
+                text = "Pinch to zoom and drag to reposition inside the circle.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(AppDimens.Spacing.md))
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                val previewSize = maxWidth.coerceAtMost(320.dp)
+                val previewSizePx = with(density) { previewSize.toPx() }
+                cropViewportPx = previewSizePx
+                val cropRingColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.12f)
+
+                Box(
+                    modifier = Modifier
+                        .size(previewSize)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .border(AppDimens.Stroke.medium, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), CircleShape)
+                        .pointerInput(imageBitmap, previewSizePx, zoom, offset) {
+                            if (imageBitmap != null) {
+                                detectTransformGestures { _, pan, gestureZoom, _ ->
+                                    val newZoom = (zoom * gestureZoom).coerceIn(1f, 4f)
+                                    zoom = newZoom
+                                    offset = clampAvatarOffset(
+                                        candidate = offset + pan,
+                                        bitmapWidth = imageBitmap.width.toFloat(),
+                                        bitmapHeight = imageBitmap.height.toFloat(),
+                                        viewportSizePx = previewSizePx,
+                                        zoom = newZoom,
+                                    )
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (imageBitmap != null) {
+                        val baseScale = remember(imageBitmap, previewSizePx) {
+                            maxOf(
+                                previewSizePx / imageBitmap.width.toFloat(),
+                                previewSizePx / imageBitmap.height.toFloat(),
+                            )
+                        }
+                        val normalizedScaleX = remember(imageBitmap, previewSizePx) {
+                            (imageBitmap.width.toFloat() * baseScale) / previewSizePx
+                        }
+                        val normalizedScaleY = remember(imageBitmap, previewSizePx) {
+                            (imageBitmap.height.toFloat() * baseScale) / previewSizePx
+                        }
+                        Image(
+                            bitmap = imageBitmap,
+                            contentDescription = "Selected profile photo",
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    translationX = offset.x
+                                    translationY = offset.y
+                                    scaleX = normalizedScaleX * zoom
+                                    scaleY = normalizedScaleY * zoom
+                                },
+                        )
+                        Canvas(modifier = Modifier.matchParentSize()) {
+                            drawCircle(
+                                color = cropRingColor,
+                                radius = size.minDimension / 2f,
+                                style = DrawStroke(width = AppDimens.Stroke.medium.toPx()),
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Unable to load this photo.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+            Text(
+                text = "Zoom",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Slider(
+                value = zoom,
+                onValueChange = { newZoom ->
+                    zoom = newZoom
+                    imageBitmap?.let {
+                        offset = clampAvatarOffset(
+                            candidate = offset,
+                            bitmapWidth = it.width.toFloat(),
+                            bitmapHeight = it.height.toFloat(),
+                            viewportSizePx = cropViewportPx,
+                            zoom = newZoom,
+                        )
+                    }
+                },
+                valueRange = 1f..4f,
+                enabled = imageBitmap != null && !isSaving,
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = AppDimens.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss, enabled = !isSaving) {
+                    Text("Cancel")
+                }
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
+                TextButton(
+                    onClick = {
+                        val bitmap = previewBitmap ?: return@TextButton
+                        isSaving = true
+                        scope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                            val avatarDataUri = createCroppedAvatarDataUri(
+                                bitmap = bitmap,
+                                zoom = zoom,
+                                offset = offset,
+                                viewportSizePx = cropViewportPx,
+                            )
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                isSaving = false
+                                onConfirm(avatarDataUri)
+                            }
+                        }
+                    },
+                    enabled = imageBitmap != null && cropViewportPx > 0f && !isSaving,
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            strokeWidth = AppDimens.Stroke.thin,
+                            modifier = Modifier.size(AppDimens.Icon.sm),
+                        )
+                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                    }
+                    Text("Use photo")
+                }
+            }
+        }
+    }
+}
+
+private fun clampAvatarOffset(
+    candidate: Offset,
+    bitmapWidth: Float,
+    bitmapHeight: Float,
+    viewportSizePx: Float,
+    zoom: Float,
+): Offset {
+    if (viewportSizePx <= 0f) return Offset.Zero
+    val baseScale = maxOf(viewportSizePx / bitmapWidth, viewportSizePx / bitmapHeight)
+    val scaledWidth = bitmapWidth * baseScale * zoom
+    val scaledHeight = bitmapHeight * baseScale * zoom
+    val maxX = ((scaledWidth - viewportSizePx) / 2f).coerceAtLeast(0f)
+    val maxY = ((scaledHeight - viewportSizePx) / 2f).coerceAtLeast(0f)
+    return Offset(
+        x = candidate.x.coerceIn(-maxX, maxX),
+        y = candidate.y.coerceIn(-maxY, maxY),
+    )
+}
+
+private fun createCroppedAvatarDataUri(
+    bitmap: Bitmap,
+    zoom: Float,
+    offset: Offset,
+    viewportSizePx: Float,
+): String? {
+    if (viewportSizePx <= 0f) return null
+    val bitmapWidth = bitmap.width.toFloat()
+    val bitmapHeight = bitmap.height.toFloat()
+    val baseScale = maxOf(viewportSizePx / bitmapWidth, viewportSizePx / bitmapHeight)
+    val drawScale = baseScale * zoom
+    val drawWidth = bitmapWidth * drawScale
+    val drawHeight = bitmapHeight * drawScale
+    val imageLeft = (viewportSizePx - drawWidth) / 2f + offset.x
+    val imageTop = (viewportSizePx - drawHeight) / 2f + offset.y
+
+    val srcLeft = ((0f - imageLeft) / drawScale).coerceIn(0f, bitmapWidth)
+    val srcTop = ((0f - imageTop) / drawScale).coerceIn(0f, bitmapHeight)
+    val srcRight = ((viewportSizePx - imageLeft) / drawScale).coerceIn(0f, bitmapWidth)
+    val srcBottom = ((viewportSizePx - imageTop) / drawScale).coerceIn(0f, bitmapHeight)
+
+    val safeRight = maxOf(srcLeft + 1f, srcRight)
+    val safeBottom = maxOf(srcTop + 1f, srcBottom)
+    val output = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
+    return try {
+        AndroidCanvas(output).drawBitmap(
+            bitmap,
+            Rect(
+                srcLeft.toInt(),
+                srcTop.toInt(),
+                safeRight.toInt().coerceAtMost(bitmap.width),
+                safeBottom.toInt().coerceAtMost(bitmap.height),
+            ),
+            Rect(0, 0, output.width, output.height),
+            null,
+        )
+        ProfileStore.encodeAvatarDataUri(output)
+    } finally {
+        output.recycle()
     }
 }
 
