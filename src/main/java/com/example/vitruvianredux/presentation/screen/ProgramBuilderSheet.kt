@@ -60,11 +60,45 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
         confirmValueChange    = { it != SheetValue.Hidden },
     )
     var programName by remember { mutableStateOf("") }
-    var draftItems  by remember { mutableStateOf<List<ProgramItemDraft>>(emptyList()) }
+    var draftBlocks by remember { mutableStateOf<List<ProgramBlockDraft>>(emptyList()) }
     var scheduledDays by remember { mutableStateOf<Set<DayOfWeek>>(emptySet()) }
     var showPicker  by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<ProgramItemDraft?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedBlockKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val draftItems = remember(draftBlocks) { programItemsFromBlocks(draftBlocks) }
+    val exerciseCount = remember(draftBlocks) { programBlockExerciseCount(draftBlocks) }
+    val canCreateSupersetSelection = remember(draftBlocks, selectedBlockKeys) {
+        canCreateSupersetFromSelection(draftBlocks, selectedBlockKeys)
+    }
+    val canBreakSupersetSelection = remember(draftBlocks, selectedBlockKeys) {
+        canBreakSupersetSelection(draftBlocks, selectedBlockKeys)
+    }
+
+    fun exitSelectionMode() {
+        isSelectionMode = false
+        selectedBlockKeys = emptySet()
+    }
+
+    fun startSelectionMode(blockKey: String? = null) {
+        isSelectionMode = true
+        selectedBlockKeys = blockKey?.let { setOf(it) } ?: emptySet()
+    }
+
+    fun toggleBlockSelection(blockKey: String) {
+        selectedBlockKeys = if (blockKey in selectedBlockKeys) {
+            selectedBlockKeys - blockKey
+        } else {
+            selectedBlockKeys + blockKey
+        }
+    }
+
+    LaunchedEffect(draftBlocks) {
+        val validKeys = draftBlocks.map { it.key }.toSet()
+        selectedBlockKeys = selectedBlockKeys.filterTo(linkedSetOf()) { it in validKeys }
+        if (draftBlocks.isEmpty()) exitSelectionMode()
+    }
 
     // Exercise catalog lookup for video/thumbnail URLs
     val context = LocalContext.current
@@ -75,8 +109,8 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
         } catch (_: Exception) { emptyMap() }
     }
 
-    val hasUnsavedChanges = programName.isNotBlank() || draftItems.isNotEmpty()
-    val totalSets = draftItems.sumOf { it.sets }
+    val hasUnsavedChanges = programName.isNotBlank() || draftBlocks.isNotEmpty()
+    val totalSets = programBlockTotalSets(draftBlocks)
     val estimatedMins = draftItems.sumOf { item ->
         item.sets * (item.restTimerSec / 60.0 + 1.5)
     }.toInt().coerceAtLeast(if (draftItems.isEmpty()) 0 else 1)
@@ -91,7 +125,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
             alreadySelected = alreadyExercises,
             onDone = { picked ->
                 val existingById = draftItems.associateBy { it.exerciseId }
-                draftItems = normalizeProgramSupersetDrafts(
+                draftBlocks = programBlocksFromItems(
                     picked.map { ex ->
                         existingById[ex.id.ifBlank { ex.name }] ?: if (ex.isBodyweightOnly) {
                             ProgramItemDraft(
@@ -113,6 +147,7 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
                         }
                     }
                 )
+                exitSelectionMode()
                 showPicker = false
             },
             onDismiss = { showPicker = false },
@@ -122,16 +157,12 @@ internal fun ProgramBuilderSheet(workoutVM: WorkoutSessionViewModel? = null, onD
     // Quick-edit sheet for one item
     editingItem?.let { item ->
         val editingExercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
-        val editingIndex = draftItems.indexOfFirst { it.exerciseId == item.exerciseId }
         EditExerciseSheet(
             item      = item,
             exercise  = editingExercise,
-            supersetContext = EditExerciseSupersetContext(
-                previousItem = draftItems.getOrNull(editingIndex - 1),
-                nextItem = draftItems.getOrNull(editingIndex + 1),
-            ),
+            supersetContext = programBlockSupersetContext(draftBlocks, item),
             onSave    = { result ->
-                draftItems = applyProgramSupersetEdit(draftItems, result.item, result.supersetPlacement)
+                draftBlocks = applyProgramBlockSupersetEdit(draftBlocks, result.item, result.supersetPlacement)
                 editingItem = null
             },
             onDismiss = { editingItem = null },
@@ -161,19 +192,13 @@ onClick = { showDiscardDialog = false }) {
         )
     }
 
-    val isSaveEnabled = programName.isNotBlank() && draftItems.isNotEmpty() && draftItems.all { it.isValid }
+    val isSaveEnabled = programName.isNotBlank() && programBlocksAreValid(draftBlocks)
     val canStart = isSaveEnabled && workoutVM != null
 
     val reorderState = rememberReorderableLazyListState(onMove = { from, to ->
         val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
         val toKey   = to.key as? String ?: return@rememberReorderableLazyListState
-        val fromIndex = draftItems.indexOfFirst { it.exerciseId == fromKey }
-        val toIndex   = draftItems.indexOfFirst { it.exerciseId == toKey }
-        if (fromIndex != -1 && toIndex != -1) {
-            draftItems = normalizeProgramSupersetDrafts(
-                draftItems.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
-            )
-        }
+        draftBlocks = moveProgramBlock(draftBlocks, fromKey, toKey)
     })
 
     ModalBottomSheet(
@@ -197,13 +222,20 @@ onClick = { showDiscardDialog = false }) {
                         style      = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                     )
-                    AnimatedVisibility(visible = draftItems.isNotEmpty()) {
+                    AnimatedVisibility(visible = draftBlocks.isNotEmpty()) {
                         Text(
-                            "${draftItems.size} exercise${if (draftItems.size != 1) "s" else ""} · $totalSets sets · about $estimatedMins min",
+                            "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""} · $totalSets sets · about $estimatedMins min",
                             style    = MaterialTheme.typography.bodySmall,
                             color    = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = AppDimens.Spacing.xs),
                         )
+                    }
+                }
+                if (draftBlocks.isNotEmpty()) {
+                    TextButton(onClick = {
+                        if (isSelectionMode) exitSelectionMode() else startSelectionMode()
+                    }) {
+                        Text(if (isSelectionMode) "Cancel" else "Select")
                     }
                 }
                 IconButton(onClick = {
@@ -221,8 +253,7 @@ onClick = { showDiscardDialog = false }) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .reorderable(reorderState)
-                    .detectReorderAfterLongPress(reorderState),
+                    .then(if (isSelectionMode) Modifier else Modifier.reorderable(reorderState)),
                 contentPadding      = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
             ) {
@@ -275,10 +306,10 @@ onClick = { showDiscardDialog = false }) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
-                                text = if (draftItems.isEmpty()) {
+                                text = if (draftBlocks.isEmpty()) {
                                     "Choose exercises to build the workout structure."
                                 } else {
-                                    "${draftItems.size} exercises · $totalSets total sets · about $estimatedMins min"
+                                    "$exerciseCount exercises · $totalSets total sets · about $estimatedMins min"
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
@@ -300,7 +331,7 @@ onClick = { showDiscardDialog = false }) {
                 }
 
                 // â”€â”€ Section header with count badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                if (draftItems.isNotEmpty()) {
+                if (draftBlocks.isNotEmpty()) {
                     item(key = "__section__") {
                         Row(
                             modifier          = Modifier
@@ -319,7 +350,7 @@ onClick = { showDiscardDialog = false }) {
                                 shape = RoundedCornerShape(AppDimens.Corner.sm),
                             ) {
                                 Text(
-                                    "${draftItems.size}",
+                                    "$exerciseCount",
                                     style      = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color      = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -331,36 +362,36 @@ onClick = { showDiscardDialog = false }) {
                 }
 
                 // â”€â”€ Reorderable exercise cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                items(draftItems, key = { it.exerciseId }) { item ->
-                    val itemIndex = draftItems.indexOfFirst { it.exerciseId == item.exerciseId }
-                    val previousItem = draftItems.getOrNull(itemIndex - 1)
-                    val nextItem = draftItems.getOrNull(itemIndex + 1)
-                    val group = item.circuitGroup
-                    val isSupersetBlockMember = group != null
-                    val isSupersetBlockStart = group != null && previousItem?.circuitGroup != group
-                    val isSupersetBlockEnd = group != null && nextItem?.circuitGroup != group
-                    ReorderableItem(reorderState, key = item.exerciseId) { _ ->
-                        val exercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
-                        ProgramItemCard(
-                            item     = item,
-                            exercise = exercise,
-                            showSupersetLabel = isSupersetBlockStart,
-                            isSupersetBlockMember = isSupersetBlockMember,
-                            isSupersetBlockStart = isSupersetBlockStart,
-                            isSupersetBlockEnd = isSupersetBlockEnd,
-                            onEdit   = { editingItem = item },
-                            onRemove = {
-                                draftItems = normalizeProgramSupersetDrafts(
-                                    draftItems.filter { it.exerciseId != item.exerciseId }
+                items(draftBlocks, key = { it.key }) { block ->
+                    ReorderableItem(reorderState, key = block.key) { _ ->
+                        Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs)) {
+                            programBlockDisplayItems(block).forEach { display ->
+                                val exercise = exerciseCatalog[display.item.exerciseId] ?: exerciseCatalog[display.item.exerciseName]
+                                ProgramItemCard(
+                                    item = display.item,
+                                    exercise = exercise,
+                                    showSupersetLabel = display.showSupersetLabel,
+                                    isSupersetBlockMember = display.isSupersetBlockMember,
+                                    isSupersetBlockStart = display.isSupersetBlockStart,
+                                    isSupersetBlockEnd = display.isSupersetBlockEnd,
+                                    selectionMode = isSelectionMode,
+                                    selected = block.key in selectedBlockKeys,
+                                    onSelectToggle = { toggleBlockSelection(block.key) },
+                                    onLongPress = { startSelectionMode(block.key) },
+                                    onEdit = { editingItem = display.item },
+                                    onRemove = {
+                                        draftBlocks = removeProgramBlockItem(draftBlocks, display.item.exerciseId)
+                                    },
+                                    dragHandleModifier = if (isSelectionMode) Modifier else Modifier.detectReorderAfterLongPress(reorderState),
+                                    modifier = Modifier,
                                 )
-                            },
-                            modifier = Modifier,
-                        )
+                            }
+                        }
                     }
                 }
 
                 // â”€â”€ Empty state illustration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-                if (draftItems.isEmpty()) {
+                if (draftBlocks.isEmpty()) {
                     item(key = "__empty__") {
                         Box(
                             modifier = Modifier
@@ -393,89 +424,102 @@ onClick = { showDiscardDialog = false }) {
             // â”€â”€ Sticky Bottom Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = AppDimens.Spacing.md)
-                    .padding(top = AppDimens.Spacing.md_sm)
-                    .navigationBarsPadding()
-                    .padding(bottom = AppDimens.Spacing.md_sm),
-                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-            ) {
-                // Add Exercise button
-                OutlinedButton(
-                    onClick = {
-                        WiringRegistry.hit(A_PROGRAMS_ADD_EXERCISES)
-                        WiringRegistry.recordOutcome(A_PROGRAMS_ADD_EXERCISES, ActualOutcome.SheetOpened("exercise_picker"))
-                        showPicker = true
+            if (isSelectionMode) {
+                ProgramBlockSelectionBar(
+                    selectedCount = selectedBlockKeys.size,
+                    canCreateSuperset = canCreateSupersetSelection,
+                    canBreakSuperset = canBreakSupersetSelection,
+                    onCreateSuperset = {
+                        draftBlocks = createSupersetFromSelection(draftBlocks, selectedBlockKeys)
+                        exitSelectionMode()
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape    = RoundedCornerShape(AppDimens.Corner.md),
-                ) {
-                    Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
-                    Spacer(Modifier.width(AppDimens.Spacing.sm))
-                    Text(
-                            if (draftItems.isEmpty()) "Choose Exercises" else "Manage Exercises (${draftItems.size})",
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-
-                // Save / Start row
-                Row(
-                    modifier              = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    onBreakSuperset = {
+                        draftBlocks = breakSupersetSelection(draftBlocks, selectedBlockKeys)
+                        exitSelectionMode()
+                    },
+                    onCancel = { exitSelectionMode() },
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = AppDimens.Spacing.md)
+                        .padding(top = AppDimens.Spacing.md_sm)
+                        .navigationBarsPadding()
+                        .padding(bottom = AppDimens.Spacing.md_sm),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
                     OutlinedButton(
                         onClick = {
-                            WiringRegistry.hit(A_PROGRAMS_SAVE)
-                            WiringRegistry.recordOutcome(A_PROGRAMS_SAVE, ActualOutcome.StateChanged("programDraftSaved"))
-                            if (isSaveEnabled) {
-                                val normalizedItems = normalizeProgramSupersetDrafts(draftItems)
-                                draftItems = normalizedItems
-                                val newId = programName.trim().lowercase()
-                                    .replace(Regex("[^a-z0-9]+"), "_")
-                                    .trim('_') +
-                                    "_" + System.currentTimeMillis().toString(36)
-                                ProgramStore.addProgram(
-                                    SavedProgram(
-                                        id            = newId,
-                                        name          = programName.trim(),
-                                        exerciseCount = normalizedItems.size,
-                                        items         = normalizedItems,
-                                        scheduledDays = scheduledDays,
-                                    )
-                                )
-                            }
-                            onDismiss()
+                            WiringRegistry.hit(A_PROGRAMS_ADD_EXERCISES)
+                            WiringRegistry.recordOutcome(A_PROGRAMS_ADD_EXERCISES, ActualOutcome.SheetOpened("exercise_picker"))
+                            showPicker = true
                         },
-                        enabled  = isSaveEnabled,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         shape    = RoundedCornerShape(AppDimens.Corner.md),
                     ) {
-                        Text("Save Workout", fontWeight = FontWeight.SemiBold)
+                        Icon(AppIcons.Add, contentDescription = stringResource(R.string.cd_add), modifier = Modifier.size(AppDimens.Icon.md))
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Text(
+                                if (draftBlocks.isEmpty()) "Choose Exercises" else "Manage Exercises ($exerciseCount)",
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
 
-                    if (canStart) {
-                        val normalizedDraftItems = remember(draftItems) {
-                            normalizeProgramSupersetDrafts(draftItems)
-                        }
-                        val programSets: List<PlayerSetParams> = remember(normalizedDraftItems, exerciseCatalog) {
-                            CircuitSetBuilder.build(normalizedDraftItems, exerciseCatalog)
-                        }
-                        GradientButton(
-                            text    = "Start Now",
-                            icon    = AppIcons.PlayArrow,
+                    Row(
+                        modifier              = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    ) {
+                        OutlinedButton(
                             onClick = {
-                                WiringRegistry.hit(A_PROGRAMS_START_NOW)
-                                WiringRegistry.recordOutcome(A_PROGRAMS_START_NOW, ActualOutcome.Navigated("player"))
-                                draftItems = normalizedDraftItems
-                                workoutVM?.startPlayerWorkout(programSets)
+                                WiringRegistry.hit(A_PROGRAMS_SAVE)
+                                WiringRegistry.recordOutcome(A_PROGRAMS_SAVE, ActualOutcome.StateChanged("programDraftSaved"))
+                                if (isSaveEnabled) {
+                                    val normalizedItems = programItemsFromBlocks(draftBlocks)
+                                    val newId = programName.trim().lowercase()
+                                        .replace(Regex("[^a-z0-9]+"), "_")
+                                        .trim('_') +
+                                        "_" + System.currentTimeMillis().toString(36)
+                                    ProgramStore.addProgram(
+                                        SavedProgram(
+                                            id            = newId,
+                                            name          = programName.trim(),
+                                            exerciseCount = normalizedItems.size,
+                                            items         = normalizedItems,
+                                            scheduledDays = scheduledDays,
+                                        )
+                                    )
+                                }
                                 onDismiss()
                             },
-                            enabled  = canStart,
+                            enabled  = isSaveEnabled,
                             modifier = Modifier.weight(1f),
-                        )
+                            shape    = RoundedCornerShape(AppDimens.Corner.md),
+                        ) {
+                            Text("Save Workout", fontWeight = FontWeight.SemiBold)
+                        }
+
+                        if (canStart) {
+                            val normalizedDraftItems = remember(draftBlocks) {
+                                programItemsFromBlocks(draftBlocks)
+                            }
+                            val programSets: List<PlayerSetParams> = remember(normalizedDraftItems, exerciseCatalog) {
+                                CircuitSetBuilder.build(normalizedDraftItems, exerciseCatalog)
+                            }
+                            GradientButton(
+                                text    = "Start Now",
+                                icon    = AppIcons.PlayArrow,
+                                onClick = {
+                                    WiringRegistry.hit(A_PROGRAMS_START_NOW)
+                                    WiringRegistry.recordOutcome(A_PROGRAMS_START_NOW, ActualOutcome.Navigated("player"))
+                                    workoutVM?.startPlayerWorkout(programSets)
+                                    onDismiss()
+                                },
+                                enabled  = canStart,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                 }
             }

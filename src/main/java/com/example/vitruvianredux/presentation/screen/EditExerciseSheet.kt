@@ -402,9 +402,9 @@ fun EditExerciseSheet(
                 SectionHeader("Superset")
                 Text(
                     text = when {
-                        item.circuitGroup != null -> "This exercise is already linked. Keep it in the block, unlink it, or join the exercise above or below."
-                        hasPreviousSupersetOption || hasNextSupersetOption -> "Choose how this exercise should connect in the workout flow."
-                        else -> "Add another exercise above or below this one to create a superset block."
+                        item.circuitGroup != null -> "Manage this superset as a workout block, or move this exercise back to its own block."
+                        hasPreviousSupersetOption || hasNextSupersetOption -> "Create a superset by merging this exercise block with the block above or below."
+                        else -> "Add another exercise block above or below this one to create a superset."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -412,26 +412,26 @@ fun EditExerciseSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
                     SupersetOptionCard(
                         title = "Train solo",
-                        subtitle = "No linked block.",
+                        subtitle = if (item.circuitGroup != null) "Move this exercise into its own block." else "Keep this exercise as its own block.",
                         selected = supersetPlacement == EditExerciseSupersetPlacement.Solo,
                         onClick = { supersetPlacement = EditExerciseSupersetPlacement.Solo },
                     )
                     if (item.circuitGroup != null) {
                         SupersetOptionCard(
-                            title = "Keep current block",
-                            subtitle = "Stay in Superset ${item.circuitGroup}.",
+                            title = "Keep superset block",
+                            subtitle = "Leave this exercise inside Superset ${item.circuitGroup}.",
                             selected = supersetPlacement == EditExerciseSupersetPlacement.KeepCurrent,
                             onClick = { supersetPlacement = EditExerciseSupersetPlacement.KeepCurrent },
                         )
                     }
                     supersetContext.previousItem?.let { previousItem ->
                         val subtitle = if (previousItem.circuitGroup != null) {
-                            "Join the linked block above with ${previousItem.exerciseName.trim()}."
+                            "Merge with the superset block above containing ${previousItem.exerciseName.trim()}."
                         } else {
-                            "Pair directly with ${previousItem.exerciseName.trim()}."
+                            "Create a superset with ${previousItem.exerciseName.trim()} above."
                         }
                         SupersetOptionCard(
-                            title = "Link with previous",
+                            title = "Merge with block above",
                             subtitle = subtitle,
                             selected = supersetPlacement == EditExerciseSupersetPlacement.LinkWithPrevious,
                             onClick = { supersetPlacement = EditExerciseSupersetPlacement.LinkWithPrevious },
@@ -439,12 +439,12 @@ fun EditExerciseSheet(
                     }
                     supersetContext.nextItem?.let { nextItem ->
                         val subtitle = if (nextItem.circuitGroup != null) {
-                            "Join the linked block below with ${nextItem.exerciseName.trim()}."
+                            "Merge with the superset block below containing ${nextItem.exerciseName.trim()}."
                         } else {
-                            "Pair directly with ${nextItem.exerciseName.trim()}."
+                            "Create a superset with ${nextItem.exerciseName.trim()} below."
                         }
                         SupersetOptionCard(
-                            title = "Link with next",
+                            title = "Merge with block below",
                             subtitle = subtitle,
                             selected = supersetPlacement == EditExerciseSupersetPlacement.LinkWithNext,
                             onClick = { supersetPlacement = EditExerciseSupersetPlacement.LinkWithNext },

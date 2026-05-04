@@ -1,15 +1,16 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 
 package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -42,11 +43,16 @@ fun ProgramItemCard(
     item: ProgramItemDraft,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
+    onSelectToggle: () -> Unit = {},
+    onLongPress: () -> Unit = {},
     exercise: Exercise? = null,
     showSupersetLabel: Boolean = true,
     isSupersetBlockMember: Boolean = item.circuitGroup != null,
     isSupersetBlockStart: Boolean = true,
     isSupersetBlockEnd: Boolean = true,
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
+    dragHandleModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
     val isBodyweight = exercise?.isBodyweightOnly == true
@@ -85,14 +91,24 @@ fun ProgramItemCard(
             .border(
                 BorderStroke(
                     AppDimens.Stroke.thin,
-                    if (isSupersetBlockMember) cs.primary.copy(alpha = 0.28f) else cs.outlineVariant,
+                    when {
+                        selected -> cs.primary
+                        isSupersetBlockMember -> cs.primary.copy(alpha = 0.28f)
+                        else -> cs.outlineVariant
+                    },
                 ),
                 shape,
             )
-            .clickable(onClick = {
-                WiringRegistry.hit(A_PROGRAMS_ITEM_EDIT)
-                WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_EDIT, ActualOutcome.SheetOpened("edit_item"))
-                onEdit()
+            .combinedClickable(onClick = {
+                if (selectionMode) {
+                    onSelectToggle()
+                } else {
+                    WiringRegistry.hit(A_PROGRAMS_ITEM_EDIT)
+                    WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_EDIT, ActualOutcome.SheetOpened("edit_item"))
+                    onEdit()
+                }
+            }, onLongClick = {
+                if (selectionMode) onSelectToggle() else onLongPress()
             }),
     ) {
         Row(
@@ -114,7 +130,7 @@ fun ProgramItemCard(
             Icon(
                 AppIcons.DragHandle,
                 contentDescription = "Drag to reorder",
-                modifier = Modifier
+                modifier = dragHandleModifier
                     .size(AppDimens.Icon.lg)
                     .padding(end = AppDimens.Spacing.sm),
                 tint = cs.onSurfaceVariant,
@@ -164,20 +180,90 @@ fun ProgramItemCard(
                 }
             }
 
-            IconButton(
-                onClick  = {
-                    WiringRegistry.hit(A_PROGRAMS_ITEM_REMOVE)
-                    WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_REMOVE, ActualOutcome.StateChanged("itemRemoved"))
-                    onRemove()
-                },
-                modifier = Modifier.size(AppDimens.Icon.xxl_sm),
-            ) {
+            if (selectionMode) {
                 Icon(
-                    AppIcons.Close,
-                    contentDescription = "Remove",
-                    modifier = Modifier.size(AppDimens.Icon.sm),
-                    tint     = cs.onSurfaceVariant,
+                    if (selected) AppIcons.CheckCircle else AppIcons.RadioButtonUnchecked,
+                    contentDescription = if (selected) "Selected" else "Not selected",
+                    modifier = Modifier.size(AppDimens.Icon.lg),
+                    tint = if (selected) cs.primary else cs.onSurfaceVariant,
                 )
+            } else {
+                IconButton(
+                    onClick  = {
+                        WiringRegistry.hit(A_PROGRAMS_ITEM_REMOVE)
+                        WiringRegistry.recordOutcome(A_PROGRAMS_ITEM_REMOVE, ActualOutcome.StateChanged("itemRemoved"))
+                        onRemove()
+                    },
+                    modifier = Modifier.size(AppDimens.Icon.xxl_sm),
+                ) {
+                    Icon(
+                        AppIcons.Close,
+                        contentDescription = "Remove",
+                        modifier = Modifier.size(AppDimens.Icon.sm),
+                        tint     = cs.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProgramBlockSelectionBar(
+    selectedCount: Int,
+    canCreateSuperset: Boolean,
+    canBreakSuperset: Boolean,
+    onCreateSuperset: () -> Unit,
+    onBreakSuperset: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Text(
+                text = "$selectedCount selected",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(AppDimens.Corner.md),
+                ) {
+                    Text("Cancel")
+                }
+                OutlinedButton(
+                    onClick = onBreakSuperset,
+                    enabled = canBreakSuperset,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(AppDimens.Corner.md),
+                ) {
+                    Text("Break Superset")
+                }
+            }
+            Button(
+                onClick = onCreateSuperset,
+                enabled = canCreateSuperset,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(AppDimens.Corner.md),
+            ) {
+                Icon(AppIcons.Link, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                Spacer(Modifier.width(AppDimens.Spacing.xs))
+                Text("Create Superset", maxLines = 1)
             }
         }
     }

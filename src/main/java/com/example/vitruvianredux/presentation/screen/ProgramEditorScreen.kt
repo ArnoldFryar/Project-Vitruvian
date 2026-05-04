@@ -1,4 +1,4 @@
-﻿@file:OptIn(ExperimentalMaterial3Api::class)
+﻿@file:OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 
 package com.example.vitruvianredux.presentation.screen
 
@@ -6,6 +6,8 @@ import com.vitruvian.trainer.R
 
 import coil.compose.AsyncImage
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,20 +57,54 @@ fun ProgramEditorScreen(
     val program = programs.find { it.id == programId }
 
     var programName   by remember(program) { mutableStateOf(program?.name ?: "") }
-    var draftItems    by remember(program) { mutableStateOf(program?.items ?: emptyList()) }
+    var draftBlocks   by remember(program) { mutableStateOf(programBlocksFromItems(program?.items ?: emptyList())) }
     var scheduledDays by remember(program) { mutableStateOf(program?.scheduledDays ?: emptySet()) }
     var showPicker    by remember { mutableStateOf(false) }
     var editingItem   by remember { mutableStateOf<ProgramItemDraft?>(null) }
     // Snapshot of weights before PB scaling so we can restore them
-    var preScaleItems by remember { mutableStateOf<List<ProgramItemDraft>?>(null) }
+    var preScaleBlocks by remember { mutableStateOf<List<ProgramBlockDraft>?>(null) }
     var scalePBs      by remember { mutableStateOf(false) }
     var showStatsMenu by remember { mutableStateOf(false) }
     var showDaysDialog by remember { mutableStateOf(false) }
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedBlockKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     val pbSummaries by PersonalBestStore.summariesFlow.collectAsState()
     val analyticsLogs by AnalyticsStore.logsFlow.collectAsState()
+    val draftItems = remember(draftBlocks) { programItemsFromBlocks(draftBlocks) }
+    val exerciseCount = remember(draftBlocks) { programBlockExerciseCount(draftBlocks) }
+    val canCreateSupersetSelection = remember(draftBlocks, selectedBlockKeys) {
+        canCreateSupersetFromSelection(draftBlocks, selectedBlockKeys)
+    }
+    val canBreakSupersetSelection = remember(draftBlocks, selectedBlockKeys) {
+        canBreakSupersetSelection(draftBlocks, selectedBlockKeys)
+    }
 
-    val isSaveEnabled = programName.isNotBlank() && draftItems.isNotEmpty() && draftItems.all { it.isValid }
+    fun exitSelectionMode() {
+        isSelectionMode = false
+        selectedBlockKeys = emptySet()
+    }
+
+    fun startSelectionMode(blockKey: String? = null) {
+        isSelectionMode = true
+        selectedBlockKeys = blockKey?.let { setOf(it) } ?: emptySet()
+    }
+
+    fun toggleBlockSelection(blockKey: String) {
+        selectedBlockKeys = if (blockKey in selectedBlockKeys) {
+            selectedBlockKeys - blockKey
+        } else {
+            selectedBlockKeys + blockKey
+        }
+    }
+
+    LaunchedEffect(draftBlocks) {
+        val validKeys = draftBlocks.map { it.key }.toSet()
+        selectedBlockKeys = selectedBlockKeys.filterTo(linkedSetOf()) { it in validKeys }
+        if (draftBlocks.isEmpty()) exitSelectionMode()
+    }
+
+    val isSaveEnabled = programName.isNotBlank() && programBlocksAreValid(draftBlocks)
 
     val context = LocalContext.current
     var exerciseCatalog  by remember { mutableStateOf<Map<String, Exercise>>(emptyMap()) }
@@ -86,13 +122,7 @@ fun ProgramEditorScreen(
     val reorderState = rememberReorderableLazyListState(onMove = { from, to ->
         val fromKey = from.key as? String ?: return@rememberReorderableLazyListState
         val toKey   = to.key as? String   ?: return@rememberReorderableLazyListState
-        val fromIdx = draftItems.indexOfFirst { it.exerciseId == fromKey }
-        val toIdx   = draftItems.indexOfFirst { it.exerciseId == toKey }
-        if (fromIdx != -1 && toIdx != -1) {
-            draftItems = normalizeProgramSupersetDrafts(
-                draftItems.toMutableList().apply { add(toIdx, removeAt(fromIdx)) }
-            )
-        }
+        draftBlocks = moveProgramBlock(draftBlocks, fromKey, toKey)
     })
 
     if (showPicker) {
@@ -103,7 +133,7 @@ fun ProgramEditorScreen(
             alreadySelected = alreadyExercises,
             onDone = { picked ->
                 val existingById = draftItems.associateBy { it.exerciseId }
-                draftItems = normalizeProgramSupersetDrafts(
+                draftBlocks = programBlocksFromItems(
                     picked.map { ex ->
                         existingById[ex.id.ifBlank { ex.name }] ?: run {
                             val suggested = ProgressionEngine.suggestedStartingWeightLb(
@@ -132,6 +162,7 @@ fun ProgramEditorScreen(
                         }
                     }
                 )
+                exitSelectionMode()
                 showPicker = false
             },
             onDismiss = { showPicker = false },
@@ -140,16 +171,12 @@ fun ProgramEditorScreen(
 
     editingItem?.let { item ->
         val editingExercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
-        val editingIndex = draftItems.indexOfFirst { it.exerciseId == item.exerciseId }
         EditExerciseSheet(
             item      = item,
             exercise  = editingExercise,
-            supersetContext = EditExerciseSupersetContext(
-                previousItem = draftItems.getOrNull(editingIndex - 1),
-                nextItem = draftItems.getOrNull(editingIndex + 1),
-            ),
+            supersetContext = programBlockSupersetContext(draftBlocks, item),
             onSave    = { result ->
-                draftItems  = applyProgramSupersetEdit(draftItems, result.item, result.supersetPlacement)
+                draftBlocks = applyProgramBlockSupersetEdit(draftBlocks, result.item, result.supersetPlacement)
                 editingItem = null
             },
             onDismiss = { editingItem = null },
@@ -159,7 +186,7 @@ fun ProgramEditorScreen(
     val totalSets     = draftItems.sumOf { it.sets }
     val estimatedMins = draftItems.sumOf { item ->
         item.sets * (item.restTimerSec / 60.0 + 1.5)
-    }.toInt().coerceAtLeast(if (draftItems.isEmpty()) 0 else 1)
+    }.toInt().coerceAtLeast(if (draftBlocks.isEmpty()) 0 else 1)
     val daysLabel = formatScheduledDays(scheduledDays).ifBlank { "Not scheduled" }
 
     // ── Schedule Days dialog ─────────────────────────────────────────────────
@@ -190,8 +217,7 @@ onClick = { showDaysDialog = false }) { Text("Done") }
             state          = reorderState.listState,
             modifier       = Modifier
                 .fillMaxSize()
-                .reorderable(reorderState)
-                .detectReorderAfterLongPress(reorderState),
+                .then(if (isSelectionMode) Modifier else Modifier.reorderable(reorderState)),
             contentPadding = PaddingValues(bottom = 96.dp),
         ) {
 
@@ -324,8 +350,8 @@ onClick = { showDaysDialog = false }) { Text("Done") }
                         checked         = scalePBs,
                         onCheckedChange = { enabled ->
                             if (enabled) {
-                                preScaleItems = draftItems
-                                draftItems = draftItems.map { item ->
+                                preScaleBlocks = draftBlocks
+                                draftBlocks = programBlocksFromItems(draftItems.map { item ->
                                     val pb = pbSummaries[item.exerciseName.lowercase().trim()]
                                     if (pb != null) {
                                         val targetReps = when (item.mode) {
@@ -338,10 +364,10 @@ onClick = { showDaysDialog = false }) { Text("Done") }
                                             pb.bestWeightLb
                                         if (pbWeight > 0) item.copy(targetWeightLb = pbWeight) else item
                                     } else item
-                                }
+                                })
                             } else {
-                                preScaleItems?.let { draftItems = it }
-                                preScaleItems = null
+                                preScaleBlocks?.let { draftBlocks = it }
+                                preScaleBlocks = null
                             }
                             scalePBs = enabled
                         },
@@ -351,34 +377,37 @@ onClick = { showDaysDialog = false }) { Text("Done") }
 
             item(key = "__gap__") { Spacer(Modifier.height(12.dp)) }
 
-            items(draftItems, key = { it.exerciseId }) { item ->
-                val itemIndex = draftItems.indexOfFirst { it.exerciseId == item.exerciseId }
-                val previousItem = draftItems.getOrNull(itemIndex - 1)
-                val nextItem = draftItems.getOrNull(itemIndex + 1)
-                val group = item.circuitGroup
-                val isSupersetBlockMember = group != null
-                val isSupersetBlockStart = group != null && previousItem?.circuitGroup != group
-                val isSupersetBlockEnd = group != null && nextItem?.circuitGroup != group
-                ReorderableItem(reorderState, key = item.exerciseId) { isDragging ->
-                    val exercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
-                    EditorExerciseCard(
-                        item     = item,
-                        exercise = exercise,
-                        showSupersetLabel = isSupersetBlockStart,
-                        isSupersetBlockMember = isSupersetBlockMember,
-                        isSupersetBlockStart = isSupersetBlockStart,
-                        isSupersetBlockEnd = isSupersetBlockEnd,
-                        onEdit   = { editingItem = item },
-                        onRemove = {
-                            draftItems = normalizeProgramSupersetDrafts(
-                                draftItems.filter { it.exerciseId != item.exerciseId }
-                            )
-                        },
+            items(draftBlocks, key = { it.key }) { block ->
+                ReorderableItem(reorderState, key = block.key) { isDragging ->
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
                         modifier = Modifier.graphicsLayer(
                             scaleX = if (isDragging) 1.02f else 1f,
                             scaleY = if (isDragging) 1.02f else 1f,
                         ),
-                    )
+                    ) {
+                        programBlockDisplayItems(block).forEach { display ->
+                            val exercise = exerciseCatalog[display.item.exerciseId] ?: exerciseCatalog[display.item.exerciseName]
+                            EditorExerciseCard(
+                                item = display.item,
+                                exercise = exercise,
+                                showSupersetLabel = display.showSupersetLabel,
+                                isSupersetBlockMember = display.isSupersetBlockMember,
+                                isSupersetBlockStart = display.isSupersetBlockStart,
+                                isSupersetBlockEnd = display.isSupersetBlockEnd,
+                                selectionMode = isSelectionMode,
+                                selected = block.key in selectedBlockKeys,
+                                onSelectToggle = { toggleBlockSelection(block.key) },
+                                onLongPress = { startSelectionMode(block.key) },
+                                onEdit = { editingItem = display.item },
+                                onRemove = {
+                                    draftBlocks = removeProgramBlockItem(draftBlocks, display.item.exerciseId)
+                                },
+                                dragHandleModifier = if (isSelectionMode) Modifier else Modifier.detectReorderAfterLongPress(reorderState),
+                                modifier = Modifier,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -400,53 +429,81 @@ onClick = { showDaysDialog = false }) { Text("Done") }
             ) { Icon(AppIcons.Close, contentDescription = "Close") }
 
             Text(
-                if (program != null) "Edit Workout" else "New Workout",
+                if (isSelectionMode) "Select Exercises" else if (program != null) "Edit Workout" else "New Workout",
                 style      = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
 
-            IconButton(
-                onClick = {
-                    if (isSaveEnabled && program != null) {
-                        val normalizedItems = normalizeProgramSupersetDrafts(draftItems)
-                        draftItems = normalizedItems
-                        ProgramStore.addProgram(
-                            program.copy(
-                                name          = programName.trim(),
-                                exerciseCount = normalizedItems.size,
-                                items         = normalizedItems,
-                                scheduledDays = scheduledDays,
-                            )
-                        )
-                        onBack()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (draftBlocks.isNotEmpty()) {
+                    TextButton(onClick = {
+                        if (isSelectionMode) exitSelectionMode() else startSelectionMode()
+                    }) {
+                        Text(if (isSelectionMode) "Cancel" else "Select")
                     }
-                },
-                enabled = isSaveEnabled,
-                colors  = IconButtonDefaults.iconButtonColors(
-                    containerColor         = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-                    disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                ),
-            ) { Icon(AppIcons.Save, contentDescription = "Save") }
+                }
+                if (!isSelectionMode) {
+                    IconButton(
+                        onClick = {
+                            if (isSaveEnabled && program != null) {
+                                val normalizedItems = programItemsFromBlocks(draftBlocks)
+                                ProgramStore.addProgram(
+                                    program.copy(
+                                        name          = programName.trim(),
+                                        exerciseCount = normalizedItems.size,
+                                        items         = normalizedItems,
+                                        scheduledDays = scheduledDays,
+                                    )
+                                )
+                                onBack()
+                            }
+                        },
+                        enabled = isSaveEnabled,
+                        colors  = IconButtonDefaults.iconButtonColors(
+                            containerColor         = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                        ),
+                    ) { Icon(AppIcons.Save, contentDescription = "Save") }
+                }
+            }
         }
 
-        Surface(
-            modifier        = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
-            shadowElevation = 0.dp,
-            color           = MaterialTheme.colorScheme.surface,
-            border          = androidx.compose.foundation.BorderStroke(
-                AppDimens.Stroke.thin,
-                MaterialTheme.colorScheme.outlineVariant,
-            ),
-        ) {
-            GradientButton(
-                text     = if (draftItems.isEmpty()) "Choose Exercises" else "Manage Exercises (${draftItems.size})",
-                icon     = AppIcons.Add,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .navigationBarsPadding(),
-                onClick  = { showPicker = true },
+        if (isSelectionMode) {
+            ProgramBlockSelectionBar(
+                selectedCount = selectedBlockKeys.size,
+                canCreateSuperset = canCreateSupersetSelection,
+                canBreakSuperset = canBreakSupersetSelection,
+                onCreateSuperset = {
+                    draftBlocks = createSupersetFromSelection(draftBlocks, selectedBlockKeys)
+                    exitSelectionMode()
+                },
+                onBreakSuperset = {
+                    draftBlocks = breakSupersetSelection(draftBlocks, selectedBlockKeys)
+                    exitSelectionMode()
+                },
+                onCancel = { exitSelectionMode() },
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
+        } else {
+            Surface(
+                modifier        = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+                shadowElevation = 0.dp,
+                color           = MaterialTheme.colorScheme.surface,
+                border          = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.thin,
+                    MaterialTheme.colorScheme.outlineVariant,
+                ),
+            ) {
+                GradientButton(
+                    text     = if (draftBlocks.isEmpty()) "Choose Exercises" else "Manage Exercises ($exerciseCount)",
+                    icon     = AppIcons.Add,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .navigationBarsPadding(),
+                    onClick  = { showPicker = true },
+                )
+            }
         }
     }
 }
@@ -459,8 +516,13 @@ private fun EditorExerciseCard(
     isSupersetBlockMember: Boolean,
     isSupersetBlockStart: Boolean,
     isSupersetBlockEnd: Boolean,
+    selectionMode: Boolean,
+    selected: Boolean,
+    onSelectToggle: () -> Unit,
+    onLongPress: () -> Unit,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
+    dragHandleModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -485,7 +547,15 @@ private fun EditorExerciseCard(
     Card(
         modifier  = modifier
             .fillMaxWidth()
-            .padding(start = 12.dp, end = 12.dp, top = outerTopPadding, bottom = outerBottomPadding),
+            .padding(start = 12.dp, end = 12.dp, top = outerTopPadding, bottom = outerBottomPadding)
+            .combinedClickable(
+                onClick = {
+                    if (selectionMode) onSelectToggle() else onEdit()
+                },
+                onLongClick = {
+                    if (selectionMode) onSelectToggle() else onLongPress()
+                },
+            ),
         shape     = cardShape,
         colors    = CardDefaults.cardColors(
             containerColor = if (isSupersetBlockMember) colors.primaryContainer.copy(alpha = 0.22f)
@@ -494,7 +564,11 @@ private fun EditorExerciseCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            if (isSupersetBlockMember) colors.primary.copy(alpha = 0.3f) else colors.outline,
+            when {
+                selected -> colors.primary
+                isSupersetBlockMember -> colors.primary.copy(alpha = 0.3f)
+                else -> colors.outline
+            },
         ),
     ) {
         Column {
@@ -559,29 +633,46 @@ private fun EditorExerciseCard(
                             overflow   = TextOverflow.Ellipsis,
                             modifier   = Modifier.weight(1f),
                         )
-                        Box {
-                            IconButton(
-                                onClick  = { showMenu = true },
-                                modifier = Modifier.size(28.dp),
-                            ) {
+                        if (selectionMode) {
+                            Icon(
+                                if (selected) AppIcons.CheckCircle else AppIcons.RadioButtonUnchecked,
+                                contentDescription = if (selected) "Selected" else "Not selected",
+                                modifier = Modifier.size(20.dp),
+                                tint = if (selected) colors.primary else colors.onSurfaceVariant,
+                            )
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    AppIcons.MoreVert,
-                                    contentDescription = "Card options",
-                                    modifier = Modifier.size(16.dp),
-                                    tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    AppIcons.DragHandle,
+                                    contentDescription = "Drag to reorder",
+                                    modifier = dragHandleModifier.size(18.dp),
+                                    tint = colors.onSurfaceVariant,
                                 )
-                            }
-                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                                DropdownMenuItem(
-                                    text        = { Text(stringResource(R.string.cd_edit)) },
-                                    leadingIcon = { Icon(AppIcons.Edit, null, Modifier.size(18.dp)) },
-                                    onClick     = { showMenu = false; onEdit() },
-                                )
-                                DropdownMenuItem(
-                                    text        = { Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = { Icon(AppIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) },
-                                    onClick     = { showMenu = false; onRemove() },
-                                )
+                                Box {
+                                    IconButton(
+                                        onClick  = { showMenu = true },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
+                                        Icon(
+                                            AppIcons.MoreVert,
+                                            contentDescription = "Card options",
+                                            modifier = Modifier.size(16.dp),
+                                            tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                        DropdownMenuItem(
+                                            text        = { Text(stringResource(R.string.cd_edit)) },
+                                            leadingIcon = { Icon(AppIcons.Edit, null, Modifier.size(18.dp)) },
+                                            onClick     = { showMenu = false; onEdit() },
+                                        )
+                                        DropdownMenuItem(
+                                            text        = { Text(stringResource(R.string.cd_delete), color = MaterialTheme.colorScheme.error) },
+                                            leadingIcon = { Icon(AppIcons.Delete, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.error) },
+                                            onClick     = { showMenu = false; onRemove() },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

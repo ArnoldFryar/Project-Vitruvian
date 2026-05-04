@@ -349,11 +349,15 @@ internal fun completedSetRepCounts(
     engineWarmupRepsCompleted: Int,
     engineWorkingRepsCompleted: Int,
     stateRepsCount: Int,
+    stateWorkingRepsCompleted: Int,
     configuredWarmupReps: Int,
 ): Pair<Int, Int> {
     val warmupRepsCompleted = engineWarmupRepsCompleted.coerceAtLeast(0)
     val workingRepsCompleted = if (engineWorkingRepsCompleted > 0 || warmupRepsCompleted > 0) {
-        engineWorkingRepsCompleted.coerceAtLeast(0)
+        maxOf(
+            engineWorkingRepsCompleted.coerceAtLeast(0),
+            stateWorkingRepsCompleted.coerceAtLeast(0),
+        )
     } else {
         (stateRepsCount - configuredWarmupReps).coerceAtLeast(0)
     }
@@ -1953,10 +1957,12 @@ class WorkoutSessionEngine(
         val now    = System.currentTimeMillis()
         val durSec = ((now - setStartTimeMs) / 1_000L).toInt().coerceAtLeast(1)
         val stateRepsCount = _state.value.repsCount
+        val stateWorkingRepsCompleted = _state.value.workingRepsCompleted
         val (warmupRepsCompleted, workingRepsCompleted) = completedSetRepCounts(
             engineWarmupRepsCompleted = engineState.warmupRepsCompleted,
             engineWorkingRepsCompleted = engineState.workingRepsCompleted,
             stateRepsCount = stateRepsCount,
+            stateWorkingRepsCompleted = stateWorkingRepsCompleted,
             configuredWarmupReps = set.warmupReps,
         )
         // Authoritative working volume comes from the per-rep accumulator — no lb recalculation.
