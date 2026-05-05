@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +30,8 @@ object ProfileStore {
     private const val KEY_PHOTO_URI = "photo_uri"
     private const val KEY_AVATAR_DATA_URI = "avatar_data_uri"
     private const val KEY_UPDATED_AT = "updated_at"
+    private const val KEY_NAME_UPDATED_AT = "name_updated_at"
+    private const val KEY_AVATAR_UPDATED_AT = "avatar_updated_at"
     private const val KEY_SCHEDULE_DAYS = "schedule_days"
     private const val AVATAR_MAX_SIZE_PX = 256
     private const val AVATAR_JPEG_QUALITY = 82
@@ -53,6 +56,20 @@ object ProfileStore {
 
     /** Last modification time (epoch ms) — used as LWW clock for sync. */
     val updatedAt: Long get() = if (::prefs.isInitialized) prefs.getLong(KEY_UPDATED_AT, 0L) else 0L
+
+    private val nameUpdatedAt: Long
+        get() = if (::prefs.isInitialized) {
+            prefs.getLong(KEY_NAME_UPDATED_AT, prefs.getLong(KEY_UPDATED_AT, 0L))
+        } else {
+            0L
+        }
+
+    private val avatarUpdatedAt: Long
+        get() = if (::prefs.isInitialized) {
+            prefs.getLong(KEY_AVATAR_UPDATED_AT, prefs.getLong(KEY_UPDATED_AT, 0L))
+        } else {
+            0L
+        }
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -83,8 +100,10 @@ object ProfileStore {
         _displayName.value = trimmed
         prefs.edit()
             .putString(KEY_DISPLAY_NAME, trimmed)
+            .putLong(KEY_NAME_UPDATED_AT, now)
             .putLong(KEY_UPDATED_AT, now)
             .apply()
+        ImmediateCloudSyncTrigger.requestSettingsSync()
         Timber.tag(TAG).d("setDisplayName: $trimmed (updatedAt=$now)")
     }
 
@@ -94,8 +113,10 @@ object ProfileStore {
         _photoUri.value = trimmed
         prefs.edit()
             .putString(KEY_PHOTO_URI, trimmed)
+            .putLong(KEY_AVATAR_UPDATED_AT, now)
             .putLong(KEY_UPDATED_AT, now)
             .apply()
+        ImmediateCloudSyncTrigger.requestSettingsSync()
         Timber.tag(TAG).d("setPhotoUri: ${trimmed != null} (updatedAt=$now)")
     }
 
@@ -108,8 +129,10 @@ object ProfileStore {
         prefs.edit()
             .putString(KEY_PHOTO_URI, trimmedSource)
             .putString(KEY_AVATAR_DATA_URI, trimmedAvatar)
+            .putLong(KEY_AVATAR_UPDATED_AT, now)
             .putLong(KEY_UPDATED_AT, now)
             .apply()
+        ImmediateCloudSyncTrigger.requestSettingsSync()
         Timber.tag(TAG).d("setAvatarPhoto: ${trimmedAvatar != null} (updatedAt=$now)")
     }
 
@@ -179,17 +202,28 @@ object ProfileStore {
         val trimmed = name?.trim()?.ifBlank { null }
         val trimmedAvatar = avatarDataUri?.trim()?.takeIf { it.isNotBlank() }
         if (trimmed == null && trimmedAvatar == null) return
-        if (remoteUpdatedAt > updatedAt) {
-            if (trimmed != null) _displayName.value = trimmed
-            _avatarDataUri.value = trimmedAvatar
-            prefs.edit().apply {
-                if (trimmed != null) putString(KEY_DISPLAY_NAME, trimmed)
-                putString(KEY_AVATAR_DATA_URI, trimmedAvatar)
-                .putLong(KEY_UPDATED_AT, remoteUpdatedAt)
-                apply()
+        val applyName = trimmed != null && remoteUpdatedAt > nameUpdatedAt
+        val applyAvatar = remoteUpdatedAt > avatarUpdatedAt
+        if (!applyName && !applyAvatar) return
+
+        if (applyName) _displayName.value = trimmed!!
+        if (applyAvatar) _avatarDataUri.value = trimmedAvatar
+
+        prefs.edit().apply {
+            if (applyName) {
+                putString(KEY_DISPLAY_NAME, trimmed)
+                putLong(KEY_NAME_UPDATED_AT, remoteUpdatedAt)
             }
-            Timber.tag(TAG).d("applyFromRemote: name=${trimmed != null}, avatar=${trimmedAvatar != null} (remoteUpdatedAt=$remoteUpdatedAt)")
+            if (applyAvatar) {
+                putString(KEY_AVATAR_DATA_URI, trimmedAvatar)
+                putLong(KEY_AVATAR_UPDATED_AT, remoteUpdatedAt)
+            }
+            putLong(KEY_UPDATED_AT, maxOf(remoteUpdatedAt, nameUpdatedAt, avatarUpdatedAt))
+            apply()
         }
+        Timber.tag(TAG).d(
+            "applyFromRemote: name=$applyName, avatar=$applyAvatar (remoteUpdatedAt=$remoteUpdatedAt)",
+        )
     }
 
     /**

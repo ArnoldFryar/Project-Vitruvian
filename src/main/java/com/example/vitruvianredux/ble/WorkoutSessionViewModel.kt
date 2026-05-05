@@ -261,7 +261,7 @@ class WorkoutSessionViewModel(
                     lastRepQualitySessionPhase = sessionPhase
                 }
 
-                val scoredQuality = repQualityTracker.onSessionState(
+                var scoredQuality = repQualityTracker.onSessionState(
                     currentState,
                     symmetryForceBiasOverride = if (sessionPhase is SessionPhase.ExerciseActive && sessionPhase.numCables > 1) {
                         machineHeuristic.value?.concentricForceBiasRatio()
@@ -270,6 +270,9 @@ class WorkoutSessionViewModel(
                     },
                     symmetryApplicable = sessionPhase !is SessionPhase.ExerciseActive || sessionPhase.numCables > 1,
                 )
+                if (scoredQuality == null && sessionPhase is SessionPhase.ExerciseComplete) {
+                    scoredQuality = repQualityTracker.flushCompletedWorkingRep(currentState)
+                }
                 if (scoredQuality != null) {
                     _lastRepQuality.value = scoredQuality
                     FatigueTrendAnalyzer.recordRep(scoredQuality)

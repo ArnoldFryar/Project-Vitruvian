@@ -3,6 +3,7 @@ package com.example.vitruvianredux.presentation.repquality
 import com.example.vitruvianredux.ble.SessionPhase
 import com.example.vitruvianredux.ble.SessionState
 import com.example.vitruvianredux.ble.protocol.CableSample
+import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.SetPhase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -46,6 +47,24 @@ class RepQualityTrackerTest {
         rightCable = sample(rightPosition),
     )
 
+    private fun completedState(
+        reps: Int,
+        tick: Int,
+        leftPosition: Float = 100f + tick,
+        rightPosition: Float = 120f + tick,
+    ) = SessionState(
+        sessionPhase = SessionPhase.ExerciseComplete(
+            exerciseName = "Bench Press",
+            thumbnailUrl = null,
+            videoUrl = null,
+            stats = ExerciseStats(exerciseName = "Bench Press", repsCompleted = reps),
+        ),
+        setPhase = SetPhase.REST,
+        workingRepsCompleted = reps,
+        leftCable = sample(leftPosition),
+        rightCable = sample(rightPosition),
+    )
+
     @Test
     fun `scores once when rep count advances after enough frames`() {
         var scoreSeed = 69
@@ -69,6 +88,45 @@ class RepQualityTrackerTest {
         assertEquals(70, aggregate?.avgQualityScore)
         assertEquals(80, aggregate?.avgRom)
         assertNull(tracker.consumeCurrentSetAggregate())
+    }
+
+    @Test
+    fun `flushCompletedWorkingRep scores final rep when completion skips final active state`() {
+        var scoreSeed = 80
+        val tracker = RepQualityTracker { _, _, _, _, _ ->
+            scoreSeed += 1
+            RepQuality(scoreSeed, "Good", 80, 70, 60, 50)
+        }
+
+        assertNull(tracker.onSessionState(activeState(reps = 0, tick = 1)))
+        assertNull(tracker.onSessionState(activeState(reps = 0, tick = 2)))
+        assertNull(tracker.onSessionState(activeState(reps = 0, tick = 3)))
+
+        val quality = tracker.flushCompletedWorkingRep(completedState(reps = 1, tick = 4))
+
+        assertNotNull(quality)
+        assertEquals(81, quality?.score)
+        val aggregate = tracker.consumeCurrentSetAggregate()
+        assertEquals(81, aggregate?.avgQualityScore)
+    }
+
+    @Test
+    fun `flushCompletedWorkingRep does not double count an already scored final rep`() {
+        var scoreCount = 0
+        val tracker = RepQualityTracker { _, _, _, _, _ ->
+            scoreCount += 1
+            RepQuality(90, "Great", 80, 70, 60, 50)
+        }
+
+        assertNull(tracker.onSessionState(activeState(reps = 0, tick = 1)))
+        assertNull(tracker.onSessionState(activeState(reps = 0, tick = 2)))
+        assertNull(tracker.onSessionState(activeState(reps = 0, tick = 3)))
+        assertNotNull(tracker.onSessionState(activeState(reps = 1, tick = 4)))
+
+        assertNull(tracker.flushCompletedWorkingRep(completedState(reps = 1, tick = 5)))
+        assertEquals(1, scoreCount)
+        val aggregate = tracker.consumeCurrentSetAggregate()
+        assertEquals(90, aggregate?.avgQualityScore)
     }
 
     @Test

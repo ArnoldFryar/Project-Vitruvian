@@ -26,6 +26,9 @@ class RepQualityTracker(
     private var lastScoredWorkingRep = -1
     private var lastWarmupRep = 0
     private var lastSetPhase: SetPhase = SetPhase.IDLE
+    private var lastModeProfile: ModeProfile? = null
+    private var lastSymmetryForceBiasOverride: Float? = null
+    private var lastSymmetryApplicable: Boolean = true
 
     fun onSessionState(
         state: SessionState,
@@ -35,6 +38,10 @@ class RepQualityTracker(
         val phase = state.sessionPhase as? SessionPhase.ExerciseActive ?: return null
         val left = state.leftCable ?: return null
         val right = state.rightCable ?: return null
+        val modeProfile = ModeProfile.forMode(phase.programMode)
+        lastModeProfile = modeProfile
+        lastSymmetryForceBiasOverride = symmetryForceBiasOverride
+        lastSymmetryApplicable = symmetryApplicable
 
         if (state.setPhase != lastSetPhase) {
             if (lastSetPhase == SetPhase.WARMUP && state.setPhase == SetPhase.WORKING) {
@@ -60,6 +67,36 @@ class RepQualityTracker(
         }
 
         val workingReps = state.workingRepsCompleted
+        return scoreWorkingRep(
+            workingReps = workingReps,
+            modeProfile = modeProfile,
+            symmetryForceBiasOverride = symmetryForceBiasOverride,
+            symmetryApplicable = symmetryApplicable,
+        )
+    }
+
+    fun flushCompletedWorkingRep(state: SessionState): RepQuality? {
+        val workingReps = state.workingRepsCompleted
+        if (workingReps <= 0 || workingReps == lastScoredWorkingRep) return null
+
+        val left = state.leftCable ?: return null
+        val right = state.rightCable ?: return null
+        inFlightFrames.add(TelemetryFrame(left, right))
+
+        return scoreWorkingRep(
+            workingReps = workingReps,
+            modeProfile = lastModeProfile,
+            symmetryForceBiasOverride = lastSymmetryForceBiasOverride,
+            symmetryApplicable = lastSymmetryApplicable,
+        )
+    }
+
+    private fun scoreWorkingRep(
+        workingReps: Int,
+        modeProfile: ModeProfile?,
+        symmetryForceBiasOverride: Float?,
+        symmetryApplicable: Boolean,
+    ): RepQuality? {
         if (workingReps <= 0 || workingReps == lastScoredWorkingRep || inFlightFrames.size < 4) {
             return null
         }
@@ -68,7 +105,7 @@ class RepQualityTracker(
         val calibratedRom = warmupReferenceRom()
         val quality = scoreRep(
             frameSnapshot,
-            ModeProfile.forMode(phase.programMode),
+            modeProfile,
             calibratedRom,
             symmetryForceBiasOverride,
             symmetryApplicable,
