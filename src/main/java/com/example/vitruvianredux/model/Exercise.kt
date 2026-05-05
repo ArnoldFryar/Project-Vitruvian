@@ -126,6 +126,7 @@ data class Exercise(
 }
 
 enum class ExerciseSortOrder(val label: String) {
+    FAVORITES_FIRST("Favorites First"),
     NAME_ASC("Name A–Z"),
     NAME_DESC("Name Z–A"),
     CUSTOM("Custom"),

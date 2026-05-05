@@ -6,6 +6,7 @@ import com.example.vitruvianredux.ble.BleForegroundService
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.CustomExerciseStore
+import com.example.vitruvianredux.data.ExerciseFavoritesStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.VoiceCoachingStore
 import com.example.vitruvianredux.data.VitruvianFavoritesStore
@@ -63,6 +64,8 @@ class VitruvianApp : Application() {
         bleViewModel.initAutoReconnect()
         // Load any user-created custom exercises from SharedPreferences.
         CustomExerciseStore.init(this)
+        // Load favorited workout-library exercises.
+        ExerciseFavoritesStore.init(this)
         // Load the user's editable display name.
         ProfileStore.init(this)
         // Load manually-entered body weight for relative strength calculations.
