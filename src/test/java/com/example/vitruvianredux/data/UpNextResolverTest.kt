@@ -190,4 +190,42 @@ class UpNextResolverTest {
             ),
         )
     }
+
+    @Test
+    fun `late completion advances to the next planned workout even when that day already passed`() {
+        val monday = programA.copy(scheduledDays = setOf(DayOfWeek.MONDAY), sortOrder = 0)
+        val tuesday = programB.copy(scheduledDays = setOf(DayOfWeek.TUESDAY), sortOrder = 1)
+        val referenceDate = LocalDate.of(2026, 4, 15) // Wednesday
+        val history = listOf(record(referenceDate, "Program A"))
+
+        assertEquals(
+            tuesday,
+            UpNextResolver.resolveUpNextWorkout(
+                programs = listOf(monday, tuesday),
+                workoutHistory = history,
+                activeProgramId = null,
+                referenceDate = referenceDate,
+            ),
+        )
+    }
+
+    @Test
+    fun `late completion does not skip the same program's next scheduled day`() {
+        val mondayAndWednesday = programA.copy(
+            scheduledDays = setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY),
+            sortOrder = 0,
+        )
+        val fridayProgram = programB.copy(scheduledDays = setOf(DayOfWeek.FRIDAY), sortOrder = 1)
+        val completionDate = LocalDate.of(2026, 4, 14) // Tuesday
+
+        assertEquals(
+            mondayAndWednesday,
+            UpNextResolver.resolveUpNextWorkout(
+                programs = listOf(mondayAndWednesday, fridayProgram),
+                workoutHistory = listOf(record(completionDate, "Program A")),
+                activeProgramId = null,
+                referenceDate = completionDate,
+            ),
+        )
+    }
 }

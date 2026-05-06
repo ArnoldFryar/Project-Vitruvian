@@ -4,6 +4,9 @@ package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,13 +26,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
+import com.example.vitruvianredux.ble.ActualOutcome
+import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.data.*
 import com.example.vitruvianredux.model.Exercise
+import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.Success
 import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.presentation.util.loadExercises
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
@@ -58,12 +65,77 @@ fun ImportProgramScreen(
     var importedCount by remember { mutableIntStateOf(0) }
     var showOverwriteDialog by remember { mutableStateOf<OverwritePrompt?>(null) }
     var expandedProgramIndex by remember { mutableIntStateOf(0) }
+    var inputSourceLabel by remember { mutableStateOf<String?>(null) }
+    var isReadingFile by remember { mutableStateOf(false) }
+    var shouldAutoParseInitialJson by remember { mutableStateOf(initialJson.isNotBlank()) }
+    var importedPrimaryProgramId by remember { mutableStateOf<String?>(null) }
 
     // Disambiguation state
     var disambiguating by remember { mutableStateOf<DisambiguationState?>(null) }
 
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+
+    fun resetImportState() {
+        parseResult = null
+        resolvedPrograms = emptyList()
+        importDone = false
+        importedCount = 0
+        importedPrimaryProgramId = null
+        showOverwriteDialog = null
+        expandedProgramIndex = 0
+    }
+
+    fun addImportedProgram(saved: SavedProgram) {
+        ProgramStore.addProgram(saved)
+        importedCount++
+        if (importedPrimaryProgramId == null) {
+            importedPrimaryProgramId = saved.id
+        }
+    }
+
+    fun parseCurrentJson() {
+        val result = ProgramImportParser.parse(rawJson)
+        parseResult = result
+        WiringRegistry.hit(A_IMPORT_PREVIEW)
+        WiringRegistry.recordOutcome(
+            A_IMPORT_PREVIEW,
+            ActualOutcome.StateChanged(if (result is ImportParseResult.Success) "previewParsed" else "previewError"),
+        )
+        if (result is ImportParseResult.Success) {
+            resolvedPrograms = ProgramImporter.resolve(result.payload, catalog)
+        }
+    }
+
+    val jsonFilePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            isReadingFile = true
+            val loadedJson = runCatching {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)
+                        ?.bufferedReader()
+                        ?.use { it.readText() }
+                }
+            }.getOrNull()
+            isReadingFile = false
+
+            resetImportState()
+            if (loadedJson.isNullOrBlank()) {
+                rawJson = ""
+                inputSourceLabel = null
+                parseResult = ImportParseResult.Error(context.getString(R.string.import_json_file_read_error))
+            } else {
+                rawJson = loadedJson
+                inputSourceLabel = context.getString(R.string.import_json_file_loaded)
+                WiringRegistry.hit(A_IMPORT_UPLOAD_LOADED)
+                WiringRegistry.recordOutcome(A_IMPORT_UPLOAD_LOADED, ActualOutcome.StateChanged("jsonFileLoaded"))
+            }
+        }
+    }
 
     // Load exercise catalog
     LaunchedEffect(Unit) {
@@ -73,14 +145,11 @@ fun ImportProgramScreen(
         catalogLoaded = true
     }
 
-    // Auto-parse if we received JSON from an intent
-    LaunchedEffect(catalogLoaded, rawJson) {
-        if (catalogLoaded && rawJson.isNotBlank() && parseResult == null) {
-            val result = ProgramImportParser.parse(rawJson)
-            parseResult = result
-            if (result is ImportParseResult.Success) {
-                resolvedPrograms = ProgramImporter.resolve(result.payload, catalog)
-            }
+    LaunchedEffect(catalogLoaded, shouldAutoParseInitialJson) {
+        if (catalogLoaded && shouldAutoParseInitialJson && rawJson.isNotBlank()) {
+            inputSourceLabel = context.getString(R.string.import_json_received_from_link)
+            parseCurrentJson()
+            shouldAutoParseInitialJson = false
         }
     }
 
@@ -103,7 +172,9 @@ fun ImportProgramScreen(
             importDone -> ImportSuccessContent(
                 count = importedCount,
                 modifier = Modifier.padding(innerPadding),
-                onDone = onBack,
+                onDone = {
+                    importedPrimaryProgramId?.let(onImportComplete) ?: onBack()
+                },
             )
             resolvedPrograms.isNotEmpty() -> PreviewContent(
                 resolvedPrograms = resolvedPrograms,
@@ -113,24 +184,25 @@ fun ImportProgramScreen(
                     val re = resolvedPrograms[progIdx].exercises[exIdx]
                     val candidates = (re.match as? ProgramImporter.ExerciseMatch.Ambiguous)?.candidates ?: emptyList()
                     if (candidates.isNotEmpty()) {
+                        WiringRegistry.hit(A_IMPORT_DISAMBIGUATE_OPEN)
+                        WiringRegistry.recordOutcome(A_IMPORT_DISAMBIGUATE_OPEN, ActualOutcome.SheetOpened("exercise_disambiguation"))
                         disambiguating = DisambiguationState(progIdx, exIdx, candidates)
                     }
                 },
                 onImport = {
+                    WiringRegistry.hit(A_IMPORT_CONFIRM)
                     val existing = ProgramStore.savedProgramsFlow.value
-                    var imported = 0
-                    resolvedPrograms.forEach { rp ->
+                    for (rp in resolvedPrograms) {
                         val dup = ProgramImporter.findDuplicateByName(rp.name, existing)
                         if (dup != null) {
                             showOverwriteDialog = OverwritePrompt(rp, dup)
-                            return@forEach
+                            break
                         }
                         val saved = ProgramImporter.toSavedProgram(rp)
-                        ProgramStore.addProgram(saved)
-                        imported++
+                        addImportedProgram(saved)
                     }
                     if (showOverwriteDialog == null) {
-                        importedCount = imported
+                        WiringRegistry.recordOutcome(A_IMPORT_CONFIRM, ActualOutcome.StateChanged("programImported"))
                         importDone = true
                     }
                 },
@@ -143,18 +215,29 @@ fun ImportProgramScreen(
             )
             else -> PasteInputContent(
                 rawJson = rawJson,
-                onJsonChange = { rawJson = it },
+                inputSourceLabel = inputSourceLabel,
+                isReadingFile = isReadingFile,
+                onJsonChange = {
+                    resetImportState()
+                    inputSourceLabel = null
+                    rawJson = it
+                },
                 onPaste = {
                     val clip = clipboardManager.getText()?.text ?: ""
-                    if (clip.isNotBlank()) rawJson = clip
-                },
-                onParse = {
-                    val result = ProgramImportParser.parse(rawJson)
-                    parseResult = result
-                    if (result is ImportParseResult.Success) {
-                        resolvedPrograms = ProgramImporter.resolve(result.payload, catalog)
+                    if (clip.isNotBlank()) {
+                        resetImportState()
+                        rawJson = clip
+                        inputSourceLabel = context.getString(R.string.import_json_pasted)
+                        WiringRegistry.hit(A_IMPORT_PASTE)
+                        WiringRegistry.recordOutcome(A_IMPORT_PASTE, ActualOutcome.StateChanged("jsonPasted"))
                     }
                 },
+                onUpload = {
+                    WiringRegistry.hit(A_IMPORT_UPLOAD_OPEN)
+                    WiringRegistry.recordOutcome(A_IMPORT_UPLOAD_OPEN, ActualOutcome.SheetOpened("document_picker"))
+                    jsonFilePicker.launch(arrayOf("application/json", "text/plain", "text/*"))
+                },
+                onParse = { parseCurrentJson() },
                 modifier = Modifier.padding(innerPadding),
             )
         }
@@ -182,6 +265,8 @@ fun ImportProgramScreen(
                                     )
                                     updated[state.programIndex] = prog.copy(exercises = exList)
                                     resolvedPrograms = updated
+                                    WiringRegistry.hit(A_IMPORT_DISAMBIGUATE_PICK)
+                                    WiringRegistry.recordOutcome(A_IMPORT_DISAMBIGUATE_PICK, ActualOutcome.StateChanged("exerciseSelected"))
                                     disambiguating = null
                                 }
                                 .padding(vertical = AppDimens.Spacing.md_sm, horizontal = AppDimens.Spacing.sm),
@@ -228,19 +313,19 @@ onClick = { disambiguating = null }) { Text(stringResource(R.string.common_cance
             confirmButton = {
                 TextButton(
 onClick = {
+                    WiringRegistry.hit(A_IMPORT_OVERWRITE_REPLACE)
+                    WiringRegistry.recordOutcome(A_IMPORT_OVERWRITE_REPLACE, ActualOutcome.StateChanged("programReplaced"))
                     // Replace: reuse existing id
                     val saved = ProgramImporter.toSavedProgram(prompt.resolved)
                         .copy(id = prompt.existing.id)
-                    ProgramStore.addProgram(saved)
+                    addImportedProgram(saved)
                     showOverwriteDialog = null
-                    importedCount++
                     // Continue importing remaining programs
                     val currentIdx = resolvedPrograms.indexOf(prompt.resolved)
                     val remaining = resolvedPrograms.drop(currentIdx + 1)
                     remaining.forEach { rp ->
                         val s = ProgramImporter.toSavedProgram(rp)
-                        ProgramStore.addProgram(s)
-                        importedCount++
+                        addImportedProgram(s)
                     }
                     importDone = true
                 }) { Text(stringResource(R.string.common_replace), color = MaterialTheme.colorScheme.error) }
@@ -249,17 +334,17 @@ onClick = {
                 Row {
                     TextButton(
 onClick = {
+                        WiringRegistry.hit(A_IMPORT_OVERWRITE_COPY)
+                        WiringRegistry.recordOutcome(A_IMPORT_OVERWRITE_COPY, ActualOutcome.StateChanged("programCopied"))
                         // Import as new copy
                         val saved = ProgramImporter.toSavedProgram(prompt.resolved)
-                        ProgramStore.addProgram(saved)
+                        addImportedProgram(saved)
                         showOverwriteDialog = null
-                        importedCount++
                         val currentIdx = resolvedPrograms.indexOf(prompt.resolved)
                         val remaining = resolvedPrograms.drop(currentIdx + 1)
                         remaining.forEach { rp ->
                             val s = ProgramImporter.toSavedProgram(rp)
-                            ProgramStore.addProgram(s)
-                            importedCount++
+                            addImportedProgram(s)
                         }
                         importDone = true
                     }) { Text(stringResource(R.string.import_new_copy)) }
@@ -290,8 +375,11 @@ private data class OverwritePrompt(
 @Composable
 private fun PasteInputContent(
     rawJson: String,
+    inputSourceLabel: String?,
+    isReadingFile: Boolean,
     onJsonChange: (String) -> Unit,
     onPaste: () -> Unit,
+    onUpload: () -> Unit,
     onParse: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -342,15 +430,58 @@ private fun PasteInputContent(
         // JSON text field
         OutlinedTextField(
             value = rawJson,
-            onValueChange = onJsonChange,
+            onValueChange = {
+                onJsonChange(it)
+            },
             label = { Text(stringResource(R.string.import_json_label)) },
-            placeholder = { Text("{\"schemaVersion\":1, \"programs\":[...]}") },
+            placeholder = { Text(stringResource(R.string.import_json_placeholder)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 160.dp, max = 320.dp),
             maxLines = 20,
             shape = MaterialTheme.shapes.medium,
         )
+
+        AnimatedVisibility(visible = isReadingFile || inputSourceLabel != null) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = AppDimens.Spacing.sm),
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.34f),
+                border = androidx.compose.foundation.BorderStroke(
+                    AppDimens.Stroke.hairline,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                ),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs_sm),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs_sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (isReadingFile) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(AppDimens.Icon.sm),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        Icon(
+                            AppIcons.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(AppDimens.Icon.sm),
+                        )
+                    }
+                    Text(
+                        text = if (isReadingFile) stringResource(R.string.import_json_reading_file) else inputSourceLabel.orEmpty(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(AppDimens.Spacing.md_sm))
 
@@ -365,17 +496,29 @@ private fun PasteInputContent(
                 Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
                 Text(stringResource(R.string.common_paste))
             }
-            Button(
-                onClick = onParse,
-                enabled = rawJson.isNotBlank(),
+            OutlinedButton(
+                onClick = onUpload,
                 modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             ) {
-                Icon(AppIcons.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.md))
+                Icon(AppIcons.FileDownload, contentDescription = stringResource(R.string.cd_import), modifier = Modifier.size(AppDimens.Icon.md))
                 Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
-                Text(stringResource(R.string.common_preview))
+                Text(stringResource(R.string.common_upload))
             }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+
+        Button(
+            onClick = onParse,
+            enabled = rawJson.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+        ) {
+            Icon(AppIcons.PlayArrow, contentDescription = stringResource(R.string.cd_play), modifier = Modifier.size(AppDimens.Icon.md))
+            Spacer(Modifier.width(AppDimens.Spacing.xs_sm))
+            Text(stringResource(R.string.common_preview))
         }
     }
 }

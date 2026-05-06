@@ -323,8 +323,16 @@ fun ProgramsScreen(
                         WiringRegistry.recordOutcome(A_PROGRAMS_CREATE_OPEN, ActualOutcome.SheetOpened("program_builder"))
                         showBuilder = true
                     },
-                    onImport = onNavigateToImport,
-                    onHevyImport = onNavigateToHevyImport,
+                    onImport = {
+                        WiringRegistry.hit(A_PROGRAMS_IMPORT_OPEN)
+                        WiringRegistry.recordOutcome(A_PROGRAMS_IMPORT_OPEN, ActualOutcome.Navigated("import_program"))
+                        onNavigateToImport()
+                    },
+                    onHevyImport = {
+                        WiringRegistry.hit(A_PROGRAMS_HEVY_IMPORT)
+                        WiringRegistry.recordOutcome(A_PROGRAMS_HEVY_IMPORT, ActualOutcome.Navigated("import_hevy"))
+                        onNavigateToHevyImport()
+                    },
                     onTemplates = {
                         WiringRegistry.hit(A_PROGRAMS_TEMPLATES)
                         WiringRegistry.recordOutcome(A_PROGRAMS_TEMPLATES, ActualOutcome.Navigated("templates"))

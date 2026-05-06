@@ -514,9 +514,21 @@ fun ProfileScreen(
              color = MaterialTheme.colorScheme.onSurfaceVariant,
              modifier = Modifier.padding(bottom = AppDimens.Spacing.sm))
         Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = "$volumeDisplay $unitLabel", label = stringResource(R.string.metric_volume),   onClick = { showVolumeDetail = true })
-            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = weekSessions.toString(),     label = stringResource(R.string.profile_stat_sessions), onClick = { showSessionsDetail = true })
-            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = "$currentStreak d",          label = stringResource(R.string.profile_stat_streak),   onClick = { showStreakDetail = true })
+            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = "$volumeDisplay $unitLabel", label = stringResource(R.string.metric_volume),   onClick = {
+                WiringRegistry.hit(A_PROFILE_METRIC_VOLUME)
+                WiringRegistry.recordOutcome(A_PROFILE_METRIC_VOLUME, ActualOutcome.SheetOpened("profile_volume_detail"))
+                showVolumeDetail = true
+            })
+            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = weekSessions.toString(),     label = stringResource(R.string.profile_stat_sessions), onClick = {
+                WiringRegistry.hit(A_PROFILE_METRIC_SESSIONS)
+                WiringRegistry.recordOutcome(A_PROFILE_METRIC_SESSIONS, ActualOutcome.SheetOpened("profile_sessions_detail"))
+                showSessionsDetail = true
+            })
+            ProfileStatCard(modifier = Modifier.weight(1f).fillMaxHeight(), value = "$currentStreak d",          label = stringResource(R.string.profile_stat_streak),   onClick = {
+                WiringRegistry.hit(A_PROFILE_METRIC_STREAK)
+                WiringRegistry.recordOutcome(A_PROFILE_METRIC_STREAK, ActualOutcome.SheetOpened("profile_streak_detail"))
+                showStreakDetail = true
+            })
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.lg))

@@ -310,6 +310,8 @@ private fun HomeUpNextCard(
                             icon = AppIcons.PlayArrow,
                             modifier = Modifier.weight(1f),
                             onClick = {
+                                WiringRegistry.hit(A_ACTIVITY_UPNEXT_START)
+                                WiringRegistry.recordOutcome(A_ACTIVITY_UPNEXT_START, ActualOutcome.Navigated("player"))
                                 startProgramFromHome(program, exerciseCatalog, workoutVM)
                             },
                         )
@@ -317,7 +319,11 @@ private fun HomeUpNextCard(
                             text = stringResource(R.string.common_edit),
                             icon = AppIcons.Edit,
                             modifier = Modifier.weight(1f),
-                            onClick = { onNavigateToProgramDetail(program.id) },
+                            onClick = {
+                                WiringRegistry.hit(A_ACTIVITY_UPNEXT_EDIT)
+                                WiringRegistry.recordOutcome(A_ACTIVITY_UPNEXT_EDIT, ActualOutcome.Navigated("program_detail"))
+                                onNavigateToProgramDetail(program.id)
+                            },
                         )
                     }
                 }
@@ -400,7 +406,11 @@ private fun HomeDeloadStatusCard(
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
             }
-            TextButton(onClick = { onNavigateToProgramDetail(primaryProgram.id) }) {
+            TextButton(onClick = {
+                WiringRegistry.hit(A_ACTIVITY_DELOAD_REVIEW)
+                WiringRegistry.recordOutcome(A_ACTIVITY_DELOAD_REVIEW, ActualOutcome.Navigated("program_detail"))
+                onNavigateToProgramDetail(primaryProgram.id)
+            }) {
                 Text("Review", style = MaterialTheme.typography.labelMedium)
             }
         }

@@ -15,6 +15,7 @@
     <string name="common_ok">OK</string>
     <string name="common_preview">Preview</string>
     <string name="common_paste">Paste</string>
+    <string name="common_upload">Upload</string>
     <string name="common_clear">Clear</string>
     <string name="common_try_again">Try Again</string>
     <string name="common_go_back">Go Back</string>
@@ -276,9 +277,14 @@
 
     <!-- ── Import program ──────────────────────────────────────────────── -->
     <string name="import_json_title">Import from JSON</string>
-    <string name="import_json_help">Paste a program export JSON below, or tap Paste to grab from clipboard.</string>
+    <string name="import_json_help">Paste a program export JSON below, grab it from your clipboard, or upload a JSON file.</string>
     <string name="import_json_label">JSON</string>
     <string name="import_json_placeholder">{\"schemaVersion\":1, \"programs\":[…]}</string>
+    <string name="import_json_file_read_error">Could not read the selected JSON file.</string>
+    <string name="import_json_file_loaded">JSON file loaded. Preview when ready.</string>
+    <string name="import_json_pasted">Clipboard JSON loaded. Preview when ready.</string>
+    <string name="import_json_received_from_link">Imported JSON ready for preview.</string>
+    <string name="import_json_reading_file">Reading selected file…</string>
     <string name="import_programs_found">%1$d program%2$s found</string>
     <string name="import_exercises_total">%1$d exercises total</string>
     <string name="import_exercise_count">%1$d exercise%2$s</string>

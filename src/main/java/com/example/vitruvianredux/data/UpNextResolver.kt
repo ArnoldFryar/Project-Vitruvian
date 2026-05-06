@@ -19,6 +19,11 @@ import java.time.LocalDate
  */
 object UpNextResolver {
 
+    private data class ScheduledOccurrence(
+        val date: LocalDate,
+        val program: SavedProgram,
+    )
+
     /**
      * @param programs      Ordered list of available programs (as stored/displayed).
      * @param workoutHistory All completed workout records, in any order.
@@ -56,6 +61,12 @@ object UpNextResolver {
         if (activeProgramId != null) {
             return programs.firstOrNull { it.id == activeProgramId } ?: programs.first()
         }
+
+        resolveNextAfterLateScheduledCompletion(
+            programs = programs,
+            workoutHistory = workoutHistory,
+            referenceDate = today,
+        )?.let { return it }
 
         // c. Prefer the earliest pending scheduled workout from today forward.
         val scheduledToday = programs.filter { it.scheduledDays.contains(todayDayOfWeek) }
@@ -120,5 +131,74 @@ object UpNextResolver {
                 }
             }
             .firstOrNull()
+    }
+
+    private fun resolveNextAfterLateScheduledCompletion(
+        programs: List<SavedProgram>,
+        workoutHistory: List<WorkoutHistoryStore.WorkoutRecord>,
+        referenceDate: LocalDate,
+    ): SavedProgram? {
+        val scheduledPrograms = programs.filter { it.scheduledDays.isNotEmpty() }
+        if (scheduledPrograms.isEmpty() || workoutHistory.isEmpty()) return null
+
+        val occurrences = buildScheduledOccurrences(
+            programs = scheduledPrograms,
+            startDate = referenceDate.minusDays(7),
+            endDate = referenceDate.plusDays(7),
+        )
+        if (occurrences.isEmpty()) return null
+
+        val consumedIndices = mutableSetOf<Int>()
+        var lastMatched: Pair<WorkoutHistoryStore.WorkoutRecord, Int>? = null
+
+        workoutHistory
+            .sortedBy { it.date }
+            .forEach { record ->
+                val programName = record.programName ?: return@forEach
+                val matchedIndex = occurrences.indices
+                    .lastOrNull { index ->
+                        index !in consumedIndices &&
+                            occurrences[index].program.name == programName &&
+                            !occurrences[index].date.isAfter(record.date)
+                    }
+                    ?: return@forEach
+
+                consumedIndices += matchedIndex
+                val previous = lastMatched
+                if (previous == null || record.date >= previous.first.date) {
+                    lastMatched = record to matchedIndex
+                }
+            }
+
+        val (lastRecord, lastMatchedIndex) = lastMatched ?: return null
+        val matchedOccurrence = occurrences[lastMatchedIndex]
+        if (!lastRecord.date.isAfter(matchedOccurrence.date)) return null
+
+        return occurrences
+            .drop(lastMatchedIndex + 1)
+            .firstOrNull { occurrence ->
+                val occurrenceIndex = occurrences.indexOf(occurrence)
+                occurrenceIndex !in consumedIndices
+            }
+            ?.program
+    }
+
+    private fun buildScheduledOccurrences(
+        programs: List<SavedProgram>,
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ): List<ScheduledOccurrence> {
+        return generateSequence(startDate) { current ->
+            current.takeIf { it.isBefore(endDate) }?.plusDays(1)
+        }
+            .takeWhile { !it.isAfter(endDate) }
+            .flatMap { date ->
+                programs
+                    .asSequence()
+                    .filter { date.dayOfWeek in it.scheduledDays }
+                    .sortedBy { it.sortOrder }
+                    .map { program -> ScheduledOccurrence(date = date, program = program) }
+            }
+            .toList()
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.IntentCompat
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.vitruvianredux.ble.BleConnectionState
@@ -120,7 +121,7 @@ fun AppScaffold() {
         LaunchedEffect(Unit) {
             val act = activity
             val intent = act.intent
-            val json = extractImportJson(intent)
+            val json = extractImportJson(act, intent)
             if (json != null) {
                 com.example.vitruvianredux.presentation.navigation.PendingImportHolder.set(json)
                 pendingImportJson = json
@@ -549,10 +550,14 @@ private fun AppTopBar(
  *
  * Supports:
  * - `ACTION_SEND` with `text/plain` or `application/json` extra text
- * - `ACTION_VIEW` with `vitruvian://import?json=â€¦` URI
+ * - `ACTION_SEND` with `EXTRA_STREAM` pointing to a JSON file
+ * - `ACTION_VIEW` with `vitruvian://import?json=...` URI
  * - `ACTION_VIEW` with `content://` or `file://` URI pointing to a `.json` file
  */
-private fun extractImportJson(intent: android.content.Intent?): String? {
+private fun extractImportJson(
+    context: android.content.Context,
+    intent: android.content.Intent?,
+): String? {
     if (intent == null) return null
     when (intent.action) {
         android.content.Intent.ACTION_SEND -> {
@@ -560,17 +565,43 @@ private fun extractImportJson(intent: android.content.Intent?): String? {
             if (!text.isNullOrBlank() && (text.trimStart().startsWith("{") || text.trimStart().startsWith("["))) {
                 return text
             }
+            val streamUri = IntentCompat.getParcelableExtra(
+                intent,
+                android.content.Intent.EXTRA_STREAM,
+                android.net.Uri::class.java,
+            )
+            if (streamUri != null) {
+                return readImportJsonFromUri(context, streamUri)
+            }
         }
         android.content.Intent.ACTION_VIEW -> {
             val uri = intent.data ?: return null
-            // vitruvian://import?json=â€¦
+            // vitruvian://import?json=...
             if (uri.scheme == "vitruvian" && uri.host == "import") {
                 val json = uri.getQueryParameter("json")
                 if (!json.isNullOrBlank()) return json
             }
-            // content:// or file:// — try to read the URI
-            // (handled below)
+            return readImportJsonFromUri(context, uri)
         }
     }
     return null
+}
+
+private fun readImportJsonFromUri(
+    context: android.content.Context,
+    uri: android.net.Uri,
+): String? {
+    val mimeType = context.contentResolver.getType(uri)?.lowercase().orEmpty()
+    val fileName = uri.lastPathSegment?.lowercase().orEmpty()
+    val looksLikeJsonFile = fileName.endsWith(".json") || mimeType.contains("json") || mimeType.startsWith("text/")
+    if (!looksLikeJsonFile) return null
+
+    val raw = runCatching {
+        context.contentResolver.openInputStream(uri)
+            ?.bufferedReader()
+            ?.use { it.readText() }
+            ?.trim()
+    }.getOrNull()
+
+    return raw?.takeIf { it.startsWith("{") || it.startsWith("[") }
 }

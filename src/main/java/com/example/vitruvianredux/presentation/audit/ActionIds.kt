@@ -13,6 +13,7 @@ const val SCR_PROGRAMS = "Programs"
 const val SCR_PROFILE  = "Profile"
 const val SCR_ACTIVITY = "Activity"
 const val SCR_SETTINGS = "Settings"
+const val SCR_IMPORT   = "Import"
 
 // ── Action ID constants ────────────────────────────────────────────────────────
 
@@ -74,6 +75,8 @@ const val A_PLAYER_SKIP_EXERCISE    = "player_skip_exercise"
 const val A_PROGRAMS_CREATE_OPEN   = "programs_create_open"
 const val A_PROGRAMS_SAVED_OPEN    = "programs_saved_open"
 const val A_PROGRAMS_TEMPLATES     = "programs_templates_open"
+const val A_PROGRAMS_IMPORT_OPEN   = "programs_import_open"
+const val A_PROGRAMS_HEVY_IMPORT   = "programs_hevy_import_open"
 const val A_PROGRAMS_ADD_EXERCISES = "programs_builder_add_exercises"
 const val A_PROGRAMS_SAVE          = "programs_builder_save"
 const val A_PROGRAMS_START_NOW     = "programs_builder_start_now"
@@ -90,12 +93,29 @@ const val A_PROGRAMS_DETAIL_START  = "programs_detail_start"
 const val A_PROFILE_CONNECT     = "profile_connect"
 const val A_PROFILE_DISCONNECT  = "profile_disconnect"
 const val A_PROFILE_LEADERBOARD = "profile_leaderboard_open"
+const val A_PROFILE_METRIC_VOLUME   = "profile.metric.volume"
+const val A_PROFILE_METRIC_SESSIONS = "profile.metric.sessions"
+const val A_PROFILE_METRIC_STREAK   = "profile.metric.streak"
 
 // Activity tab
 const val A_ACTIVITY_HISTORY         = "activity.history"
 const val A_ACTIVITY_METRIC_VOLUME   = "activity.metric.volume"
 const val A_ACTIVITY_METRIC_SESSIONS = "activity.metric.sessions"
 const val A_ACTIVITY_METRIC_STREAK   = "activity.metric.streak"
+const val A_ACTIVITY_UPNEXT_START    = "activity.upnext.start"
+const val A_ACTIVITY_UPNEXT_EDIT     = "activity.upnext.edit"
+const val A_ACTIVITY_DELOAD_REVIEW   = "activity.deload.review"
+
+// Import program
+const val A_IMPORT_PASTE             = "import.paste_json"
+const val A_IMPORT_UPLOAD_OPEN       = "import.upload_open"
+const val A_IMPORT_UPLOAD_LOADED     = "import.upload_loaded"
+const val A_IMPORT_PREVIEW           = "import.preview"
+const val A_IMPORT_DISAMBIGUATE_OPEN = "import.disambiguate_open"
+const val A_IMPORT_DISAMBIGUATE_PICK = "import.disambiguate_pick"
+const val A_IMPORT_CONFIRM           = "import.confirm"
+const val A_IMPORT_OVERWRITE_REPLACE = "import.overwrite_replace"
+const val A_IMPORT_OVERWRITE_COPY    = "import.overwrite_copy"
 
 // Settings
 const val A_SETTINGS_UNITS_TOGGLE = "settings.units.toggle"
@@ -157,6 +177,8 @@ val ALL_ACTION_DEFINITIONS: List<ActionDefinition> = listOf(
     ActionDefinition(A_PROGRAMS_CREATE_OPEN,   "Create Program",     SCR_PROGRAMS, ExpectedOutcome.OpenSheet("program_builder")),
     ActionDefinition(A_PROGRAMS_SAVED_OPEN,    "Open Saved Prog.",   SCR_PROGRAMS, ExpectedOutcome.Navigate("program_detail")),
     ActionDefinition(A_PROGRAMS_TEMPLATES,     "Browse Templates",   SCR_PROGRAMS, ExpectedOutcome.Navigate("templates")),
+    ActionDefinition(A_PROGRAMS_IMPORT_OPEN,   "Import JSON",        SCR_PROGRAMS, ExpectedOutcome.Navigate("import_program")),
+    ActionDefinition(A_PROGRAMS_HEVY_IMPORT,   "Import Hevy",        SCR_PROGRAMS, ExpectedOutcome.Navigate("import_hevy")),
     ActionDefinition(A_PROGRAMS_DETAIL_DELETE, "Delete Program",     SCR_PROGRAMS, ExpectedOutcome.StateChange("programDeleted")),
     ActionDefinition(A_PROGRAMS_DETAIL_START,  "Detail Start",       SCR_PROGRAMS, ExpectedOutcome.Navigate("player")),
     ActionDefinition(A_PROGRAMS_ADD_EXERCISES, "Add Exercises",      SCR_PROGRAMS, ExpectedOutcome.OpenSheet("exercise_picker")),
@@ -172,11 +194,27 @@ val ALL_ACTION_DEFINITIONS: List<ActionDefinition> = listOf(
     ActionDefinition(A_PROFILE_CONNECT,     "Connect",              SCR_PROFILE, ExpectedOutcome.OpenSheet("device_picker")),
     ActionDefinition(A_PROFILE_DISCONNECT,  "Disconnect",           SCR_PROFILE, ExpectedOutcome.StateChange("ble_disconnect")),
     ActionDefinition(A_PROFILE_LEADERBOARD, "Leaderboard",          SCR_PROFILE, ExpectedOutcome.OpenSheet("leaderboard")),
+    ActionDefinition(A_PROFILE_METRIC_VOLUME,   "Volume Detail",     SCR_PROFILE, ExpectedOutcome.OpenSheet("profile_volume_detail")),
+    ActionDefinition(A_PROFILE_METRIC_SESSIONS, "Sessions Detail",   SCR_PROFILE, ExpectedOutcome.OpenSheet("profile_sessions_detail")),
+    ActionDefinition(A_PROFILE_METRIC_STREAK,   "Streak Detail",     SCR_PROFILE, ExpectedOutcome.OpenSheet("profile_streak_detail")),
     // ── Activity ───────────────────────────────────────────────────────────────────────────
     ActionDefinition(A_ACTIVITY_HISTORY,         "History",            SCR_ACTIVITY, ExpectedOutcome.Navigate("activity_history")),
     ActionDefinition(A_ACTIVITY_METRIC_VOLUME,   "Volume Metric",      SCR_ACTIVITY, ExpectedOutcome.Navigate("activity_metric_detail")),
     ActionDefinition(A_ACTIVITY_METRIC_SESSIONS, "Sessions Metric",    SCR_ACTIVITY, ExpectedOutcome.Navigate("activity_metric_detail")),
     ActionDefinition(A_ACTIVITY_METRIC_STREAK,   "Streak Metric",      SCR_ACTIVITY, ExpectedOutcome.Navigate("activity_metric_detail")),
+    ActionDefinition(A_ACTIVITY_UPNEXT_START,    "Up Next Start",      SCR_ACTIVITY, ExpectedOutcome.Navigate("player")),
+    ActionDefinition(A_ACTIVITY_UPNEXT_EDIT,     "Up Next Edit",       SCR_ACTIVITY, ExpectedOutcome.Navigate("program_detail")),
+    ActionDefinition(A_ACTIVITY_DELOAD_REVIEW,   "Deload Review",      SCR_ACTIVITY, ExpectedOutcome.Navigate("program_detail")),
+    // ── Import ────────────────────────────────────────────────────────────────────────────
+    ActionDefinition(A_IMPORT_PASTE,             "Paste JSON",         SCR_IMPORT, ExpectedOutcome.StateChange("jsonPasted")),
+    ActionDefinition(A_IMPORT_UPLOAD_OPEN,       "Upload JSON",        SCR_IMPORT, ExpectedOutcome.OpenSheet("document_picker")),
+    ActionDefinition(A_IMPORT_UPLOAD_LOADED,     "JSON File Loaded",   SCR_IMPORT, ExpectedOutcome.StateChange("jsonFileLoaded")),
+    ActionDefinition(A_IMPORT_PREVIEW,           "Preview Import",     SCR_IMPORT),
+    ActionDefinition(A_IMPORT_DISAMBIGUATE_OPEN, "Resolve Match",      SCR_IMPORT, ExpectedOutcome.OpenSheet("exercise_disambiguation")),
+    ActionDefinition(A_IMPORT_DISAMBIGUATE_PICK, "Pick Match",         SCR_IMPORT, ExpectedOutcome.StateChange("exerciseSelected")),
+    ActionDefinition(A_IMPORT_CONFIRM,           "Confirm Import",     SCR_IMPORT),
+    ActionDefinition(A_IMPORT_OVERWRITE_REPLACE, "Replace Existing",   SCR_IMPORT, ExpectedOutcome.StateChange("programReplaced")),
+    ActionDefinition(A_IMPORT_OVERWRITE_COPY,    "Import New Copy",    SCR_IMPORT, ExpectedOutcome.StateChange("programCopied")),
     // ── Settings ──────────────────────────────────────────────────────────────────────────
     ActionDefinition(A_SETTINGS_UNITS_TOGGLE,    "Units Toggle",       SCR_SETTINGS, ExpectedOutcome.StateChange("unitSystem")),
 )
