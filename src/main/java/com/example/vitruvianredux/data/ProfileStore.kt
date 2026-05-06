@@ -202,8 +202,10 @@ object ProfileStore {
         val trimmed = name?.trim()?.ifBlank { null }
         val trimmedAvatar = avatarDataUri?.trim()?.takeIf { it.isNotBlank() }
         if (trimmed == null && trimmedAvatar == null) return
-        val applyName = trimmed != null && remoteUpdatedAt > nameUpdatedAt
-        val applyAvatar = remoteUpdatedAt > avatarUpdatedAt
+        val localMissingName = _displayName.value.isBlank() || _displayName.value == DEFAULT_NAME
+        val localMissingAvatar = _avatarDataUri.value.isNullOrBlank()
+        val applyName = trimmed != null && (remoteUpdatedAt > nameUpdatedAt || localMissingName)
+        val applyAvatar = remoteUpdatedAt > avatarUpdatedAt || (localMissingAvatar && trimmedAvatar != null)
         if (!applyName && !applyAvatar) return
 
         if (applyName) _displayName.value = trimmed!!

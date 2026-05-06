@@ -228,4 +228,22 @@ class UpNextResolverTest {
             ),
         )
     }
+
+    @Test
+    fun `early completion consumes today's scheduled slot and advances to the next plan`() {
+        val wednesdayProgram = programA.copy(scheduledDays = setOf(DayOfWeek.WEDNESDAY), sortOrder = 0)
+        val thursdayProgram = programB.copy(scheduledDays = setOf(DayOfWeek.THURSDAY), sortOrder = 1)
+        val today = LocalDate.of(2026, 4, 15) // Wednesday
+        val history = listOf(record(today.minusDays(1), "Program A"))
+
+        assertEquals(
+            thursdayProgram,
+            UpNextResolver.resolveUpNextWorkout(
+                programs = listOf(wednesdayProgram, thursdayProgram),
+                workoutHistory = history,
+                activeProgramId = null,
+                referenceDate = today,
+            ),
+        )
+    }
 }

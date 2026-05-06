@@ -40,11 +40,6 @@ object UpNextResolver {
 
         val today = referenceDate
         val todayDayOfWeek = today.dayOfWeek
-        val completedTodayNames = workoutHistory
-            .asSequence()
-            .filter { it.date == today }
-            .mapNotNull { it.programName }
-            .toSet()
 
         // a. Active program + history → advance to the next program in sequence (cyclic).
         //    Rationale: the user is mid-workout on the active program; the card should
@@ -71,7 +66,7 @@ object UpNextResolver {
         // c. Prefer the earliest pending scheduled workout from today forward.
         val scheduledToday = programs.filter { it.scheduledDays.contains(todayDayOfWeek) }
         if (scheduledToday.isNotEmpty()) {
-            val pendingToday = scheduledToday.filter { it.name !in completedTodayNames }
+            val pendingToday = scheduledToday.filter { !isScheduledOccurrenceConsumed(it, today, workoutHistory) }
             if (pendingToday.isNotEmpty()) {
                 return pendingToday.minByOrNull { it.sortOrder }
             }
@@ -79,8 +74,8 @@ object UpNextResolver {
 
         findNextScheduledWorkout(
             programs = programs,
-            completedTodayNames = completedTodayNames,
             today = today,
+            workoutHistory = workoutHistory,
         )?.let { return it }
 
         // d. No active program, but history exists → most recently used program.
@@ -108,8 +103,8 @@ object UpNextResolver {
 
     private fun findNextScheduledWorkout(
         programs: List<SavedProgram>,
-        completedTodayNames: Set<String>,
         today: LocalDate,
+        workoutHistory: List<WorkoutHistoryStore.WorkoutRecord>,
     ): SavedProgram? {
         val scheduledPrograms = programs.filter { it.scheduledDays.isNotEmpty() }
         if (scheduledPrograms.isEmpty()) return null
@@ -122,15 +117,37 @@ object UpNextResolver {
                 if (scheduledForDate.isEmpty()) {
                     null
                 } else {
-                    val pendingForDate = if (date == today) {
-                        scheduledForDate.filter { it.name !in completedTodayNames }
-                    } else {
-                        scheduledForDate
+                    val pendingForDate = scheduledForDate.filter { program ->
+                        !isScheduledOccurrenceConsumed(program, date, workoutHistory)
                     }
                     pendingForDate.minByOrNull { it.sortOrder }
                 }
             }
             .firstOrNull()
+    }
+
+    private fun isScheduledOccurrenceConsumed(
+        program: SavedProgram,
+        occurrenceDate: LocalDate,
+        workoutHistory: List<WorkoutHistoryStore.WorkoutRecord>,
+    ): Boolean {
+        val matchingRecords = workoutHistory.filter { it.programName == program.name }
+        if (matchingRecords.any { it.date == occurrenceDate }) return true
+
+        val previousOccurrence = previousScheduledOccurrenceDate(program, occurrenceDate) ?: return false
+        return matchingRecords.any { record ->
+            record.date.isAfter(previousOccurrence) && record.date.isBefore(occurrenceDate)
+        }
+    }
+
+    private fun previousScheduledOccurrenceDate(
+        program: SavedProgram,
+        occurrenceDate: LocalDate,
+    ): LocalDate? {
+        return (1L..7L)
+            .asSequence()
+            .map { occurrenceDate.minusDays(it) }
+            .firstOrNull { candidate -> candidate.dayOfWeek in program.scheduledDays }
     }
 
     private fun resolveNextAfterLateScheduledCompletion(
