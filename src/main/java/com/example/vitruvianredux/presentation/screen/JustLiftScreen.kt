@@ -99,7 +99,10 @@ internal fun formatSignedUnitValue(value: Float, unitLabel: String): String {
 }
 
 @Composable
-fun JustLiftFab(onClick: () -> Unit) {
+fun JustLiftFab(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val cs = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -110,7 +113,7 @@ fun JustLiftFab(onClick: () -> Unit) {
     )
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .graphicsLayer(scaleX = pressScale, scaleY = pressScale)
             .clip(RoundedCornerShape(AppDimens.Corner.pill))
             .background(Brush.horizontalGradient(listOf(cs.primary, cs.secondary)))

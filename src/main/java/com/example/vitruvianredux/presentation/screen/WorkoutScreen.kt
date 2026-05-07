@@ -242,20 +242,27 @@ fun WorkoutScreen(
                     modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
-                            text = "Single Exercise",
+                            text = "Exercise Library",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             color = textPrimary,
+                            modifier = Modifier.weight(1f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        Text(
-                            text = "Exercise Library",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = accent,
+
+                        JustLiftFab(
+                            onClick = {
+                                WiringRegistry.hit(A_WORKOUT_JUSTLIFT_OPEN)
+                                WiringRegistry.recordOutcome(A_WORKOUT_JUSTLIFT_OPEN, ActualOutcome.SheetOpened("just_lift"))
+                                showJustLift = true
+                            },
                         )
                     }
 
