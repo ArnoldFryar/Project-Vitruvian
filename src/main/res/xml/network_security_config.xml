@@ -25,8 +25,16 @@
         </trust-anchors>
     </debug-overrides>
 
-    <!-- Production: system CAs + bundled intermediates -->
-    <base-config cleartextTrafficPermitted="false">
+    <!--
+        Production: system CAs + bundled intermediates.
+
+        LAN sync pairs devices over a QR-authenticated local HTTP hub whose IP
+        changes with the current Wi-Fi network. Android's network security XML
+        cannot express RFC1918/CIDR-only cleartext, so the platform policy must
+        permit cleartext while SyncClient enforces local-network hub URLs before
+        making HTTP requests.
+    -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
             <certificates src="@raw/globalsign_atlas_r3_2025q4" />

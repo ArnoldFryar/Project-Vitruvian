@@ -14,6 +14,8 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import timber.log.Timber
+import java.net.InetAddress
+import java.net.URI
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SyncClient — runs on the "client" device (tablet) and synchronises against
@@ -78,6 +80,7 @@ class SyncClient(
 
         // 3. POST /pair
         val hubBaseUrl = payload.hubAddress.trimEnd('/')
+        HubUrlPolicy.requirePermitted(hubBaseUrl)
         Timber.tag(TAG).d("PAIR: POST $hubBaseUrl/pair …")
         val resp: HandshakeResponse = httpClient.post("$hubBaseUrl/pair") {
             contentType(ContentType.Application.Json)
@@ -118,6 +121,7 @@ class SyncClient(
      */
     suspend fun sync(hubBaseUrl: String): SyncResult {
         val base = hubBaseUrl.trimEnd('/')
+        HubUrlPolicy.requirePermitted(base)
         Timber.tag(TAG).i("╔══════════════════════════════════════════════════════════")
         Timber.tag(TAG).i("║  SYNC START  →  hub=$base")
         Timber.tag(TAG).i("╚══════════════════════════════════════════════════════════")
@@ -273,6 +277,52 @@ class SyncClient(
     /** Release the underlying HTTP client. */
     fun close() {
         httpClient.close()
+    }
+}
+
+internal object HubUrlPolicy {
+    fun requirePermitted(url: String) {
+        require(isPermitted(url)) {
+            "Cleartext hub URLs must use http:// with a local-network address or https://: $url"
+        }
+    }
+
+    fun isPermitted(url: String): Boolean {
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
+        return when (uri.scheme?.lowercase()) {
+            "https" -> uri.host != null
+            "http" -> uri.host?.let(::isLocalHost) == true
+            else -> false
+        }
+    }
+
+    private fun isLocalHost(host: String): Boolean {
+        val normalized = host.removePrefix("[").removeSuffix("]")
+        if (normalized.equals("localhost", ignoreCase = true)) return true
+
+        parseIpv4(normalized)?.let { octets ->
+            val first = octets[0]
+            val second = octets[1]
+            return first == 10 ||
+                first == 127 ||
+                (first == 169 && second == 254) ||
+                (first == 172 && second in 16..31) ||
+                (first == 192 && second == 168)
+        }
+
+        if (!normalized.contains(':')) return false
+
+        val address = runCatching { InetAddress.getByName(normalized) }.getOrNull() ?: return false
+        return address.isLoopbackAddress || address.isLinkLocalAddress || address.isSiteLocalAddress
+    }
+
+    private fun parseIpv4(host: String): IntArray? {
+        val parts = host.split('.')
+        if (parts.size != 4) return null
+        return parts.map { part ->
+            if (part.isEmpty() || part.length > 3 || part.any { !it.isDigit() }) return null
+            part.toIntOrNull()?.takeIf { it in 0..255 } ?: return null
+        }.toIntArray()
     }
 }
 
