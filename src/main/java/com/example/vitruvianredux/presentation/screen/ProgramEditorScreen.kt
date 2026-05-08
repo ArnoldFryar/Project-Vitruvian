@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.burnoutcrew.reorderable.ReorderableItem
+import org.burnoutcrew.reorderable.detectReorder
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
@@ -398,13 +399,12 @@ onClick = { showDaysDialog = false }) { Text("Done") }
                                 selectionMode = isSelectionMode,
                                 selected = block.key in selectedBlockKeys,
                                 onSelectToggle = { toggleBlockSelection(block.key) },
-                                onLongPress = { startSelectionMode(block.key) },
                                 onEdit = { editingItem = display.item },
                                 onRemove = {
                                     draftBlocks = removeProgramBlockItem(draftBlocks, display.item.exerciseId)
                                 },
-                                dragHandleModifier = if (isSelectionMode) Modifier else Modifier.detectReorderAfterLongPress(reorderState),
-                                modifier = Modifier,
+                                dragHandleModifier = if (isSelectionMode) Modifier else Modifier.detectReorder(reorderState),
+                                modifier = if (isSelectionMode) Modifier else Modifier.detectReorderAfterLongPress(reorderState),
                             )
                         }
                     }
@@ -519,7 +519,6 @@ private fun EditorExerciseCard(
     selectionMode: Boolean,
     selected: Boolean,
     onSelectToggle: () -> Unit,
-    onLongPress: () -> Unit,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
     dragHandleModifier: Modifier = Modifier,
@@ -552,8 +551,10 @@ private fun EditorExerciseCard(
                 onClick = {
                     if (selectionMode) onSelectToggle() else onEdit()
                 },
-                onLongClick = {
-                    if (selectionMode) onSelectToggle() else onLongPress()
+                onLongClick = if (selectionMode) {
+                    { onSelectToggle() }
+                } else {
+                    null
                 },
             ),
         shape     = cardShape,

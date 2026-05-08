@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import org.burnoutcrew.reorderable.ReorderableItem
+import org.burnoutcrew.reorderable.detectReorder
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
@@ -382,7 +383,7 @@ onClick = { showDiscardDialog = false }) {
                                     onRemove = {
                                         draftBlocks = removeProgramBlockItem(draftBlocks, display.item.exerciseId)
                                     },
-                                    dragHandleModifier = if (isSelectionMode) Modifier else Modifier.detectReorderAfterLongPress(reorderState),
+                                    dragHandleModifier = if (isSelectionMode) Modifier else Modifier.detectReorder(reorderState),
                                     modifier = Modifier,
                                 )
                             }
