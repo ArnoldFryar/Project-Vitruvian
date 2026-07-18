@@ -39,14 +39,14 @@ fun AppCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     containerColor: Color = Color.Unspecified,
-    borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
+    borderColor: Color = Color.Transparent,
     shape: Shape = RoundedCornerShape(AppDimens.Corner.md),
     backgroundBrush: Brush? = null,
     content: @Composable () -> Unit,
 ) {
     val ext = LocalExtendedColors.current
     val brush: Brush = backgroundBrush ?: if (containerColor == Color.Unspecified) {
-        Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
+        Brush.verticalGradient(listOf(ext.surface2, ext.surface2))
     } else {
         Brush.verticalGradient(listOf(containerColor, containerColor))
     }
@@ -64,7 +64,7 @@ fun AppCard(
             .graphicsLayer(scaleX = scale, scaleY = scale)
             .clip(shape)
             .background(brush, shape)
-            .border(1.dp, borderColor, shape)
+            .border(AppDimens.Stroke.thin, borderColor, shape)
             .then(
                 if (onClick != null)
                     Modifier.clickable(

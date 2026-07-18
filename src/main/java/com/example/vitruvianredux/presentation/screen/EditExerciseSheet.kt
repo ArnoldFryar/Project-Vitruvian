@@ -260,7 +260,7 @@ fun EditExerciseSheet(
                         ValueStepper(
                             value         = reps,
                             onValueChange = { reps = it },
-                            range         = 1..30,
+                            range         = 1..50,
                             unitLabel     = stringResource(R.string.session_stat_reps),
                             compact       = true,
                         )
@@ -285,7 +285,7 @@ fun EditExerciseSheet(
                                 ValueStepper(
                                     value         = repRangeMin,
                                     onValueChange = { repRangeMin = it.coerceAtMost(repRangeMax - 1) },
-                                    range         = 1..29,
+                                    range         = 1..49,
                                     unitLabel     = "reps",
                                     compact       = true,
                                 )
@@ -297,7 +297,7 @@ fun EditExerciseSheet(
                                 ValueStepper(
                                     value         = repRangeMax,
                                     onValueChange = { repRangeMax = it.coerceAtLeast(repRangeMin + 1) },
-                                    range         = 2..30,
+                                    range         = 2..50,
                                     unitLabel     = "reps",
                                     compact       = true,
                                 )

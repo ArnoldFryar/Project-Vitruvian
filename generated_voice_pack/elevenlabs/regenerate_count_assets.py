@@ -71,6 +71,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also regenerate voice_preview_count_sample from the manifest.",
     )
+    parser.add_argument(
+        "--only-missing",
+        action="store_true",
+        help="Skip synthesis when the output MP3 already exists.",
+    )
     return parser.parse_args()
 
 
@@ -139,22 +144,26 @@ def main() -> int:
         asset_id = row["asset_id"]
         text = row["text"]
         out_path = args.out_dir / f"{asset_id}.mp3"
-        try:
-            synthesize(asset_id, text, out_path, api_key)
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")
-            print(f"HTTP error for {asset_id}: {exc.code} {detail}", file=sys.stderr)
-            return 1
-        except Exception as exc:
-            print(f"Failed to generate {asset_id}: {exc}", file=sys.stderr)
-            return 1
+        if args.only_missing and out_path.exists():
+            print(f"skipped existing {out_path.name}")
+        else:
+            try:
+                synthesize(asset_id, text, out_path, api_key)
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", errors="replace")
+                print(f"HTTP error for {asset_id}: {exc.code} {detail}", file=sys.stderr)
+                return 1
+            except Exception as exc:
+                print(f"Failed to generate {asset_id}: {exc}", file=sys.stderr)
+                return 1
 
-        print(f"generated {asset_id} -> {out_path.name}")
+            print(f"generated {asset_id} -> {out_path.name}")
 
         if not args.skip_raw_sync:
             raw_path = args.raw_dir / out_path.name
-            shutil.copyfile(out_path, raw_path)
-            print(f"synced {raw_path.name} -> raw")
+            if not args.only_missing or not raw_path.exists():
+                shutil.copyfile(out_path, raw_path)
+                print(f"synced {raw_path.name} -> raw")
 
     return 0
 

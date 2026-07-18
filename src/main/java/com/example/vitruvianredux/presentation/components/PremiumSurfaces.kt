@@ -55,7 +55,7 @@ import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 fun PremiumGradientBackground(modifier: Modifier = Modifier) {
     val ext = LocalExtendedColors.current
     val bg = MaterialTheme.colorScheme.background
-    val tint = ext.accentCyan.copy(alpha = 0.04f) // amber whisper
+    val tint = ext.accentCyan.copy(alpha = 0.018f)
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -84,8 +84,8 @@ fun PremiumCard(
 ) {
     val ext = LocalExtendedColors.current
     val top = ext.surface2
-    val bottom = ext.surface1
-    val border = MaterialTheme.colorScheme.outline
+    val bottom = ext.surface2
+    val border = Color.Transparent
     val gradient = Brush.verticalGradient(listOf(top, bottom))
 
     val interactionSource = remember { MutableInteractionSource() }

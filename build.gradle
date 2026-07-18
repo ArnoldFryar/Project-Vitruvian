@@ -1,5 +1,5 @@
 plugins {
-    id 'com.android.application' version '8.2.2'
+    id 'com.android.application' version '8.11.1'
     id 'org.jetbrains.kotlin.android' version '1.9.23'
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.23'
     id 'com.google.dagger.hilt.android' version '2.48'
@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.vitruvian.trainer"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.vitruvian.trainer"
@@ -85,6 +85,10 @@ android {
     }
 
     packaging {
+        jniLibs {
+            // AGP 8.5.1+ keeps uncompressed native libraries 16 KB zip-aligned.
+            useLegacyPackaging = false
+        }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "/META-INF/INDEX.LIST"
@@ -188,7 +192,7 @@ dependencies {
     implementation 'androidx.media3:media3-ui:1.2.1'
 
     // CameraX — front-camera mirror overlay in Just Lift
-    def camerax_version = '1.4.0'
+    def camerax_version = '1.5.3'
     implementation "androidx.camera:camera-core:${camerax_version}"
     implementation "androidx.camera:camera-camera2:${camerax_version}"
     implementation "androidx.camera:camera-lifecycle:${camerax_version}"

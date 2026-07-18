@@ -83,6 +83,52 @@ class WorkoutAudioOutputRouterTest {
     }
 
     @Test
+    fun `recorded count styles extend through fifty`() {
+        val router = WorkoutAudioOutputRouter()
+        val utterance = WorkoutAudioUtterance(
+            text = "50",
+            utteranceId = "rep_50",
+            queueMode = AUDIO_QUEUE_FLUSH,
+            marksCriticalWindow = true,
+        )
+
+        val baseRequest = router.route(
+            event = WorkoutAudioEvent.RepCount(50),
+            utterance = utterance,
+            settings = VoiceCoachingSettings(recordedCountStyle = RecordedCountStyle.BASE),
+        )
+        val steadyRequest = router.route(
+            event = WorkoutAudioEvent.RepCount(50),
+            utterance = utterance,
+            settings = VoiceCoachingSettings(recordedCountStyle = RecordedCountStyle.STEADY),
+        )
+        val focusRequest = router.route(
+            event = WorkoutAudioEvent.RepCount(50),
+            utterance = utterance,
+            settings = VoiceCoachingSettings(recordedCountStyle = RecordedCountStyle.FOCUS),
+        )
+
+        assertEquals(
+            WorkoutAudioPlaybackRequest.Recorded(
+                RecordedAudioPlan(listOf("voice_count_50"), AUDIO_QUEUE_FLUSH),
+            ),
+            baseRequest,
+        )
+        assertEquals(
+            WorkoutAudioPlaybackRequest.Recorded(
+                RecordedAudioPlan(listOf("voice_count_steady_50"), AUDIO_QUEUE_FLUSH),
+            ),
+            steadyRequest,
+        )
+        assertEquals(
+            WorkoutAudioPlaybackRequest.Recorded(
+                RecordedAudioPlan(listOf("voice_count_focus_50"), AUDIO_QUEUE_FLUSH),
+            ),
+            focusRequest,
+        )
+    }
+
+    @Test
     fun `focus count style emphasizes milestone counts and falls back otherwise`() {
         val router = WorkoutAudioOutputRouter()
         val utterance = WorkoutAudioUtterance(

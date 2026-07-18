@@ -15,6 +15,10 @@ sealed interface WorkoutAudioPlaybackRequest {
 
 class WorkoutAudioOutputRouter {
 
+    private companion object {
+        const val MAX_RECORDED_COUNT = 50
+    }
+
     private val variantIndexByKey = mutableMapOf<String, Int>()
 
     fun resetSession() {
@@ -109,12 +113,13 @@ class WorkoutAudioOutputRouter {
     private fun steadyRepClip(value: Int): String? = numberedClipName("voice_count_steady", value)
 
     private fun focusRepClip(value: Int): String? = when (value) {
-        1, 5, 10 -> numberedClipName("voice_count_focus", value)
+        1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50 ->
+            numberedClipName("voice_count_focus", value)
         else -> null
     }
 
     private fun numberedClipName(prefix: String, value: Int): String? {
-        if (value !in 1..30) return null
+        if (value !in 1..MAX_RECORDED_COUNT) return null
         return "${prefix}_${value.toString().padStart(2, '0')}"
     }
 

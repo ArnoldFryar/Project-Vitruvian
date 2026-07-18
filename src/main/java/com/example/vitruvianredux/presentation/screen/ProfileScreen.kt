@@ -2660,7 +2660,7 @@ private fun coachingOutputModeDetail(): String =
     "Workout voice now uses the recorded pack for counts, timers, start and stop cues, connection alerts, and coaching lines. Android TTS is no longer used during workouts."
 
 private fun recordedCountStyleDetail(settings: com.example.vitruvianredux.data.VoiceCoachingSettings): String = when (settings.recordedCountStyle) {
-    RecordedCountStyle.BASE -> "Uses the default recorded count set. Counts 26 through 30 use the new ElevenLabs clips."
-    RecordedCountStyle.STEADY -> "Uses a slower recorded cadence for every count from 1 through 30."
-    RecordedCountStyle.FOCUS -> "Keeps standard recorded counts, but swaps in emphasized clips for 1, 5, and 10."
+    RecordedCountStyle.BASE -> "Uses the default recorded cadence for every count from 1 through 50."
+    RecordedCountStyle.STEADY -> "Uses a slower recorded cadence for every count from 1 through 50."
+    RecordedCountStyle.FOCUS -> "Uses emphasized milestone clips every 5 reps through 50."
 }

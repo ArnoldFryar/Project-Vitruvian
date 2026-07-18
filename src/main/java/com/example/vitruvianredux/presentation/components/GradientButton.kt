@@ -56,14 +56,7 @@ fun GradientButton(
     // two-tone transition, which now plays nicely against the deep
     // obsidian backgrounds.
     val gradient = if (enabled) {
-        Brush.verticalGradient(
-            listOf(
-                cs.primary.copy(alpha = 1f),
-                cs.primary.copy(red = (cs.primary.red * 0.88f).coerceIn(0f, 1f),
-                                green = (cs.primary.green * 0.88f).coerceIn(0f, 1f),
-                                blue = (cs.primary.blue * 0.88f).coerceIn(0f, 1f)),
-            )
-        )
+        Brush.verticalGradient(listOf(cs.primary, cs.primary))
     } else {
         Brush.verticalGradient(
             listOf(
@@ -80,12 +73,13 @@ fun GradientButton(
         animationSpec = if (isPressed) MotionTokens.SnapSpring else MotionTokens.BounceSpring,
         label = "btnScale",
     )
-    val shape = RoundedCornerShape(AppDimens.Corner.md)
+    val shape = RoundedCornerShape(AppDimens.Corner.md_sm)
 
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         Box(
             modifier = modifier
                 .fillMaxWidth()
+                .heightIn(min = AppDimens.Component.buttonHeightLg)
                 .graphicsLayer(scaleX = pressScale, scaleY = pressScale)
                 .clip(shape)
                 .background(gradient)

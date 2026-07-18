@@ -18,26 +18,26 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 
 // ── Light scheme — warm paper with polished-brass primary ──────────────
 private val LightColors = lightColorScheme(
-    primary              = Color(0xFF8A5A1F),
+    primary              = Color(0xFF8B642A),
     onPrimary            = White,
-    primaryContainer     = Color(0xFFF3DEB8),
+    primaryContainer     = Color(0xFFEAD9B7),
     onPrimaryContainer   = Color(0xFF2A1A04),
     secondary            = Color(0xFF6B4A0F),
     onSecondary          = White,
-    secondaryContainer   = Color(0xFFF4E2BC),
+    secondaryContainer   = Color(0xFFE9DFC9),
     onSecondaryContainer = Color(0xFF2A1E00),
     tertiary             = Color(0xFFA84428),
     onTertiary           = White,
     tertiaryContainer    = Color(0xFFFFD8CB),
     onTertiaryContainer  = Color(0xFF3E0F02),
     background           = LightSurface1,
-    onBackground         = Color(0xFF1A130C),
-    surface              = Color(0xFFFDFAF5),
-    onSurface            = Color(0xFF1A130C),
+    onBackground         = Color(0xFF171612),
+    surface              = Color(0xFFFCFBF8),
+    onSurface            = Color(0xFF171612),
     surfaceVariant       = LightSurface2,
-    onSurfaceVariant     = Color(0xFF5C4E3C),
-    outline              = Color(0xFF9A8A70),
-    outlineVariant       = Color(0xFFD8C9AE),
+    onSurfaceVariant     = Color(0xFF625E55),
+    outline              = Color(0xFFAAA397),
+    outlineVariant       = Color(0xFFDDD8CF),
     error                = Color(0xFFB3261E),
     onError              = White,
     errorContainer       = Color(0xFFFFDAD6),
@@ -48,33 +48,33 @@ private val LightColors = lightColorScheme(
 // ── Dark scheme — espresso obsidian + polished-brass primary ───────────
 private val DarkColors = darkColorScheme(
     primary              = BrandOxblood,                 // polished brass
-    onPrimary            = Color(0xFF2A1A04),
-    primaryContainer     = Color(0xFF4D3510),
-    onPrimaryContainer   = Color(0xFFF3DEB8),
+    onPrimary            = Color(0xFF211600),
+    primaryContainer     = Color(0xFF3A2B12),
+    onPrimaryContainer   = Color(0xFFF0D7A3),
     secondary            = BrandBrass,                   // champagne gold
-    onSecondary          = Color(0xFF2A1E00),
-    secondaryContainer   = Color(0xFF3E2E15),
-    onSecondaryContainer = Color(0xFFF3DDA8),
+    onSecondary          = Color(0xFF241A00),
+    secondaryContainer   = Color(0xFF332B1D),
+    onSecondaryContainer = Color(0xFFF2DDAE),
     tertiary             = BrandClay,                    // warm ember
-    onTertiary           = Color(0xFF3E0F02),
-    tertiaryContainer    = Color(0xFF5A2112),
-    onTertiaryContainer  = Color(0xFFFFD8CB),
+    onTertiary           = Color(0xFF2A120A),
+    tertiaryContainer    = Color(0xFF38241D),
+    onTertiaryContainer  = Color(0xFFF2D4C8),
     background           = Surface0,
-    onBackground         = Color(0xFFF0E7DB),
+    onBackground         = Gray50,
     surface              = Surface1,
-    onSurface            = Color(0xFFF0E7DB),
+    onSurface            = Gray50,
     surfaceVariant       = Surface2,
-    onSurfaceVariant     = Color(0xFFB5A997),
-    outline              = Color(0xFF3A2F24),
-    outlineVariant       = Color(0xFF24201B),
-    error                = Color(0xFFE05B5B),
-    onError              = Color(0xFF4A0009),
-    errorContainer       = Color(0xFF4A1616),
-    onErrorContainer     = Color(0xFFFFD6D6),
+    onSurfaceVariant     = Gray300,
+    outline              = Gray700,
+    outlineVariant       = Color(0xFF25242A),
+    error                = Error,
+    onError              = Color(0xFF2D0A08),
+    errorContainer       = ErrorContainer,
+    onErrorContainer     = Color(0xFFFFDAD5),
     scrim                = Black,
-    inverseSurface       = Color(0xFFF0E7DB),
+    inverseSurface       = Gray50,
     inverseOnSurface     = Surface0,
-    inversePrimary       = Color(0xFF8A5A1F),
+    inversePrimary       = Color(0xFF8B6223),
     surfaceTint          = BrandOxblood,
 )
 
@@ -86,6 +86,24 @@ val VitruvianShapes = Shapes(
     large      = RoundedCornerShape(20.dp),
     extraLarge = RoundedCornerShape(28.dp),
 )
+
+@Composable
+fun DarkSystemBarsEffect(
+    background: Color = Surface0,
+) {
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = background.toArgb()
+            window.navigationBarColor = background.toArgb()
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = false
+                isAppearanceLightNavigationBars = false
+            }
+        }
+    }
+}
 
 @Composable
 fun VitruvianTheme(

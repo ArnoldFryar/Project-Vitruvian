@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -57,6 +58,7 @@ import com.example.vitruvianredux.presentation.components.AppEmptyState
 import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.PremiumChartCard
 import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
+import com.example.vitruvianredux.presentation.components.ShimmerBox
 import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
 import com.example.vitruvianredux.presentation.ui.theme.AccentRed
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -155,6 +157,7 @@ fun AnalyticsDashboardScreen(
 
                 // ── Summary stat cards (always full-width) ───────────────
                 SummaryStatsRow(allLogs, unitSystem, isTablet)
+                AnalyticsTrustNotice()
 
                 if (isTablet) {
                     // ── Tablet: two-column layout ─────────────────────────
@@ -229,6 +232,35 @@ fun AnalyticsDashboardScreen(
                 }
 
                 Spacer(Modifier.height(AppDimens.Spacing.xl))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnalyticsTrustNotice() {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md_sm),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                AppIcons.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(AppDimens.Icon.md),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs)) {
+                Text("How these numbers are calculated", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Volume uses configured resistance and completed device reps. Force and telemetry sections only appear when measured data is available.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -382,11 +414,11 @@ private fun VolumePerSessionChart(logs: List<AnalyticsStore.SessionLog>, unitSys
     }
 
     PremiumChartCard(
-        title = "Volume Per Session",
-        subtitle = "Last ${recent.size} workouts by output.",
+        title = "Training Volume Per Session",
+        subtitle = "Configured load × completed reps for the last ${recent.size} workouts.",
         accent = barColor,
         metrics = listOf(
-            ChartMetric("Peak", UnitConversions.formatVolumeFromKg(maxVol, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), highlightColor),
+            ChartMetric("Highest", UnitConversions.formatVolumeFromKg(maxVol, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), highlightColor),
             ChartMetric("Average", UnitConversions.formatVolumeFromKg(avgVol, unitSystem) + " " + UnitConversions.unitLabel(unitSystem), barColor),
             ChartMetric("Sessions", recent.size.toString(), cs.onSurface),
         ),
@@ -510,7 +542,7 @@ private fun WeeklyFrequencyChart(logs: List<AnalyticsStore.SessionLog>) {
         subtitle = "Twelve-week cadence.",
         accent = highlightColor,
         metrics = listOf(
-            ChartMetric("Peak Week", maxCount.toString(), highlightColor),
+            ChartMetric("Most Active Week", maxCount.toString(), highlightColor),
             ChartMetric("Average", String.format("%.1f/wk", averageCount), barColor),
             ChartMetric("Span", "${data.size} weeks", cs.onSurface),
         ),
@@ -661,7 +693,7 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
                 }
                 Spacer(Modifier.width(AppDimens.Spacing.xs))
                 Text(
-                    "$count",
+                    "$count sessions",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -680,10 +712,11 @@ private fun buildStyledMuscleSvg(
     distribution: Map<String, Double>,
     maxVal: Double,
     viewBox: String,
+    darkTheme: Boolean,
 ): String {
     fun intensityColor(regionId: String): String {
         val count = distribution[regionId] ?: 0.0
-        if (count == 0.0) return "#221A18"
+        if (count == 0.0) return if (darkTheme) "#221A18" else "#E2DED5"
         val v = (count / maxVal).toFloat().coerceIn(0f, 1f)
         val alpha = 0.15f + v * 0.75f
         // Pre-blend brass over a warm charcoal base — AndroidSVG doesn't support rgba().
@@ -695,21 +728,23 @@ private fun buildStyledMuscleSvg(
 
     // CSS: remove fill from .st3/.st4/.st5 so that the presentation-attribute fill we inject
     // directly on each <path> below is the highest-priority style applied (no CSS override).
+    val outline = if (darkTheme) "#5F4D46" else "#8F877B"
+    val baseFill = if (darkTheme) "#1E293B" else "#E2DED5"
     val baseCss = """
-        .st0{fill:none;stroke:#5F4D46;stroke-width:5;stroke-miterlimit:10;}
+        .st0{fill:none;stroke:$outline;stroke-width:5;stroke-miterlimit:10;}
         .st1{display:none;}
         .st2{display:inline;}
-        .st3{stroke:#5F4D46;stroke-width:5;stroke-miterlimit:10;}
-        .st4{stroke:#5F4D46;stroke-width:5;stroke-miterlimit:10;}
-        .st5{stroke:#5F4D46;stroke-width:5;stroke-linejoin:round;stroke-miterlimit:10;}
-        .st6{stroke:#5F4D46;stroke-width:3;stroke-miterlimit:10;}
+        .st3{stroke:$outline;stroke-width:5;stroke-miterlimit:10;}
+        .st4{stroke:$outline;stroke-width:5;stroke-miterlimit:10;}
+        .st5{stroke:$outline;stroke-width:5;stroke-linejoin:round;stroke-miterlimit:10;}
+        .st6{stroke:$outline;stroke-width:3;stroke-miterlimit:10;}
     """.trimIndent()
 
     var svg = rawSvg
         .replace(Regex("""<style[^>]*>.*?</style>""", setOf(RegexOption.DOT_MATCHES_ALL)),
             "<style type=\"text/css\">$baseCss</style>")
         .replace(Regex("""viewBox="[^"]+""""), "viewBox=\"$viewBox\"")
-        .replaceFirst("<svg ", "<svg fill=\"#1e293b\" ")
+        .replaceFirst("<svg ", "<svg fill=\"$baseFill\" ")
 
     // Inject fill directly on each <path> inside each muscle group.
     // Presentation attributes on <path> are effective now that CSS no longer sets fill.
@@ -737,16 +772,16 @@ private suspend fun renderMuscleSvgBitmap(
     distribution: Map<String, Double>,
     maxVal: Double,
     viewBox: String,
+    darkTheme: Boolean,
     widthPx: Int = 480,
 ): ImageBitmap = withContext(Dispatchers.IO) {
     val rawSvg = context.assets.open("muscles.svg").bufferedReader().readText()
-    val styledSvg = buildStyledMuscleSvg(rawSvg, distribution, maxVal, viewBox)
+    val styledSvg = buildStyledMuscleSvg(rawSvg, distribution, maxVal, viewBox, darkTheme)
     val svg = SVG.getFromString(styledSvg)
     // Each half viewBox is 1800 wide × 3240 tall
     val heightPx = (widthPx * 3240f / 1800f).toInt()
     val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bitmap)
-    canvas.drawColor(android.graphics.Color.parseColor("#120E0D"))
     svg.renderToCanvas(canvas)
     bitmap.asImageBitmap()
 }
@@ -764,6 +799,7 @@ private fun MuscleSilhouetteSection(
     catalogLookup: MuscleHeatmap.CatalogLookup?,
 ) {
     val context = LocalContext.current
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     var period by remember { mutableStateOf(HeatmapPeriod.WEEK) }
 
     val distribution = remember(allLogs, catalogLookup, period) {
@@ -777,9 +813,9 @@ private fun MuscleSilhouetteSection(
 
     val maxVal = distribution.values.maxOrNull()?.coerceAtLeast(1.0) ?: 1.0
 
-    val bitmaps by produceState<Pair<ImageBitmap, ImageBitmap>?>(null, distribution) {
-        val front = renderMuscleSvgBitmap(context, distribution, maxVal, "-20 -20 1800 3240")
-        val back  = renderMuscleSvgBitmap(context, distribution, maxVal, "1748 -20 1800 3240")
+    val bitmaps by produceState<Pair<ImageBitmap, ImageBitmap>?>(null, distribution, darkTheme) {
+        val front = renderMuscleSvgBitmap(context, distribution, maxVal, "-20 -20 1800 3240", darkTheme)
+        val back  = renderMuscleSvgBitmap(context, distribution, maxVal, "1748 -20 1800 3240", darkTheme)
         value = Pair(front, back)
     }
 
@@ -789,7 +825,7 @@ private fun MuscleSilhouetteSection(
         accent = BrandBrass,
         metrics = listOf(
             ChartMetric("Regions", distribution.count { it.value > 0.0 }.toString(), BrandBrass),
-            ChartMetric("Peak", String.format("%.0f", maxVal), MaterialTheme.colorScheme.onSurface),
+            ChartMetric("Max Intensity", "100%", MaterialTheme.colorScheme.onSurface),
         ),
         selectionBadge = period.label,
     ) {
@@ -812,7 +848,10 @@ private fun MuscleSilhouetteSection(
                 modifier = Modifier.fillMaxWidth().height(AnalyticsLayout.heatmapHeight),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                ShimmerBox(
+                    modifier = Modifier.fillMaxWidth().height(AnalyticsLayout.heatmapHeight),
+                    cornerRadius = AppDimens.Corner.md,
+                )
             }
             else -> {
                 Row(

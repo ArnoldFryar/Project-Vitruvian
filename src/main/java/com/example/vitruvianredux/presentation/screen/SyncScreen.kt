@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.vitruvianredux.presentation.components.QrScannerView
+import com.example.vitruvianredux.presentation.components.AppOfflineBanner
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.SecondaryScreenScaffold
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
@@ -364,20 +365,10 @@ onClick = { showQrScanner = true; pairingError = null }, modifier = Modifier.fil
             }
 
             if (lanState is LanSyncState.Error) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                    border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant),
-                ) {
-                    Column(modifier = Modifier.padding(AppDimens.Spacing.md), verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-                        Text("Network Error", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text((lanState as LanSyncState.Error).message, style = MaterialTheme.typography.bodySmall)
-                        OutlinedButton(
-onClick = { lanSyncManager.reset() }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Reset")
-                        }
-                    }
-                }
+                AppOfflineBanner(
+                    message = (lanState as LanSyncState.Error).message,
+                    onRetry = { lanSyncManager.reset() },
+                )
             }
     }
 }

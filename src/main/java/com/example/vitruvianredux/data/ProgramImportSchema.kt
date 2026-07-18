@@ -237,8 +237,8 @@ object ProgramImportParser {
         val programMode = obj.optString("programMode", "Old School").takeIf { it.isNotBlank() } ?: "Old School"
         val progressionLb = sanitizeInt(obj.optInt("progressionRegressionLb", 0), min = 0, max = 50, default = 0)
         val restTimerSec = sanitizeInt(obj.optInt("restTimerSec", 60), min = 0, max = 600, default = 60)
-        val repRangeMin = if (obj.has("repRangeMin")) sanitizeInt(obj.optInt("repRangeMin", 8), min = 1, max = 29, default = 8) else null
-        val repRangeMax = if (obj.has("repRangeMax")) sanitizeInt(obj.optInt("repRangeMax", 12), min = 2, max = 30, default = 12) else null
+        val repRangeMin = if (obj.has("repRangeMin")) sanitizeInt(obj.optInt("repRangeMin", 8), min = 1, max = 49, default = 8) else null
+        val repRangeMax = if (obj.has("repRangeMax")) sanitizeInt(obj.optInt("repRangeMax", 12), min = 2, max = 50, default = 12) else null
 
         return ImportedExercise(
             exerciseId = exerciseId,

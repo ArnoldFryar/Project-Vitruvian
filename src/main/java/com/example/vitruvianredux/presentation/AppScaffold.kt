@@ -28,12 +28,12 @@ import com.example.vitruvianredux.presentation.audit.A_GLOBAL_CONNECT
 import com.example.vitruvianredux.presentation.audit.A_GLOBAL_DISCONNECT
 import com.example.vitruvianredux.presentation.audit.LocalAuditHighlight
 import com.example.vitruvianredux.presentation.components.BottomBar
+import com.example.vitruvianredux.presentation.components.AppNavigationRail
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.navigation.AppNavHost
 import com.example.vitruvianredux.presentation.navigation.Route
 import com.example.vitruvianredux.presentation.ui.theme.VitruvianTheme
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.components.SyncStatusPill
 import com.example.vitruvianredux.sync.LanSyncManager
 import com.example.vitruvianredux.sync.LanSyncState
 
@@ -56,11 +56,11 @@ import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.sync.SyncServiceLocator
 import com.example.vitruvianredux.presentation.screen.OnboardingScreen
 import com.example.vitruvianredux.presentation.screen.ExercisePlayerScreen
-import com.example.vitruvianredux.presentation.screen.SplashScreen
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.res.stringResource
 import com.vitruvian.trainer.R
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
 @Composable
 fun AppScaffold() {
@@ -73,12 +73,6 @@ fun AppScaffold() {
 
     VitruvianTheme(themeMode = themeMode) {
         // â”€â”€ Splash overlay â”€â”€ shows once on cold start â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        var showSplash by rememberSaveable { mutableStateOf(true) }
-        if (showSplash) {
-            SplashScreen(onFinished = { showSplash = false })
-            return@VitruvianTheme
-        }
-
         // â”€â”€ First-run onboarding gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         val context = LocalContext.current
         val onboardingPrefs = remember {
@@ -128,23 +122,6 @@ fun AppScaffold() {
             }
         }
 
-        val headerTitle = when (currentRoute) {
-            Route.Activity.path        -> "Home"
-            Route.Workout.path         -> "Workout"
-            Route.Coaching.path        -> "Programs"
-            Route.Device.path          -> "Device"
-            Route.Profile.path         -> "Profile"
-            Route.Debug.path           -> "Debug"
-            Route.Repair.path          -> "Check & Repair"
-            Route.Audit.path           -> "Audit"
-            Route.ActivityHistory.path -> "History"
-            Route.Sync.path            -> "Sync"
-            Route.Account.path         -> "Account"
-            Route.ImportProgram.path   -> "Import"
-            Route.AnalyticsDashboard.path -> "Analytics"
-            else                       -> "Vitruvian"
-        }
-
         // Bottom bar should only show on top-level tabs
         val showBottomBar = currentRoute in setOf(
             Route.Activity.path, Route.Workout.path, Route.Coaching.path,
@@ -163,43 +140,73 @@ fun AppScaffold() {
         }
 
         CompositionLocalProvider(LocalAuditHighlight provides highlightMode) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                Scaffold(
-                    topBar    = {
-                        if (showBottomBar) {
-                            AppTopBar(
-                                title               = headerTitle,
-                                bleState            = bleState,
-                                lanSyncState        = lanSyncState,
-                                onSyncPillClick     = { nav.navigate(Route.Sync.path) },
-                                onConnectClick      = {
-                                    WiringRegistry.hit(A_GLOBAL_CONNECT)
-                                    WiringRegistry.recordOutcome(A_GLOBAL_CONNECT, ActualOutcome.SheetOpened("device_picker"))
-                                    showDevicePicker = true
-                                },
-                                onDisconnectClick   = {
-                                    WiringRegistry.hit(A_GLOBAL_DISCONNECT)
-                                    WiringRegistry.recordOutcome(A_GLOBAL_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect"))
-                                    bleVM.clearAutoReconnect()
-                                    bleVM.disconnect()
-                                },
-                                onNavigateToAudit   = { nav.navigate(Route.Audit.path) },
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val useNavigationRail = showBottomBar && maxWidth >= 840.dp
+                val appHeader: @Composable (String?) -> Unit = { contextualTitle ->
+                    AppTopBar(
+                        title                 = contextualTitle,
+                        bleState              = bleState,
+                        lanSyncState          = lanSyncState,
+                        onSyncPillClick       = { nav.navigate(Route.Sync.path) },
+                        onConnectClick        = {
+                            WiringRegistry.hit(A_GLOBAL_CONNECT)
+                            WiringRegistry.recordOutcome(A_GLOBAL_CONNECT, ActualOutcome.SheetOpened("device_picker"))
+                            showDevicePicker = true
+                        },
+                        onDisconnectClick     = {
+                            WiringRegistry.hit(A_GLOBAL_DISCONNECT)
+                            WiringRegistry.recordOutcome(A_GLOBAL_DISCONNECT, ActualOutcome.StateChanged("ble_disconnect"))
+                            bleVM.clearAutoReconnect()
+                            bleVM.disconnect()
+                        },
+                        onNavigateToAudit     = { nav.navigate(Route.Audit.path) },
+                    )
+                }
+
+                if (useNavigationRail) {
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        AppNavigationRail(nav = nav)
+                        Scaffold(
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            topBar = {
+                                appHeader(
+                                    if (currentRoute == Route.Activity.path) {
+                                        stringResource(R.string.screen_title_home)
+                                    } else {
+                                        null
+                                    }
+                                )
+                            },
+                            contentWindowInsets = WindowInsets(0),
+                        ) { innerPadding ->
+                            AppNavHost(
+                                nav               = nav,
+                                innerPadding      = innerPadding,
+                                bleVM             = bleVM,
+                                workoutVM         = workoutVM,
+                                lanSyncManager    = lanSyncManager,
+                                pendingImportJson = pendingImportJson,
+                                onImportConsumed  = { pendingImportJson = null },
                             )
                         }
-                    },
-                    bottomBar = { if (showBottomBar) BottomBar(nav) },
-                    contentWindowInsets = WindowInsets(0),
-                    modifier  = Modifier.fillMaxSize()
-                ) { innerPadding ->
-                    AppNavHost(
-                        nav               = nav,
-                        innerPadding      = innerPadding,
-                        bleVM             = bleVM,
-                        workoutVM         = workoutVM,
-                        lanSyncManager    = lanSyncManager,
-                        pendingImportJson = pendingImportJson,
-                        onImportConsumed  = { pendingImportJson = null },
-                    )
+                    }
+                } else {
+                    Scaffold(
+                        topBar = { if (showBottomBar) appHeader(null) },
+                        bottomBar = { if (showBottomBar) BottomBar(nav) },
+                        contentWindowInsets = WindowInsets(0),
+                        modifier = Modifier.fillMaxSize(),
+                    ) { innerPadding ->
+                        AppNavHost(
+                            nav               = nav,
+                            innerPadding      = innerPadding,
+                            bleVM             = bleVM,
+                            workoutVM         = workoutVM,
+                            lanSyncManager    = lanSyncManager,
+                            pendingImportJson = pendingImportJson,
+                            onImportConsumed  = { pendingImportJson = null },
+                        )
+                    }
                 }
 
                 // Global Workout Overlay
@@ -417,7 +424,7 @@ fun AppScaffold() {
 
 @Composable
 private fun AppTopBar(
-    title: String,
+    title: String? = null,
     bleState: BleConnectionState,
     lanSyncState: LanSyncState,
     onSyncPillClick: () -> Unit,
@@ -427,6 +434,21 @@ private fun AppTopBar(
 ) {
     // Hidden dev entry — long-press "Project Vitruvian" 5× to open Audit screen
     var longPressCount by remember { mutableIntStateOf(0) }
+    val ext = LocalExtendedColors.current
+    val syncTint = when (lanSyncState) {
+        is LanSyncState.HubRegistered -> ext.statusReady
+        is LanSyncState.HubFound -> ext.statusConnected
+        is LanSyncState.Discovering -> ext.statusConnecting
+        is LanSyncState.Error -> ext.statusError
+        is LanSyncState.Idle -> ext.statusDisconnected
+    }
+    val syncDescription = when (lanSyncState) {
+        is LanSyncState.HubRegistered -> "Sync hub ready"
+        is LanSyncState.HubFound -> "Sync hub connected"
+        is LanSyncState.Discovering -> "Searching for sync hub"
+        is LanSyncState.Error -> "Sync error"
+        is LanSyncState.Idle -> "Sync idle"
+    }
 
     Surface(
         color          = MaterialTheme.colorScheme.background,
@@ -442,44 +464,42 @@ private fun AppTopBar(
                     .statusBarsPadding()
                     .padding(
                         horizontal = if (compact) AppDimens.Spacing.md else AppDimens.Spacing.md_lg,
-                        vertical = AppDimens.Spacing.md_sm,
+                        vertical = AppDimens.Spacing.xs,
                     ),
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                if (title != null) {
                     Text(
-                        text       = title,
-                        style      = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    if (!veryCompact) {
-                        Text(text = stringResource(R.string.project_tagline),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.combinedClickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication        = null,
-                                onClick           = {},
-                                onLongClick       = {
-                                    longPressCount++
-                                    if (longPressCount >= 5) {
-                                        longPressCount = 0
-                                        onNavigateToAudit()
-                                    }
-                                },
-                            ),
-                        )
-                    }
                 }
-
-                if (!compact) {
-                    SyncStatusPill(lanState = lanSyncState, onClick = onSyncPillClick)
+                Box(
+                    modifier = Modifier
+                        .size(AppDimens.Component.buttonHeight)
+                        .combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onSyncPillClick,
+                            onLongClick = {
+                                longPressCount++
+                                if (longPressCount >= 5) {
+                                    longPressCount = 0
+                                    onNavigateToAudit()
+                                }
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        AppIcons.SyncAlt,
+                        contentDescription = syncDescription,
+                        tint = syncTint,
+                    )
                 }
+                Spacer(Modifier.weight(1f))
 
                 when (bleState) {
                 is BleConnectionState.Connected -> {

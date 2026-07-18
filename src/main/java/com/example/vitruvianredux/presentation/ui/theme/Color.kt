@@ -17,72 +17,72 @@ import androidx.compose.ui.graphics.Color
 
 // ── Brand / primary accents (dark-mode values) ────────────────────────
 /** Primary accent — warm polished brass. */
-val BrandOxblood  = Color(0xFFC9923F)
+val BrandOxblood  = Color(0xFFD6A044)
 /** Secondary — champagne gold. PRs, highlights, warmups. */
-val BrandBrass    = Color(0xFFD9B875)
+val BrandBrass    = Color(0xFFF0C66A)
 /** Tertiary — warm ember. Metadata, informational chips. */
-val BrandClay     = Color(0xFFC65A3E)
+val BrandClay     = Color(0xFFB9795E)
 /** Legacy alias — maps to primary. */
 val BrandCyan     = BrandOxblood
 /** Destructive / emergency — muted coral. */
-val BrandRed      = Color(0xFFE05B5B)
+val BrandRed      = Color(0xFFD9776A)
 /** Active working state — deeper brass for pressed/active. */
-val WorkoutActive = Color(0xFFB07E2E)
+val WorkoutActive = Color(0xFFC58C32)
 
 // ── Extended accent aliases ───────────────────────────────────────────
 /** Legacy alias — champagne gold. */
 val AccentCyan    = BrandBrass
 /** Warmup / caution — champagne gold. */
-val AccentAmber   = Color(0xFFD9B875)
+val AccentAmber   = BrandBrass
 /** Legacy alias — warm ember. */
 val AccentRed     = BrandClay
 
 // ── Neutral warm grays ────────────────────────────────────────────────
-val Gray50   = Color(0xFFF7F3EC)
-val Gray100  = Color(0xFFEAE3D5)
-val Gray200  = Color(0xFFD4C8B2)
-val Gray300  = Color(0xFFB5A68B)
-val Gray400  = Color(0xFF8F8165)
-val Gray500  = Color(0xFF6B5F48)
-val Gray600  = Color(0xFF4C4333)
-val Gray700  = Color(0xFF342D22)
-val Gray800  = Color(0xFF221D16)
-val Gray900  = Color(0xFF14110C)
+val Gray50   = Color(0xFFF4F1EA)
+val Gray100  = Color(0xFFE8E4DC)
+val Gray200  = Color(0xFFD2CEC6)
+val Gray300  = Color(0xFFAAA59D)
+val Gray400  = Color(0xFF85817B)
+val Gray500  = Color(0xFF646168)
+val Gray600  = Color(0xFF4B4950)
+val Gray700  = Color(0xFF333137)
+val Gray800  = Color(0xFF1D1D22)
+val Gray900  = Color(0xFF111114)
 val Black    = Color(0xFF000000)
 val White    = Color(0xFFFFFFFF)
 
 // ── Dark surface layering — espresso obsidian with warm cast ──────────
-val Surface0  = Color(0xFF0C0806)   // deepest — screen background
-val Surface1  = Color(0xFF14100C)   // primary surface
-val Surface2  = Color(0xFF1E1813)   // elevated cards
-val Surface3  = Color(0xFF2A2018)   // modals / sheets
-val Surface4  = Color(0xFF3A2C22)   // high-elevation overlays
+val Surface0  = Color(0xFF0C0C0E)   // deepest — screen background
+val Surface1  = Color(0xFF111114)   // navigation / primary surface
+val Surface2  = Color(0xFF17171B)   // elevated cards
+val Surface3  = Color(0xFF1D1D22)   // modals / sheets
+val Surface4  = Color(0xFF25252B)   // high-elevation overlays
 
 // ── Light surface layering — warm paper, cream, walnut mist ──────────
-val LightSurface0 = Color(0xFFF3EBDD)   // warmest base
-val LightSurface1 = Color(0xFFF8F2E6)   // primary surface (paper)
-val LightSurface2 = Color(0xFFEFE6D2)   // elevated cards (warm neutral)
-val LightSurface3 = Color(0xFFE6D9BD)   // modals / sheets
-val LightSurface4 = Color(0xFFD9C8A4)   // high-elevation overlays
+val LightSurface0 = Color(0xFFF2F0EB)   // quiet warm canvas
+val LightSurface1 = Color(0xFFF7F5F0)   // primary background
+val LightSurface2 = Color(0xFFECE9E2)   // elevated neutral
+val LightSurface3 = Color(0xFFE2DED5)   // modals / sheets
+val LightSurface4 = Color(0xFFD4CEC2)   // high-elevation overlays
 
 // ── Semantic colors (tuned to harmonize with warm palette) ────────────
-val Success            = Color(0xFF7A9D5F)   // muted sage
-val SuccessContainer   = Color(0xFF2F3E22)
-val Warning            = Color(0xFFD9B875)
-val WarningContainer   = Color(0xFF3E2E15)
-val WarningOnContainer = Color(0xFFF3DDA8)
-val Error              = Color(0xFFE05B5B)
-val ErrorContainer     = Color(0xFF4A1616)
+val Success            = Color(0xFF73A889)   // muted jade
+val SuccessContainer   = Color(0xFF193128)
+val Warning            = Color(0xFFD8A54C)
+val WarningContainer   = Color(0xFF382B16)
+val WarningOnContainer = Color(0xFFF2D79D)
+val Error              = Color(0xFFD9776A)
+val ErrorContainer     = Color(0xFF3B1F20)
 
 // ── Gold / PR ─────────────────────────────────────────────────────────
-val Gold = Color(0xFFE4C27A)
+val Gold = BrandBrass
 
 // ── Status indicator dots ─────────────────────────────────────────────
-val StatusError        = Color(0xFFE05B5B)
-val StatusDisconnected = Color(0xFF8F8165)
-val StatusConnecting   = Color(0xFFD9B875)
-val StatusReady        = Color(0xFF7A9D5F)
-val StatusConnected    = Color(0xFFC9923F)
+val StatusError        = Error
+val StatusDisconnected = Color(0xFF77747A)
+val StatusConnecting   = BrandBrass
+val StatusReady        = Success
+val StatusConnected    = BrandOxblood
 
 // ── Extended color tokens (available via LocalExtendedColors) ─────────
 @Immutable

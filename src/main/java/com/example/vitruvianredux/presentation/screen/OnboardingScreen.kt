@@ -40,6 +40,10 @@ private data class OnboardingPage(
     val tag: String,
 )
 
+private val OnboardingTextPrimary = Color(0xFFF7F1E8)
+private val OnboardingTextSecondary = Color(0xFFBFB4A7)
+private val OnboardingTextMuted = Color(0xFF80766B)
+
 private val PAGES = listOf(
     OnboardingPage(
         icon        = AppIcons.Bluetooth,
@@ -73,6 +77,7 @@ private val PAGES = listOf(
 fun OnboardingScreen(
     onComplete: () -> Unit,
 ) {
+    DarkSystemBarsEffect()
     val pagerState = rememberPagerState(pageCount = { PAGES.size })
     val scope = rememberCoroutineScope()
     val currentPage = pagerState.currentPage
@@ -157,7 +162,7 @@ fun OnboardingScreen(
                             .clip(CircleShape)
                             .background(
                                 if (isSelected) PAGES[currentPage].accentColor
-                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                else OnboardingTextMuted
                             ),
                     )
                 }
@@ -197,7 +202,7 @@ fun OnboardingScreen(
                 ) {
                     Text(stringResource(R.string.common_skip),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = OnboardingTextSecondary,
                     )
                 }
             } else {
@@ -305,7 +310,7 @@ private fun OnboardingPageContent(
             style      = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.ExtraBold,
             textAlign  = TextAlign.Center,
-            color      = MaterialTheme.colorScheme.onSurface,
+            color      = OnboardingTextPrimary,
         )
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
@@ -314,7 +319,7 @@ private fun OnboardingPageContent(
         Text(
             text       = page.subtitle,
             style      = MaterialTheme.typography.bodyLarge,
-            color      = MaterialTheme.colorScheme.onSurfaceVariant,
+            color      = OnboardingTextSecondary,
             textAlign  = TextAlign.Center,
             lineHeight = 26.sp,
         )

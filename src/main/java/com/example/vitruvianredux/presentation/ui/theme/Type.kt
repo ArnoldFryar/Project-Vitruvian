@@ -25,6 +25,8 @@ private val SpaceGrotesk = FontFamily(
     Font(GoogleFont("Space Grotesk"), fontProvider, weight = FontWeight.Black),
 )
 
+private val BodyFont = FontFamily.SansSerif
+
 val AppTypography = Typography(
     // Massive metric display — rep counter, rest countdown
     displayLarge = TextStyle(
@@ -92,42 +94,42 @@ val AppTypography = Typography(
         letterSpacing = 0.1.sp,
     ),
     bodyLarge = TextStyle(
-        fontFamily    = SpaceGrotesk,
+        fontFamily    = BodyFont,
         fontWeight    = FontWeight.Normal,
         fontSize      = 16.sp,
         lineHeight    = 24.sp,
         letterSpacing = 0.15.sp,
     ),
     bodyMedium = TextStyle(
-        fontFamily    = SpaceGrotesk,
+        fontFamily    = BodyFont,
         fontWeight    = FontWeight.Normal,
         fontSize      = 14.sp,
         lineHeight    = 20.sp,
         letterSpacing = 0.1.sp,
     ),
     bodySmall = TextStyle(
-        fontFamily    = SpaceGrotesk,
+        fontFamily    = BodyFont,
         fontWeight    = FontWeight.Normal,
         fontSize      = 12.sp,
         lineHeight    = 16.sp,
         letterSpacing = 0.25.sp,
     ),
     labelLarge = TextStyle(
-        fontFamily    = SpaceGrotesk,
+        fontFamily    = BodyFont,
         fontWeight    = FontWeight.SemiBold,
         fontSize      = 14.sp,
         lineHeight    = 20.sp,
         letterSpacing = 0.1.sp,
     ),
     labelMedium = TextStyle(
-        fontFamily    = SpaceGrotesk,
+        fontFamily    = BodyFont,
         fontWeight    = FontWeight.Medium,
         fontSize      = 12.sp,
         lineHeight    = 16.sp,
         letterSpacing = AppDimens.LetterSpacing.tight,
     ),
     labelSmall = TextStyle(
-        fontFamily    = SpaceGrotesk,
+        fontFamily    = BodyFont,
         fontWeight    = FontWeight.Medium,
         fontSize      = 11.sp,
         lineHeight    = 16.sp,

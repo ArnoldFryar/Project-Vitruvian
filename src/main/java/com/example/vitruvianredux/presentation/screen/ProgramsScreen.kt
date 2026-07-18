@@ -18,6 +18,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -74,65 +75,101 @@ private fun ProgramActionRail(
     onHevyImport: () -> Unit,
     onTemplates: () -> Unit,
 ) {
-    val actions = buildList {
-        add(Triple("Create", AppIcons.AddCircleOutline, onCreate))
-        add(Triple("Import", AppIcons.FileDownload, onImport))
-        if (hevyEnabled) add(Triple("Hevy", AppIcons.CloudDownload, onHevyImport))
-        add(Triple("Templates", AppIcons.GridView, onTemplates))
-    }
+    var showImportMenu by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val railWidth = if (maxWidth >= 600.dp) Modifier.widthIn(max = 560.dp) else Modifier.fillMaxWidth()
-        Row(
-            modifier = railWidth.align(Alignment.Center),
-            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-        ) {
-            actions.forEach { (label, icon, onClick) ->
-                ProgramActionTile(
-                    label = label,
-                    icon = icon,
-                    onClick = onClick,
-                    modifier = Modifier.weight(1f),
-                )
+        val wideLayout = maxWidth >= 700.dp
+        if (wideLayout) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Button(
+                    onClick = onCreate,
+                    modifier = Modifier.weight(1.25f).heightIn(min = AppDimens.Component.buttonHeightLg),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Icon(AppIcons.AddCircleOutline, contentDescription = null)
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text("Create program", style = MaterialTheme.typography.labelLarge)
+                }
+                FilledTonalButton(
+                    onClick = onTemplates,
+                    modifier = Modifier.weight(1f).heightIn(min = AppDimens.Component.buttonHeightLg),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Icon(AppIcons.GridView, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text("Browse templates")
+                }
+                Box {
+                    FilledTonalIconButton(onClick = { showImportMenu = true }) {
+                        Icon(AppIcons.MoreVert, contentDescription = "More program actions")
+                    }
+                    DropdownMenu(expanded = showImportMenu, onDismissRequest = { showImportMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Import program") },
+                            leadingIcon = { Icon(AppIcons.FileDownload, contentDescription = null) },
+                            onClick = { showImportMenu = false; onImport() },
+                        )
+                        if (hevyEnabled) {
+                            DropdownMenuItem(
+                                text = { Text("Import from Hevy") },
+                                leadingIcon = { Icon(AppIcons.CloudDownload, contentDescription = null) },
+                                onClick = { showImportMenu = false; onHevyImport() },
+                            )
+                        }
+                    }
+                }
             }
-        }
-    }
-}
-
-@Composable
-private fun ProgramActionTile(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(AppDimens.Corner.sm),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        border = androidx.compose.foundation.BorderStroke(
-            AppDimens.Stroke.thin,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f),
-        ),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = AppDimens.Spacing.xs, vertical = AppDimens.Spacing.sm),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(AppDimens.Icon.sm),
-            )
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+        } else {
+            Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                Button(
+                    onClick = onCreate,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = AppDimens.Component.buttonHeightLg),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Icon(AppIcons.AddCircleOutline, contentDescription = null)
+                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                    Text("Create program", style = MaterialTheme.typography.labelLarge)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                ) {
+                    FilledTonalButton(
+                        onClick = onTemplates,
+                        modifier = Modifier.weight(1f),
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Icon(AppIcons.GridView, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Text("Browse templates")
+                    }
+                    Box {
+                        FilledTonalIconButton(onClick = { showImportMenu = true }) {
+                            Icon(AppIcons.MoreVert, contentDescription = "More program actions")
+                        }
+                        DropdownMenu(expanded = showImportMenu, onDismissRequest = { showImportMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Import program") },
+                                leadingIcon = { Icon(AppIcons.FileDownload, contentDescription = null) },
+                                onClick = { showImportMenu = false; onImport() },
+                            )
+                            if (hevyEnabled) {
+                                DropdownMenuItem(
+                                    text = { Text("Import from Hevy") },
+                                    leadingIcon = { Icon(AppIcons.CloudDownload, contentDescription = null) },
+                                    onClick = { showImportMenu = false; onHevyImport() },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -283,10 +320,15 @@ fun ProgramsScreen(
         },
         contentWindowInsets = WindowInsets(0),
     ) { scaffoldPadding ->
-        LazyColumn(
-            modifier       = Modifier.fillMaxSize().padding(scaffoldPadding),
-            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+        BoxWithConstraints(
+            modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
+            contentAlignment = Alignment.TopCenter,
         ) {
+            val horizontalPadding = if (maxWidth >= 600.dp) AppDimens.Spacing.lg else AppDimens.Spacing.md
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().widthIn(max = 1040.dp),
+                contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = AppDimens.Spacing.sm),
+            ) {
 
             item(key = "subtitle") {
                 val listGuidance = when {
@@ -406,6 +448,8 @@ fun ProgramsScreen(
                         icon = AppIcons.Assignment,
                         headline = "No programs yet",
                         description = "Create your first program to structure your training journey.",
+                        actionLabel = "Create program",
+                        onAction = { showBuilder = true },
                         modifier = Modifier.padding(vertical = AppDimens.Spacing.xl),
                     )
                 }
@@ -488,8 +532,8 @@ fun ProgramsScreen(
                         if (isDragging) AppDimens.Stroke.medium else AppDimens.Stroke.thin,
                         when {
                             isDragging -> MaterialTheme.colorScheme.primary
-                            today in p.scheduledDays -> MaterialTheme.colorScheme.secondary
-                            else -> MaterialTheme.colorScheme.outline
+                            today in p.scheduledDays -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f)
+                            else -> Color.Transparent
                         },
                     ),
                 ) {
@@ -589,18 +633,20 @@ fun ProgramsScreen(
                                         hiddenExerciseCount > 0 -> "  +$hiddenExerciseCount more"
                                         else -> ""
                                     }
-                                } else "${p.exerciseCount} exercise${if (p.exerciseCount != 1) "s" else ""}"
-                                Text(
-                                    exercisePreview,
-                                    style    = MaterialTheme.typography.bodySmall,
-                                    color    = if (hiddenExerciseCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = if (hiddenExerciseCount > 0) {
-                                        Modifier.clickable { exercisePreviewExpanded = !exercisePreviewExpanded }
-                                    } else Modifier,
-                                    maxLines = if (exercisePreviewExpanded) 3 else 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                } else ""
+                                if (exercisePreview.isNotBlank()) {
+                                    Text(
+                                        exercisePreview,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (hiddenExerciseCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = if (hiddenExerciseCount > 0) {
+                                            Modifier.clickable { exercisePreviewExpanded = !exercisePreviewExpanded }
+                                        } else Modifier,
+                                        maxLines = if (exercisePreviewExpanded) 3 else 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
+                                }
                                 Text(
                                     structureSummary,
                                     style = MaterialTheme.typography.labelSmall,
@@ -1002,6 +1048,7 @@ fun ProgramsScreen(
                 item(key = "vit_spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
             }
 
+            }
         }
     }
 }

@@ -48,6 +48,7 @@ fun ScreenScaffold(
     title: String,
     innerPadding: PaddingValues,
     collapseOnScroll: Boolean = false,
+    showTopBar: Boolean = true,
     fillWidth: Boolean = false,
     maxContentWidth: Dp = AppDimens.Layout.maxContentWidth,
     actions: @Composable RowScope.() -> Unit = {},
@@ -74,34 +75,41 @@ fun ScreenScaffold(
         // Transparent container — the backdrop above provides the base color.
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text       = title,
-                        style      = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
-                actions        = actions,
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = Color.Transparent,
-                ),
-                // The outer AppScaffold already handled status-bar insets; zero them here
-                // to prevent the top bar from adding a second status-bar-height gap.
-                windowInsets   = WindowInsets(0),
-            )
+            if (showTopBar) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text       = title,
+                            style      = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    },
+                    actions        = actions,
+                    scrollBehavior = scrollBehavior,
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent,
+                    ),
+                    // The outer AppScaffold already handled status-bar insets; zero them here
+                    // to prevent the top bar from adding a second status-bar-height gap.
+                    windowInsets   = WindowInsets(0),
+                )
+            }
         },
         // Same reason: outer Scaffold already consumed all system-bar insets.
         contentWindowInsets = WindowInsets(0),
     ) { scaffoldPadding ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(scaffoldPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
+            val horizontalPadding = when {
+                maxWidth >= AppDimens.Layout.maxContentWidth -> AppDimens.Spacing.xl
+                maxWidth >= AppDimens.Layout.maxReadableWidth -> AppDimens.Spacing.lg
+                else -> AppDimens.Spacing.md
+            }
             Column(
                 modifier = Modifier
                     .then(
@@ -111,7 +119,7 @@ fun ScreenScaffold(
                     .fillMaxHeight()
                     .verticalScroll(rememberScrollState())
                     .padding(
-                        horizontal = AppDimens.Spacing.md,
+                        horizontal = horizontalPadding,
                         vertical   = AppDimens.Spacing.sm,
                     ),
                 content = content,

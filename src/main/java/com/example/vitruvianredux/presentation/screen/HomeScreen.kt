@@ -2,7 +2,7 @@ package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +18,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
@@ -33,11 +37,8 @@ import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppCard
-import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.GradientButton
-import com.example.vitruvianredux.presentation.components.PremiumAlertDialog
 import com.example.vitruvianredux.presentation.components.SectionHeader
-import com.example.vitruvianredux.presentation.components.StatCard
 import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
@@ -47,14 +48,20 @@ import com.example.vitruvianredux.presentation.util.loadExercises
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.util.UnitConversions
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import androidx.compose.ui.graphics.Color
+import com.example.vitruvianredux.presentation.components.TrainingMomentumCard
 
 @Composable
 fun HomeScreen(
@@ -64,7 +71,10 @@ fun HomeScreen(
     onNavigateToMetricDetail: (String) -> Unit = {},
     onNavigateToProgramDetail: (String) -> Unit = {},
 ) {
-    val cs = MaterialTheme.colorScheme
+    val configuration = LocalConfiguration.current
+    val isLandscapeDashboard =
+        configuration.orientation == Configuration.ORIENTATION_LANDSCAPE &&
+            configuration.screenWidthDp >= 1000
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     // Real stats from AnalyticsStore — rolling 7-day window matches the "Last 7 days" label.
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
@@ -105,32 +115,25 @@ fun HomeScreen(
     val currentStreak = remember(allLogs) { AnalyticsStore.currentStreak() }
     val volumeValue = UnitConversions.formatVolumeFromKg(weekVolumeKg, unitSystem)
     val volumeLabel = stringResource(R.string.home_metric_volume, UnitConversions.unitLabel(unitSystem))
-    var showResetStatsDialog by remember { mutableStateOf(false) }
-
-    if (showResetStatsDialog) {
-        PremiumAlertDialog(
-            title = "Reset analytics",
-            message = "This clears recorded analytics sessions and the Home stats derived from them. This can't be undone.",
-            confirmLabel = "Reset",
-            destructive = true,
-            onConfirm = {
-                AnalyticsStore.clear()
-                showResetStatsDialog = false
-            },
-            onDismiss = { showResetStatsDialog = false },
+    val openHistory = {
+        WiringRegistry.hit(A_ACTIVITY_HISTORY)
+        WiringRegistry.recordOutcome(
+            A_ACTIVITY_HISTORY,
+            ActualOutcome.Navigated("activity_history"),
         )
+        onNavigateToHistory()
     }
-
-    ScreenScaffold(
-        title = stringResource(R.string.screen_title_home),
-        innerPadding = innerPadding,
-        fillWidth = true,
-        actions = {
-            IconButton(onClick = { showResetStatsDialog = true }) {
-                Icon(AppIcons.Refresh, contentDescription = "Reset Stats")
-            }
+    val openMetric: (String) -> Unit = { metric ->
+        val action = when (metric) {
+            "volume" -> A_ACTIVITY_METRIC_VOLUME
+            "sessions" -> A_ACTIVITY_METRIC_SESSIONS
+            else -> A_ACTIVITY_METRIC_STREAK
         }
-    ) {
+        WiringRegistry.hit(action)
+        WiringRegistry.recordOutcome(action, ActualOutcome.Navigated("activity_metric_detail"))
+        onNavigateToMetricDetail(metric)
+    }
+    val upNextCore: @Composable ColumnScope.() -> Unit = {
         SectionHeader(
             title = stringResource(R.string.home_up_next),
             subtitle = "Today's recommendation.",
@@ -142,6 +145,8 @@ fun HomeScreen(
             workoutVM = workoutVM,
             onNavigateToProgramDetail = onNavigateToProgramDetail,
         )
+    }
+    val trainingGuidance: @Composable ColumnScope.() -> Unit = {
         if (readinessInsight != null) {
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             TrainingInsightCard(readinessInsight, compact = true)
@@ -153,79 +158,316 @@ fun HomeScreen(
                 onNavigateToProgramDetail = onNavigateToProgramDetail,
             )
         }
-
-        Spacer(Modifier.height(AppDimens.Spacing.md_lg))
-
+    }
+    val upNextContent: @Composable ColumnScope.() -> Unit = {
+        upNextCore()
+        trainingGuidance()
+    }
+    val progressContent: @Composable ColumnScope.() -> Unit = {
         SectionHeader(
             title = stringResource(R.string.home_last_7_days),
             subtitle = "Recent training load.",
             actionLabel = stringResource(R.string.home_action_history),
-        ) {
-            WiringRegistry.hit(A_ACTIVITY_HISTORY)
-            WiringRegistry.recordOutcome(
-                A_ACTIVITY_HISTORY,
-                ActualOutcome.Navigated("activity_history"),
-            )
-            onNavigateToHistory()
-        }
+            onAction = openHistory,
+        )
         Spacer(Modifier.height(AppDimens.Spacing.sm))
+        HomeWeeklySummaryCard(
+            volume = volumeValue,
+            volumeLabel = volumeLabel,
+            sessions = weekSessions,
+            streak = currentStreak,
+            onMetricClick = openMetric,
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+        WorkoutCalendar(workoutDays = workoutDays)
+    }
+    ScreenScaffold(
+        title = stringResource(R.string.screen_title_home),
+        innerPadding = innerPadding,
+        showTopBar = !isLandscapeDashboard,
+        fillWidth = true,
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            if (isLandscapeDashboard && maxWidth >= 900.dp) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(modifier = Modifier.weight(1.08f), content = upNextCore)
+                        Column(modifier = Modifier.weight(0.92f), content = progressContent)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(modifier = Modifier.weight(1.08f)) {
+                            SectionHeader(
+                                title = "Training rhythm",
+                                subtitle = "Consistency at a glance.",
+                            )
+                            Spacer(Modifier.height(AppDimens.Spacing.sm))
+                            HomeTrainingRhythmCard(
+                                allLogs = allLogs,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        Column(modifier = Modifier.weight(0.92f)) {
+                            SectionHeader(
+                                title = "Latest session",
+                                subtitle = "Your most recent work.",
+                                actionLabel = stringResource(R.string.home_action_history),
+                                onAction = openHistory,
+                            )
+                            Spacer(Modifier.height(AppDimens.Spacing.sm))
+                            HomeRecentSessionCard(
+                                session = allLogs.maxByOrNull { it.endTimeMs },
+                                unitSystem = unitSystem,
+                                onClick = openHistory,
+                            )
+                            trainingGuidance()
+                        }
+                    }
+                }
+            } else if (maxWidth >= 760.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(modifier = Modifier.weight(1.08f), content = upNextContent)
+                    Column(modifier = Modifier.weight(0.92f), content = progressContent)
+                }
+            } else {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    upNextContent()
+                    Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+                    progressContent()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeWeeklySummaryCard(
+    volume: String,
+    volumeLabel: String,
+    sessions: Int,
+    streak: Int,
+    onMetricClick: (String) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = cs.surfaceVariant.copy(alpha = 0.62f)) {
         Row(
-            modifier              = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = AppDimens.Spacing.md_sm),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            StatCard(
-                icon        = AppIcons.Bolt,
-                value       = volumeValue,
-                label       = volumeLabel,
-                accentColor = cs.primary,
-                compact     = true,
-                modifier    = Modifier.weight(1f),
-                onClick     = {
-                    WiringRegistry.hit(A_ACTIVITY_METRIC_VOLUME)
-                    WiringRegistry.recordOutcome(
-                        A_ACTIVITY_METRIC_VOLUME,
-                        ActualOutcome.Navigated("activity_metric_detail"),
-                    )
-                    onNavigateToMetricDetail("volume")
-                },
+            HomeSummaryMetric(
+                value = volume,
+                label = volumeLabel,
+                modifier = Modifier.weight(1f),
+                onClick = { onMetricClick("volume") },
             )
-            StatCard(
-                icon        = AppIcons.FitnessCenter,
-                value       = weekSessions.toString(),
-                label       = stringResource(R.string.profile_stat_sessions),
-                accentColor = cs.secondary,
-                compact     = true,
-                modifier    = Modifier.weight(1f),
-                onClick     = {
-                    WiringRegistry.hit(A_ACTIVITY_METRIC_SESSIONS)
-                    WiringRegistry.recordOutcome(
-                        A_ACTIVITY_METRIC_SESSIONS,
-                        ActualOutcome.Navigated("activity_metric_detail"),
-                    )
-                    onNavigateToMetricDetail("sessions")
-                },
+            Box(Modifier.width(AppDimens.Stroke.thin).height(40.dp).background(cs.outlineVariant))
+            HomeSummaryMetric(
+                value = sessions.toString(),
+                label = "Sessions",
+                modifier = Modifier.weight(1f),
+                onClick = { onMetricClick("sessions") },
             )
-            StatCard(
-                icon        = AppIcons.LocalFireDepartment,
-                value       = currentStreak.toString(),
-                label       = stringResource(R.string.metric_day_streak),
-                accentColor = cs.tertiary,
-                compact     = true,
-                modifier    = Modifier.weight(1f),
-                onClick     = {
-                    WiringRegistry.hit(A_ACTIVITY_METRIC_STREAK)
-                    WiringRegistry.recordOutcome(
-                        A_ACTIVITY_METRIC_STREAK,
-                        ActualOutcome.Navigated("activity_metric_detail"),
-                    )
-                    onNavigateToMetricDetail("streak")
-                },
+            Box(Modifier.width(AppDimens.Stroke.thin).height(40.dp).background(cs.outlineVariant))
+            HomeSummaryMetric(
+                value = streak.toString(),
+                label = "Day streak",
+                modifier = Modifier.weight(1f),
+                onClick = { onMetricClick("streak") },
             )
         }
+    }
+}
 
-        Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+@Composable
+private fun HomeSummaryMetric(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = "$label: $value"
+            }
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppDimens.Spacing.sm),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
+    ) {
+        AnimatedContent(
+            targetState = value,
+            transitionSpec = {
+                (fadeIn() + slideInVertically { it / 3 })
+                    .togetherWith(fadeOut() + slideOutVertically { -it / 3 })
+            },
+            label = "homeMetricValue",
+        ) { animatedValue ->
+            Text(
+                text = animatedValue,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
+    }
+}
 
-        WorkoutCalendar(workoutDays = workoutDays)
+@Composable
+private fun HomeTrainingRhythmCard(
+    allLogs: List<AnalyticsStore.SessionLog>,
+    modifier: Modifier = Modifier,
+) {
+    AppCard(
+        modifier = modifier,
+        borderColor = MaterialTheme.colorScheme.outlineVariant,
+    ) {
+        TrainingMomentumCard(
+            allLogs = allLogs,
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+        )
+    }
+}
+
+@Composable
+private fun HomeRecentSessionCard(
+    session: AnalyticsStore.SessionLog?,
+    unitSystem: UnitsStore.UnitSystem,
+    onClick: () -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    AppCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        borderColor = cs.outlineVariant,
+    ) {
+        if (session == null) {
+            Row(
+                modifier = Modifier.padding(AppDimens.Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(AppIcons.FitnessCenter, contentDescription = null, tint = cs.primary)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Your first session starts here",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Completed workouts will appear in this space.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
+                Icon(AppIcons.ChevronRight, contentDescription = null, tint = cs.onSurfaceVariant)
+            }
+        } else {
+            val sessionTitle = session.programName
+                ?: session.dayName
+                ?: session.exerciseNames.firstOrNull()
+                ?: "Workout"
+            val dateLabel = remember(session.endTimeMs) {
+                Instant.ofEpochMilli(session.endTimeMs)
+                    .atZone(ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ofPattern("EEE, MMM d"))
+            }
+            val durationMinutes = (session.durationSec / 60).coerceAtLeast(1)
+            Column(
+                modifier = Modifier.padding(AppDimens.Spacing.md),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = cs.primaryContainer,
+                    ) {
+                        Icon(
+                            AppIcons.FitnessCenter,
+                            contentDescription = null,
+                            tint = cs.onPrimaryContainer,
+                            modifier = Modifier.padding(AppDimens.Spacing.sm),
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = sessionTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = dateLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = cs.onSurfaceVariant,
+                        )
+                    }
+                    Icon(AppIcons.ChevronRight, contentDescription = null, tint = cs.onSurfaceVariant)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    HomeRecentMetric("${session.totalSets}", "Sets")
+                    HomeRecentMetric("${session.totalReps}", "Reps")
+                    HomeRecentMetric("${durationMinutes}m", "Time")
+                    HomeRecentMetric(
+                        if (session.volumeAvailable) {
+                            UnitConversions.formatVolumeFromKg(session.totalVolumeKg, unitSystem)
+                        } else {
+                            "—"
+                        },
+                        "Volume",
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeRecentMetric(value: String, label: String) {
+    Column(horizontalAlignment = Alignment.Start) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -289,40 +531,38 @@ private fun HomeUpNextCard(
                             )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-                        HomeMetaPill(
-                            label = exerciseCountLabel,
-                            background = cs.secondaryContainer,
-                            content = cs.onSecondaryContainer,
-                        )
-                        HomeMetaPill(
-                            label = if (program.deloadState != null) "Deload" else "Program",
-                            background = cs.surfaceVariant,
-                            content = cs.onSurfaceVariant,
-                        )
-                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
+                        Text(
+                            text = exerciseCountLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = cs.onSurfaceVariant,
+                        )
+                        TextButton(onClick = {
+                            WiringRegistry.hit(A_ACTIVITY_UPNEXT_EDIT)
+                            WiringRegistry.recordOutcome(A_ACTIVITY_UPNEXT_EDIT, ActualOutcome.Navigated("program_detail"))
+                            onNavigateToProgramDetail(program.id)
+                        }) {
+                            Text("Review plan")
+                        }
+                    }
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val buttonModifier = if (maxWidth >= 520.dp) {
+                            Modifier.width(280.dp).align(Alignment.CenterEnd)
+                        } else {
+                            Modifier.fillMaxWidth()
+                        }
                         GradientButton(
                             text = if (program.deloadState != null) "Continue Deload" else stringResource(R.string.common_start),
                             icon = AppIcons.PlayArrow,
-                            modifier = Modifier.weight(1f),
+                            modifier = buttonModifier,
                             onClick = {
                                 WiringRegistry.hit(A_ACTIVITY_UPNEXT_START)
                                 WiringRegistry.recordOutcome(A_ACTIVITY_UPNEXT_START, ActualOutcome.Navigated("player"))
                                 startProgramFromHome(program, exerciseCatalog, workoutVM)
-                            },
-                        )
-                        AppOutlinedButton(
-                            text = stringResource(R.string.common_edit),
-                            icon = AppIcons.Edit,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                WiringRegistry.hit(A_ACTIVITY_UPNEXT_EDIT)
-                                WiringRegistry.recordOutcome(A_ACTIVITY_UPNEXT_EDIT, ActualOutcome.Navigated("program_detail"))
-                                onNavigateToProgramDetail(program.id)
                             },
                         )
                     }
@@ -585,11 +825,8 @@ private fun WorkoutCalendar(
                                     .then(
                                         when {
                                             isToday && hasWorkout -> Modifier
-                                                .background(cs.primary)
-                                                .border(1.dp, cs.primary, CircleShape)
-                                            hasWorkout -> Modifier
-                                                .background(cs.primaryContainer)
-                                                .border(1.dp, cs.primary.copy(alpha = 0.55f), CircleShape)
+                                                .background(cs.secondaryContainer)
+                                                .border(1.dp, cs.secondary, CircleShape)
                                             isToday -> Modifier
                                                 .background(cs.secondaryContainer)
                                                 .border(1.dp, cs.secondary, CircleShape)
@@ -600,15 +837,25 @@ private fun WorkoutCalendar(
                             ) {
                                 Text(
                                     text = dayNum.toString(),
+                                    modifier = Modifier.padding(bottom = if (hasWorkout) 5.dp else 0.dp),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = if (isToday || hasWorkout) FontWeight.Bold else FontWeight.Normal,
                                     color = when {
-                                        isToday && hasWorkout -> cs.onPrimary
-                                        hasWorkout -> cs.onPrimaryContainer
                                         isToday -> cs.onSecondaryContainer
+                                        hasWorkout -> cs.onSurface
                                         else -> cs.onSurface
                                     },
                                 )
+                                if (hasWorkout) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .padding(bottom = 3.dp)
+                                            .size(4.dp)
+                                            .clip(CircleShape)
+                                            .background(cs.primary),
+                                    )
+                                }
                             }
                         }
                     }

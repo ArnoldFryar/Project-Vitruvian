@@ -3,7 +3,6 @@ package com.example.vitruvianredux.presentation.components
 import com.vitruvian.trainer.R
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -15,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
+import com.example.vitruvianredux.presentation.ui.AppIcons
 import androidx.compose.ui.res.stringResource
 
 /**
@@ -47,9 +47,8 @@ fun AppEmptyState(
         ) {
             Box(
                 modifier = Modifier
-                    .size(96.dp)
-                    .background(cs.primary.copy(alpha = 0.10f), CircleShape)
-                    .border(1.dp, cs.primary.copy(alpha = 0.22f), CircleShape),
+                    .size(AppDimens.Component.heroContainer)
+                    .background(cs.primary.copy(alpha = 0.10f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -87,6 +86,39 @@ fun AppEmptyState(
 }
 
 @Composable
+fun AppOfflineBanner(
+    message: String,
+    onRetry: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md_sm),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Icon(
+                AppIcons.Cloud,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(AppDimens.Icon.md),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Connection unavailable", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (onRetry != null) {
+                TextButton(onClick = onRetry) { Text("Retry") }
+            }
+        }
+    }
+}
+
+@Composable
 fun AppErrorState(
     icon: ImageVector,
     headline: String,
@@ -109,9 +141,8 @@ fun AppErrorState(
         ) {
             Box(
                 modifier = Modifier
-                    .size(96.dp)
-                    .background(cs.error.copy(alpha = 0.10f), CircleShape)
-                    .border(1.dp, cs.error.copy(alpha = 0.24f), CircleShape),
+                    .size(AppDimens.Component.heroContainer)
+                    .background(cs.error.copy(alpha = 0.10f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
