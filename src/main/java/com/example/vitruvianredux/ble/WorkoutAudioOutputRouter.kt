@@ -50,6 +50,15 @@ class WorkoutAudioOutputRouter {
         AUDIO_QUEUE_FLUSH,
     )
 
+    fun countPreviewPlan(style: RecordedCountStyle): RecordedAudioPlan = RecordedAudioPlan(
+        clipNames = listOfNotNull(
+            repClip(1, style),
+            repClip(4, style),
+            repClip(10, style),
+        ),
+        queueMode = AUDIO_QUEUE_FLUSH,
+    )
+
     fun warmupPlan(isLastWarmupRep: Boolean): RecordedAudioPlan = RecordedAudioPlan(
         clipNames = listOf(if (isLastWarmupRep) "beepboop" else "beep"),
         queueMode = AUDIO_QUEUE_FLUSH,

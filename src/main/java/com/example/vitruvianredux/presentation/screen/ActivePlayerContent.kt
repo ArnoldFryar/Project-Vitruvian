@@ -54,6 +54,7 @@ import com.example.vitruvianredux.presentation.components.SelectorCard
 import com.example.vitruvianredux.presentation.components.SmoothValuePicker
 import com.example.vitruvianredux.presentation.components.ValueStepper
 import com.example.vitruvianredux.presentation.components.WorkoutLiveContainer
+import com.example.vitruvianredux.presentation.components.LiveCableInstrument
 import com.example.vitruvianredux.presentation.coaching.CoachingCueBanner
 import com.example.vitruvianredux.presentation.coaching.CoachingCueEngine
 import com.example.vitruvianredux.presentation.focus.LiftFocusController
@@ -72,6 +73,7 @@ import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.ResistanceStepPolicy
 import com.example.vitruvianredux.util.UnitConversions
 import kotlin.math.roundToInt
+import kotlin.math.abs
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 private val MODE_OPTIONS = listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only")
@@ -230,7 +232,11 @@ internal fun ActivePlayerContent(
     val scaffoldState = rememberBottomSheetScaffoldState()
 
     // â”€â”€ Lift Focus Mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    LaunchedEffect(isActive) { LiftFocusController.notifySetActive(isActive) }
+    val cableMoving = abs(sessionState.leftCable?.velocity ?: 0f) >= 25f ||
+        abs(sessionState.rightCable?.velocity ?: 0f) >= 25f
+    LaunchedEffect(isActive, cableMoving) {
+        LiftFocusController.notifyMovement(setActive = isActive, moving = cableMoving)
+    }
     val isFocused by LiftFocusController.isFocused.collectAsState()
     val dimAlpha by animateFloatAsState(
         targetValue   = if (isFocused) 0.28f else 1f,
@@ -289,6 +295,16 @@ internal fun ActivePlayerContent(
                             if (isActive && machineHeuristic != null) {
                                 MachineInsightPanel(
                                     heuristic = machineHeuristic,
+                                    modifier = Modifier
+                                        .padding(bottom = AppDimens.Spacing.xxs)
+                                        .fillMaxWidth(0.9f),
+                                )
+                            }
+
+                            if (isActive && (sessionState.leftCable != null || sessionState.rightCable != null)) {
+                                LiveCableInstrument(
+                                    left = sessionState.leftCable,
+                                    right = sessionState.rightCable,
                                     modifier = Modifier
                                         .padding(bottom = AppDimens.Spacing.xxs)
                                         .fillMaxWidth(0.9f),

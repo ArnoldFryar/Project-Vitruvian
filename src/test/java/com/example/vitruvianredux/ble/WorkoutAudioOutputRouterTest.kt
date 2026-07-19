@@ -83,6 +83,37 @@ class WorkoutAudioOutputRouterTest {
     }
 
     @Test
+    fun `all count styles route rep four to a recorded clip`() {
+        val router = WorkoutAudioOutputRouter()
+        val utterance = WorkoutAudioUtterance(
+            text = "4",
+            utteranceId = "rep_4",
+            queueMode = AUDIO_QUEUE_FLUSH,
+            marksCriticalWindow = true,
+        )
+
+        RecordedCountStyle.entries.forEach { style ->
+            val request = router.route(
+                event = WorkoutAudioEvent.RepCount(4),
+                utterance = utterance,
+                settings = VoiceCoachingSettings(recordedCountStyle = style),
+            )
+            val expectedClip = when (style) {
+                RecordedCountStyle.STEADY -> "voice_count_steady_04"
+                RecordedCountStyle.BASE,
+                RecordedCountStyle.FOCUS -> "voice_count_04"
+            }
+
+            assertEquals(
+                WorkoutAudioPlaybackRequest.Recorded(
+                    RecordedAudioPlan(listOf(expectedClip), AUDIO_QUEUE_FLUSH),
+                ),
+                request,
+            )
+        }
+    }
+
+    @Test
     fun `recorded count styles extend through fifty`() {
         val router = WorkoutAudioOutputRouter()
         val utterance = WorkoutAudioUtterance(

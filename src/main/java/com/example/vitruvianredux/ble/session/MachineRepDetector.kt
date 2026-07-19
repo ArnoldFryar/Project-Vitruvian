@@ -128,13 +128,42 @@ class MachineRepDetector : IRepDetector {
         // Issue #210: No priming skip. lastTopCounter starts at 0.
         // First notification with up=1 → delta = 1 - 0 = 1.
         val upDelta = calculateDelta(lastTopCounter, n.up)
-        if (upDelta > 0 && _warmupReps >= warmupTarget) {
+        if (upDelta > 0 && n.repsSetCount == null) {
+            val warmupIncrease = upDelta.coerceAtMost(
+                (warmupTarget - _warmupReps).coerceAtLeast(0)
+            )
+            if (warmupIncrease > 0) {
+                _warmupReps += warmupIncrease
+                events.add(
+                    RepDetectorEvent.WarmupRepCompleted(
+                        _warmupReps,
+                        _warmupReps + _workingReps,
+                    )
+                )
+                if (_warmupReps >= warmupTarget) {
+                    events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
+                }
+            }
+
+            val workingIncrease = upDelta - warmupIncrease
+            if (workingIncrease > 0) {
+                _workingReps += workingIncrease
+                events.add(
+                    RepDetectorEvent.WorkingRepCompleted(
+                        _workingReps,
+                        _warmupReps + _workingReps,
+                    )
+                )
+                if (workingTarget > 0 && _workingReps >= workingTarget) {
+                    events.add(RepDetectorEvent.TargetReached(_workingReps))
+                }
+            }
+        } else if (upDelta > 0 && _warmupReps >= warmupTarget) {
             pendingWorkingReps += upDelta
             events.add(RepDetectorEvent.WorkingRepPending(_workingReps + pendingWorkingReps))
         }
 
         // -- Down delta → clear pending state ---------------------------------
-        val downDelta = calculateDelta(lastCompleteCounter, n.down)
 
         // -- WARMUP TRACKING ──────────────────────────────────────────────
         // 20-byte packets: repsRomCount lags (updates on eccentric/down),
@@ -144,14 +173,6 @@ class MachineRepDetector : IRepDetector {
         if (n.repsSetCount != null && machineWarmup > _warmupReps && _warmupReps < warmupTarget) {
             // 24-byte mode: trust the machine's repsRomCount directly
             _warmupReps = machineWarmup.coerceAtMost(warmupTarget)
-            val total = _warmupReps + _workingReps
-            events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, total))
-            if (_warmupReps >= warmupTarget) {
-                events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
-            }
-        } else if (n.repsSetCount == null && _warmupReps < warmupTarget && upDelta > 0) {
-            // 20-byte mode: count warmup from up counter (concentric = immediate)
-            _warmupReps = (_warmupReps + upDelta).coerceAtMost(warmupTarget)
             val total = _warmupReps + _workingReps
             events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, total))
             if (_warmupReps >= warmupTarget) {
@@ -181,19 +202,6 @@ class MachineRepDetector : IRepDetector {
         // FALLBACK: 20-byte packets have repsRomCount but NO repsSetCount.
         // In this format, `up` gives immediate visual pending feedback and
         // `down` confirms the working rep at the bottom of the eccentric.
-        else if (n.repsSetCount == null && _warmupReps >= warmupTarget && downDelta > 0) {
-            val workingDelta = downDelta.coerceAtMost(pendingWorkingReps).coerceAtLeast(0)
-            if (workingDelta > 0) {
-                _workingReps += workingDelta
-                pendingWorkingReps = (pendingWorkingReps - workingDelta).coerceAtLeast(0)
-                val total = _warmupReps + _workingReps
-                events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, total))
-
-                if (workingTarget > 0 && _workingReps >= workingTarget) {
-                    events.add(RepDetectorEvent.TargetReached(_workingReps))
-                }
-            }
-        }
 
         // ── DRIFT RECONCILIATION (hardening) ─────────────────────────────────
         // On eccentric completion the machine's counters are authoritative.

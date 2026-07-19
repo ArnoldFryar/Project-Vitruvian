@@ -13,6 +13,7 @@ import com.example.vitruvianredux.presentation.audit.SCR_PROFILE
 import com.example.vitruvianredux.presentation.audit.SCR_WORKOUT
 import com.example.vitruvianredux.presentation.audit.SCR_ACTIVITY
 import com.example.vitruvianredux.presentation.audit.SCR_SETTINGS
+import com.example.vitruvianredux.presentation.audit.SCR_IMPORT
 import com.example.vitruvianredux.presentation.audit.A_NAV_WORKOUT
 import com.example.vitruvianredux.presentation.audit.A_PLAYER_START_SET
 import com.example.vitruvianredux.presentation.audit.A_WORKOUT_SEARCH_CHANGE
@@ -161,7 +162,17 @@ class WiringRegistryTest {
     @Test
     fun `statsByScreen counts are consistent with total registry size`() {
         WiringRegistry.registerActions(ALL_ACTION_DEFINITIONS)
-        val screens = listOf(SCR_GLOBAL, SCR_DEVICE, SCR_WORKOUT, SCR_PLAYER, SCR_PROGRAMS, SCR_PROFILE, SCR_ACTIVITY, SCR_SETTINGS)
+        val screens = listOf(
+            SCR_GLOBAL,
+            SCR_DEVICE,
+            SCR_WORKOUT,
+            SCR_PLAYER,
+            SCR_PROGRAMS,
+            SCR_PROFILE,
+            SCR_ACTIVITY,
+            SCR_SETTINGS,
+            SCR_IMPORT,
+        )
         val total = screens.sumOf { WiringRegistry.statsByScreen(it).size }
         assertEquals(ALL_ACTION_DEFINITIONS.size, total)
     }
@@ -213,9 +224,9 @@ class WiringRegistryTest {
     }
 
     @Test
-    fun `profile screen has exactly 3 actions`() {
+    fun `profile screen has exactly 6 actions`() {
         WiringRegistry.registerActions(ALL_ACTION_DEFINITIONS)
-        assertEquals(3, WiringRegistry.statsByScreen(SCR_PROFILE).size)
+        assertEquals(6, WiringRegistry.statsByScreen(SCR_PROFILE).size)
     }
 
     @Test

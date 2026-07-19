@@ -48,6 +48,8 @@ import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.StrengthTestSessionMetadata
 import com.example.vitruvianredux.data.TrainingInsightEngine
+import com.example.vitruvianredux.data.PostWorkoutRecommendationEngine
+import com.example.vitruvianredux.data.PostWorkoutRecommendation
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.ChartMetric
@@ -99,6 +101,15 @@ fun WorkoutCompleteContent(
             avgQualityScore = avgQualityScore,
             prCount = prCount,
             strengthTest = strengthTest,
+        )
+    }
+    val nextRecommendation = remember(stats, avgQualityScore, prCount) {
+        PostWorkoutRecommendationEngine.recommend(
+            totalReps = stats.totalReps,
+            totalSets = stats.totalSets,
+            durationSec = stats.durationSec,
+            avgQualityScore = avgQualityScore,
+            prCount = prCount,
         )
     }
 
@@ -167,6 +178,7 @@ fun WorkoutCompleteContent(
                 else -> "training output saved"
             },
         )
+        NextSessionRecommendationCard(nextRecommendation)
 
         // â”€â”€ PR badge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if (prCount > 0) {
@@ -938,4 +950,57 @@ private fun formatDuration(seconds: Int): String {
     val m = seconds / 60
     val s = seconds % 60
     return "%d:%02d".format(m, s)
+}
+
+@Composable
+private fun NextSessionRecommendationCard(recommendation: PostWorkoutRecommendation) {
+    val cs = MaterialTheme.colorScheme
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+        color = cs.primaryContainer.copy(alpha = 0.38f),
+        border = BorderStroke(AppDimens.Stroke.thin, cs.primary.copy(alpha = 0.22f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                modifier = Modifier.size(44.dp),
+                shape = RoundedCornerShape(AppDimens.Corner.sm),
+                color = cs.primary.copy(alpha = 0.15f),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        AppIcons.TrendingUp,
+                        contentDescription = null,
+                        tint = cs.primary,
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
+            ) {
+                Text(
+                    text = recommendation.eyebrow,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.primary,
+                    letterSpacing = AppDimens.LetterSpacing.wider,
+                )
+                Text(
+                    text = recommendation.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = recommendation.detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }

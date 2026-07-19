@@ -144,12 +144,14 @@ fun AppNavigationRail(
         primaryNavItems.forEach { item ->
             val selected = backStack.value?.destination?.route == item.route.path
             NavigationRailItem(
+                modifier = Modifier.height(72.dp),
                 selected = selected,
                 onClick = { navigateToPrimary(nav, item) },
                 icon = {
                     Icon(
                         if (selected) item.selectedIcon else item.unselectedIcon,
                         contentDescription = item.label,
+                        modifier = Modifier.size(26.dp),
                     )
                 },
                 label = {
@@ -163,20 +165,28 @@ fun AppNavigationRail(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
                 ),
             )
         }
         Spacer(Modifier.weight(1f))
+        Divider(
+            modifier = Modifier
+                .width(48.dp)
+                .padding(vertical = AppDimens.Spacing.sm),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+        )
         val profileSelected = backStack.value?.destination?.route == profileNavItem.route.path
         NavigationRailItem(
+            modifier = Modifier.height(72.dp),
             selected = profileSelected,
             onClick = { navigateToPrimary(nav, profileNavItem) },
             icon = {
                 Icon(
                     if (profileSelected) profileNavItem.selectedIcon else profileNavItem.unselectedIcon,
                     contentDescription = profileNavItem.label,
+                    modifier = Modifier.size(26.dp),
                 )
             },
             label = {
@@ -190,8 +200,8 @@ fun AppNavigationRail(
                 selectedIconColor = MaterialTheme.colorScheme.primary,
                 selectedTextColor = MaterialTheme.colorScheme.primary,
                 indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
             ),
         )
         Spacer(Modifier.height(AppDimens.Spacing.md))

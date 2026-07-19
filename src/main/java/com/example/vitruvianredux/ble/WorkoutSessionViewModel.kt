@@ -378,6 +378,12 @@ class WorkoutSessionViewModel(
         }
     }
 
+    fun previewCountStyle(style: com.example.vitruvianredux.data.RecordedCountStyle) {
+        if (!soundEnabled.value) return
+        recordedVoicePlayer.stop()
+        recordedVoicePlayer.play(audioOutputRouter.countPreviewPlan(style))
+    }
+
     private fun speakEvent(event: WorkoutAudioEvent) {
         if (!soundEnabled.value) return
         val settings = voiceCoachingSettings.value
@@ -1064,6 +1070,13 @@ class WorkoutSessionViewModel(
 
         if (cue != null) {
             val repIndex = state.value.workingRepsCompleted.coerceAtLeast(currentSetVoiceQualities.size)
+            val shouldDeliver = AdaptiveCoachingPolicy.shouldDeliver(
+                cue = cue,
+                repIndex = repIndex,
+                recentScores = currentSetVoiceQualities.map { it.score },
+                level = voiceCoachingSettings.value.coachingLevel,
+            )
+            if (!shouldDeliver) return
             speakEvent(WorkoutAudioEvent.Coaching(cue, repIndex))
         }
     }

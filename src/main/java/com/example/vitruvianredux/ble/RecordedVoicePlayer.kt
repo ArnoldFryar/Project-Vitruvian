@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.datasource.RawResourceDataSource
 import androidx.media3.exoplayer.ExoPlayer
 
@@ -12,6 +13,8 @@ class RecordedVoicePlayer(context: Context) {
     private val appContext = context.applicationContext
     private val resources = appContext.resources
     private val packageName = appContext.packageName
+
+    private var activePriority: RecordedAudioPriority? = null
 
     private val player = ExoPlayer.Builder(context.applicationContext)
         .build()
@@ -23,22 +26,49 @@ class RecordedVoicePlayer(context: Context) {
                     .build(),
                 true,
             )
+            addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
+                        activePriority = null
+                    }
+                }
+            })
         }
 
     fun stop() {
         player.stop()
         player.clearMediaItems()
+        activePriority = null
     }
 
     fun play(plan: RecordedAudioPlan) {
         if (plan.clipNames.isEmpty()) return
-        if (plan.queueMode == AUDIO_QUEUE_FLUSH) {
-            player.stop()
-            player.clearMediaItems()
-        }
         val mediaItems = plan.clipNames.mapNotNull(::mediaItemFor)
         if (mediaItems.isEmpty()) return
-        player.addMediaItems(mediaItems)
+
+        val incomingPriority = RecordedAudioPriorityPolicy.priorityFor(plan)
+        val action = RecordedAudioPriorityPolicy.actionFor(
+            isPlaying = player.isPlaying ||
+                player.playbackState == Player.STATE_BUFFERING ||
+                player.playbackState == Player.STATE_READY,
+            activePriority = activePriority,
+            incomingPriority = incomingPriority,
+            queueMode = plan.queueMode,
+        )
+        when (action) {
+            RecordedAudioAction.DROP -> return
+            RecordedAudioAction.INTERRUPT -> {
+                player.stop()
+                player.clearMediaItems()
+                player.addMediaItems(mediaItems)
+            }
+            RecordedAudioAction.START -> {
+                player.clearMediaItems()
+                player.addMediaItems(mediaItems)
+            }
+            RecordedAudioAction.APPEND -> player.addMediaItems(mediaItems)
+        }
+        activePriority = maxOf(activePriority ?: incomingPriority, incomingPriority)
         player.prepare()
         player.playWhenReady = true
     }

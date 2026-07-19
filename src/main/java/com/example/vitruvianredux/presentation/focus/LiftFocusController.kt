@@ -46,12 +46,20 @@ object LiftFocusController {
      *                     brighten back up.
      */
     fun notifySetActive(active: Boolean) {
+        notifyMovement(setActive = active, moving = active)
+    }
+
+    /**
+     * Drive focus from the session state and live cable movement. The short
+     * hold bridges the zero-velocity transition between rep phases.
+     */
+    fun notifyMovement(setActive: Boolean, moving: Boolean) {
         clearJob?.cancel()
-        if (active) {
+        if (setActive && moving) {
             _isFocused.value = true
         } else {
             clearJob = scope.launch {
-                delay(500)
+                delay(if (setActive) 650 else 250)
                 _isFocused.value = false
             }
         }

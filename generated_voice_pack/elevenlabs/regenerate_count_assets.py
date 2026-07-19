@@ -76,20 +76,38 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip synthesis when the output MP3 already exists.",
     )
+    parser.add_argument(
+        "--asset-id",
+        action="append",
+        dest="asset_ids",
+        help="Regenerate only the specified asset ID. Repeat for multiple assets.",
+    )
     return parser.parse_args()
 
 
-def load_rows(manifest_path: Path, include_preview: bool) -> list[dict[str, str]]:
+def load_rows(
+    manifest_path: Path,
+    include_preview: bool,
+    asset_ids: list[str] | None,
+) -> list[dict[str, str]]:
     with manifest_path.open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
 
+    selected_ids = set(asset_ids or [])
     selected: list[dict[str, str]] = []
     for row in rows:
         asset_id = row["asset_id"]
-        if asset_id.startswith("voice_count_"):
+        if selected_ids and asset_id in selected_ids:
             selected.append(row)
-        elif include_preview and asset_id == "voice_preview_count_sample":
+        elif not selected_ids and asset_id.startswith("voice_count_"):
             selected.append(row)
+        elif not selected_ids and include_preview and asset_id == "voice_preview_count_sample":
+            selected.append(row)
+
+    missing_ids = selected_ids.difference(row["asset_id"] for row in selected)
+    if missing_ids:
+        missing = ", ".join(sorted(missing_ids))
+        raise ValueError(f"Asset IDs not found in manifest: {missing}")
     return selected
 
 
@@ -131,7 +149,11 @@ def main() -> int:
         print(f"Missing {API_KEY_ENV} environment variable.", file=sys.stderr)
         return 1
 
-    rows = load_rows(args.manifest, args.include_preview)
+    try:
+        rows = load_rows(args.manifest, args.include_preview, args.asset_ids)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     if not rows:
         print("No count rows found in manifest.", file=sys.stderr)
         return 1

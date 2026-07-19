@@ -39,9 +39,7 @@ import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.GradientButton
 import com.example.vitruvianredux.presentation.components.SectionHeader
-import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
-import com.example.vitruvianredux.presentation.ui.MotionTokens
 import com.example.vitruvianredux.presentation.ui.ScreenScaffold
 import com.example.vitruvianredux.presentation.ui.theme.*
 import com.example.vitruvianredux.presentation.util.loadExercises
@@ -61,7 +59,9 @@ import java.time.format.TextStyle
 import java.util.Locale
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import com.example.vitruvianredux.presentation.components.TrainingMomentumCard
+import com.example.vitruvianredux.data.TrainingInsight
 
 @Composable
 fun HomeScreen(
@@ -93,6 +93,7 @@ fun HomeScreen(
         )
     }
     val activeDeloadPrograms = remember(programs) { programs.filter { it.deloadState != null } }
+    val machineReady = workoutVM?.bleIsReady?.collectAsState()?.value == true
     val readinessInsight = remember(allLogs, nextProgram, activeDeloadPrograms) {
         TrainingInsightEngine.homeReadiness(
             logs = allLogs,
@@ -133,36 +134,6 @@ fun HomeScreen(
         WiringRegistry.recordOutcome(action, ActualOutcome.Navigated("activity_metric_detail"))
         onNavigateToMetricDetail(metric)
     }
-    val upNextCore: @Composable ColumnScope.() -> Unit = {
-        SectionHeader(
-            title = stringResource(R.string.home_up_next),
-            subtitle = "Today's recommendation.",
-        )
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
-        HomeUpNextCard(
-            nextProgram = nextProgram,
-            exerciseCatalog = exerciseCatalog,
-            workoutVM = workoutVM,
-            onNavigateToProgramDetail = onNavigateToProgramDetail,
-        )
-    }
-    val trainingGuidance: @Composable ColumnScope.() -> Unit = {
-        if (readinessInsight != null) {
-            Spacer(Modifier.height(AppDimens.Spacing.sm))
-            TrainingInsightCard(readinessInsight, compact = true)
-        }
-        if (activeDeloadPrograms.isNotEmpty()) {
-            Spacer(Modifier.height(AppDimens.Spacing.sm))
-            HomeDeloadStatusCard(
-                programs = activeDeloadPrograms,
-                onNavigateToProgramDetail = onNavigateToProgramDetail,
-            )
-        }
-    }
-    val upNextContent: @Composable ColumnScope.() -> Unit = {
-        upNextCore()
-        trainingGuidance()
-    }
     val progressContent: @Composable ColumnScope.() -> Unit = {
         SectionHeader(
             title = stringResource(R.string.home_last_7_days),
@@ -181,6 +152,31 @@ fun HomeScreen(
         Spacer(Modifier.height(AppDimens.Spacing.md_lg))
         WorkoutCalendar(workoutDays = workoutDays)
     }
+    val rhythmContent: @Composable ColumnScope.() -> Unit = {
+        SectionHeader(
+            title = "Training rhythm",
+            subtitle = "Consistency at a glance.",
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        HomeTrainingRhythmCard(
+            allLogs = allLogs,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    val latestContent: @Composable ColumnScope.() -> Unit = {
+        SectionHeader(
+            title = "Latest session",
+            subtitle = "Your most recent work.",
+            actionLabel = stringResource(R.string.home_action_history),
+            onAction = openHistory,
+        )
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        HomeRecentSessionCard(
+            session = allLogs.maxByOrNull { it.endTimeMs },
+            unitSystem = unitSystem,
+            onClick = openHistory,
+        )
+    }
     ScreenScaffold(
         title = stringResource(R.string.screen_title_home),
         innerPadding = innerPadding,
@@ -188,66 +184,183 @@ fun HomeScreen(
         fillWidth = true,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            if (isLandscapeDashboard && maxWidth >= 900.dp) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        Column(modifier = Modifier.weight(1.08f), content = upNextCore)
-                        Column(modifier = Modifier.weight(0.92f), content = progressContent)
-                    }
+            val availableWidth = maxWidth
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
+            ) {
+                HomeCommandCenter(
+                    program = nextProgram,
+                    readiness = readinessInsight,
+                    machineReady = machineReady,
+                    exerciseCatalog = exerciseCatalog,
+                    workoutVM = workoutVM,
+                    onNavigateToProgramDetail = onNavigateToProgramDetail,
+                )
+                if (activeDeloadPrograms.isNotEmpty()) {
+                    HomeDeloadStatusCard(
+                        programs = activeDeloadPrograms,
+                        onNavigateToProgramDetail = onNavigateToProgramDetail,
+                    )
+                }
+
+                if (isLandscapeDashboard && availableWidth >= 900.dp) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
                         verticalAlignment = Alignment.Top,
                     ) {
                         Column(modifier = Modifier.weight(1.08f)) {
-                            SectionHeader(
-                                title = "Training rhythm",
-                                subtitle = "Consistency at a glance.",
-                            )
-                            Spacer(Modifier.height(AppDimens.Spacing.sm))
-                            HomeTrainingRhythmCard(
-                                allLogs = allLogs,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            rhythmContent()
+                            Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+                            latestContent()
                         }
-                        Column(modifier = Modifier.weight(0.92f)) {
-                            SectionHeader(
-                                title = "Latest session",
-                                subtitle = "Your most recent work.",
-                                actionLabel = stringResource(R.string.home_action_history),
-                                onAction = openHistory,
+                        Column(modifier = Modifier.weight(0.92f), content = progressContent)
+                    }
+                } else if (availableWidth >= 760.dp) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column(modifier = Modifier.weight(1.08f)) {
+                            rhythmContent()
+                            Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+                            latestContent()
+                        }
+                        Column(modifier = Modifier.weight(0.92f), content = progressContent)
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        progressContent()
+                        Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+                        rhythmContent()
+                        Spacer(Modifier.height(AppDimens.Spacing.md_lg))
+                        latestContent()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeCommandCenter(
+    program: SavedProgram?,
+    readiness: TrainingInsight?,
+    machineReady: Boolean,
+    exerciseCatalog: Map<String, Exercise>,
+    workoutVM: WorkoutSessionViewModel?,
+    onNavigateToProgramDetail: (String) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
+    val today = remember {
+        LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault()))
+    }
+    val shape = RoundedCornerShape(AppDimens.Corner.lg)
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = shape,
+        color = Color.Transparent,
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            cs.primary.copy(alpha = 0.24f),
+        ),
+    ) {
+        Box(
+            modifier = Modifier.background(
+                Brush.horizontalGradient(
+                    listOf(ext.surface2, cs.primaryContainer.copy(alpha = 0.46f), ext.surface1),
+                )
+            ),
+        ) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(AppDimens.Spacing.lg),
+            ) {
+                val wide = maxWidth >= 700.dp
+                val details: @Composable ColumnScope.() -> Unit = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        HomeMetaPill(
+                            label = if (machineReady) "MACHINE READY" else "MACHINE OFFLINE",
+                            background = if (machineReady) cs.primary.copy(alpha = 0.16f) else cs.surfaceVariant,
+                            content = if (machineReady) cs.primary else cs.onSurfaceVariant,
+                        )
+                        Text(
+                            text = today.uppercase(Locale.getDefault()),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                            letterSpacing = AppDimens.LetterSpacing.wider,
+                        )
+                    }
+                    Text(
+                        text = readiness?.title ?: "Your training day, at a glance",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Black,
+                        color = cs.onSurface,
+                    )
+                    Text(
+                        text = readiness?.detail
+                            ?: program?.let { "${it.name} is prepared with ${it.exerciseCount} exercises." }
+                            ?: "Choose a program to turn today into a planned session.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
+                val action: @Composable () -> Unit = {
+                    if (program != null) {
+                        Column(
+                            horizontalAlignment = if (wide) Alignment.End else Alignment.Start,
+                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                        ) {
+                            Text(
+                                text = program.name,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = cs.onSurface,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             )
-                            Spacer(Modifier.height(AppDimens.Spacing.sm))
-                            HomeRecentSessionCard(
-                                session = allLogs.maxByOrNull { it.endTimeMs },
-                                unitSystem = unitSystem,
-                                onClick = openHistory,
-                            )
-                            trainingGuidance()
+                            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                                TextButton(onClick = { onNavigateToProgramDetail(program.id) }) {
+                                    Text("Review")
+                                }
+                                GradientButton(
+                                    text = "Start today",
+                                    icon = AppIcons.PlayArrow,
+                                    onClick = {
+                                        WiringRegistry.hit(A_ACTIVITY_UPNEXT_START)
+                                        startProgramFromHome(program, exerciseCatalog, workoutVM)
+                                    },
+                                )
+                            }
                         }
                     }
                 }
-            } else if (maxWidth >= 760.dp) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    Column(modifier = Modifier.weight(1.08f), content = upNextContent)
-                    Column(modifier = Modifier.weight(0.92f), content = progressContent)
-                }
-            } else {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    upNextContent()
-                    Spacer(Modifier.height(AppDimens.Spacing.md_lg))
-                    progressContent()
+                if (wide) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                            content = details,
+                        )
+                        Box(modifier = Modifier.widthIn(min = 240.dp, max = 360.dp)) { action() }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                        details()
+                        action()
+                    }
                 }
             }
         }
@@ -468,128 +581,6 @@ private fun HomeRecentMetric(value: String, label: String) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun HomeUpNextCard(
-    nextProgram: SavedProgram?,
-    exerciseCatalog: Map<String, Exercise>,
-    workoutVM: WorkoutSessionViewModel?,
-    onNavigateToProgramDetail: (String) -> Unit,
-) {
-    val cs = MaterialTheme.colorScheme
-
-    AppCard(
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = cs.surface,
-        borderColor = if (nextProgram != null) cs.primary.copy(alpha = 0.28f) else cs.outline,
-    ) {
-        Crossfade(
-            targetState = nextProgram,
-            animationSpec = MotionTokens.ContentCrossfade,
-            label = "upNextContent",
-        ) { program ->
-            if (program != null) {
-                val exerciseCountLabel = if (program.exerciseCount == 1) {
-                    stringResource(R.string.home_exercise_count_singular, program.exerciseCount)
-                } else {
-                    stringResource(R.string.home_exercise_count_plural, program.exerciseCount)
-                }
-
-                Column(
-                    modifier = Modifier.padding(AppDimens.Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
-                ) {
-                    HomeMetaPill(
-                        label = "Ready to train",
-                        background = cs.primaryContainer,
-                        content = cs.onPrimaryContainer,
-                    )
-                    Text(
-                        text = program.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = "Start the next planned session or adjust it first.",
-                        color = cs.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    program.deloadState?.let { deload ->
-                        Surface(
-                            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-                            color = cs.tertiaryContainer,
-                        ) {
-                            Text(
-                                text = buildDeloadSummary(program.name, deload.percentOff, deload.remainingSessions, deload.reduceSetsBy),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = cs.onTertiaryContainer,
-                                modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
-                            )
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            text = exerciseCountLabel,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = cs.onSurfaceVariant,
-                        )
-                        TextButton(onClick = {
-                            WiringRegistry.hit(A_ACTIVITY_UPNEXT_EDIT)
-                            WiringRegistry.recordOutcome(A_ACTIVITY_UPNEXT_EDIT, ActualOutcome.Navigated("program_detail"))
-                            onNavigateToProgramDetail(program.id)
-                        }) {
-                            Text("Review plan")
-                        }
-                    }
-                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                        val buttonModifier = if (maxWidth >= 520.dp) {
-                            Modifier.width(280.dp).align(Alignment.CenterEnd)
-                        } else {
-                            Modifier.fillMaxWidth()
-                        }
-                        GradientButton(
-                            text = if (program.deloadState != null) "Continue Deload" else stringResource(R.string.common_start),
-                            icon = AppIcons.PlayArrow,
-                            modifier = buttonModifier,
-                            onClick = {
-                                WiringRegistry.hit(A_ACTIVITY_UPNEXT_START)
-                                WiringRegistry.recordOutcome(A_ACTIVITY_UPNEXT_START, ActualOutcome.Navigated("player"))
-                                startProgramFromHome(program, exerciseCatalog, workoutVM)
-                            },
-                        )
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier.padding(AppDimens.Spacing.md),
-                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                ) {
-                    HomeMetaPill(
-                        label = "Programs",
-                        background = cs.surfaceVariant,
-                        content = cs.onSurfaceVariant,
-                    )
-                    Text(
-                        text = stringResource(R.string.home_no_program),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = stringResource(R.string.home_no_program_message),
-                        color = cs.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-            }
-        }
     }
 }
 

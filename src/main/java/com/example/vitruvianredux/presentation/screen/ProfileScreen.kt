@@ -31,6 +31,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -1810,6 +1811,92 @@ fun ProfileScreen(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(AppDimens.Corner.sm),
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.34f),
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(AppDimens.Spacing.sm_md),
+                                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                Text(
+                                                    text = "Voice calibration",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                )
+                                                Text(
+                                                    text = "1 · 4 · 10",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
+                                            Text(
+                                                text = "Compare the same reps before choosing. Volume is normalized within each voice family.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            FlowRow(
+                                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                            ) {
+                                                RecordedCountStyle.entries.forEach { style ->
+                                                    OutlinedButton(
+                                                        onClick = { workoutVM.previewCountStyle(style) },
+                                                    ) {
+                                                        Icon(
+                                                            AppIcons.PlayArrow,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(AppDimens.Icon.sm),
+                                                        )
+                                                        Spacer(Modifier.width(AppDimens.Spacing.xxs))
+                                                        Text(
+                                                            when (style) {
+                                                                RecordedCountStyle.BASE -> "Base"
+                                                                RecordedCountStyle.STEADY -> "Steady"
+                                                                RecordedCountStyle.FOCUS -> "Focus"
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(AppDimens.Corner.sm),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(AppDimens.Spacing.sm_md),
+                                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Icon(
+                                            AppIcons.AutoFixHigh,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "Adaptive delivery active",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                            )
+                                            Text(
+                                                text = "Corrections arrive when quality drops; praise is spaced so rep counts stay clear.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
                                 }
 
                                 OutlinedButton(

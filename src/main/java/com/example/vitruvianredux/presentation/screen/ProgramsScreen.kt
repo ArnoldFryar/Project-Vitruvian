@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -352,6 +353,17 @@ fun ProgramsScreen(
                         isReady  = isReady,
                         modifier = Modifier.padding(bottom = AppDimens.Spacing.md),
                     )
+                }
+            }
+
+            if (orderedPrograms.isNotEmpty()) {
+                item(key = "weekly_timeline") {
+                    ProgramWeekTimeline(
+                        programs = orderedPrograms,
+                        today = today,
+                        onProgramClick = onNavigateToProgramDetail,
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.md))
                 }
             }
 
@@ -1048,6 +1060,139 @@ fun ProgramsScreen(
                 item(key = "vit_spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
             }
 
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProgramWeekTimeline(
+    programs: List<SavedProgram>,
+    today: DayOfWeek,
+    onProgramClick: (String) -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val days = DayOfWeek.entries
+    val todayPrograms = programs.filter { today in it.scheduledDays }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+        color = cs.surfaceVariant.copy(alpha = 0.42f),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            cs.outlineVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm_md),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column {
+                    Text(
+                        text = "Training week",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = if (todayPrograms.isEmpty()) "No program scheduled today" else "${todayPrograms.size} ready today",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = cs.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    AppIcons.CalendarToday,
+                    contentDescription = null,
+                    tint = cs.primary,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+            ) {
+                days.forEach { day ->
+                    val count = programs.count { day in it.scheduledDays }
+                    val isToday = day == today
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(AppDimens.Corner.sm))
+                            .background(
+                                if (isToday) cs.primaryContainer
+                                else Color.Transparent
+                            )
+                            .padding(vertical = AppDimens.Spacing.xs),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            text = day.name.take(1),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isToday) FontWeight.Black else FontWeight.Medium,
+                            color = if (isToday) cs.onPrimaryContainer else cs.onSurfaceVariant,
+                        )
+                        Surface(
+                            modifier = Modifier.size(if (count > 0) 8.dp else 4.dp),
+                            shape = CircleShape,
+                            color = when {
+                                count > 0 && isToday -> cs.primary
+                                count > 0 -> cs.secondary
+                                else -> cs.outlineVariant
+                            },
+                        ) {}
+                        Text(
+                            text = if (count > 0) count.toString() else "·",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isToday) cs.onPrimaryContainer else cs.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            todayPrograms.firstOrNull()?.let { program ->
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onProgramClick(program.id) },
+                    shape = RoundedCornerShape(AppDimens.Corner.sm),
+                    color = cs.surface,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm_md, vertical = AppDimens.Spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "TODAY",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = cs.primary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = program.name,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Text(
+                            text = "${program.exerciseCount} exercises",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = cs.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(AppDimens.Spacing.xs))
+                        Icon(
+                            AppIcons.ChevronRight,
+                            contentDescription = "Open ${program.name}",
+                            tint = cs.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
     }
