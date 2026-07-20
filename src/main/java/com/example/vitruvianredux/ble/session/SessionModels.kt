@@ -75,6 +75,15 @@ sealed class NextStep {
     object WorkoutDone : NextStep()
 }
 
+/** A program exercise that can be queued again while the workout is in progress. */
+data class RepeatableExercise(
+    /** Stable exercise id when available, otherwise a normalized exercise name. */
+    val key: String,
+    val exerciseName: String,
+    val thumbnailUrl: String? = null,
+    val setCount: Int,
+)
+
 /** Parameters for one set in a player-mode workout. */
 data class PlayerSetParams(
     val exerciseId: String = "",

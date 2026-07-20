@@ -52,6 +52,7 @@ import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.TelemetryInsights
+import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.components.AppEmptyState
@@ -59,6 +60,7 @@ import com.example.vitruvianredux.presentation.components.ChartMetric
 import com.example.vitruvianredux.presentation.components.PremiumChartCard
 import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurface
 import com.example.vitruvianredux.presentation.components.ShimmerBox
+import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
 import com.example.vitruvianredux.presentation.ui.theme.AccentRed
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -90,12 +92,16 @@ import kotlinx.coroutines.withContext
 fun AnalyticsDashboardScreen(
     onBack: () -> Unit = {},
     onNavigateToTelemetry: () -> Unit = {},
+    onStartWorkout: () -> Unit = {},
 ) {
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val context = LocalContext.current
     val activeDeloadPrograms = remember(programs) { programs.filter { it.deloadState != null } }
+    val analyticsRecommendation = remember(allLogs) {
+        TrainingInsightEngine.analyticsRecommendation(allLogs)
+    }
 
     var catalogLookup by remember { mutableStateOf<MuscleHeatmap.CatalogLookup?>(null) }
     LaunchedEffect(Unit) {
@@ -134,7 +140,9 @@ fun AnalyticsDashboardScreen(
                 AppEmptyState(
                     icon = AppIcons.BarChart,
                     headline = "No analytics yet",
-                    description = "Complete a workout to unlock analytics.",
+                    description = "Complete one workout to establish your first trustworthy baseline.",
+                    actionLabel = "Choose a workout",
+                    onAction = onStartWorkout,
                     modifier = Modifier.fillMaxSize(),
                 )
                 return@BoxWithConstraints
@@ -151,6 +159,9 @@ fun AnalyticsDashboardScreen(
                     .padding(horizontal = hPad, vertical = AppDimens.Spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
+                if (analyticsRecommendation != null) {
+                    TrainingInsightCard(analyticsRecommendation)
+                }
                 if (activeDeloadPrograms.isNotEmpty()) {
                     ActiveDeloadOverviewCard(activeDeloadPrograms)
                 }

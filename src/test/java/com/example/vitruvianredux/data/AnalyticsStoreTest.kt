@@ -217,6 +217,65 @@ class AnalyticsStoreTest {
         assertEquals(0, AnalyticsStore.avgDurationSec(7))
     }
 
+    @Test
+    fun `quality score is rep weighted and ignores skipped sets`() {
+        val sets = listOf(
+            AnalyticsStore.ExerciseSetLog(
+                exerciseName = "Bench Press",
+                setIndex = 0,
+                reps = 10,
+                weightLb = 100,
+                volumeKg = 100f,
+                avgQualityScore = 90,
+            ),
+            AnalyticsStore.ExerciseSetLog(
+                exerciseName = "Bench Press",
+                setIndex = 1,
+                reps = 5,
+                weightLb = 100,
+                volumeKg = 50f,
+                avgQualityScore = 60,
+            ),
+            AnalyticsStore.ExerciseSetLog(
+                exerciseName = "Bench Press",
+                setIndex = 2,
+                reps = 20,
+                weightLb = 100,
+                volumeKg = 0f,
+                avgQualityScore = 0,
+                skipped = true,
+            ),
+        )
+
+        assertEquals(80, AnalyticsStore.qualityScoreForSets(sets))
+    }
+
+    @Test
+    fun `exercise points group names without case fragmentation`() {
+        val sets = listOf(
+            AnalyticsStore.ExerciseSetLog("", "Bench Press", setIndex = 0, reps = 10, weightLb = 100, volumeKg = 100f),
+            AnalyticsStore.ExerciseSetLog("", "bench press", setIndex = 1, reps = 10, weightLb = 100, volumeKg = 100f),
+        )
+
+        val breakdown = AnalyticsStore.exercisePointsBreakdown(sets)
+
+        assertEquals(1, breakdown.size)
+        assertTrue("Bench Press" in breakdown)
+    }
+
+    @Test
+    fun `rolling windows exclude future dated sessions`() {
+        val today = LocalDate.now()
+        injectLogs(listOf(
+            logOnDate(today, volumeKg = 50.0),
+            logOnDate(today.plusDays(1), volumeKg = 500.0),
+        ))
+
+        assertEquals(1, AnalyticsStore.sessionCount(7))
+        assertEquals(50.0, AnalyticsStore.rollingVolumeKg(7), 0.01)
+        assertEquals(setOf(today), AnalyticsStore.last30DaysActivity())
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun logOnDate(

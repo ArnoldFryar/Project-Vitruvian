@@ -21,6 +21,7 @@ import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.ActionStat
 import com.example.vitruvianredux.ble.ExpectedOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
+import com.example.vitruvianredux.data.UxTelemetryStore
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
@@ -38,6 +39,8 @@ private val SCREEN_ORDER = listOf(
 fun AuditScreen(onBack: () -> Unit) {
     val allStats  by WiringRegistry.stats.collectAsState()
     val highlight by WiringRegistry.highlightMode.collectAsState()
+    val uxEvents by UxTelemetryStore.events.collectAsState()
+    val uxSummary = remember(uxEvents) { UxTelemetryStore.summary(uxEvents) }
 
     val totalActions  = allStats.size
     val hitCount      = allStats.count { it.count > 0 }
@@ -101,6 +104,11 @@ fun AuditScreen(onBack: () -> Unit) {
                     opCoverage   = opCoverage,
                     highlightOn  = highlight,
                 )
+                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+            }
+
+            item {
+                UxReliabilityCard(uxSummary)
                 Spacer(Modifier.height(AppDimens.Spacing.md_sm))
             }
 
@@ -429,4 +437,46 @@ private fun coverageColor(coverage: Float): Color = when {
     coverage >= 0.9f -> Success
     coverage >= 0.6f -> AccentAmber
     else             -> MaterialTheme.colorScheme.error
+}
+
+@Composable
+private fun UxReliabilityCard(summary: UxTelemetryStore.Summary) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            MaterialTheme.colorScheme.outline,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Text("Workout UX reliability", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Stored locally without account, device, exercise, or health identifiers.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                StatChip("Started", summary.workoutStarts.toString(), MaterialTheme.colorScheme.onSurface)
+                StatChip("Finished", summary.workoutCompletions.toString(), Success)
+                StatChip("Exited", summary.workoutAbandons.toString(), MaterialTheme.colorScheme.error)
+                StatChip("Repeat taps", summary.repeatedTaps.toString(), AccentAmber)
+            }
+            Text(
+                buildString {
+                    append("Mode changes: ${summary.modeChanges}")
+                    summary.completionRate?.let { append("  ·  Completion: $it%") }
+                    summary.averageRestToStartSec?.let { append("  ·  Avg rest-to-start: ${it}s") }
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }

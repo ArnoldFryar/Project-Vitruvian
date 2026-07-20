@@ -35,6 +35,11 @@ import coil.compose.AsyncImage
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayer
 import com.example.vitruvianredux.presentation.components.ExerciseVideoPlayerState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import com.example.vitruvianredux.ble.protocol.EchoLevel
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.AppTonalButton
@@ -83,6 +88,8 @@ internal fun SetReadyContent(
     onSkipSet: () -> Unit,
     onRepeatPreviousSet: () -> Unit = {},
     canRepeatPreviousSet: Boolean = false,
+    onRepeatExercise: () -> Unit = {},
+    canRepeatExercise: Boolean = false,
     onSkipExercise: () -> Unit,
     onAddSet: () -> Unit = {},
     /** When non-null and isOpenEnded, shows a "Finish Workout" button to end the just-lift session. */
@@ -745,7 +752,7 @@ internal fun SetReadyContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().selectableGroup(),
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                 ) {
                     EchoLevel.entries.forEach { level ->
@@ -753,20 +760,38 @@ internal fun SetReadyContent(
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
-                                .clickable { haptics.selection(); onEchoLevelChange(level) },
+                                .minimumInteractiveComponentSize()
+                                .selectable(
+                                    selected = isSelected,
+                                    role = Role.RadioButton,
+                                    onClick = { haptics.selection(); onEchoLevelChange(level) },
+                                )
+                                .semantics {
+                                    stateDescription = if (isSelected) "Selected" else "Not selected"
+                                },
                             shape = RoundedCornerShape(AppDimens.Corner.sm),
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                                     else MaterialTheme.colorScheme.surfaceVariant,
                         ) {
-                            Text(
-                                text = level.displayName,
+                            Column(
                                 modifier = Modifier.padding(vertical = AppDimens.Spacing.sm),
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            )
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = level.displayName,
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                )
+                                Text(
+                                    text = "${level.velocityMmS.toInt()} mm/s",
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
@@ -866,6 +891,16 @@ internal fun SetReadyContent(
                 icon = AppIcons.Add,
                 onClick = onAddSet,
                 modifier = if (canRepeatPreviousSet) Modifier.weight(1f) else Modifier.fillMaxWidth(),
+            )
+        }
+
+        if (!isStrengthTest && canRepeatExercise) {
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+            AppTonalButton(
+                text = stringResource(R.string.player_repeat_exercise),
+                icon = AppIcons.Repeat,
+                onClick = onRepeatExercise,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
 

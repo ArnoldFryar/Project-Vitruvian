@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import com.example.vitruvianredux.ble.BleDiagnostics
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.MachineWifiState
@@ -27,6 +29,8 @@ import com.example.vitruvianredux.ble.MachineHeuristic
 import com.example.vitruvianredux.ble.MachineBleUpdateRequest
 import com.example.vitruvianredux.ble.MachineUpdateState
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
+import com.example.vitruvianredux.ble.protocol.EchoLevel
+import com.example.vitruvianredux.ble.session.RepeatableExercise
 import com.example.vitruvianredux.presentation.components.AdaptiveSheetColumn
 import com.example.vitruvianredux.presentation.components.AppCard
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
@@ -314,6 +318,74 @@ internal fun UpcomingSetsSheet(
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
+                                Text(
+                                    text = stringResource(R.string.player_resistance_mode),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = AppDimens.Spacing.sm),
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                ) {
+                                    routineModeOptions.forEach { mode ->
+                                        FilterChip(
+                                            selected = set.programMode == mode ||
+                                                (mode == "TUT" && set.programMode == "TUT Beast"),
+                                            onClick = {
+                                                val newSets = draftSets.toMutableList()
+                                                newSets[index] = set.copy(programMode = mode)
+                                                draftSets = newSets
+                                            },
+                                            label = { Text(mode) },
+                                        )
+                                    }
+                                }
+                                if (set.programMode == "Echo") {
+                                    Text(
+                                        text = stringResource(R.string.player_echo_level),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                    ) {
+                                        EchoLevel.entries.forEach { level ->
+                                            FilterChip(
+                                                selected = set.echoLevel == level,
+                                                onClick = {
+                                                    val newSets = draftSets.toMutableList()
+                                                    newSets[index] = set.copy(echoLevel = level)
+                                                    draftSets = newSets
+                                                },
+                                                label = { Text(level.displayName) },
+                                            )
+                                        }
+                                    }
+                                    SelectorCard(
+                                        title = stringResource(R.string.player_eccentric_load),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        ValueStepper(
+                                            value = set.eccentricLoadPct,
+                                            onValueChange = { newVal ->
+                                                val newSets = draftSets.toMutableList()
+                                                newSets[index] = set.copy(
+                                                    eccentricLoadPct = newVal.coerceIn(50, 120),
+                                                )
+                                                draftSets = newSets
+                                            },
+                                            range = 50..120,
+                                            unitLabel = "%",
+                                            compact = true,
+                                        )
+                                    }
+                                }
                                 Spacer(Modifier.height(AppDimens.Spacing.sm))
                                 SelectorCard(
                                     title    = stringResource(R.string.player_target_reps),
@@ -398,3 +470,91 @@ internal fun UpcomingSetsSheet(
         }
     }
 }
+
+@Composable
+internal fun RepeatExerciseSheet(
+    exercises: List<RepeatableExercise>,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        windowInsets = WindowInsets(0),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+    ) {
+        AdaptiveSheetColumn(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .padding(bottom = AppDimens.Spacing.xl),
+            contentPadding = PaddingValues(AppDimens.Spacing.md),
+        ) {
+            Text(
+                text = stringResource(R.string.player_repeat_exercise_title),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stringResource(R.string.player_repeat_exercise_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(
+                    top = AppDimens.Spacing.xs,
+                    bottom = AppDimens.Spacing.md,
+                ),
+            )
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                itemsIndexed(exercises, key = { _, exercise -> exercise.key }) { _, exercise ->
+                    AppCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(exercise.key) },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(AppDimens.Spacing.md),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = exercise.exerciseName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    text = stringResource(
+                                        R.string.player_programmed_sets,
+                                        exercise.setCount,
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Icon(
+                                imageVector = AppIcons.Repeat,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            }
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(top = AppDimens.Spacing.sm),
+            ) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        }
+    }
+}
+
+private val routineModeOptions = listOf("Old School", "Pump", "TUT", "Echo", "Eccentric Only")

@@ -142,7 +142,10 @@ onClick = { showDeleteDialog = false }) {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant)) {
 
         LazyColumn(
-            modifier       = Modifier.fillMaxSize(),
+            modifier       = Modifier
+                .widthIn(max = AppDimens.Layout.maxDashboardWidth)
+                .fillMaxSize()
+                .align(Alignment.TopCenter),
             contentPadding = PaddingValues(bottom = bottomBarPadding),
         ) {
 
@@ -281,6 +284,7 @@ onClick = { showDeleteDialog = false }) {
         // ── Floating top bar (X + ⋮) ─────────────────────────────────────
         Row(
             modifier              = Modifier
+                .widthIn(max = AppDimens.Layout.maxDashboardWidth)
                 .fillMaxWidth()
                 .statusBarsPadding()
                 .padding(horizontal = 4.dp, vertical = 4.dp)
@@ -345,9 +349,12 @@ onClick = { showDeleteDialog = false }) {
                 MaterialTheme.colorScheme.outlineVariant,
             ),
         ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
+                    .widthIn(max = AppDimens.Layout.maxDashboardWidth)
                     .fillMaxWidth()
+                    .align(Alignment.Center)
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -392,6 +399,7 @@ onClick = { showDeleteDialog = false }) {
                         if (started) launchWithDeload = false
                     },
                 )
+            }
             }
         }
     }

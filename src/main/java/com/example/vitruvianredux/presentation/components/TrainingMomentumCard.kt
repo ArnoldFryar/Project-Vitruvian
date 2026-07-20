@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
 import com.vitruvian.trainer.R
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -50,6 +51,7 @@ fun TrainingMomentumCard(
     val zone  = ZoneId.systemDefault()
     val today = LocalDate.now()
     val cs    = MaterialTheme.colorScheme
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
 
     // ── Weekly goal: size of schedule if set, otherwise default ─────
     val weeklyGoal = if (scheduledDays.isEmpty()) DEFAULT_WEEKLY_GOAL else scheduledDays.size
@@ -131,7 +133,12 @@ fun TrainingMomentumCard(
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val isWide = maxWidth > 480.dp
 
-        Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+        Column(
+            modifier = Modifier.heightIn(min = if (expanded) 220.dp else 0.dp),
+            verticalArrangement = Arrangement.spacedBy(
+                if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md,
+            ),
+        ) {
 
             // ── Top stats: Streak + Weekly Progress ──────────────
             if (isWide) {
@@ -236,10 +243,11 @@ private fun SegmentedProgressBar(
     cs: ColorScheme,
     modifier: Modifier = Modifier,
 ) {
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(6.dp),
+            .height(if (expanded) 8.dp else 6.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         repeat(goal) { i ->
@@ -276,6 +284,7 @@ private fun DayStrip(
     scheduledDays: Set<DayOfWeek>,
     cs: ColorScheme,
 ) {
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     val dayInitials = listOf("M", "T", "W", "T", "F", "S", "S")
     val hasSchedule = scheduledDays.isNotEmpty()
 
@@ -307,11 +316,16 @@ private fun DayStrip(
                     },
                 )
 
-                val dotSize = if (hasWorkout && !isScheduled && hasSchedule) 9.dp else 12.dp
+                val dotSize = when {
+                    expanded && hasWorkout && !isScheduled && hasSchedule -> 14.dp
+                    expanded -> 18.dp
+                    hasWorkout && !isScheduled && hasSchedule -> 9.dp
+                    else -> 12.dp
+                }
 
                 Box(
                     contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(AppDimens.Icon.xs),
+                    modifier = Modifier.size(if (expanded) AppDimens.Icon.md else AppDimens.Icon.xs),
                 ) {
                     Box(
                         modifier = Modifier

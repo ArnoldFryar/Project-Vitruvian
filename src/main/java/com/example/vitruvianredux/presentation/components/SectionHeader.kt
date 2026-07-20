@@ -13,6 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import com.vitruvian.trainer.R
 
 /**
@@ -30,15 +34,18 @@ fun SectionHeader(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     Row(
-        modifier              = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = if (expanded) 56.dp else 40.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment     = Alignment.CenterVertically,
     ) {
         Column {
             Text(
                 text       = title,
-                style      = MaterialTheme.typography.titleMedium,
+                style = if (expanded) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color      = MaterialTheme.colorScheme.onSurface,
                 maxLines   = 1,
@@ -47,7 +54,7 @@ fun SectionHeader(
             if (subtitle != null) {
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = if (expanded) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -57,10 +64,11 @@ fun SectionHeader(
         if (actionLabel != null) {
             TextButton(
                 onClick = { onAction?.invoke() },
+                modifier = Modifier.heightIn(min = if (expanded) 48.dp else 40.dp),
             ) {
                 Text(
                     text  = actionLabel,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = if (expanded) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }

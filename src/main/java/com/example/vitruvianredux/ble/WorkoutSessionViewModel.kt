@@ -901,6 +901,11 @@ class WorkoutSessionViewModel(
     /** Insert a copy of the previously completed/planned set before the current one and launch it. */
     fun repeatPreviousSet() = engine.repeatPreviousSet()
 
+    fun repeatExercise(exerciseKey: String): Boolean = engine.repeatExercise(exerciseKey)
+
+    val repeatableExercises: List<com.example.vitruvianredux.ble.session.RepeatableExercise>
+        get() = engine.repeatableExercises
+
     /** Confirm ready — the user taps "Go" from the SetReady screen to start the BLE set. */
     fun confirmReady(
         targetRepsOverride: Int? = null,

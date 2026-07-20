@@ -113,6 +113,7 @@ fun AppNavigationRail(
     val dividerColor = MaterialTheme.colorScheme.outlineVariant
     NavigationRail(
         modifier = modifier
+            .width(96.dp)
             .fillMaxHeight()
             .drawBehind {
                 drawLine(
@@ -126,38 +127,38 @@ fun AppNavigationRail(
         header = {
             Box(
                 modifier = Modifier
-                    .padding(vertical = AppDimens.Spacing.md)
-                    .size(AppDimens.Component.buttonHeightSm)
+                    .padding(vertical = AppDimens.Spacing.md_lg)
+                    .size(AppDimens.Component.buttonHeight)
                     .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     "V",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold,
                 )
             }
         },
     ) {
-        Spacer(Modifier.height(AppDimens.Spacing.sm))
+        Spacer(Modifier.height(AppDimens.Spacing.md))
         primaryNavItems.forEach { item ->
             val selected = backStack.value?.destination?.route == item.route.path
             NavigationRailItem(
-                modifier = Modifier.height(72.dp),
+                modifier = Modifier.height(84.dp),
                 selected = selected,
                 onClick = { navigateToPrimary(nav, item) },
                 icon = {
                     Icon(
                         if (selected) item.selectedIcon else item.unselectedIcon,
                         contentDescription = item.label,
-                        modifier = Modifier.size(26.dp),
+                        modifier = Modifier.size(30.dp),
                     )
                 },
                 label = {
                     Text(
                         item.label,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 },
@@ -179,20 +180,20 @@ fun AppNavigationRail(
         )
         val profileSelected = backStack.value?.destination?.route == profileNavItem.route.path
         NavigationRailItem(
-            modifier = Modifier.height(72.dp),
+            modifier = Modifier.height(84.dp),
             selected = profileSelected,
             onClick = { navigateToPrimary(nav, profileNavItem) },
             icon = {
                 Icon(
                     if (profileSelected) profileNavItem.selectedIcon else profileNavItem.unselectedIcon,
                     contentDescription = profileNavItem.label,
-                    modifier = Modifier.size(26.dp),
+                    modifier = Modifier.size(30.dp),
                 )
             },
             label = {
                 Text(
                     profileNavItem.label,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (profileSelected) FontWeight.SemiBold else FontWeight.Normal,
                 )
             },

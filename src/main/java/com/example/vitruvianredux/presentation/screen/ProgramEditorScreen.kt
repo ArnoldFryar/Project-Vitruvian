@@ -217,7 +217,9 @@ onClick = { showDaysDialog = false }) { Text("Done") }
         LazyColumn(
             state          = reorderState.listState,
             modifier       = Modifier
+                .widthIn(max = AppDimens.Layout.maxContentWidth)
                 .fillMaxSize()
+                .align(Alignment.TopCenter)
                 .then(if (isSelectionMode) Modifier else Modifier.reorderable(reorderState)),
             contentPadding = PaddingValues(bottom = 96.dp),
         ) {
@@ -414,6 +416,7 @@ onClick = { showDaysDialog = false }) { Text("Done") }
 
         Row(
             modifier              = Modifier
+                .widthIn(max = AppDimens.Layout.maxContentWidth)
                 .fillMaxWidth()
                 .statusBarsPadding()
                 .padding(horizontal = 4.dp, vertical = 4.dp)
@@ -494,15 +497,19 @@ onClick = { showDaysDialog = false }) { Text("Done") }
                     MaterialTheme.colorScheme.outlineVariant,
                 ),
             ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
                 GradientButton(
                     text     = if (draftBlocks.isEmpty()) "Choose Exercises" else "Manage Exercises ($exerciseCount)",
                     icon     = AppIcons.Add,
                     modifier = Modifier
+                        .widthIn(max = AppDimens.Layout.maxContentWidth)
                         .fillMaxWidth()
+                        .align(Alignment.Center)
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .navigationBarsPadding(),
                     onClick  = { showPicker = true },
                 )
+                }
             }
         }
     }

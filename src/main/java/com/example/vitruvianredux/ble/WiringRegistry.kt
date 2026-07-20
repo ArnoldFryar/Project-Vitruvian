@@ -1,5 +1,6 @@
 package com.example.vitruvianredux.ble
 
+import com.example.vitruvianredux.data.UxTelemetryStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -135,6 +136,7 @@ object WiringRegistry {
 
     /** Increment hit count for [id] and stamp the current time. No-op if id not registered. */
     fun hit(id: String) {
+        UxTelemetryStore.record("action_tapped", id)
         val current = _stats.value
         val idx = current.indexOfFirst { it.id == id }
         if (idx < 0) return
@@ -153,6 +155,7 @@ object WiringRegistry {
      * Increments [outcomeCount] and replaces [lastOutcome]. No-op if id not registered.
      */
     fun recordOutcome(id: String, outcome: ActualOutcome) {
+        UxTelemetryStore.record("action_outcome", "$id:${outcome::class.simpleName}")
         val current = _stats.value
         val idx = current.indexOfFirst { it.id == id }
         if (idx < 0) return

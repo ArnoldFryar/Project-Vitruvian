@@ -170,10 +170,10 @@ fun AppScaffold() {
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                             topBar = {
                                 appHeader(
-                                    if (currentRoute == Route.Activity.path) {
-                                        stringResource(R.string.screen_title_home)
-                                    } else {
-                                        null
+                                    when (currentRoute) {
+                                        Route.Activity.path -> stringResource(R.string.screen_title_home)
+                                        Route.ActivityHistory.path -> stringResource(R.string.home_action_history)
+                                        else -> null
                                     }
                                 )
                             },
@@ -192,7 +192,17 @@ fun AppScaffold() {
                     }
                 } else {
                     Scaffold(
-                        topBar = { if (showBottomBar) appHeader(null) },
+                        topBar = {
+                            if (showBottomBar) {
+                                appHeader(
+                                    if (currentRoute == Route.ActivityHistory.path) {
+                                        stringResource(R.string.home_action_history)
+                                    } else {
+                                        null
+                                    },
+                                )
+                            }
+                        },
                         bottomBar = { if (showBottomBar) BottomBar(nav) },
                         contentWindowInsets = WindowInsets(0),
                         modifier = Modifier.fillMaxSize(),
@@ -458,13 +468,19 @@ private fun AppTopBar(
         BoxWithConstraints {
             val compact = maxWidth < 380.dp
             val veryCompact = maxWidth < 330.dp
+            val expanded = maxWidth >= 840.dp
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
+                    .heightIn(min = if (expanded) 64.dp else AppDimens.Component.buttonHeight)
                     .padding(
-                        horizontal = if (compact) AppDimens.Spacing.md else AppDimens.Spacing.md_lg,
-                        vertical = AppDimens.Spacing.xs,
+                        horizontal = when {
+                            expanded -> AppDimens.Spacing.xl
+                            compact -> AppDimens.Spacing.md
+                            else -> AppDimens.Spacing.md_lg
+                        },
+                        vertical = if (expanded) AppDimens.Spacing.sm else AppDimens.Spacing.xs,
                     ),
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
@@ -472,13 +488,13 @@ private fun AppTopBar(
                 if (title != null) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = if (expanded) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Box(
                     modifier = Modifier
-                        .size(AppDimens.Component.buttonHeight)
+                        .size(if (expanded) AppDimens.Component.buttonHeightXl else AppDimens.Component.buttonHeight)
                         .combinedClickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -510,13 +526,16 @@ private fun AppTopBar(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor   = MaterialTheme.colorScheme.onPrimaryContainer,
                         ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(
+                            horizontal = if (expanded) 20.dp else 12.dp,
+                            vertical = if (expanded) 12.dp else 8.dp,
+                        ),
                     ) {
                         Icon(AppIcons.BluetoothConnected, contentDescription = stringResource(R.string.cd_bluetooth_connected), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
                         Text(
                             bleState.device.name,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = if (expanded) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.widthIn(max = if (compact) 72.dp else 132.dp),
@@ -528,7 +547,10 @@ private fun AppTopBar(
                         onClick = {},
                         enabled = false,
                         shape   = MaterialTheme.shapes.medium,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(
+                            horizontal = if (expanded) 20.dp else 12.dp,
+                            vertical = if (expanded) 12.dp else 8.dp,
+                        ),
                     ) {
                         Icon(AppIcons.BluetoothSearching, contentDescription = stringResource(R.string.cd_bluetooth_connecting), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))
@@ -537,14 +559,20 @@ private fun AppTopBar(
                         } else {
                             stringResource(R.string.trainer_status_connecting)
                         }
-                        if (!veryCompact) Text(label, style = MaterialTheme.typography.labelMedium)
+                        if (!veryCompact) Text(
+                            label,
+                            style = if (expanded) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
+                        )
                     }
                 }
                 else -> {
                     Button(
                         onClick        = onConnectClick,
                         shape          = MaterialTheme.shapes.medium,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(
+                            horizontal = if (expanded) 22.dp else 16.dp,
+                            vertical = if (expanded) 12.dp else 8.dp,
+                        ),
                     ) {
                         Icon(AppIcons.Bluetooth, contentDescription = stringResource(R.string.cd_bluetooth_disconnected), modifier = Modifier.size(AppDimens.Icon.sm))
                         Spacer(Modifier.width(AppDimens.Spacing.xs))

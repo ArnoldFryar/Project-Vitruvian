@@ -72,6 +72,51 @@ class TrainingInsightEngineTest {
     }
 
     @Test
+    fun `home readiness ignores future dated sessions`() {
+        val now = 10L * 24L * 60L * 60L * 1000L
+        val futureLogs = List(4) { index ->
+            session(set(), endMs = now + (index + 1) * 60_000L)
+        }
+
+        val insight = TrainingInsightEngine.homeReadiness(
+            logs = futureLogs,
+            hasUpNext = false,
+            activeDeloadCount = 0,
+            nowMs = now,
+        )
+
+        assertNull(insight)
+    }
+
+    @Test
+    fun `analytics recommendation turns high frequency into a recovery action`() {
+        val now = 10L * 24L * 60L * 60L * 1000L
+        val logs = List(5) { index ->
+            session(set(quality = 85), endMs = now - index * 60_000L)
+        }
+
+        val insight = TrainingInsightEngine.analyticsRecommendation(logs, nowMs = now)
+
+        assertEquals("Recovery is the next progression", insight?.title)
+        assertNotNull(insight?.nextStep)
+        assertNotNull(insight?.evidence)
+    }
+
+    @Test
+    fun `analytics recommendation explains low quality action`() {
+        val now = 10L * 24L * 60L * 60L * 1000L
+        val logs = List(3) { index ->
+            session(set(quality = 62), endMs = now - index * 60_000L)
+        }
+
+        val insight = TrainingInsightEngine.analyticsRecommendation(logs, nowMs = now)
+
+        assertEquals("Rebuild rep quality", insight?.title)
+        assertEquals(TrainingInsightTone.Caution, insight?.tone)
+        assertNotNull(insight?.nextStep)
+    }
+
+    @Test
     fun `program quality flags unscheduled program`() {
         val program = SavedProgram(
             id = "p1",

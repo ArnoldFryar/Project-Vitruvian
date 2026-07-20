@@ -83,6 +83,23 @@ fun TrainingInsightCard(
                     maxLines = if (compact) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (!compact && insight.nextStep != null) {
+                    Text(
+                        text = "Next: ${insight.nextStep}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = AppDimens.Spacing.xs),
+                    )
+                }
+                if (!compact && insight.evidence != null) {
+                    Text(
+                        text = insight.evidence,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = cs.onSurfaceVariant.copy(alpha = 0.75f),
+                        modifier = Modifier.padding(top = AppDimens.Spacing.xxs),
+                    )
+                }
             }
         }
     }

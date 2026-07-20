@@ -11,6 +11,7 @@ import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.VoiceCoachingStore
 import com.example.vitruvianredux.data.VitruvianFavoritesStore
 import com.example.vitruvianredux.data.VitruvianLibrary
+import com.example.vitruvianredux.data.UxTelemetryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -72,6 +73,8 @@ class VitruvianApp : Application() {
         BodyWeightStore.init(this)
         // Load persisted voice coaching preferences.
         VoiceCoachingStore.init(this)
+        // Keep a local, identifier-free record of workout-flow friction and recovery outcomes.
+        UxTelemetryStore.init(this)
         // Initialise Supabase client for cloud sync (reads config from resources).
         SupabaseProvider.init(this)
         // Enable store-level preference writes to request an immediate cloud sync.

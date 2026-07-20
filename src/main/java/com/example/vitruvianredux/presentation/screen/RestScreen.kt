@@ -45,6 +45,8 @@ fun RestScreenContent(
     onSkip: () -> Unit,
     onRepeatPreviousSet: () -> Unit = {},
     canRepeatPreviousSet: Boolean = false,
+    onRepeatExercise: () -> Unit = {},
+    canRepeatExercise: Boolean = false,
     onSkipExercise: () -> Unit = {},
     onEditUpcomingSets: () -> Unit = {},
     repScores: List<RepQuality> = emptyList(),
@@ -169,6 +171,15 @@ fun RestScreenContent(
                     text = "Repeat Last Set",
                     icon = AppIcons.Repeat,
                     onClick = onRepeatPreviousSet,
+                    modifier = Modifier.fillMaxWidth(if (isCompactHeight) 0.9f else 0.78f),
+                )
+            }
+
+            if (canRepeatExercise) {
+                AppTonalButton(
+                    text = stringResource(R.string.player_repeat_exercise),
+                    icon = AppIcons.Repeat,
+                    onClick = onRepeatExercise,
                     modifier = Modifier.fillMaxWidth(if (isCompactHeight) 0.9f else 0.78f),
                 )
             }

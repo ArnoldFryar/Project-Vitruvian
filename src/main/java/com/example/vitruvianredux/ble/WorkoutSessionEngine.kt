@@ -19,6 +19,7 @@ import com.example.vitruvianredux.ble.session.VolumeAccumulator
 import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.NextStep
 import com.example.vitruvianredux.ble.session.PlayerSetParams
+import com.example.vitruvianredux.ble.session.RepeatableExercise
 import com.example.vitruvianredux.ble.session.RepCounterFromMachine
 import com.example.vitruvianredux.ble.session.SessionEffect
 import com.example.vitruvianredux.ble.session.SessionEvent
@@ -225,6 +226,8 @@ sealed class SessionPhase {
         val warmupReps: Int = 0,
         val weightPerCableLb: Int = 0,
         val programMode: String = "Old School",
+        val echoLevel: com.example.vitruvianredux.ble.protocol.EchoLevel = com.example.vitruvianredux.ble.protocol.EchoLevel.HARD,
+        val eccentricLoadPct: Int = 75,
         val isJustLift: Boolean = false,
         val repRangeMin: Int? = null,
         val repRangeMax: Int? = null,
@@ -244,6 +247,8 @@ sealed class SessionPhase {
         val warmupReps: Int = 0,
         val numCables: Int = 2,
         val programMode: String = "Old School",
+        val echoLevel: com.example.vitruvianredux.ble.protocol.EchoLevel = com.example.vitruvianredux.ble.protocol.EchoLevel.HARD,
+        val eccentricLoadPct: Int = 75,
         val strengthTestProtocolType: String? = null,
         val strengthTestAttemptNumber: Int? = null,
     ) : SessionPhase()
@@ -345,6 +350,31 @@ internal fun nextStepAfterCompletedSet(
     )
 }
 
+internal fun exerciseRepeatKey(set: PlayerSetParams): String =
+    set.exerciseId.trim().takeIf { it.isNotEmpty() }
+        ?: set.exerciseName.trim().lowercase()
+
+internal fun repeatableExercisesForSets(playerSets: List<PlayerSetParams>): List<RepeatableExercise> =
+    playerSets
+        .filterNot { it.isJustLift || it.strengthTestProtocolType != null }
+        .groupBy(::exerciseRepeatKey)
+        .map { (key, sets) ->
+            val first = sets.first()
+            RepeatableExercise(
+                key = key,
+                exerciseName = first.exerciseName,
+                thumbnailUrl = first.thumbnailUrl,
+                setCount = sets.size,
+            )
+        }
+
+internal fun exerciseRepeatSets(
+    sourceSets: List<PlayerSetParams>,
+    exerciseKey: String,
+): List<PlayerSetParams> = sourceSets
+    .filter { exerciseRepeatKey(it) == exerciseKey }
+    .map { it.copy() }
+
 internal fun completedSetRepCounts(
     engineWarmupRepsCompleted: Int,
     engineWorkingRepsCompleted: Int,
@@ -437,12 +467,16 @@ class WorkoutSessionEngine(
 
     // ── Player-mode state ─────────────────────────────────────────────────────
     @Volatile private var playerSets: List<PlayerSetParams> = emptyList()
+    /** Immutable launch-time prescription used when an exercise is repeated. */
+    @Volatile private var originalPlayerSets: List<PlayerSetParams> = emptyList()
     @Volatile private var currentPlayerIndex = 0
     /** Guard to prevent `completeCurrentPlayerSet()` from firing more than once per set. */
     @Volatile private var setCompletionInFlight = false
     
     val upcomingSets: List<PlayerSetParams>
         get() = if (currentPlayerIndex < playerSets.size) playerSets.subList(currentPlayerIndex, playerSets.size) else emptyList()
+    val repeatableExercises: List<RepeatableExercise>
+        get() = repeatableExercisesForSets(originalPlayerSets)
     private var playerJob: Job? = null
     private var restJob: Job? = null
     private var postSetTransitionJob: Job? = null
@@ -1133,6 +1167,7 @@ class WorkoutSessionEngine(
         // Set phase immediately so the UI overlay appears — start with SetReady
         // so the user can get into position before warmup begins.
         playerSets = sets
+        originalPlayerSets = sets.map { it.copy() }
         currentPlayerIndex = 0
 
         val firstSet = sets.first()
@@ -1153,6 +1188,8 @@ class WorkoutSessionEngine(
                 warmupReps        = firstSet.warmupReps,
                 weightPerCableLb  = firstSet.weightPerCableLb,
                 programMode       = firstSet.programMode,
+                echoLevel         = firstSet.echoLevel,
+                eccentricLoadPct  = firstSet.eccentricLoadPct,
                 isJustLift        = firstSet.isJustLift,
                 repRangeMin       = firstSet.repRangeMin,
                 repRangeMax       = firstSet.repRangeMax,
@@ -1405,6 +1442,44 @@ class WorkoutSessionEngine(
     }
 
     /**
+     * Queue the complete launch-time prescription for any exercise in the active
+     * program at the current position, then open its first set.
+     *
+     * Launch-time templates are used so repeatedly choosing the same exercise
+     * never doubles an already repeated block.
+     */
+    fun repeatExercise(exerciseKey: String): Boolean {
+        val phase = _state.value.sessionPhase
+        when (phase) {
+            is SessionPhase.SetReady -> Unit
+            is SessionPhase.Resting -> {
+                restTransitionEpoch.invalidate()
+                restJob?.cancel()
+                restJob = null
+            }
+            else -> {
+                Log.w(TAG, "repeatExercise: not in a repeatable phase ($phase)")
+                return false
+            }
+        }
+
+        val repeatedSets = exerciseRepeatSets(originalPlayerSets, exerciseKey)
+        if (repeatedSets.isEmpty()) {
+            Log.w(TAG, "repeatExercise: no launch-time sets for key=$exerciseKey")
+            return false
+        }
+
+        val insertionIndex = currentPlayerIndex.coerceIn(0, playerSets.size)
+        playerSets = playerSets.toMutableList().apply {
+            addAll(insertionIndex, repeatedSets)
+        }
+        currentPlayerIndex = insertionIndex
+        Log.i(TAG, "repeatExercise: inserted ${repeatedSets.size} set(s) at $insertionIndex for key=$exerciseKey")
+        launchPlayerSet(insertionIndex)
+        return true
+    }
+
+    /**
      * Skip the current exercise entirely and advance to the next *different*
      * exercise in the program (or finish if there are no more).
      *
@@ -1581,6 +1656,7 @@ class WorkoutSessionEngine(
         bleAdapter.enableHandleDetection(false)
         lastDeloadTimeMs = 0L
         playerSets = emptyList()
+        originalPlayerSets = emptyList()
         completedStats.clear()
         skippedStatsList.clear()
         engineState = EngineState()
@@ -1761,6 +1837,8 @@ class WorkoutSessionEngine(
                 warmupReps        = set.warmupReps,
                 weightPerCableLb  = set.weightPerCableLb,
                 programMode       = set.programMode,
+                echoLevel         = set.echoLevel,
+                eccentricLoadPct  = set.eccentricLoadPct,
                 isJustLift        = set.isJustLift,
                 repRangeMin       = set.repRangeMin,
                 repRangeMax       = set.repRangeMax,
@@ -1861,6 +1939,8 @@ class WorkoutSessionEngine(
                 warmupReps        = set.warmupReps,
                 numCables         = set.numCables,
                 programMode       = set.programMode,
+                echoLevel         = set.echoLevel,
+                eccentricLoadPct  = set.eccentricLoadPct,
                 strengthTestProtocolType = set.strengthTestProtocolType,
                 strengthTestAttemptNumber = set.strengthTestAttemptNumber,
             ),
@@ -2315,18 +2395,21 @@ class WorkoutSessionEngine(
                     val set = playerSets.getOrNull(currentPlayerIndex)
                     if (set != null) {
                         Log.i(TAG, "resumeAfterReconnect: ExerciseActive → SetReady  idx=$currentPlayerIndex")
+                        val (exerciseSetIndex, exerciseTotalSets) = perExerciseSetInfo(currentPlayerIndex)
                         _state.value = _state.value.copy(
                             sessionPhase = SessionPhase.SetReady(
                                 exerciseName      = set.exerciseName,
                                 thumbnailUrl      = set.thumbnailUrl,
                                 videoUrl          = set.videoUrl,
-                                setIndex          = currentPlayerIndex,
-                                totalSets         = playerSets.size,
+                                setIndex          = exerciseSetIndex,
+                                totalSets         = exerciseTotalSets,
                                 targetReps        = set.targetReps,
                                 targetDurationSec = set.targetDurationSec,
                                 warmupReps        = set.warmupReps,
                                 weightPerCableLb  = set.weightPerCableLb,
                                 programMode       = set.programMode,
+                                echoLevel         = set.echoLevel,
+                                eccentricLoadPct  = set.eccentricLoadPct,
                                 isJustLift        = set.isJustLift,
                                 repRangeMin       = set.repRangeMin,
                                 repRangeMax       = set.repRangeMax,

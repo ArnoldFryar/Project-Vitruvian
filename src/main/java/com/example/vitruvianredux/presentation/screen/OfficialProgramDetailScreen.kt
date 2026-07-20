@@ -62,7 +62,10 @@ fun OfficialProgramDetailScreen(
 
         // ── Scrollable content ────────────────────────────────────────────────
         LazyColumn(
-            modifier       = Modifier.fillMaxSize(),
+            modifier       = Modifier
+                .widthIn(max = AppDimens.Layout.maxDashboardWidth)
+                .fillMaxSize()
+                .align(Alignment.TopCenter),
             contentPadding = PaddingValues(bottom = 96.dp),
         ) {
 
@@ -166,6 +169,7 @@ fun OfficialProgramDetailScreen(
         // ── Floating top bar ──────────────────────────────────────────────────
         Row(
             modifier              = Modifier
+                .widthIn(max = AppDimens.Layout.maxDashboardWidth)
                 .fillMaxWidth()
                 .statusBarsPadding()
                 .padding(horizontal = 4.dp, vertical = 4.dp)

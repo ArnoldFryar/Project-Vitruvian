@@ -14,6 +14,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalConfiguration
 import com.vitruvian.trainer.R
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import com.example.vitruvianredux.presentation.components.PremiumGradientBackground
@@ -54,6 +55,7 @@ fun ScreenScaffold(
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val expandedScreen = LocalConfiguration.current.smallestScreenWidthDp >= 600
     val scrollBehavior: TopAppBarScrollBehavior? = if (collapseOnScroll) {
         TopAppBarDefaults.enterAlwaysScrollBehavior()
     } else {
@@ -106,6 +108,7 @@ fun ScreenScaffold(
             contentAlignment = Alignment.TopCenter,
         ) {
             val horizontalPadding = when {
+                expandedScreen && maxWidth >= AppDimens.Layout.maxContentWidth -> AppDimens.Spacing.xxl
                 maxWidth >= AppDimens.Layout.maxContentWidth -> AppDimens.Spacing.xl
                 maxWidth >= AppDimens.Layout.maxReadableWidth -> AppDimens.Spacing.lg
                 else -> AppDimens.Spacing.md
@@ -120,8 +123,11 @@ fun ScreenScaffold(
                     .verticalScroll(rememberScrollState())
                     .padding(
                         horizontal = horizontalPadding,
-                        vertical   = AppDimens.Spacing.sm,
-                    ),
+                        vertical = if (expandedScreen) AppDimens.Spacing.md else AppDimens.Spacing.sm,
+                    )
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(bottom = if (expandedScreen) AppDimens.Spacing.xxl else AppDimens.Spacing.xl),
                 content = content,
             )
         }

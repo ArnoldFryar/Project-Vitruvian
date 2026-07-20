@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,6 +25,7 @@ import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppCard
+import com.example.vitruvianredux.presentation.components.AppErrorState
 import com.example.vitruvianredux.presentation.components.AppOutlinedButton
 import com.example.vitruvianredux.presentation.components.AppTonalButton
 import com.example.vitruvianredux.presentation.components.rememberExerciseVideoPlayerState
@@ -35,6 +37,7 @@ import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.ProgressionResult
 import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.TrainingInsightEngine
+import com.example.vitruvianredux.data.UxTelemetryStore
 import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.UnitConversions
@@ -43,7 +46,7 @@ import kotlin.math.roundToInt
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import androidx.compose.ui.unit.dp
 
-private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE, PAUSED, RECONNECTING }
+private enum class PlayerView { ACTIVE, SET_READY, RESTING, WORKOUT_COMPLETE, PAUSED, RECONNECTING, ERROR }
 
 @Composable
 fun ExercisePlayerScreen(
@@ -100,6 +103,7 @@ fun ExercisePlayerScreen(
     var modeExpanded   by remember { mutableStateOf(false) }  // transient UI, fine to reset
     var showDebugPanel by remember { mutableStateOf(false) }  // transient UI, fine to reset
     var showEditUpcomingSets by remember { mutableStateOf(false) }  // transient UI
+    var showRepeatExercisePicker by remember { mutableStateOf(false) }
     var showTagExercisePicker by remember { mutableStateOf(false) }
     var isMuted        by rememberSaveable { mutableStateOf(!workoutVM.soundEnabled.value) }
     // Keep the mute icon in sync with the ViewModel (e.g. after resetAfterWorkout resets soundEnabled).
@@ -113,6 +117,36 @@ fun ExercisePlayerScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    fun showConfirmation(message: String) {
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+        }
+    }
+
+    fun selectTrainingMode(mode: String, collapseMenu: Boolean = false) {
+        selectedMode = mode
+        if (collapseMenu) modeExpanded = false
+        workoutVM.patchCurrentSetResistanceProfile(
+            programMode = if (mode == "TUT" && isBeastMode) "TUT Beast" else mode,
+        )
+        UxTelemetryStore.record("mode_changed", mode)
+        showConfirmation("$mode mode selected")
+    }
+
+    fun selectEchoLevel(level: com.example.vitruvianredux.ble.protocol.EchoLevel) {
+        echoLevel = level
+        workoutVM.patchCurrentSetResistanceProfile(echoLevel = level)
+        UxTelemetryStore.record("echo_level_changed", level.name)
+        showConfirmation("Echo ${level.displayName} selected")
+    }
+
+    fun repeatLastSetWithFeedback() {
+        workoutVM.repeatPreviousSet()
+        UxTelemetryStore.record("set_repeated")
+        showConfirmation("Last set added again")
+    }
 
     suspend fun finalizeAndExit(
         saveProgramChanges: Boolean,
@@ -139,6 +173,8 @@ fun ExercisePlayerScreen(
         val wt     = if (active != null) sessionState.targetWeightLb
                      else ready?.weightPerCableLb
         val mode   = active?.programMode ?: ready?.programMode
+        val nextEchoLevel = active?.echoLevel ?: ready?.echoLevel
+        val nextEccentricPct = active?.eccentricLoadPct ?: ready?.eccentricLoadPct
         val rest   = workoutVM.upcomingSets.firstOrNull()?.restAfterSec
         if (reps != null)  { targetReps = reps; isRepsMode = true }
         if (dur != null)   { targetDuration = dur; isRepsMode = false }
@@ -149,6 +185,8 @@ fun ExercisePlayerScreen(
             isBeastMode  = mode == "TUT Beast"
             selectedMode = if (mode == "TUT Beast") "TUT" else mode
         }
+        if (nextEchoLevel != null) echoLevel = nextEchoLevel
+        if (nextEccentricPct != null) eccentricPct = nextEccentricPct
         // Seed the set-count draft from the program on the opening set so the
         // display is accurate out of the box.  User edits are preserved across
         // subsequent sets because this only runs when setIndex == 0.
@@ -164,7 +202,35 @@ fun ExercisePlayerScreen(
         is SessionPhase.WorkoutComplete -> PlayerView.WORKOUT_COMPLETE
         is SessionPhase.Paused          -> PlayerView.PAUSED
         is SessionPhase.Reconnecting    -> PlayerView.RECONNECTING
+        is SessionPhase.Error           -> PlayerView.ERROR
         else                            -> PlayerView.ACTIVE
+    }
+    val phaseTelemetryKey = when (val current = phase) {
+        is SessionPhase.SetReady -> "ready:${workoutVM.completedExerciseStats.size}:${current.setIndex}"
+        is SessionPhase.ExerciseActive -> "active:${workoutVM.completedExerciseStats.size}:${current.setIndex}"
+        is SessionPhase.Resting -> "rest:${workoutVM.completedExerciseStats.size}"
+        is SessionPhase.WorkoutComplete -> "complete"
+        is SessionPhase.Paused -> "paused:${current.setIndex}"
+        is SessionPhase.Reconnecting -> "reconnecting"
+        is SessionPhase.Error -> "error:${current.message}"
+        else -> current::class.simpleName.orEmpty()
+    }
+    LaunchedEffect(phaseTelemetryKey) {
+        when (phase) {
+            is SessionPhase.SetReady -> {
+                val ready = phase as SessionPhase.SetReady
+                if (ready.setIndex == 0 && workoutVM.completedExerciseStats.isEmpty()) {
+                    UxTelemetryStore.record("workout_started")
+                }
+                UxTelemetryStore.record("set_ready_shown", ready.setIndex.toString())
+            }
+            is SessionPhase.ExerciseActive -> UxTelemetryStore.record("set_started")
+            is SessionPhase.Resting -> UxTelemetryStore.record("rest_started")
+            is SessionPhase.WorkoutComplete -> UxTelemetryStore.record("workout_completed")
+            is SessionPhase.Reconnecting -> UxTelemetryStore.record("recovery_started")
+            is SessionPhase.Error -> UxTelemetryStore.record("recovery_failed")
+            else -> Unit
+        }
     }
     val isBodyweight = remember(exercise) { exercise?.isBodyweightOnly == true }
     val effectiveResistanceLb = if (isBodyweight) 0f else resistanceLb
@@ -175,6 +241,10 @@ fun ExercisePlayerScreen(
         is SessionPhase.Resting -> workoutVM.completedExerciseStats.isNotEmpty()
         else -> false
     }
+    val repeatableExercises = workoutVM.repeatableExercises
+    val canRepeatExercise = workoutVM.activeProgramId != null &&
+        repeatableExercises.isNotEmpty() &&
+        (phase is SessionPhase.SetReady || phase is SessionPhase.Resting)
 
     LaunchedEffect(isBodyweight) {
         if (isBodyweight) {
@@ -204,6 +274,20 @@ fun ExercisePlayerScreen(
         UpcomingSetsSheet(
             workoutVM = workoutVM,
             onDismiss = { showEditUpcomingSets = false }
+        )
+    }
+
+    if (showRepeatExercisePicker) {
+        RepeatExerciseSheet(
+            exercises = repeatableExercises,
+            onSelect = { exerciseKey ->
+                if (workoutVM.repeatExercise(exerciseKey)) {
+                    showRepeatExercisePicker = false
+                    UxTelemetryStore.record("exercise_repeated")
+                    showConfirmation("Exercise added again")
+                }
+            },
+            onDismiss = { showRepeatExercisePicker = false },
         )
     }
 
@@ -249,9 +333,15 @@ fun ExercisePlayerScreen(
                             is SessionPhase.WorkoutComplete -> scope.launch { finalizeAndExit(saveProgramChanges = false) }
                             is SessionPhase.ExerciseActive -> {
                                 workoutVM.panicStop()
+                                UxTelemetryStore.record("workout_abandoned", "active_set")
                                 onBack()
                             }
-                            else -> onBack()
+                            else -> {
+                                if (phase !is SessionPhase.WorkoutComplete) {
+                                    UxTelemetryStore.record("workout_abandoned", view.name.lowercase())
+                                }
+                                onBack()
+                            }
                         }
                     }) {
                         Icon(AppIcons.Close, contentDescription = "Back")
@@ -275,6 +365,11 @@ fun ExercisePlayerScreen(
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
 
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
         AnimatedContent(
             targetState = view,
             transitionSpec = {
@@ -290,9 +385,9 @@ fun ExercisePlayerScreen(
             },
             label = "player-phase",
             modifier = Modifier
+                .widthIn(max = AppDimens.Layout.maxContentWidth)
                 .fillMaxSize()
-                .padding(innerPadding)
-                .widthIn(max = AppDimens.Layout.maxContentWidth),
+                .align(Alignment.TopCenter),
         ) { currentView ->
             when (currentView) {
                 PlayerView.RESTING -> {
@@ -303,8 +398,10 @@ fun ExercisePlayerScreen(
                             secondsRemaining = restPhase.secondsRemaining,
                             next             = restPhase.next,
                             onSkip           = { WiringRegistry.hit(A_PLAYER_REST_SKIP); WiringRegistry.recordOutcome(A_PLAYER_REST_SKIP, ActualOutcome.StateChanged("restSkipped")); workoutVM.skipRest() },
-                            onRepeatPreviousSet = { workoutVM.repeatPreviousSet() },
+                            onRepeatPreviousSet = ::repeatLastSetWithFeedback,
                             canRepeatPreviousSet = canRepeatPreviousSet,
+                            onRepeatExercise = { showRepeatExercisePicker = true },
+                            canRepeatExercise = canRepeatExercise,
                             onSkipExercise   = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
                             onEditUpcomingSets = { showEditUpcomingSets = true },
                             repScores        = fatigueHistory,
@@ -508,8 +605,10 @@ fun ExercisePlayerScreen(
                                 }
                             },
                             onSkipSet      = { workoutVM.skipSet() },
-                            onRepeatPreviousSet = { workoutVM.repeatPreviousSet() },
+                            onRepeatPreviousSet = ::repeatLastSetWithFeedback,
                             canRepeatPreviousSet = canRepeatPreviousSet,
+                            onRepeatExercise = { showRepeatExercisePicker = true },
+                            canRepeatExercise = canRepeatExercise,
                             onSkipExercise = { workoutVM.skipExercise() },
                             onFinishWorkout = if (isOpenEnded && workoutVM.completedExerciseStats.isNotEmpty()) {
                                 { workoutVM.finishWorkout() }
@@ -529,12 +628,7 @@ fun ExercisePlayerScreen(
                             deloadPercentOff    = activeDeloadPercent,
                             isEchoMode          = (effectiveSelectedMode == "Echo"),
                             selectedMode        = effectiveSelectedMode,
-                            onModeSelect        = {
-                                selectedMode = it
-                                workoutVM.patchCurrentSetResistanceProfile(
-                                    programMode = if (it == "TUT" && isBeastMode) "TUT Beast" else it,
-                                )
-                            },
+                            onModeSelect        = { selectTrainingMode(it) },
                             isBeastMode         = isBeastMode,
                             onBeastModeChange   = {
                                 isBeastMode = it
@@ -543,10 +637,7 @@ fun ExercisePlayerScreen(
                                 )
                             },
                             echoLevel           = echoLevel,
-                            onEchoLevelChange   = {
-                                echoLevel = it
-                                workoutVM.patchCurrentSetResistanceProfile(echoLevel = it)
-                            },
+                            onEchoLevelChange   = ::selectEchoLevel,
                             eccentricPct        = eccentricPct,
                             onEccentricPctChange = {
                                 eccentricPct = it
@@ -584,20 +675,22 @@ fun ExercisePlayerScreen(
                         onResistanceChange    = { resistanceLb = it.coerceIn(0f, ResistanceLimits.maxPerHandleLb.toFloat()) },
                         selectedMode          = effectiveSelectedMode,
                         isBeastMode           = isBeastMode,
-                        onBeastModeChange     = { isBeastMode = it },
-                        modeExpanded          = modeExpanded,
-                        onModeExpandChange    = { if (it) { WiringRegistry.hit(A_PLAYER_MODE_DROPDOWN); WiringRegistry.recordOutcome(A_PLAYER_MODE_DROPDOWN, ActualOutcome.SheetOpened("mode_dropdown")) }; modeExpanded = it },
-                        onModeSelect          = {
-                            selectedMode = it
-                            modeExpanded = false
+                        onBeastModeChange     = {
+                            isBeastMode = it
                             workoutVM.patchCurrentSetResistanceProfile(
-                                programMode = if (it == "TUT" && isBeastMode) "TUT Beast" else it,
+                                programMode = if (selectedMode == "TUT" && it) "TUT Beast" else selectedMode,
                             )
                         },
+                        modeExpanded          = modeExpanded,
+                        onModeExpandChange    = { if (it) { WiringRegistry.hit(A_PLAYER_MODE_DROPDOWN); WiringRegistry.recordOutcome(A_PLAYER_MODE_DROPDOWN, ActualOutcome.SheetOpened("mode_dropdown")) }; modeExpanded = it },
+                        onModeSelect          = { selectTrainingMode(it, collapseMenu = true) },
                         echoLevel             = echoLevel,
-                        onEchoLevelChange     = { echoLevel = it },
+                        onEchoLevelChange     = ::selectEchoLevel,
                         eccentricPct          = eccentricPct,
-                        onEccentricPctChange  = { eccentricPct = it },
+                        onEccentricPctChange  = {
+                            eccentricPct = it
+                            workoutVM.patchCurrentSetResistanceProfile(eccentricLoadPct = it)
+                        },
                         stopAtTop             = stopAtTop,
                         onStopAtTopChange     = { stopAtTop = it; workoutVM.stopAtTop = it },
                         onPlayStop            = {
@@ -659,8 +752,15 @@ fun ExercisePlayerScreen(
                             // Use the same draft value so the count matches what
                             // the user saw on the SetReady screen before lifting.
                             totalSets          = targetSets,
-                            onResume           = { workoutVM.resumePlayerWorkout() },
-                            onStop             = { workoutVM.panicStop(); onBack() },
+                            onResume           = {
+                                UxTelemetryStore.record("workout_resumed")
+                                workoutVM.resumePlayerWorkout()
+                            },
+                            onStop             = {
+                                UxTelemetryStore.record("workout_abandoned", "paused")
+                                workoutVM.panicStop()
+                                onBack()
+                            },
                             modifier           = Modifier.fillMaxSize(),
                         )
                     }
@@ -706,14 +806,46 @@ fun ExercisePlayerScreen(
                                     )
                                     AppOutlinedButton(
                                         text = "Cancel Workout",
-                                        onClick = { workoutVM.panicStop(); onBack() },
+                                        onClick = {
+                                            UxTelemetryStore.record("workout_abandoned", "reconnecting")
+                                            workoutVM.panicStop()
+                                            onBack()
+                                        },
                                     )
                                 }
                             }
                         }
                     }
                 }
+
+                PlayerView.ERROR -> {
+                    val errorPhase = phase as? SessionPhase.Error
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AppErrorState(
+                            icon = AppIcons.Error,
+                            headline = "Workout interrupted",
+                            description = errorPhase?.message
+                                ?: "The trainer stopped responding. Your completed sets are still saved.",
+                            actionLabel = "Open Repair",
+                            onAction = onNavigateToRepair,
+                        )
+                        AppOutlinedButton(
+                            text = "Exit Workout",
+                            onClick = {
+                                UxTelemetryStore.record("workout_abandoned", "error")
+                                workoutVM.panicStop()
+                                onBack()
+                            },
+                            modifier = Modifier
+                                .widthIn(max = AppDimens.Layout.maxReadableWidth)
+                                .fillMaxWidth()
+                                .align(Alignment.BottomCenter)
+                                .padding(AppDimens.Spacing.xl),
+                        )
+                    }
+                }
             }
+        }
         }
     }
 }

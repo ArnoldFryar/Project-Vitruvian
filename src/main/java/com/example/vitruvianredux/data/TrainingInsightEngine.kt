@@ -13,11 +13,69 @@ data class TrainingInsight(
     val detail: String,
     val tone: TrainingInsightTone = TrainingInsightTone.Neutral,
     val priority: Int = 0,
+    /** A concrete behavior the user can take next; omitted when the insight is informational. */
+    val nextStep: String? = null,
+    /** Short provenance statement that communicates how much evidence supports the insight. */
+    val evidence: String? = null,
 )
 
 object TrainingInsightEngine {
 
     private const val DAY_MS = 24L * 60L * 60L * 1000L
+
+    fun analyticsRecommendation(
+        logs: List<AnalyticsStore.SessionLog>,
+        nowMs: Long = System.currentTimeMillis(),
+    ): TrainingInsight? {
+        if (logs.isEmpty()) return null
+        val recent = logs.filter { nowMs - it.endTimeMs in 0L..(7L * DAY_MS) }
+        val qualityValues = recent.mapNotNull { it.avgQualityScore }
+        val averageQuality = qualityValues.takeIf { it.isNotEmpty() }?.average()
+        val lastSession = logs.maxByOrNull { it.endTimeMs }
+
+        return when {
+            recent.size >= 5 -> TrainingInsight(
+                title = "Recovery is the next progression",
+                detail = "You logged ${recent.size} sessions in the last 7 days.",
+                tone = TrainingInsightTone.Caution,
+                priority = 95,
+                nextStep = "Keep the next session lighter or take a full recovery day.",
+                evidence = "Based on ${recent.size} recent sessions",
+            )
+            averageQuality != null && averageQuality < 70.0 -> TrainingInsight(
+                title = "Rebuild rep quality",
+                detail = "Recent scored reps average ${averageQuality.roundToInt()}/100.",
+                tone = TrainingInsightTone.Caution,
+                priority = 90,
+                nextStep = "Hold or reduce load 5–10% until quality trends above 75.",
+                evidence = "Based on ${qualityValues.size} scored sessions",
+            )
+            lastSession != null && nowMs - lastSession.endTimeMs > 4L * DAY_MS -> TrainingInsight(
+                title = "Resume with a low-friction session",
+                detail = "It has been more than four days since the last logged workout.",
+                tone = TrainingInsightTone.Neutral,
+                priority = 75,
+                nextStep = "Choose a familiar workout and start below your previous working load.",
+                evidence = "Based on your latest completed session",
+            )
+            recent.size >= 2 -> TrainingInsight(
+                title = "Consistency is working",
+                detail = "Your recent frequency is stable enough to keep the plan simple.",
+                tone = TrainingInsightTone.Positive,
+                priority = 40,
+                nextStep = "Repeat the planned schedule and progress only exercises that cleared their targets.",
+                evidence = "Based on ${recent.size} sessions in 7 days",
+            )
+            else -> TrainingInsight(
+                title = "Build one more data point",
+                detail = "One more completed workout will make short-term trends more reliable.",
+                tone = TrainingInsightTone.Neutral,
+                priority = 30,
+                nextStep = "Complete the next planned workout without changing several variables at once.",
+                evidence = "Based on limited recent history",
+            )
+        }
+    }
 
     fun homeReadiness(
         logs: List<AnalyticsStore.SessionLog>,
@@ -34,7 +92,7 @@ object TrainingInsightEngine {
             )
         }
 
-        val recent = logs.filter { nowMs - it.endTimeMs <= 7L * DAY_MS }
+        val recent = logs.filter { nowMs - it.endTimeMs in 0L..(7L * DAY_MS) }
         if (recent.size >= 4) {
             return TrainingInsight(
                 title = "Keep today controlled",
@@ -164,6 +222,8 @@ object TrainingInsightEngine {
                 detail = "${strengthTest.testedExerciseName ?: "Strength test"}: $certifiedLb lb tested 1RM.",
                 tone = TrainingInsightTone.Positive,
                 priority = 100,
+                nextStep = "Use the new anchor for future load recommendations.",
+                evidence = "Based on a completed certified 1RM protocol",
             )
         }
         if (prCount > 0) {
@@ -183,6 +243,8 @@ object TrainingInsightEngine {
                 detail = "Average rep quality was $avgQualityScore. Hold load until reps clean up.",
                 tone = TrainingInsightTone.Caution,
                 priority = 80,
+                nextStep = "Hold or reduce load on the next session until quality improves.",
+                evidence = "Based on rep-weighted quality from this workout",
             )
         }
 
@@ -216,8 +278,12 @@ object TrainingInsightEngine {
         logs: List<AnalyticsStore.SessionLog>,
         nowMs: Long = System.currentTimeMillis(),
     ): TrainingInsight? {
-        val exerciseSets = logs.flatMap { it.exerciseSets }
-            .filter { it.exerciseName.equals(exerciseName, ignoreCase = true) && !it.skipped }
+        val exerciseSets = logs.sortedByDescending { it.endTimeMs }
+            .flatMap { session ->
+                session.exerciseSets.filter {
+                    it.exerciseName.equals(exerciseName, ignoreCase = true) && !it.skipped
+                }
+            }
         if (exerciseSets.isEmpty()) return null
 
         val testedOneRepMax = OneRepMaxProtocol.lastTestedOneRepMaxLb(exerciseName, logs)
@@ -232,9 +298,7 @@ object TrainingInsightEngine {
 
         telemetryFormFlag(logs, exerciseName)?.let { return it }
 
-        val recentQuality = exerciseSets.sortedByDescending { set ->
-            logs.firstOrNull { session -> set in session.exerciseSets }?.endTimeMs ?: 0L
-        }.take(8).mapNotNull { it.avgQualityScore }.average().takeIf { !it.isNaN() }
+        val recentQuality = AnalyticsStore.qualityScoreForSets(exerciseSets.take(8))?.toDouble()
         if (recentQuality != null && recentQuality < 70) {
             return TrainingInsight(
                 title = "Clean reps first",

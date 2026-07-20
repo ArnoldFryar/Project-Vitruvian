@@ -245,12 +245,13 @@ fun WorkoutScreen(
             .background(ink)
     ) {
         val wideLayout = maxWidth >= 700.dp
+        val useExerciseGrid = maxWidth >= 1000.dp
         val contentHorizontalPadding = if (maxWidth >= 600.dp) AppDimens.Spacing.lg else AppDimens.Spacing.md
         LazyColumn(
             state = listState,
             modifier = Modifier
+                .widthIn(max = 1280.dp)
                 .fillMaxSize()
-                .widthIn(max = 1040.dp)
                 .align(Alignment.TopCenter),
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding() + AppDimens.Spacing.md,
@@ -455,23 +456,56 @@ fun WorkoutScreen(
                         }
                     )
                 }
-                else -> items(filtered, key = { it.stableKey }) { ex ->
-                    ExerciseCard(
-                        modifier = Modifier.padding(
-                            start = contentHorizontalPadding,
-                            end = contentHorizontalPadding + railGutter,
-                            top = AppDimens.Spacing.xs,
-                            bottom = AppDimens.Spacing.xs,
-                        ),
-                        exercise = ex,
-                        onStart = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
-                        onClick = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
-                        onLongPress = { videoPreviewExercise = ex },
-                        onFavoriteToggle = {
-                            haptics.selection()
-                            toggleExerciseFavorite(ex, favoriteExerciseIds)
-                        },
-                    )
+                else -> {
+                    if (useExerciseGrid) {
+                        items(filtered.chunked(2), key = { row -> row.joinToString("|") { it.stableKey } }) { row ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = contentHorizontalPadding,
+                                        end = contentHorizontalPadding + railGutter,
+                                        top = AppDimens.Spacing.xs,
+                                        bottom = AppDimens.Spacing.xs,
+                                    ),
+                                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+                            ) {
+                                row.forEach { ex ->
+                                    ExerciseCard(
+                                        modifier = Modifier.weight(1f),
+                                        exercise = ex,
+                                        onStart = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
+                                        onClick = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
+                                        onLongPress = { videoPreviewExercise = ex },
+                                        onFavoriteToggle = {
+                                            haptics.selection()
+                                            toggleExerciseFavorite(ex, favoriteExerciseIds)
+                                        },
+                                    )
+                                }
+                                if (row.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    } else {
+                        items(filtered, key = { it.stableKey }) { ex ->
+                            ExerciseCard(
+                                modifier = Modifier.padding(
+                                    start = contentHorizontalPadding,
+                                    end = contentHorizontalPadding + railGutter,
+                                    top = AppDimens.Spacing.xs,
+                                    bottom = AppDimens.Spacing.xs,
+                                ),
+                                exercise = ex,
+                                onStart = { WiringRegistry.hit(A_WORKOUT_EXERCISE_START); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_START, ActualOutcome.Navigated("player")); onStartExercise(ex) },
+                                onClick = { WiringRegistry.hit(A_WORKOUT_EXERCISE_OPEN); WiringRegistry.recordOutcome(A_WORKOUT_EXERCISE_OPEN, ActualOutcome.SheetOpened("exercise_detail")); selectedExercise = ex },
+                                onLongPress = { videoPreviewExercise = ex },
+                                onFavoriteToggle = {
+                                    haptics.selection()
+                                    toggleExerciseFavorite(ex, favoriteExerciseIds)
+                                },
+                            )
+                        }
+                    }
                 }
             }
         }

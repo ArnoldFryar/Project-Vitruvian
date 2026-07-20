@@ -183,11 +183,19 @@ fun HomeScreen(
         showTopBar = !isLandscapeDashboard,
         fillWidth = true,
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .widthIn(max = 1400.dp)
+                .fillMaxWidth()
+                .align(Alignment.CenterHorizontally),
+        ) {
             val availableWidth = maxWidth
+            val expanded = configuration.smallestScreenWidthDp >= 600
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(
+                    if (expanded) AppDimens.Spacing.xl else AppDimens.Spacing.lg,
+                ),
             ) {
                 HomeCommandCenter(
                     program = nextProgram,
@@ -255,13 +263,16 @@ private fun HomeCommandCenter(
 ) {
     val cs = MaterialTheme.colorScheme
     val ext = LocalExtendedColors.current
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     val today = remember {
         LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault()))
     }
     val shape = RoundedCornerShape(AppDimens.Corner.lg)
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = if (expanded) 184.dp else 0.dp),
         shape = shape,
         color = Color.Transparent,
         border = androidx.compose.foundation.BorderStroke(
@@ -279,7 +290,7 @@ private fun HomeCommandCenter(
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(AppDimens.Spacing.lg),
+                    .padding(if (expanded) AppDimens.Spacing.xl else AppDimens.Spacing.lg),
             ) {
                 val wide = maxWidth >= 700.dp
                 val details: @Composable ColumnScope.() -> Unit = {
@@ -301,7 +312,7 @@ private fun HomeCommandCenter(
                     }
                     Text(
                         text = readiness?.title ?: "Your training day, at a glance",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = if (expanded) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black,
                         color = cs.onSurface,
                     )
@@ -315,22 +326,41 @@ private fun HomeCommandCenter(
                 }
                 val action: @Composable () -> Unit = {
                     if (program != null) {
-                        Column(
-                            horizontalAlignment = if (wide) Alignment.End else Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(AppDimens.Corner.md),
+                            color = cs.surface.copy(alpha = 0.72f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                AppDimens.Stroke.thin,
+                                cs.outlineVariant,
+                            ),
                         ) {
-                            Text(
-                                text = program.name,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = cs.onSurface,
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
-                                TextButton(onClick = { onNavigateToProgramDetail(program.id) }) {
-                                    Text("Review")
-                                }
+                            Column(
+                                modifier = Modifier.padding(
+                                    if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md,
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                            ) {
+                                Text(
+                                    text = "TODAY'S PROGRAM",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = cs.primary,
+                                    letterSpacing = AppDimens.LetterSpacing.wide,
+                                )
+                                Text(
+                                    text = program.name,
+                                    style = if (expanded) MaterialTheme.typography.titleLarge else MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = cs.onSurface,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = "${program.exerciseCount} exercises ready",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = cs.onSurfaceVariant,
+                                )
                                 GradientButton(
                                     text = "Start today",
                                     icon = AppIcons.PlayArrow,
@@ -339,6 +369,12 @@ private fun HomeCommandCenter(
                                         startProgramFromHome(program, exerciseCatalog, workoutVM)
                                     },
                                 )
+                                TextButton(
+                                    onClick = { onNavigateToProgramDetail(program.id) },
+                                    modifier = Modifier.align(Alignment.End),
+                                ) {
+                                    Text("Review program")
+                                }
                             }
                         }
                     }
@@ -354,7 +390,7 @@ private fun HomeCommandCenter(
                             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                             content = details,
                         )
-                        Box(modifier = Modifier.widthIn(min = 240.dp, max = 360.dp)) { action() }
+                        Box(modifier = Modifier.widthIn(min = 280.dp, max = 400.dp)) { action() }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
@@ -376,11 +412,13 @@ private fun HomeWeeklySummaryCard(
     onMetricClick: (String) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     AppCard(modifier = Modifier.fillMaxWidth(), containerColor = cs.surfaceVariant.copy(alpha = 0.62f)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = AppDimens.Spacing.md_sm),
+                .heightIn(min = if (expanded) 104.dp else 72.dp)
+                .padding(vertical = if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md_sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             HomeSummaryMetric(
@@ -389,14 +427,14 @@ private fun HomeWeeklySummaryCard(
                 modifier = Modifier.weight(1f),
                 onClick = { onMetricClick("volume") },
             )
-            Box(Modifier.width(AppDimens.Stroke.thin).height(40.dp).background(cs.outlineVariant))
+            Box(Modifier.width(AppDimens.Stroke.thin).height(if (expanded) 56.dp else 40.dp).background(cs.outlineVariant))
             HomeSummaryMetric(
                 value = sessions.toString(),
                 label = "Sessions",
                 modifier = Modifier.weight(1f),
                 onClick = { onMetricClick("sessions") },
             )
-            Box(Modifier.width(AppDimens.Stroke.thin).height(40.dp).background(cs.outlineVariant))
+            Box(Modifier.width(AppDimens.Stroke.thin).height(if (expanded) 56.dp else 40.dp).background(cs.outlineVariant))
             HomeSummaryMetric(
                 value = streak.toString(),
                 label = "Day streak",
@@ -414,6 +452,7 @@ private fun HomeSummaryMetric(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     Column(
         modifier = modifier
             .semantics(mergeDescendants = true) {
@@ -435,7 +474,7 @@ private fun HomeSummaryMetric(
         ) { animatedValue ->
             Text(
                 text = animatedValue,
-                style = MaterialTheme.typography.titleLarge,
+                style = if (expanded) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -456,13 +495,14 @@ private fun HomeTrainingRhythmCard(
     allLogs: List<AnalyticsStore.SessionLog>,
     modifier: Modifier = Modifier,
 ) {
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     AppCard(
         modifier = modifier,
         borderColor = MaterialTheme.colorScheme.outlineVariant,
     ) {
         TrainingMomentumCard(
             allLogs = allLogs,
-            modifier = Modifier.padding(AppDimens.Spacing.md),
+            modifier = Modifier.padding(if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md),
         )
     }
 }
@@ -474,6 +514,7 @@ private fun HomeRecentSessionCard(
     onClick: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     AppCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
@@ -481,7 +522,7 @@ private fun HomeRecentSessionCard(
     ) {
         if (session == null) {
             Row(
-                modifier = Modifier.padding(AppDimens.Spacing.md),
+                modifier = Modifier.padding(if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md),
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -512,7 +553,7 @@ private fun HomeRecentSessionCard(
             }
             val durationMinutes = (session.durationSec / 60).coerceAtLeast(1)
             Column(
-                modifier = Modifier.padding(AppDimens.Spacing.md),
+                modifier = Modifier.padding(if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 Row(
@@ -570,10 +611,11 @@ private fun HomeRecentSessionCard(
 
 @Composable
 private fun HomeRecentMetric(value: String, label: String) {
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     Column(horizontalAlignment = Alignment.Start) {
         Text(
             text = value,
-            style = MaterialTheme.typography.labelLarge,
+            style = if (expanded) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
         )
         Text(
@@ -713,6 +755,7 @@ private fun WorkoutCalendar(
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
+    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     var displayMonth by remember { mutableStateOf(YearMonth.now()) }
     val today = LocalDate.now()
 
@@ -724,7 +767,10 @@ private fun WorkoutCalendar(
             .clip(shape)
             .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
             .border(AppDimens.Stroke.thin, cs.outlineVariant, shape)
-            .padding(horizontal = AppDimens.Spacing.md_sm, vertical = AppDimens.Spacing.sm),
+            .padding(
+                horizontal = if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md_sm,
+                vertical = if (expanded) AppDimens.Spacing.md else AppDimens.Spacing.sm,
+            ),
     ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -753,7 +799,7 @@ private fun WorkoutCalendar(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { displayMonth = displayMonth.minusMonths(1) },
-                        modifier = Modifier.size(AppDimens.Component.buttonHeightSm),
+                        modifier = Modifier.size(if (expanded) AppDimens.Component.buttonHeight else AppDimens.Component.buttonHeightSm),
                     ) {
                         Icon(AppIcons.ChevronLeft, stringResource(R.string.home_prev_month), modifier = Modifier.size(AppDimens.Icon.md))
                     }
@@ -764,7 +810,7 @@ private fun WorkoutCalendar(
                     )
                     IconButton(
                         onClick = { displayMonth = displayMonth.plusMonths(1) },
-                        modifier = Modifier.size(AppDimens.Component.buttonHeightSm),
+                        modifier = Modifier.size(if (expanded) AppDimens.Component.buttonHeight else AppDimens.Component.buttonHeightSm),
                     ) {
                         Icon(AppIcons.ChevronRight, stringResource(R.string.home_next_month), modifier = Modifier.size(AppDimens.Icon.md))
                     }
@@ -801,7 +847,7 @@ private fun WorkoutCalendar(
                         val dayNum = cellIndex - startOffset + 1
 
                         if (dayNum < 1 || dayNum > daysInMonth) {
-                            Spacer(Modifier.weight(1f).height(32.dp))
+                            Spacer(Modifier.weight(1f).height(if (expanded) 44.dp else 32.dp))
                         } else {
                             val date = displayMonth.atDay(dayNum)
                             val isToday = date == today
@@ -810,7 +856,7 @@ private fun WorkoutCalendar(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(32.dp)
+                                    .height(if (expanded) 44.dp else 32.dp)
                                     .padding(2.dp)
                                     .clip(CircleShape)
                                     .then(
@@ -829,7 +875,7 @@ private fun WorkoutCalendar(
                                 Text(
                                     text = dayNum.toString(),
                                     modifier = Modifier.padding(bottom = if (hasWorkout) 5.dp else 0.dp),
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = if (expanded) MaterialTheme.typography.bodySmall else MaterialTheme.typography.labelSmall,
                                     fontWeight = if (isToday || hasWorkout) FontWeight.Bold else FontWeight.Normal,
                                     color = when {
                                         isToday -> cs.onSecondaryContainer

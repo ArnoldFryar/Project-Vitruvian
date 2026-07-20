@@ -14,6 +14,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import com.vitruvian.trainer.BuildConfig
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +32,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
@@ -279,7 +286,11 @@ internal fun ActivePlayerContent(
                                     onClick     = {},
                                     onLongClick = if (BuildConfig.IS_DEBUG_BUILD) onDebugRepIncrement else null,
                                 )
-                                .padding(vertical = AppDimens.Spacing.xs),
+                                .padding(vertical = AppDimens.Spacing.xs)
+                                .semantics {
+                                    liveRegion = LiveRegionMode.Polite
+                                    stateDescription = stateSummary
+                                },
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             val coachingCue by CoachingCueEngine.currentCue.collectAsState()
@@ -806,7 +817,7 @@ internal fun ActivePlayerContent(
                         modifier = Modifier.graphicsLayer { alpha = dimAlpha },
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().selectableGroup(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -859,7 +870,16 @@ internal fun ActivePlayerContent(
                                 Surface(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clickable(enabled = !isActive) { onEchoLevelChange(level) },
+                                        .minimumInteractiveComponentSize()
+                                        .selectable(
+                                            selected = isSelected,
+                                            enabled = !isActive,
+                                            role = Role.RadioButton,
+                                            onClick = { onEchoLevelChange(level) },
+                                        )
+                                        .semantics {
+                                            stateDescription = if (isSelected) "Selected" else "Not selected"
+                                        },
                                     shape = RoundedCornerShape(AppDimens.Spacing.sm),
                                     color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
                                             else MaterialTheme.colorScheme.surfaceVariant,

@@ -11,6 +11,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -112,6 +113,8 @@ fun VitruvianTheme(
     dynamicColor: Boolean = false,    // disabled: our curated brand palette always
     content: @Composable () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val expandedScreen = configuration.smallestScreenWidthDp >= 600
     val darkTheme = when (themeMode) {
         com.example.vitruvianredux.data.ThemeStore.ThemeMode.DARK   -> true
         com.example.vitruvianredux.data.ThemeStore.ThemeMode.LIGHT  -> false
@@ -146,7 +149,7 @@ fun VitruvianTheme(
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography  = AppTypography,
+            typography  = if (expandedScreen) ExpandedAppTypography else AppTypography,
             shapes      = VitruvianShapes,
             content     = content,
         )

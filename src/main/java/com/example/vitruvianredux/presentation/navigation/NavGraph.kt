@@ -143,6 +143,7 @@ fun AppNavHost(
             AnalyticsDashboardScreen(
                 onBack = { nav.popBackStack() },
                 onNavigateToTelemetry = { nav.navigate(Route.TelemetryDetail.path) },
+                onStartWorkout = { nav.navigate(Route.Workout.path) },
             )
         }
         composable(Route.TelemetryDetail.path) {
@@ -223,6 +224,7 @@ fun AppNavHost(
         }
         composable(Route.ActivityHistory.path) {
             ActivityHistoryScreen(
+                innerPadding = innerPadding,
                 onBack = { nav.popBackStack() },
                 onNavigateToSessionDetail = { id ->
                     nav.navigate("${Route.SessionDetail.path}/$id")

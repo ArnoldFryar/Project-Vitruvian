@@ -45,6 +45,7 @@ import com.example.vitruvianredux.presentation.ui.AppIcons
  */
 @Composable
 fun ActivityHistoryScreen(
+    innerPadding: PaddingValues = PaddingValues(),
     onBack: () -> Unit,
     onNavigateToSessionDetail: (sessionId: String) -> Unit = {},
     onNavigateToExerciseDetail: (sessionId: String, exerciseName: String) -> Unit = { _, _ -> },
@@ -65,34 +66,30 @@ fun ActivityHistoryScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.home_action_history), fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
-                    }
-                },
-            )
-        },
-    ) { innerPadding ->
+        modifier = Modifier.fillMaxSize().padding(innerPadding),
+        contentWindowInsets = WindowInsets(0),
+    ) { scaffoldPadding ->
         if (allLogs.isEmpty()) {
             // â”€â”€ Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             AppEmptyState(
                 icon = AppIcons.FitnessCenter,
                 headline = "Your training log is empty",
                 description = "Finish a workout to start tracking momentum.",
-                modifier = Modifier.padding(innerPadding),
+                modifier = Modifier.padding(scaffoldPadding),
             )
             return@Scaffold
         }
 
+        Box(
+            modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
+            contentAlignment = Alignment.TopCenter,
+        ) {
         LazyColumn(
             modifier = Modifier
+                .widthIn(max = 1280.dp)
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = AppDimens.Spacing.md),
-            contentPadding = PaddingValues(vertical = AppDimens.Spacing.md_sm),
+                .padding(horizontal = AppDimens.Spacing.lg),
+            contentPadding = PaddingValues(vertical = AppDimens.Spacing.md),
         ) {
             sessionsByDate.forEach { (date, sessions) ->
                 // â”€â”€ Date header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -124,6 +121,7 @@ fun ActivityHistoryScreen(
                     Spacer(Modifier.height(AppDimens.Spacing.sm))
                 }
             }
+        }
         }
     }
 }

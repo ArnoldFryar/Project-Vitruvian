@@ -326,9 +326,17 @@ fun ProgramsScreen(
             contentAlignment = Alignment.TopCenter,
         ) {
             val horizontalPadding = if (maxWidth >= 600.dp) AppDimens.Spacing.lg else AppDimens.Spacing.md
+            val navigationBottomPadding = WindowInsets.navigationBars
+                .asPaddingValues()
+                .calculateBottomPadding()
             LazyColumn(
-                modifier = Modifier.fillMaxSize().widthIn(max = 1040.dp),
-                contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = AppDimens.Spacing.sm),
+                modifier = Modifier.widthIn(max = 1280.dp).fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = horizontalPadding,
+                    top = AppDimens.Spacing.sm,
+                    end = horizontalPadding,
+                    bottom = navigationBottomPadding + AppDimens.Spacing.xl,
+                ),
             ) {
 
             item(key = "subtitle") {

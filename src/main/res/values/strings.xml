@@ -441,6 +441,11 @@
     <string name="player_end_cancel">Keep Going</string>
     <string name="player_ble_diagnostics">BLE Diagnostics</string>
     <string name="player_edit_sets_title">Edit Upcoming Sets</string>
+    <string name="player_repeat_exercise">Repeat Exercise</string>
+    <string name="player_repeat_exercise_title">Repeat an Exercise</string>
+    <string name="player_repeat_exercise_hint">Choose an exercise to add its programmed sets next.</string>
+    <string name="player_programmed_sets">%1$d programmed sets</string>
+    <string name="player_resistance_mode">Resistance mode</string>
     <string name="player_no_upcoming">No upcoming sets.</string>
     <string name="player_target_reps">Target Reps</string>
     <string name="player_weight">Weight</string>
