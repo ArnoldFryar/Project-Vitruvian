@@ -27,8 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -56,7 +54,6 @@ fun DialogContainer(
     val cs = MaterialTheme.colorScheme
     val ext = LocalExtendedColors.current
     val shape = RoundedCornerShape(AppDimens.Corner.lg)
-    val brush = Brush.verticalGradient(listOf(ext.surface3, ext.surface2))
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -86,7 +83,7 @@ fun DialogContainer(
                         alpha = p
                     }
                     .clip(shape)
-                    .background(brush, shape)
+                    .background(ext.surface3, shape)
                     .border(1.dp, cs.outlineVariant, shape)
                     .padding(vertical = AppDimens.Spacing.sm),
             ) {

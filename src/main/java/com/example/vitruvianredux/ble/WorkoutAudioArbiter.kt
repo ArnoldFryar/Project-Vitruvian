@@ -370,15 +370,24 @@ class WorkoutAudioArbiter {
     private val lastSpokenAtMsByKey = mutableMapOf<String, Long>()
     private var lastCriticalSpeechAtMs = 0L
     private var lastCoachingRepIndex = -10
+    private var lastAnnouncedRep = 0
+    private var lastAnnouncedRestSecond = Int.MAX_VALUE
+    private var lastAnnouncedDurationSecond = Int.MAX_VALUE
 
     fun resetSession() {
         lastSpokenAtMsByKey.clear()
         lastCriticalSpeechAtMs = 0L
         lastCoachingRepIndex = -10
+        lastAnnouncedRep = 0
+        lastAnnouncedRestSecond = Int.MAX_VALUE
+        lastAnnouncedDurationSecond = Int.MAX_VALUE
     }
 
     fun resetSet() {
         lastCoachingRepIndex = -10
+        lastAnnouncedRep = 0
+        lastAnnouncedRestSecond = Int.MAX_VALUE
+        lastAnnouncedDurationSecond = Int.MAX_VALUE
         lastSpokenAtMsByKey.keys
             .filter { it.startsWith("cue_") || it.startsWith("set_") || it == "ready" }
             .toList()
@@ -397,10 +406,12 @@ class WorkoutAudioArbiter {
         return when (event) {
             is WorkoutAudioEvent.RepCount -> {
                 if (!settings.repAnnouncementsEnabled) return null
+                if (event.rep !in 1..50 || event.rep <= lastAnnouncedRep) return null
+                lastAnnouncedRep = event.rep
                 buildUtterance(
                     text = event.rep.toString(),
                     utteranceId = "rep_${event.rep}",
-                    queueMode = AUDIO_QUEUE_FLUSH,
+                    queueMode = AUDIO_QUEUE_ADD,
                     marksCriticalWindow = true,
                     nowMs = nowMs,
                 )
@@ -408,10 +419,12 @@ class WorkoutAudioArbiter {
 
             is WorkoutAudioEvent.RestCountdown -> {
                 if (!settings.restCountdownEnabled) return null
+                if (event.seconds !in 1..50 || event.seconds >= lastAnnouncedRestSecond) return null
+                lastAnnouncedRestSecond = event.seconds
                 buildUtterance(
                     text = event.seconds.toString(),
                     utteranceId = "rest_${event.seconds}",
-                    queueMode = AUDIO_QUEUE_FLUSH,
+                    queueMode = AUDIO_QUEUE_ADD,
                     marksCriticalWindow = true,
                     nowMs = nowMs,
                 )
@@ -419,6 +432,8 @@ class WorkoutAudioArbiter {
 
             is WorkoutAudioEvent.DurationEnding -> {
                 if (!settings.restCountdownEnabled) return null
+                if (event.seconds !in 1..50 || event.seconds >= lastAnnouncedDurationSecond) return null
+                lastAnnouncedDurationSecond = event.seconds
                 buildUtterance(
                     text = styleText(
                         settings.coachingStyle,

@@ -111,20 +111,25 @@ object VoiceCoachingStore {
         VoiceCoachingStyle.entries.firstOrNull { it.name == value } ?: VoiceCoachingStyle.COACH
 
     private fun parseRecordedCountStyle(value: String): RecordedCountStyle =
-        RecordedCountStyle.entries.firstOrNull { it.name == value } ?: RecordedCountStyle.BASE
+        RecordedCountStyle.entries.firstOrNull { it.name == value }
+            ?.takeUnless { it == RecordedCountStyle.FOCUS }
+            ?: RecordedCountStyle.BASE
 
     private fun persist(
         settings: VoiceCoachingSettings,
         writtenAt: Long,
         targetPrefs: SharedPreferences,
     ) {
-        _settingsFlow.value = settings
+        val normalized = settings.takeUnless {
+            it.recordedCountStyle == RecordedCountStyle.FOCUS
+        } ?: settings.copy(recordedCountStyle = RecordedCountStyle.BASE)
+        _settingsFlow.value = normalized
         targetPrefs.edit()
-            .putString(KEY_LEVEL, settings.coachingLevel.name)
-            .putString(KEY_STYLE, settings.coachingStyle.name)
-            .putString(KEY_RECORDED_COUNT_STYLE, settings.recordedCountStyle.name)
-            .putBoolean(KEY_REP_ANNOUNCEMENTS, settings.repAnnouncementsEnabled)
-            .putBoolean(KEY_REST_COUNTDOWN, settings.restCountdownEnabled)
+            .putString(KEY_LEVEL, normalized.coachingLevel.name)
+            .putString(KEY_STYLE, normalized.coachingStyle.name)
+            .putString(KEY_RECORDED_COUNT_STYLE, normalized.recordedCountStyle.name)
+            .putBoolean(KEY_REP_ANNOUNCEMENTS, normalized.repAnnouncementsEnabled)
+            .putBoolean(KEY_REST_COUNTDOWN, normalized.restCountdownEnabled)
             .putLong(KEY_UPDATED_AT, writtenAt)
             .apply()
     }

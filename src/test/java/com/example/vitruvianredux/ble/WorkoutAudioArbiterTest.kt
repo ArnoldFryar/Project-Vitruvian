@@ -14,6 +14,32 @@ import org.junit.Test
 class WorkoutAudioArbiterTest {
 
     @Test
+    fun `rep counts are monotonic de duplicated and queued`() {
+        val arbiter = WorkoutAudioArbiter()
+        val settings = VoiceCoachingSettings()
+
+        val first = arbiter.nextUtterance(WorkoutAudioEvent.RepCount(4), settings, 1_000L)
+        val duplicate = arbiter.nextUtterance(WorkoutAudioEvent.RepCount(4), settings, 1_100L)
+        val stale = arbiter.nextUtterance(WorkoutAudioEvent.RepCount(3), settings, 1_200L)
+        val next = arbiter.nextUtterance(WorkoutAudioEvent.RepCount(5), settings, 1_300L)
+
+        assertEquals(AUDIO_QUEUE_ADD, first?.queueMode)
+        assertNull(duplicate)
+        assertNull(stale)
+        assertEquals("5", next?.text)
+    }
+
+    @Test
+    fun `set reset permits a new count sequence`() {
+        val arbiter = WorkoutAudioArbiter()
+        val settings = VoiceCoachingSettings()
+
+        assertNotNull(arbiter.nextUtterance(WorkoutAudioEvent.RepCount(4), settings, 1_000L))
+        arbiter.resetSet()
+        assertNotNull(arbiter.nextUtterance(WorkoutAudioEvent.RepCount(1), settings, 2_000L))
+    }
+
+    @Test
     fun `off blocks ready but keeps connection lost`() {
         val arbiter = WorkoutAudioArbiter()
         val settings = VoiceCoachingSettings(coachingLevel = VoiceCoachingLevel.OFF)

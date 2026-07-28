@@ -17,7 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -35,6 +36,9 @@ import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.AdaptiveProgramRecommendation
+import com.example.vitruvianredux.data.AdaptiveProgramRecommendationEngine
+import com.example.vitruvianredux.data.AdaptiveProgramReview
 import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.PrTracker
@@ -74,6 +78,9 @@ fun ProgramDetailScreen(
     var deloadPercentOff  by rememberSaveable { mutableStateOf(10) }
     var deloadSessionCount by rememberSaveable { mutableIntStateOf(2) }
     var deloadReduceSets  by rememberSaveable { mutableStateOf(true) }
+    var pendingAdaptiveRecommendation by remember {
+        mutableStateOf<AdaptiveProgramRecommendation?>(null)
+    }
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
 
     val context = LocalContext.current
@@ -92,6 +99,65 @@ fun ProgramDetailScreen(
     if (program == null) {
         LaunchedEffect(Unit) { onBack() }
         return
+    }
+
+    pendingAdaptiveRecommendation?.let { recommendation ->
+        AlertDialog(
+            onDismissRequest = { pendingAdaptiveRecommendation = null },
+            icon = { Icon(AppIcons.Tune, contentDescription = null) },
+            title = { Text("Review proposed change") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                    Text(
+                        text = recommendation.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(recommendation.reason, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = recommendation.evidence,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = if (recommendation is AdaptiveProgramRecommendation.SubstitutionReview) {
+                            "No replacement will be selected automatically. Choose the movement that fits in the editor."
+                        } else {
+                            "Your saved program changes only after you approve."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingAdaptiveRecommendation = null
+                        if (recommendation is AdaptiveProgramRecommendation.SubstitutionReview) {
+                            onEditProgram()
+                        } else {
+                            ProgramStore.addProgram(
+                                AdaptiveProgramRecommendationEngine.apply(program, recommendation),
+                            )
+                        }
+                    },
+                ) {
+                    Text(
+                        if (recommendation is AdaptiveProgramRecommendation.SubstitutionReview) {
+                            "Open editor"
+                        } else {
+                            "Approve and apply"
+                        },
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingAdaptiveRecommendation = null }) {
+                    Text("Keep current plan")
+                }
+            },
+        )
     }
 
     // ── Delete confirmation ────────────────────────────────────────────────
@@ -131,12 +197,17 @@ onClick = { showDeleteDialog = false }) {
     val activeDeload = program.deloadState
     val deloadRecommendation = remember(program, allLogs) { buildProgramDeloadRecommendation(program, allLogs) }
     val programInsight = remember(program, allLogs) { TrainingInsightEngine.programQuality(program, allLogs) }
+    val adaptiveReview = remember(program, allLogs) {
+        AdaptiveProgramRecommendationEngine.review(program, allLogs)
+    }
     val bottomBarPadding = 112.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val heroColor = MaterialTheme.colorScheme.primary
 
     SideEffect {
         val window = (view.context as? Activity)?.window ?: return@SideEffect
-        window.statusBarColor = android.graphics.Color.TRANSPARENT
-        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+        window.statusBarColor = heroColor.toArgb()
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+            heroColor.luminance() > 0.5f
     }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant)) {
@@ -151,18 +222,11 @@ onClick = { showDeleteDialog = false }) {
 
             // ── Hero ──────────────────────────────────────────────────────
             item(key = "hero") {
-                val heroBrush = Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primaryContainer,
-                    )
-                )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-                        .background(heroBrush)
+                        .background(MaterialTheme.colorScheme.primary)
                         .padding(start = 20.dp, end = 20.dp, top = 72.dp, bottom = 28.dp),
                 ) {
                     Column {
@@ -172,7 +236,7 @@ onClick = { showDeleteDialog = false }) {
                                 fontWeight = FontWeight.ExtraBold,
                                 lineHeight  = 40.sp,
                             ),
-                            color    = Color.White,
+                            color    = MaterialTheme.colorScheme.onPrimary,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -180,26 +244,26 @@ onClick = { showDeleteDialog = false }) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             ProgramPreviewChip(
                                 label = "$totalSets sets",
-                                containerColor = Color.White.copy(alpha = 0.22f),
-                                contentColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f),
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
                             )
                             ProgramPreviewChip(
                                 label = "${program.exerciseCount} exercise${if (program.exerciseCount != 1) "s" else ""}",
-                                containerColor = Color.White.copy(alpha = 0.22f),
-                                contentColor = Color.White,
+                                containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f),
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
                             )
                             if (estimatedMins > 0) {
                                 ProgramPreviewChip(
                                     label = "about $estimatedMins min",
-                                    containerColor = Color.White.copy(alpha = 0.22f),
-                                    contentColor = Color.White,
+                                    containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f),
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
                                 )
                             }
                             if (daysLabel.isNotBlank()) {
                                 ProgramPreviewChip(
                                     label = daysLabel,
-                                    containerColor = Color.White.copy(alpha = 0.22f),
-                                    contentColor = Color.White,
+                                    containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f),
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
                                 )
                             }
                         }
@@ -207,7 +271,7 @@ onClick = { showDeleteDialog = false }) {
                         Text(
                             "Saved order, load, and rest.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.82f),
                         )
                     }
                 }
@@ -227,6 +291,15 @@ onClick = { showDeleteDialog = false }) {
             }
 
             // ── Exercise cards ────────────────────────────────────────────
+            item(key = "adaptive_review") {
+                AdaptiveProgramReviewCard(
+                    review = adaptiveReview,
+                    onReview = { pendingAdaptiveRecommendation = it },
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm),
+                )
+                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+            }
+
             itemsIndexed(program.items, key = { _, item -> item.exerciseId + item.exerciseName }) { index, item ->
                 val exercise = exerciseCatalog[item.exerciseId] ?: exerciseCatalog[item.exerciseName]
                 val previousItem = program.items.getOrNull(index - 1)
@@ -266,7 +339,14 @@ onClick = { showDeleteDialog = false }) {
                         onEndDeloadBlock = { ProgramStore.addProgram(program.copy(deloadState = null)) },
                     )
 
-                    if (activeDeload == null && deloadRecommendation != null) {
+                    val adaptiveAlreadyProposesDeload = adaptiveReview.recommendations.any {
+                        it is AdaptiveProgramRecommendation.DeloadBlock
+                    }
+                    if (
+                        activeDeload == null &&
+                        deloadRecommendation != null &&
+                        !adaptiveAlreadyProposesDeload
+                    ) {
                         DeloadRecommendationCard(
                             recommendation = deloadRecommendation,
                             onAccept = {
@@ -294,8 +374,8 @@ onClick = { showDeleteDialog = false }) {
             IconButton(
                 onClick = onBack,
                 colors  = IconButtonDefaults.iconButtonColors(
-                    containerColor = Color.White.copy(alpha = 0.18f),
-                    contentColor   = Color.White,
+                    containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f),
+                    contentColor   = MaterialTheme.colorScheme.onPrimary,
                 ),
             ) { Icon(AppIcons.Close, contentDescription = "Back") }
 
@@ -303,8 +383,8 @@ onClick = { showDeleteDialog = false }) {
                 IconButton(
                     onClick = { showMenu = true },
                     colors  = IconButtonDefaults.iconButtonColors(
-                        containerColor = Color.White.copy(alpha = 0.18f),
-                        contentColor   = Color.White,
+                        containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f),
+                        contentColor   = MaterialTheme.colorScheme.onPrimary,
                     ),
                 ) { Icon(AppIcons.MoreVert, contentDescription = "More options") }
 
@@ -406,6 +486,95 @@ onClick = { showDeleteDialog = false }) {
 }
 
 // ─── Sub-composables ──────────────────────────────────────────────────────────
+
+@Composable
+private fun AdaptiveProgramReviewCard(
+    review: AdaptiveProgramReview,
+    onReview: (AdaptiveProgramRecommendation) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(AppDimens.Corner.md),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column(
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                Icon(
+                    imageVector = AppIcons.Tune,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(AppDimens.Icon.md),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "ADAPTIVE REVIEW",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = AppDimens.LetterSpacing.wide,
+                    )
+                    Text(
+                        text = "Deterministic local history rules",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Text(
+                text = review.status,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            review.recommendations.forEach { recommendation ->
+                Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
+                    Text(
+                        text = recommendation.eyebrow,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = AppDimens.LetterSpacing.wide,
+                    )
+                    Text(
+                        text = recommendation.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = recommendation.reason,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = recommendation.evidence,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(
+                        onClick = { onReview(recommendation) },
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text(
+                            if (recommendation is AdaptiveProgramRecommendation.SubstitutionReview) {
+                                "Review substitution"
+                            } else {
+                                "Review change"
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun ProgramItemCard(

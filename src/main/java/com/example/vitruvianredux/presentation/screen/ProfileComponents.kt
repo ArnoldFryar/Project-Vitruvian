@@ -21,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -70,7 +69,7 @@ internal fun ProfileSection(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .background(ext.surface2)
             .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape)
             .animateContentSize(tween(MotionTokens.STANDARD_MS))
             .padding(AppDimens.Spacing.md),
@@ -116,7 +115,7 @@ internal fun PressScaleCard(
         modifier = modifier
             .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
             .clip(shape)
-            .background(Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .background(ext.surface2)
             .border(BorderStroke(AppDimens.Stroke.thin, MaterialTheme.colorScheme.outlineVariant), shape)
             .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         contentAlignment = Alignment.Center,

@@ -1790,7 +1790,9 @@ fun ProfileScreen(
                                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                                         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                                     ) {
-                                        RecordedCountStyle.entries.forEach { countStyle ->
+                                        RecordedCountStyle.entries
+                                            .filterNot { it == RecordedCountStyle.FOCUS }
+                                            .forEach { countStyle ->
                                             FilterChip(
                                                 selected = voiceCoachingSettings.recordedCountStyle == countStyle,
                                                 onClick = { VoiceCoachingStore.setRecordedCountStyle(appContext, countStyle) },
@@ -1845,7 +1847,9 @@ fun ProfileScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                                                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                                             ) {
-                                                RecordedCountStyle.entries.forEach { style ->
+                                                RecordedCountStyle.entries
+                                                    .filterNot { it == RecordedCountStyle.FOCUS }
+                                                    .forEach { style ->
                                                     OutlinedButton(
                                                         onClick = { workoutVM.previewCountStyle(style) },
                                                     ) {
@@ -2727,7 +2731,7 @@ private fun coachingSummary(settings: com.example.vitruvianredux.data.VoiceCoach
     val countStyleLabel = when (settings.recordedCountStyle) {
         RecordedCountStyle.BASE -> "Base"
         RecordedCountStyle.STEADY -> "Steady"
-        RecordedCountStyle.FOCUS -> "Focus"
+        RecordedCountStyle.FOCUS -> "Base"
     }
     return "$levelLabel · $styleLabel · Recorded/$countStyleLabel · $detailLabel"
 }
@@ -2749,5 +2753,5 @@ private fun coachingOutputModeDetail(): String =
 private fun recordedCountStyleDetail(settings: com.example.vitruvianredux.data.VoiceCoachingSettings): String = when (settings.recordedCountStyle) {
     RecordedCountStyle.BASE -> "Uses the default recorded cadence for every count from 1 through 50."
     RecordedCountStyle.STEADY -> "Uses a slower recorded cadence for every count from 1 through 50."
-    RecordedCountStyle.FOCUS -> "Uses emphasized milestone clips every 5 reps through 50."
+    RecordedCountStyle.FOCUS -> "Legacy Focus settings use the complete Base cadence for consistent emphasis from 1 through 50."
 }

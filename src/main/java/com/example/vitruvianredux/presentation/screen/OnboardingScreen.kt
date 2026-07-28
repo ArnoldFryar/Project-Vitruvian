@@ -16,10 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -40,30 +37,30 @@ private data class OnboardingPage(
     val tag: String,
 )
 
-private val OnboardingTextPrimary = Color(0xFFF7F1E8)
-private val OnboardingTextSecondary = Color(0xFFBFB4A7)
-private val OnboardingTextMuted = Color(0xFF80766B)
+private val OnboardingTextPrimary = Gray50
+private val OnboardingTextSecondary = Gray300
+private val OnboardingTextMuted = Gray400
 
 private val PAGES = listOf(
     OnboardingPage(
         icon        = AppIcons.Bluetooth,
         title       = "Connect Your Trainer",
         subtitle    = "Pair your Vitruvian via Bluetooth for real-time rep tracking, force feedback, and intelligent load control.",
-        accentColor = BrandCyan,
+        accentColor = DarkCopper,
         tag         = "HARDWARE",
     ),
     OnboardingPage(
         icon        = AppIcons.Sync,
         title       = "Track Every Rep",
         subtitle    = "Every set is stored automatically — review history, spot trends, and share progress with your trainer.",
-        accentColor = AccentCyan,
+        accentColor = DarkPerformanceTeal,
         tag         = "CONNECTIVITY",
     ),
     OnboardingPage(
         icon        = AppIcons.FitnessCenter,
         title       = "Choose Your Style",
         subtitle    = "From beginner programs to advanced progressive overload — pick your training mode and let the Trainer adapt.",
-        accentColor = AccentAmber,
+        accentColor = DarkCopper,
         tag         = "PERFORMANCE",
     ),
 )
@@ -85,37 +82,9 @@ fun OnboardingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.0f to Surface3,
-                        0.4f to Surface1,
-                        1.0f to Surface0,
-                    )
-                )
-            ),
+            .background(DarkCanvas),
     ) {
         // â”€â”€ Subtle accent glow at top â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        val glowColor = PAGES[currentPage].accentColor
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(AppDimens.Component.heroArea)
-                .align(Alignment.TopCenter)
-                .drawBehind {
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                glowColor.copy(alpha = 0.12f),
-                                Color.Transparent,
-                            ),
-                            radius = size.width * 0.75f,
-                            center = center.copy(y = 0f),
-                        ),
-                    )
-                },
-        )
-
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -170,7 +139,7 @@ fun OnboardingScreen(
 
             // â”€â”€ Primary CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             val isLastPage = currentPage == PAGES.lastIndex
-            val ctaContentColor = if (PAGES[currentPage].accentColor.luminance() > 0.42f) Surface0 else Color.White
+            val ctaContentColor = DarkCanvas
             Button(
                 onClick = {
                     if (isLastPage) onComplete()

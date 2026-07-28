@@ -5,7 +5,6 @@ package com.example.vitruvianredux.presentation.screen
 import com.vitruvian.trainer.R
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -24,21 +23,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,8 +57,6 @@ import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.util.UnitConversions
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.example.vitruvianredux.presentation.ui.AppIcons
-import kotlin.math.PI
-import kotlin.math.sin
 
 /** Workout summary screen — shown inside ExercisePlayerScreen via AnimatedContent. */
 @Composable
@@ -103,59 +95,58 @@ fun WorkoutCompleteContent(
             strengthTest = strengthTest,
         )
     }
-    val nextRecommendation = remember(stats, avgQualityScore, prCount) {
+    val skippedSetCount = remember(exerciseSets) { exerciseSets.count { it.skipped } }
+    val partialSession = stats.totalSets <= 0 || skippedSetCount > 0
+    val nextRecommendation = remember(stats, avgQualityScore, prCount, skippedSetCount) {
         PostWorkoutRecommendationEngine.recommend(
             totalReps = stats.totalReps,
             totalSets = stats.totalSets,
             durationSec = stats.durationSec,
             avgQualityScore = avgQualityScore,
             prCount = prCount,
+            skippedSetCount = skippedSetCount,
         )
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-    WorkoutCelebrationConfetti(
-        modifier = Modifier.fillMaxSize(),
-        highlightColor = ext.accentAmber,
-    )
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter,
+    ) {
     Column(
         modifier = Modifier
-            .fillMaxSize()
+            .widthIn(max = AppDimens.Layout.maxContentWidth)
+            .fillMaxWidth()
+            .fillMaxHeight()
             .verticalScroll(rememberScrollState())
-            .padding(AppDimens.Spacing.md),
+            .padding(horizontal = AppDimens.Spacing.md)
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(bottom = AppDimens.Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
     ) {
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
         // â”€â”€ Trophy + headline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        val trophyScale = remember { Animatable(0f) }
-        LaunchedEffect(Unit) {
-            trophyScale.animateTo(
-                1f,
-                spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-            )
-        }
         Icon(
             imageVector        = AppIcons.EmojiEvents,
             contentDescription = stringResource(R.string.cd_trophy),
-            modifier           = Modifier
-                .size(AppDimens.Icon.hero)
-                .graphicsLayer {
-                    scaleX = trophyScale.value
-                    scaleY = trophyScale.value
-                },
+            modifier           = Modifier.size(AppDimens.Icon.hero),
             tint               = MaterialTheme.colorScheme.primary,
         )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text       = "Workout complete",
+                text       = if (partialSession) "Session ended" else "Session complete",
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
             )
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
-                text  = "Saved when you are ready.",
+                text  = when {
+                    stats.totalSets <= 0 -> "No completed working sets will count as progression evidence."
+                    skippedSetCount > 0 -> "$skippedSetCount skipped set${if (skippedSetCount == 1) "" else "s"} noted honestly."
+                    else -> "Result, limitation, and next action are ready."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -553,87 +544,6 @@ private fun formatStrengthTestLoad(lb: Int, unitSystem: UnitsStore.UnitSystem): 
         UnitsStore.UnitSystem.METRIC_KG -> "%.1f kg".format(UnitConversions.lbToKg(lb.toDouble()))
     }
 
-private data class ConfettiPiece(
-    val startXPct: Float,
-    val startYPct: Float,
-    val driftXPct: Float,
-    val fallDistancePct: Float,
-    val widthPx: Float,
-    val heightPx: Float,
-    val color: Color,
-    val delayMs: Int,
-    val durationMs: Int,
-    val rotationTurns: Float,
-)
-
-@Composable
-private fun WorkoutCelebrationConfetti(
-    modifier: Modifier = Modifier,
-    highlightColor: Color,
-) {
-    val progress = remember { Animatable(0f) }
-    val pieces = remember(highlightColor) {
-        listOf(
-            ConfettiPiece(0.08f, -0.08f, 0.20f, 0.88f, 18f, 10f, highlightColor, 0, 1800, 1.5f),
-            ConfettiPiece(0.15f, -0.04f, 0.10f, 0.92f, 14f, 10f, AccentRed, 80, 1900, -1.2f),
-            ConfettiPiece(0.24f, -0.10f, 0.24f, 0.85f, 16f, 12f, AccentCyan, 140, 1700, 1.1f),
-            ConfettiPiece(0.31f, -0.06f, 0.18f, 0.96f, 15f, 11f, Success, 220, 1850, -1.4f),
-            ConfettiPiece(0.39f, -0.12f, 0.05f, 0.90f, 17f, 12f, highlightColor.copy(alpha = 0.9f), 120, 1750, 1.8f),
-            ConfettiPiece(0.48f, -0.03f, -0.06f, 0.94f, 13f, 9f, AccentCyan, 40, 2050, -1.6f),
-            ConfettiPiece(0.56f, -0.09f, -0.18f, 0.86f, 16f, 12f, AccentRed, 200, 1820, 1.4f),
-            ConfettiPiece(0.65f, -0.05f, -0.24f, 0.91f, 14f, 10f, Success, 100, 1880, -1.3f),
-            ConfettiPiece(0.74f, -0.11f, -0.16f, 0.98f, 17f, 11f, highlightColor, 180, 1760, 1.7f),
-            ConfettiPiece(0.84f, -0.06f, -0.10f, 0.89f, 15f, 10f, Gold, 60, 1940, -1.1f),
-            ConfettiPiece(0.92f, -0.09f, -0.22f, 0.93f, 18f, 12f, AccentCyan, 160, 1830, 1.9f),
-            ConfettiPiece(0.12f, 0.02f, 0.28f, 0.76f, 12f, 9f, Success, 260, 1600, -1.0f),
-            ConfettiPiece(0.88f, 0.01f, -0.26f, 0.78f, 12f, 9f, highlightColor.copy(alpha = 0.82f), 300, 1650, 1.0f),
-        )
-    }
-
-    LaunchedEffect(Unit) {
-        progress.snapTo(0f)
-        progress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 2400, easing = LinearEasing),
-        )
-    }
-
-    Canvas(modifier = modifier) {
-        val canvasSize = size
-        if (canvasSize == Size.Zero) return@Canvas
-
-        pieces.forEach { piece ->
-            val pieceProgress = ((progress.value * 2400f) - piece.delayMs) / piece.durationMs
-            if (pieceProgress <= 0f || pieceProgress >= 1f) return@forEach
-
-            val eased = pieceProgress.coerceIn(0f, 1f)
-            val x = (piece.startXPct + piece.driftXPct * eased) * canvasSize.width
-            val wave = sin(eased * PI.toFloat() * 2f) * canvasSize.width * 0.025f
-            val y = (piece.startYPct + piece.fallDistancePct * eased) * canvasSize.height
-            val alpha = when {
-                eased < 0.15f -> eased / 0.15f
-                eased > 0.82f -> (1f - eased) / 0.18f
-                else -> 1f
-            }.coerceIn(0f, 1f)
-            val rotationDeg = eased * 360f * piece.rotationTurns
-
-            rotate(degrees = rotationDeg, pivot = Offset(x + wave, y)) {
-                drawRoundRect(
-                    color = piece.color.copy(alpha = alpha),
-                    topLeft = Offset(x + wave - piece.widthPx / 2f, y - piece.heightPx / 2f),
-                    size = Size(piece.widthPx, piece.heightPx),
-                    cornerRadius = CornerRadius(piece.heightPx * 0.35f, piece.heightPx * 0.35f),
-                )
-            }
-        }
-    }
-}
-
-private val GlassBorder = BorderStroke(
-    0.5.dp,
-    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.07f), Color.Transparent)),
-)
-
 private data class SessionBenchmark(
     val label: String,
     val currentValue: Float,
@@ -999,6 +909,33 @@ private fun NextSessionRecommendationCard(recommendation: PostWorkoutRecommendat
                     text = recommendation.detail,
                     style = MaterialTheme.typography.bodySmall,
                     color = cs.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(AppDimens.Spacing.xs))
+                Divider(color = cs.primary.copy(alpha = 0.18f))
+                Text(
+                    text = "LIMITATION",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.onSurfaceVariant,
+                    letterSpacing = AppDimens.LetterSpacing.wide,
+                )
+                Text(
+                    text = recommendation.limitation,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
+                )
+                Text(
+                    text = "DO NEXT",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = cs.primary,
+                    letterSpacing = AppDimens.LetterSpacing.wide,
+                )
+                Text(
+                    text = recommendation.nextAction,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = cs.onSurface,
                 )
             }
         }

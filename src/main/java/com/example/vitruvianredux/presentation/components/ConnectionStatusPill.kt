@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.presentation.ui.AppDimens
@@ -48,11 +47,10 @@ fun ConnectionStatusPill(
     }
 
     val shape = RoundedCornerShape(AppDimens.Corner.pill)
-    val gradient = Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
     Box(
         modifier = modifier
             .clip(shape)
-            .background(gradient)
+            .background(ext.surface2)
             .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), shape),
     ) {
         Row(

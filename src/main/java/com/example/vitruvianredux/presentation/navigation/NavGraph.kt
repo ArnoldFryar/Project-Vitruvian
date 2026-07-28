@@ -48,7 +48,7 @@ enum class Route(val path: String) {
     OfficialProgramDetail("official_program_detail"),
 }
 
-private const val ANIM_DURATION = 280
+private const val ANIM_DURATION = 220
 
 @Composable
 fun AppNavHost(
@@ -87,6 +87,7 @@ fun AppNavHost(
                 onNavigateToProgramDetail = { programId ->
                     nav.navigate("${Route.ProgramDetail.path}/${Uri.encode(programId)}")
                 },
+                onNavigateToPrograms = { nav.navigate(Route.Coaching.path) },
             )
         }
         composable(Route.Workout.path)   {

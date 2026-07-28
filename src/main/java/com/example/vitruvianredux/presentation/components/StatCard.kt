@@ -17,7 +17,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -47,7 +46,6 @@ fun StatCard(
     val cs = MaterialTheme.colorScheme
     val ext = LocalExtendedColors.current
     val shape = RoundedCornerShape(if (compact) AppDimens.Corner.md_sm else AppDimens.Corner.md)
-    val brush = Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -66,7 +64,7 @@ fun StatCard(
         modifier = modifier
             .graphicsLayer(scaleX = scale, scaleY = scale, alpha = alpha)
             .clip(shape)
-            .background(brush, shape)
+            .background(ext.surface2, shape)
             .border(AppDimens.Stroke.thin, cs.outlineVariant, shape)
             .then(
                 if (onClick != null)

@@ -15,12 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 
@@ -52,35 +48,11 @@ import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
  * Both effects are purely additive on the dark surface and invisible on
  * light surfaces since they are near-white with low alpha.
  */
-private fun Modifier.selectorCardDepth(cornerDp: Float = 12f): Modifier =
-    this.drawWithContent {
-        drawContent()
-
-        val cornerPx = cornerDp.dp.toPx()
-
-        // Soft top-lit gradient: white fades to transparent over the top ~40 % of height
-        drawRect(
-            brush = Brush.verticalGradient(
-                0f   to Color.White.copy(alpha = 0.05f),
-                0.45f to Color.White.copy(alpha = 0.00f),
-            ),
-            size = size,
-        )
-
-        // 1 px top-edge bevel highlight (skips the rounded corners by indenting slightly)
-        drawLine(
-            color       = Color.White.copy(alpha = 0.14f),
-            start       = Offset(cornerPx, 1f),
-            end         = Offset(size.width - cornerPx, 1f),
-            strokeWidth = AppDimens.Stroke.thin.toPx(),
-        )
-    }
-
 @Composable
 fun SelectorCard(
     modifier: Modifier = Modifier,
     title: String = "",
-    surfaceColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    surfaceColor: Color = Color.Unspecified,
     content: @Composable () -> Unit,
 ) {
     val ext = LocalExtendedColors.current
@@ -89,13 +61,12 @@ fun SelectorCard(
     // Premium gradient surface (surface2 → surface1) for a lit-tile look.
     // `surfaceColor` is retained for call-site compatibility but is now used
     // only as a fallback tint when Extended Colors are unavailable.
-    val gradient = Brush.verticalGradient(listOf(ext.surface2, ext.surface1))
+    val fillColor = if (surfaceColor == Color.Unspecified) ext.surface2 else surfaceColor
     Box(
         modifier = modifier
             .clip(shape)
-            .background(gradient)
-            .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), shape)
-            .selectorCardDepth(),
+            .background(fillColor)
+            .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), shape),
     ) {
         if (title.isNotBlank()) {
             Row(

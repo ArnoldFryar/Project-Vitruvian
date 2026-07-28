@@ -26,7 +26,7 @@ class WorkoutAudioOutputRouterTest {
 
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_03"), AUDIO_QUEUE_FLUSH),
+                RecordedAudioPlan(listOf("voice_count_03"), AUDIO_QUEUE_ADD),
             ),
             request,
         )
@@ -50,7 +50,7 @@ class WorkoutAudioOutputRouterTest {
 
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_05"), AUDIO_QUEUE_FLUSH),
+                RecordedAudioPlan(listOf("voice_count_05"), AUDIO_QUEUE_ADD),
             ),
             request,
         )
@@ -76,7 +76,7 @@ class WorkoutAudioOutputRouterTest {
 
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_steady_03"), AUDIO_QUEUE_FLUSH),
+                RecordedAudioPlan(listOf("voice_count_steady_03"), AUDIO_QUEUE_ADD),
             ),
             request,
         )
@@ -93,6 +93,7 @@ class WorkoutAudioOutputRouterTest {
         )
 
         RecordedCountStyle.entries.forEach { style ->
+            router.resetSet()
             val request = router.route(
                 event = WorkoutAudioEvent.RepCount(4),
                 utterance = utterance,
@@ -106,7 +107,7 @@ class WorkoutAudioOutputRouterTest {
 
             assertEquals(
                 WorkoutAudioPlaybackRequest.Recorded(
-                    RecordedAudioPlan(listOf(expectedClip), AUDIO_QUEUE_FLUSH),
+                    RecordedAudioPlan(listOf(expectedClip), AUDIO_QUEUE_ADD),
                 ),
                 request,
             )
@@ -128,11 +129,13 @@ class WorkoutAudioOutputRouterTest {
             utterance = utterance,
             settings = VoiceCoachingSettings(recordedCountStyle = RecordedCountStyle.BASE),
         )
+        router.resetSet()
         val steadyRequest = router.route(
             event = WorkoutAudioEvent.RepCount(50),
             utterance = utterance,
             settings = VoiceCoachingSettings(recordedCountStyle = RecordedCountStyle.STEADY),
         )
+        router.resetSet()
         val focusRequest = router.route(
             event = WorkoutAudioEvent.RepCount(50),
             utterance = utterance,
@@ -141,26 +144,26 @@ class WorkoutAudioOutputRouterTest {
 
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_50"), AUDIO_QUEUE_FLUSH),
+                RecordedAudioPlan(listOf("voice_count_50"), AUDIO_QUEUE_ADD),
             ),
             baseRequest,
         )
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_steady_50"), AUDIO_QUEUE_FLUSH),
+                RecordedAudioPlan(listOf("voice_count_steady_50"), AUDIO_QUEUE_ADD),
             ),
             steadyRequest,
         )
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_focus_50"), AUDIO_QUEUE_FLUSH),
+                RecordedAudioPlan(listOf("voice_count_50"), AUDIO_QUEUE_ADD),
             ),
             focusRequest,
         )
     }
 
     @Test
-    fun `focus count style emphasizes milestone counts and falls back otherwise`() {
+    fun `legacy focus count style uses one consistent base voice`() {
         val router = WorkoutAudioOutputRouter()
         val utterance = WorkoutAudioUtterance(
             text = "10",
@@ -187,16 +190,55 @@ class WorkoutAudioOutputRouterTest {
 
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_focus_10"), AUDIO_QUEUE_FLUSH),
+                RecordedAudioPlan(listOf("voice_count_10"), AUDIO_QUEUE_ADD),
             ),
             focusRequest,
         )
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_06"), AUDIO_QUEUE_FLUSH),
+                RecordedAudioPlan(listOf("voice_count_06"), AUDIO_QUEUE_ADD),
             ),
             fallbackRequest,
         )
+    }
+
+    @Test
+    fun `rep sequence recovers a small state jump without interrupting playback`() {
+        val router = WorkoutAudioOutputRouter()
+        val settings = VoiceCoachingSettings(recordedCountStyle = RecordedCountStyle.BASE)
+        val utterance = WorkoutAudioUtterance("2", "rep_2", AUDIO_QUEUE_ADD, true)
+
+        router.route(WorkoutAudioEvent.RepCount(2), utterance, settings)
+        val recovered = router.route(
+            WorkoutAudioEvent.RepCount(5),
+            utterance.copy(text = "5", utteranceId = "rep_5"),
+            settings,
+        )
+
+        assertEquals(
+            WorkoutAudioPlaybackRequest.Recorded(
+                RecordedAudioPlan(
+                    listOf("voice_count_03", "voice_count_04", "voice_count_05"),
+                    AUDIO_QUEUE_ADD,
+                ),
+            ),
+            recovered,
+        )
+    }
+
+    @Test
+    fun `duplicate rep event is silently de duplicated`() {
+        val router = WorkoutAudioOutputRouter()
+        val utterance = WorkoutAudioUtterance("4", "rep_4", AUDIO_QUEUE_ADD, true)
+
+        router.route(WorkoutAudioEvent.RepCount(4), utterance, VoiceCoachingSettings())
+        val duplicate = router.route(
+            WorkoutAudioEvent.RepCount(4),
+            utterance,
+            VoiceCoachingSettings(),
+        )
+
+        assertEquals(WorkoutAudioPlaybackRequest.None, duplicate)
     }
 
     @Test

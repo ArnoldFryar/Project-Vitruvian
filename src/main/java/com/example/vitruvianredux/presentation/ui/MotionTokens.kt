@@ -24,11 +24,11 @@ object MotionTokens {
     /** Standard transitions — fade, slide, expand/collapse */
     const val STANDARD_MS = 200
     /** Medium transitions — content switches, tab crossfades */
-    const val MEDIUM_MS = 250
-    /** Screen-level transitions (already 280ms in NavGraph) */
-    const val SCREEN_MS = 280
+    const val MEDIUM_MS = 220
+    /** Screen-level transitions */
+    const val SCREEN_MS = 220
     /** Celebratory reveal — PR badges */
-    const val REVEAL_MS = 350
+    const val REVEAL_MS = 240
 
     // ── Easing ─────────────────────────────────────────────────────────
     /** Smooth decelerate for entrances */
@@ -43,12 +43,11 @@ object MotionTokens {
         stiffness = Spring.StiffnessMediumLow,
     )
     /**
-     * Bouncy release spring — used when the finger lifts off an interactive
-     * element to give a satisfying snap-back. Low stiffness = springy feel.
+     * Controlled release spring — settles without playful overshoot.
      */
     val BounceSpring: SpringSpec<Float> = spring(
-        dampingRatio = Spring.DampingRatioLowBouncy,
-        stiffness    = Spring.StiffnessMediumLow,
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness    = Spring.StiffnessMedium,
     )
 
     // ── Press feedback values ──────────────────────────────────────────

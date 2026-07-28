@@ -28,8 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -47,33 +45,23 @@ import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * App-wide backdrop — a very subtle radial gradient layered on top of the
- * base background, creating gentle depth without visual noise.  Drop this
- * as the first child of a screen's root Box to get a premium backdrop.
+ * App-wide V3 backdrop. The legacy name remains for source compatibility,
+ * but the treatment is intentionally flat: hierarchy comes from typography,
+ * spacing, and tonal surfaces rather than decorative lighting effects.
  */
 @Composable
 fun PremiumGradientBackground(modifier: Modifier = Modifier) {
-    val ext = LocalExtendedColors.current
     val bg = MaterialTheme.colorScheme.background
-    val tint = ext.accentCyan.copy(alpha = 0.018f)
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(bg)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(tint, Color.Transparent),
-                    center = Offset.Unspecified,
-                    radius = 1800f,
-                ),
-            ),
+            .background(bg),
     )
 }
 
 /**
- * Premium card — layered gradient surface with a soft signature edge.
- * Use for hero / feature cards that deserve more visual weight than the
- * flat [AppCard].  Elevation is faked via a subtle gradient + 1 px outline.
+ * Premium card — a quiet tonal surface. Feature weight comes from content
+ * hierarchy rather than gradients, bright borders, or simulated elevation.
  */
 @Composable
 fun PremiumCard(
@@ -83,10 +71,7 @@ fun PremiumCard(
     content: @Composable () -> Unit,
 ) {
     val ext = LocalExtendedColors.current
-    val top = ext.surface2
-    val bottom = ext.surface2
-    val border = Color.Transparent
-    val gradient = Brush.verticalGradient(listOf(top, bottom))
+    val background = ext.surface2
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -99,8 +84,7 @@ fun PremiumCard(
     val base = modifier
         .graphicsLayer(scaleX = scale, scaleY = scale)
         .clip(shape)
-        .background(gradient)
-        .border(BorderStroke(AppDimens.Stroke.thin, border), shape)
+        .background(background)
 
     val withClick = if (onClick != null) {
         base.clickable(

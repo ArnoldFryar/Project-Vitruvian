@@ -32,7 +32,9 @@ import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
-import com.example.vitruvianredux.data.TrainingInsightEngine
+import com.example.vitruvianredux.data.TodayCommandCenterModel
+import com.example.vitruvianredux.data.TodayCommandCenterResolver
+import com.example.vitruvianredux.data.TodayPrimaryAction
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.audit.*
@@ -59,9 +61,8 @@ import java.time.format.TextStyle
 import java.util.Locale
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import com.example.vitruvianredux.presentation.components.TrainingMomentumCard
-import com.example.vitruvianredux.data.TrainingInsight
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun HomeScreen(
@@ -70,6 +71,7 @@ fun HomeScreen(
     onNavigateToHistory: () -> Unit = {},
     onNavigateToMetricDetail: (String) -> Unit = {},
     onNavigateToProgramDetail: (String) -> Unit = {},
+    onNavigateToPrograms: () -> Unit = {},
 ) {
     val configuration = LocalConfiguration.current
     val isLandscapeDashboard =
@@ -94,14 +96,6 @@ fun HomeScreen(
     }
     val activeDeloadPrograms = remember(programs) { programs.filter { it.deloadState != null } }
     val machineReady = workoutVM?.bleIsReady?.collectAsState()?.value == true
-    val readinessInsight = remember(allLogs, nextProgram, activeDeloadPrograms) {
-        TrainingInsightEngine.homeReadiness(
-            logs = allLogs,
-            hasUpNext = nextProgram != null,
-            activeDeloadCount = activeDeloadPrograms.size,
-        )
-    }
-
     // Load exercise catalog for video/thumbnail URLs
     val context = LocalContext.current
     var exerciseCatalog by remember { mutableStateOf<Map<String, Exercise>>(emptyMap()) }
@@ -114,6 +108,51 @@ fun HomeScreen(
     val weekVolumeKg  = remember(allLogs) { AnalyticsStore.rollingVolumeKg(7) }
     val weekSessions  = remember(allLogs) { AnalyticsStore.rollingSessionCount(7) }
     val currentStreak = remember(allLogs) { AnalyticsStore.currentStreak() }
+    val today = remember { LocalDate.now() }
+    val completedToday = remember(allLogs, today) {
+        allLogs.any {
+            Instant.ofEpochMilli(it.endTimeMs)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate() == today
+        }
+    }
+    val daysSinceLastSession = remember(allLogs, today) {
+        allLogs.maxByOrNull { it.endTimeMs }?.let {
+            ChronoUnit.DAYS.between(
+                Instant.ofEpochMilli(it.endTimeMs)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate(),
+                today,
+            ).toInt().coerceAtLeast(0)
+        }
+    }
+    val recentQualityScore = remember(allLogs) {
+        allLogs.sortedByDescending { it.endTimeMs }
+            .mapNotNull { it.avgQualityScore }
+            .take(3)
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+            ?.toInt()
+    }
+    val commandModel = remember(
+        nextProgram,
+        machineReady,
+        completedToday,
+        weekSessions,
+        daysSinceLastSession,
+        recentQualityScore,
+        activeDeloadPrograms,
+    ) {
+        TodayCommandCenterResolver.resolve(
+            hasScheduledWorkout = nextProgram != null,
+            trainerReady = machineReady,
+            completedToday = completedToday,
+            recentSessionCount = weekSessions,
+            daysSinceLastSession = daysSinceLastSession,
+            recentQualityScore = recentQualityScore,
+            activeDeloadCount = activeDeloadPrograms.size,
+        )
+    }
     val volumeValue = UnitConversions.formatVolumeFromKg(weekVolumeKg, unitSystem)
     val volumeLabel = stringResource(R.string.home_metric_volume, UnitConversions.unitLabel(unitSystem))
     val openHistory = {
@@ -199,11 +238,12 @@ fun HomeScreen(
             ) {
                 HomeCommandCenter(
                     program = nextProgram,
-                    readiness = readinessInsight,
-                    machineReady = machineReady,
+                    commandModel = commandModel,
                     exerciseCatalog = exerciseCatalog,
                     workoutVM = workoutVM,
                     onNavigateToProgramDetail = onNavigateToProgramDetail,
+                    onNavigateToPrograms = onNavigateToPrograms,
+                    onReviewToday = openHistory,
                 )
                 if (activeDeloadPrograms.isNotEmpty()) {
                     HomeDeloadStatusCard(
@@ -255,11 +295,12 @@ fun HomeScreen(
 @Composable
 private fun HomeCommandCenter(
     program: SavedProgram?,
-    readiness: TrainingInsight?,
-    machineReady: Boolean,
+    commandModel: TodayCommandCenterModel,
     exerciseCatalog: Map<String, Exercise>,
     workoutVM: WorkoutSessionViewModel?,
     onNavigateToProgramDetail: (String) -> Unit,
+    onNavigateToPrograms: () -> Unit,
+    onReviewToday: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
     val ext = LocalExtendedColors.current
@@ -267,26 +308,20 @@ private fun HomeCommandCenter(
     val today = remember {
         LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault()))
     }
-    val shape = RoundedCornerShape(AppDimens.Corner.lg)
+    val shape = RoundedCornerShape(AppDimens.Corner.md)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = if (expanded) 184.dp else 0.dp),
         shape = shape,
-        color = Color.Transparent,
+        color = ext.surface1,
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
             cs.primary.copy(alpha = 0.24f),
         ),
     ) {
-        Box(
-            modifier = Modifier.background(
-                Brush.horizontalGradient(
-                    listOf(ext.surface2, cs.primaryContainer.copy(alpha = 0.46f), ext.surface1),
-                )
-            ),
-        ) {
+        Box {
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -299,9 +334,9 @@ private fun HomeCommandCenter(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         HomeMetaPill(
-                            label = if (machineReady) "MACHINE READY" else "MACHINE OFFLINE",
-                            background = if (machineReady) cs.primary.copy(alpha = 0.16f) else cs.surfaceVariant,
-                            content = if (machineReady) cs.primary else cs.onSurfaceVariant,
+                            label = commandModel.statusLabel,
+                            background = cs.primary.copy(alpha = 0.13f),
+                            content = cs.primary,
                         )
                         Text(
                             text = today.uppercase(Locale.getDefault()),
@@ -311,64 +346,84 @@ private fun HomeCommandCenter(
                         )
                     }
                     Text(
-                        text = readiness?.title ?: "Your training day, at a glance",
+                        text = commandModel.headline,
                         style = if (expanded) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black,
                         color = cs.onSurface,
                     )
                     Text(
-                        text = readiness?.detail
-                            ?: program?.let { "${it.name} is prepared with ${it.exerciseCount} exercises." }
-                            ?: "Choose a program to turn today into a planned session.",
+                        text = commandModel.detail,
                         style = MaterialTheme.typography.bodyMedium,
                         color = cs.onSurfaceVariant,
                     )
                 }
                 val action: @Composable () -> Unit = {
-                    if (program != null) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(AppDimens.Corner.md),
-                            color = cs.surface.copy(alpha = 0.72f),
-                            border = androidx.compose.foundation.BorderStroke(
-                                AppDimens.Stroke.thin,
-                                cs.outlineVariant,
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+                        color = ext.surface2,
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(
+                                if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md,
                             ),
+                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                         ) {
-                            Column(
-                                modifier = Modifier.padding(
-                                    if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md,
-                                ),
-                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                            Text(
+                                text = when (commandModel.primaryAction) {
+                                    TodayPrimaryAction.START_WORKOUT -> "TODAY'S PROGRAM"
+                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "TRAINING OPTIONS"
+                                    TodayPrimaryAction.REVIEW_TODAY -> "TODAY'S RESULT"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = cs.primary,
+                                letterSpacing = AppDimens.LetterSpacing.wide,
+                            )
+                            Text(
+                                text = when (commandModel.primaryAction) {
+                                    TodayPrimaryAction.START_WORKOUT -> program?.name ?: "Planned workout"
+                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "Programs and freeform training"
+                                    TodayPrimaryAction.REVIEW_TODAY -> "Your completed session"
+                                },
+                                style = if (expanded) MaterialTheme.typography.titleLarge else MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = cs.onSurface,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = when (commandModel.primaryAction) {
+                                    TodayPrimaryAction.START_WORKOUT -> "${program?.exerciseCount ?: 0} exercises prepared"
+                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "Select the right session without changing your saved plan."
+                                    TodayPrimaryAction.REVIEW_TODAY -> "See output, quality, and the next recommended action."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = cs.onSurfaceVariant,
+                            )
+                            GradientButton(
+                                text = commandModel.primaryActionLabel,
+                                icon = when (commandModel.primaryAction) {
+                                    TodayPrimaryAction.START_WORKOUT -> AppIcons.PlayArrow
+                                    TodayPrimaryAction.CHOOSE_PROGRAM -> AppIcons.FitnessCenter
+                                    TodayPrimaryAction.REVIEW_TODAY -> AppIcons.BarChart
+                                },
+                                onClick = {
+                                    when (commandModel.primaryAction) {
+                                        TodayPrimaryAction.START_WORKOUT -> {
+                                            val workout = program ?: return@GradientButton
+                                            WiringRegistry.hit(A_ACTIVITY_UPNEXT_START)
+                                            startProgramFromHome(workout, exerciseCatalog, workoutVM)
+                                        }
+                                        TodayPrimaryAction.CHOOSE_PROGRAM -> onNavigateToPrograms()
+                                        TodayPrimaryAction.REVIEW_TODAY -> onReviewToday()
+                                    }
+                                },
+                            )
+                            if (
+                                program != null &&
+                                commandModel.primaryAction == TodayPrimaryAction.START_WORKOUT
                             ) {
-                                Text(
-                                    text = "TODAY'S PROGRAM",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = cs.primary,
-                                    letterSpacing = AppDimens.LetterSpacing.wide,
-                                )
-                                Text(
-                                    text = program.name,
-                                    style = if (expanded) MaterialTheme.typography.titleLarge else MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = cs.onSurface,
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = "${program.exerciseCount} exercises ready",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = cs.onSurfaceVariant,
-                                )
-                                GradientButton(
-                                    text = "Start today",
-                                    icon = AppIcons.PlayArrow,
-                                    onClick = {
-                                        WiringRegistry.hit(A_ACTIVITY_UPNEXT_START)
-                                        startProgramFromHome(program, exerciseCatalog, workoutVM)
-                                    },
-                                )
                                 TextButton(
                                     onClick = { onNavigateToProgramDetail(program.id) },
                                     modifier = Modifier.align(Alignment.End),
@@ -379,27 +434,65 @@ private fun HomeCommandCenter(
                         }
                     }
                 }
-                if (wide) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-                            content = details,
-                        )
-                        Box(modifier = Modifier.widthIn(min = 280.dp, max = 400.dp)) { action() }
+                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg)) {
+                    if (wide) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xl),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                                content = details,
+                            )
+                            Box(modifier = Modifier.widthIn(min = 280.dp, max = 400.dp)) { action() }
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                            details()
+                            action()
+                        }
                     }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
-                        details()
-                        action()
-                    }
+                    Divider(color = cs.outlineVariant)
+                    TodayContextStrip(commandModel)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun TodayContextStrip(model: TodayCommandCenterModel) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
+    ) {
+        TodayContextMetric("RECOVERY", model.recoveryLabel, Modifier.weight(1f))
+        TodayContextMetric("7-DAY LOAD", model.loadLabel, Modifier.weight(1f))
+        TodayContextMetric("REP QUALITY", model.qualityLabel, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun TodayContextMetric(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = AppDimens.LetterSpacing.wide,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -765,7 +858,7 @@ private fun WorkoutCalendar(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(ext.surface2, ext.surface1)))
+            .background(ext.surface2)
             .border(AppDimens.Stroke.thin, cs.outlineVariant, shape)
             .padding(
                 horizontal = if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md_sm,

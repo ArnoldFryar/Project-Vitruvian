@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -55,15 +54,10 @@ fun GradientButton(
     // darkened base.  Reads as a single molded surface instead of a
     // two-tone transition, which now plays nicely against the deep
     // obsidian backgrounds.
-    val gradient = if (enabled) {
-        Brush.verticalGradient(listOf(cs.primary, cs.primary))
+    val fillColor = if (enabled) {
+        cs.primary
     } else {
-        Brush.verticalGradient(
-            listOf(
-                cs.surfaceVariant.copy(alpha = 0.72f),
-                cs.surfaceVariant.copy(alpha = 0.52f),
-            )
-        )
+        cs.surfaceVariant.copy(alpha = 0.62f)
     }
     val contentColor = if (enabled) cs.onPrimary else cs.onSurface.copy(alpha = 0.38f)
     val interactionSource = remember { MutableInteractionSource() }
@@ -82,7 +76,7 @@ fun GradientButton(
                 .heightIn(min = AppDimens.Component.buttonHeightLg)
                 .graphicsLayer(scaleX = pressScale, scaleY = pressScale)
                 .clip(shape)
-                .background(gradient)
+                .background(fillColor)
                 .border(
                     width = AppDimens.Stroke.thin,
                     color = if (enabled) Color.Transparent else cs.outlineVariant.copy(alpha = 0.64f),

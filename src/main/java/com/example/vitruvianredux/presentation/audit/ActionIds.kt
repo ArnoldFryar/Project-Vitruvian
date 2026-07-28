@@ -209,10 +209,10 @@ val ALL_ACTION_DEFINITIONS: List<ActionDefinition> = listOf(
     ActionDefinition(A_IMPORT_PASTE,             "Paste JSON",         SCR_IMPORT, ExpectedOutcome.StateChange("jsonPasted")),
     ActionDefinition(A_IMPORT_UPLOAD_OPEN,       "Upload JSON",        SCR_IMPORT, ExpectedOutcome.OpenSheet("document_picker")),
     ActionDefinition(A_IMPORT_UPLOAD_LOADED,     "JSON File Loaded",   SCR_IMPORT, ExpectedOutcome.StateChange("jsonFileLoaded")),
-    ActionDefinition(A_IMPORT_PREVIEW,           "Preview Import",     SCR_IMPORT),
+    ActionDefinition(A_IMPORT_PREVIEW,           "Preview Import",     SCR_IMPORT, ExpectedOutcome.StateChange("previewParsed")),
     ActionDefinition(A_IMPORT_DISAMBIGUATE_OPEN, "Resolve Match",      SCR_IMPORT, ExpectedOutcome.OpenSheet("exercise_disambiguation")),
     ActionDefinition(A_IMPORT_DISAMBIGUATE_PICK, "Pick Match",         SCR_IMPORT, ExpectedOutcome.StateChange("exerciseSelected")),
-    ActionDefinition(A_IMPORT_CONFIRM,           "Confirm Import",     SCR_IMPORT),
+    ActionDefinition(A_IMPORT_CONFIRM,           "Confirm Import",     SCR_IMPORT, ExpectedOutcome.StateChange("programImported")),
     ActionDefinition(A_IMPORT_OVERWRITE_REPLACE, "Replace Existing",   SCR_IMPORT, ExpectedOutcome.StateChange("programReplaced")),
     ActionDefinition(A_IMPORT_OVERWRITE_COPY,    "Import New Copy",    SCR_IMPORT, ExpectedOutcome.StateChange("programCopied")),
     // ── Settings ──────────────────────────────────────────────────────────────────────────

@@ -46,7 +46,7 @@
     <string name="quality_scale_suffix">/ 100</string>
 
     <!-- ── Screen titles ───────────────────────────────────────────────── -->
-    <string name="screen_title_home">Activity</string>
+    <string name="screen_title_home">Today</string>
     <string name="screen_title_workout">Workout</string>
     <string name="screen_title_programs">Programs</string>
     <string name="screen_title_device">Device</string>

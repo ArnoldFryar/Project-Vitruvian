@@ -20,13 +20,16 @@ class WorkoutAudioOutputRouter {
     }
 
     private val variantIndexByKey = mutableMapOf<String, Int>()
+    private var lastRoutedRep = 0
 
     fun resetSession() {
         variantIndexByKey.clear()
+        lastRoutedRep = 0
     }
 
     fun resetSet() {
         variantIndexByKey.clear()
+        lastRoutedRep = 0
     }
 
     fun route(
@@ -73,8 +76,12 @@ class WorkoutAudioOutputRouter {
         event: WorkoutAudioEvent,
         settings: VoiceCoachingSettings,
     ): RecordedAudioPlan? = when (event) {
-        is WorkoutAudioEvent.RepCount -> repPlan(event.rep, settings.recordedCountStyle)
-        is WorkoutAudioEvent.RestCountdown -> repPlan(event.seconds, settings.recordedCountStyle)
+        is WorkoutAudioEvent.RepCount -> repSequencePlan(event.rep, settings.recordedCountStyle)
+        is WorkoutAudioEvent.RestCountdown -> repPlan(
+            event.seconds,
+            settings.recordedCountStyle,
+            AUDIO_QUEUE_ADD,
+        )
         is WorkoutAudioEvent.DurationEnding -> durationPlan(event.seconds, settings)
         WorkoutAudioEvent.Ready -> singleClip(generatedStyleClip(settings, "ready", "ready"), AUDIO_QUEUE_ADD)
         WorkoutAudioEvent.SetStarted -> singleClip(generatedStyleClip(settings, "set_started", "set_started"), AUDIO_QUEUE_ADD)
@@ -83,9 +90,30 @@ class WorkoutAudioOutputRouter {
         is WorkoutAudioEvent.Coaching -> coachingPlan(event.cue, settings)
     }
 
-    private fun repPlan(value: Int, countStyle: RecordedCountStyle): RecordedAudioPlan? {
+    private fun repSequencePlan(
+        value: Int,
+        countStyle: RecordedCountStyle,
+    ): RecordedAudioPlan? {
+        if (value !in 1..MAX_RECORDED_COUNT || value <= lastRoutedRep) return null
+        val firstValue = if (lastRoutedRep == 0) {
+            value
+        } else {
+            (lastRoutedRep + 1).coerceAtLeast(value - 2)
+        }
+        lastRoutedRep = value
+        return RecordedAudioPlan(
+            clipNames = (firstValue..value).mapNotNull { repClip(it, countStyle) },
+            queueMode = AUDIO_QUEUE_ADD,
+        ).takeIf { it.clipNames.isNotEmpty() }
+    }
+
+    private fun repPlan(
+        value: Int,
+        countStyle: RecordedCountStyle,
+        queueMode: Int = AUDIO_QUEUE_FLUSH,
+    ): RecordedAudioPlan? {
         val clip = repClip(value, countStyle) ?: return null
-        return singleClip(clip, AUDIO_QUEUE_FLUSH)
+        return singleClip(clip, queueMode)
     }
 
     private fun durationPlan(value: Int, settings: VoiceCoachingSettings): RecordedAudioPlan? {
@@ -114,18 +142,15 @@ class WorkoutAudioOutputRouter {
     private fun repClip(value: Int, countStyle: RecordedCountStyle): String? = when (countStyle) {
         RecordedCountStyle.BASE -> baseRepClip(value)
         RecordedCountStyle.STEADY -> steadyRepClip(value)
-        RecordedCountStyle.FOCUS -> focusRepClip(value) ?: baseRepClip(value)
+        // Legacy Focus selections are normalized to the complete Base voice.
+        // The old pack only contained milestone recordings, which made emphasis
+        // change unpredictably across a single count sequence.
+        RecordedCountStyle.FOCUS -> baseRepClip(value)
     }
 
     private fun baseRepClip(value: Int): String? = numberedClipName("voice_count", value)
 
     private fun steadyRepClip(value: Int): String? = numberedClipName("voice_count_steady", value)
-
-    private fun focusRepClip(value: Int): String? = when (value) {
-        1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50 ->
-            numberedClipName("voice_count_focus", value)
-        else -> null
-    }
 
     private fun numberedClipName(prefix: String, value: Int): String? {
         if (value !in 1..MAX_RECORDED_COUNT) return null

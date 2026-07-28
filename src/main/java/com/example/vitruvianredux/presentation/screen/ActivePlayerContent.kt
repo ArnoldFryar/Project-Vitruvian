@@ -175,10 +175,7 @@ internal fun ActivePlayerContent(
     }
     val repScale by animateFloatAsState(
         targetValue = if (isActive) 1f else 0.92f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
+        animationSpec = tween(200),
         label = "repScale",
     )
 
@@ -187,7 +184,7 @@ internal fun ActivePlayerContent(
     LaunchedEffect(sessionState.workingRepsCompleted) {
         if (sessionState.workingRepsCompleted > 0) {
             repFlashAlpha.snapTo(0.28f)
-            repFlashAlpha.animateTo(0f, tween(400))
+            repFlashAlpha.animateTo(0f, tween(220))
         }
     }
 
@@ -198,7 +195,7 @@ internal fun ActivePlayerContent(
     // becomes the clear primary readout during lifting.
     val setPointAlpha by animateFloatAsState(
         targetValue   = if (isActive) 0.32f else 1f,
-        animationSpec = tween(350),
+        animationSpec = tween(220),
         label         = "SetPointFade",
     )
     val stateSummary = when {
@@ -226,13 +223,13 @@ internal fun ActivePlayerContent(
     val pbChipBg by animateColorAsState(
         targetValue   = if (isNewPb) MaterialTheme.colorScheme.secondaryContainer
                         else         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
-        animationSpec = tween(300),
+        animationSpec = tween(220),
         label         = "pbChipBg",
     )
     val pbChipFg by animateColorAsState(
         targetValue   = if (isNewPb) MaterialTheme.colorScheme.secondary
                         else         MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(300),
+        animationSpec = tween(220),
         label         = "pbChipFg",
     )
 
@@ -247,14 +244,21 @@ internal fun ActivePlayerContent(
     val isFocused by LiftFocusController.isFocused.collectAsState()
     val dimAlpha by animateFloatAsState(
         targetValue   = if (isFocused) 0.28f else 1f,
-        animationSpec = tween(400),
+        animationSpec = tween(220),
         label         = "FocusDim",
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
         val configuration = LocalConfiguration.current
         val isTablet = configuration.screenWidthDp >= 600
-        val sheetPeek = if (isTablet) 360.dp else 320.dp
+        val isMountedConsole =
+            configuration.screenWidthDp >= 1000 &&
+                configuration.screenWidthDp > configuration.screenHeightDp
+        val sheetPeek = when {
+            isMountedConsole -> 440.dp
+            isTablet -> 360.dp
+            else -> 320.dp
+        }
 
         BottomSheetScaffold(
             scaffoldState       = scaffoldState,
@@ -266,7 +270,13 @@ internal fun ActivePlayerContent(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .widthIn(max = AppDimens.Layout.maxContentWidth)
+                        .widthIn(
+                            max = if (isMountedConsole) {
+                                AppDimens.Layout.maxDashboardWidth
+                            } else {
+                                AppDimens.Layout.maxContentWidth
+                            },
+                        )
                         .padding(horizontal = if (isTablet) AppDimens.Spacing.lg else AppDimens.Spacing.md),
                     horizontalAlignment = if (isTablet) Alignment.CenterHorizontally else Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md_sm),
@@ -365,7 +375,11 @@ internal fun ActivePlayerContent(
                                     ) { time ->
                                         Text(
                                             text       = time,
-                                            style      = MaterialTheme.typography.displaySmall,
+                                            style      = if (isMountedConsole) {
+                                                MaterialTheme.typography.displayMedium
+                                            } else {
+                                                MaterialTheme.typography.displaySmall
+                                            },
                                             fontWeight = FontWeight.Black,
                                             color      = hudColor,
                                             modifier   = Modifier.scale(repScale),
@@ -395,7 +409,11 @@ internal fun ActivePlayerContent(
                                     ) { reps ->
                                         Text(
                                             text       = "$reps",
-                                            style      = MaterialTheme.typography.displaySmall,
+                                            style      = if (isMountedConsole) {
+                                                MaterialTheme.typography.displayMedium
+                                            } else {
+                                                MaterialTheme.typography.displaySmall
+                                            },
                                             fontWeight = FontWeight.Black,
                                             color      = hudColor,
                                             modifier   = Modifier.scale(repScale),
@@ -467,7 +485,7 @@ internal fun ActivePlayerContent(
                         LaunchedEffect(liveResistanceRaw) {
                             if (isActive && liveResistanceRaw > 0) {
                                 resistanceFlashAlpha.snapTo(0.18f)
-                                resistanceFlashAlpha.animateTo(0f, tween(350))
+                                    resistanceFlashAlpha.animateTo(0f, tween(220))
                             }
                         }
 

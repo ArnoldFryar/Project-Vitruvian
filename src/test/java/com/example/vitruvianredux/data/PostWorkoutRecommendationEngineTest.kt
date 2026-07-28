@@ -30,4 +30,23 @@ class PostWorkoutRecommendationEngineTest {
 
         assertEquals("You are ready for a small step", recommendation.title)
     }
+
+    @Test
+    fun `skipped work produces an honest partial session action`() {
+        val recommendation = PostWorkoutRecommendationEngine.recommend(
+            totalReps = 18,
+            totalSets = 3,
+            durationSec = 1_200,
+            avgQualityScore = 82,
+            prCount = 0,
+            skippedSetCount = 2,
+        )
+
+        assertEquals("PARTIAL SESSION", recommendation.eyebrow)
+        assertEquals("Keep the work; review the gaps", recommendation.title)
+        assertEquals(
+            "Review the skipped movement before repeating or changing the plan.",
+            recommendation.nextAction,
+        )
+    }
 }

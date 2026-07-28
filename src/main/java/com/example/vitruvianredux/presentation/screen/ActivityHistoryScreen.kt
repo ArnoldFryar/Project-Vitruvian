@@ -17,10 +17,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -54,10 +54,25 @@ fun ActivityHistoryScreen(
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now()
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var programOnly by rememberSaveable { mutableStateOf(false) }
 
-    // Group sessions by date, newest first
-    val sessionsByDate = remember(allLogs) {
-        allLogs
+    val filteredLogs = remember(allLogs, searchQuery, programOnly) {
+        val query = searchQuery.trim()
+        allLogs.filter { log ->
+            val matchesProgram = !programOnly || !log.programName.isNullOrBlank()
+            val matchesQuery = query.isBlank() ||
+                log.programName.orEmpty().contains(query, ignoreCase = true) ||
+                log.dayName.orEmpty().contains(query, ignoreCase = true) ||
+                log.exerciseNames.any { it.contains(query, ignoreCase = true) } ||
+                log.notes.contains(query, ignoreCase = true)
+            matchesProgram && matchesQuery
+        }
+    }
+
+    // Group sessions by date, newest first.
+    val sessionsByDate = remember(filteredLogs, zone) {
+        filteredLogs
             .sortedByDescending { it.endTimeMs }
             .groupBy { log ->
                 Instant.ofEpochMilli(log.endTimeMs).atZone(zone).toLocalDate()
@@ -68,6 +83,17 @@ fun ActivityHistoryScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize().padding(innerPadding),
         contentWindowInsets = WindowInsets(0),
+        topBar = {
+            TopAppBar(
+                title = { Text("Training history", fontWeight = FontWeight.SemiBold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(AppIcons.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                windowInsets = WindowInsets(0),
+            )
+        },
     ) { scaffoldPadding ->
         if (allLogs.isEmpty()) {
             // â”€â”€ Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -75,7 +101,9 @@ fun ActivityHistoryScreen(
                 icon = AppIcons.FitnessCenter,
                 headline = "Your training log is empty",
                 description = "Finish a workout to start tracking momentum.",
-                modifier = Modifier.padding(scaffoldPadding),
+                modifier = Modifier
+                    .padding(scaffoldPadding)
+                    .navigationBarsPadding(),
             )
             return@Scaffold
         }
@@ -84,13 +112,73 @@ fun ActivityHistoryScreen(
             modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
+        val navigationBottomPadding = WindowInsets.navigationBars
+            .asPaddingValues()
+            .calculateBottomPadding()
         LazyColumn(
             modifier = Modifier
                 .widthIn(max = 1280.dp)
                 .fillMaxSize()
                 .padding(horizontal = AppDimens.Spacing.lg),
-            contentPadding = PaddingValues(vertical = AppDimens.Spacing.md),
+            contentPadding = PaddingValues(
+                top = AppDimens.Spacing.md,
+                bottom = navigationBottomPadding + AppDimens.Spacing.xl,
+            ),
         ) {
+            item(key = "history_tools") {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                    modifier = Modifier.padding(bottom = AppDimens.Spacing.md),
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Find a workout or exercise") },
+                        leadingIcon = {
+                            Icon(AppIcons.Search, contentDescription = null)
+                        },
+                        trailingIcon = if (searchQuery.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(AppIcons.Close, contentDescription = "Clear search")
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                    )
+                    FilterChip(
+                        selected = programOnly,
+                        onClick = { programOnly = !programOnly },
+                        label = { Text("Program sessions") },
+                    )
+                }
+            }
+
+            if (filteredLogs.isEmpty()) {
+                item(key = "history_no_results") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = AppDimens.Spacing.xl),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                    ) {
+                        Text(
+                            text = "No matching sessions",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = "Try a different exercise, program, or filter.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
             sessionsByDate.forEach { (date, sessions) ->
                 // â”€â”€ Date header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item(key = "header_$date") {
@@ -174,7 +262,7 @@ private fun WorkoutHistoryCard(
         Column(
             modifier = Modifier
                 .clip(RoundedCornerShape(AppDimens.Corner.md))
-                .background(Brush.verticalGradient(listOf(LocalExtendedColors.current.surface2, LocalExtendedColors.current.surface1)))
+                .background(LocalExtendedColors.current.surface2)
                 .border(BorderStroke(AppDimens.Stroke.thin, cs.outlineVariant), RoundedCornerShape(AppDimens.Corner.md)),
         ) {
             // â”€â”€ Tappable header (toggle expand/collapse) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
