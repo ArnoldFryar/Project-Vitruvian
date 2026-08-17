@@ -11,8 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * All volume values are stored in kilograms internally; callers convert for display
  * using [com.example.vitruvianredux.util.UnitConversions].
  *
- * Replace the placeholder values with real persistence / repository queries
- * when backend integration is available.
+ * Rebuilt from persisted analytics on startup and after canonical finalization.
  */
 object ActivityStatsStore {
 

@@ -11,27 +11,27 @@ import org.junit.Test
 class V3PaletteContrastTest {
 
     @Test
-    fun semanticSeeds_matchApprovedV3Palette() {
-        assertEquals(Color(0xFFF4F1EA), LightCanvas)
-        assertEquals(Color(0xFFFBFAF7), LightSurface)
-        assertEquals(Color(0xFF171816), PrimaryText)
-        assertEquals(Color(0xFF9A6428), PrimaryCopper)
-        assertEquals(Color(0xFF256F75), PerformanceTeal)
-        assertEquals(Color(0xFF4F7256), SemanticSuccess)
-        assertEquals(Color(0xFFB87828), SemanticWarning)
-        assertEquals(Color(0xFFA84D45), SemanticError)
-        assertEquals(Color(0xFF111310), DarkCanvas)
-        assertEquals(Color(0xFF1A1D19), DarkSurface)
-        assertEquals(Color(0xFFD19A58), DarkCopper)
-        assertEquals(Color(0xFF5CA4A9), DarkPerformanceTeal)
+    fun semanticSeeds_matchApprovedV4Palette() {
+        assertEquals(Color(0xFFF6F7F5), LightCanvas)
+        assertEquals(Color.White, LightSurface)
+        assertEquals(Color(0xFF0D0F10), PrimaryText)
+        assertEquals(Color(0xFFF47721), PrimaryCopper)
+        assertEquals(Color(0xFFF47721), PerformanceTeal)
+        assertEquals(Color(0xFF3F7652), SemanticSuccess)
+        assertEquals(Color(0xFFC18400), SemanticWarning)
+        assertEquals(Color(0xFFB5483F), SemanticError)
+        assertEquals(Color(0xFF0D0F10), DarkCanvas)
+        assertEquals(Color(0xFF191C1E), DarkSurface)
+        assertEquals(Color(0xFFFF8A2B), DarkCopper)
+        assertEquals(Color(0xFFFF8A2B), DarkPerformanceTeal)
     }
 
     @Test
     fun lightTheme_textPairs_meetWcagAA() {
         assertContrast(PrimaryText, LightCanvas)
         assertContrast(PrimaryText, LightSurface)
-        assertContrast(Color.White, PrimaryCopper)
-        assertContrast(Color.White, PerformanceTeal)
+        assertContrast(NearBlack, PrimaryCopper)
+        assertContrast(NearBlack, PerformanceTeal)
         assertContrast(Color.White, SemanticSuccess)
         assertContrast(PrimaryText, SemanticWarning)
         assertContrast(Color.White, SemanticError)

@@ -45,6 +45,12 @@ interface SessionLogDao {
     @Query("SELECT * FROM session_log ORDER BY created_at DESC LIMIT :limit")
     suspend fun getRecentSessions(limit: Int): List<SessionLog>
 
+    @Query("SELECT * FROM session_log WHERE id = :sessionId LIMIT 1")
+    suspend fun getById(sessionId: String): SessionLog?
+
+    @Query("DELETE FROM session_log WHERE id = :sessionId")
+    suspend fun deleteById(sessionId: String)
+
     /**
      * Return all sessions whose [SessionLog.startTime] falls within the
      * closed interval [[start], [end]] (epoch millis), ordered chronologically.

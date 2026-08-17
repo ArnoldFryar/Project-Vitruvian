@@ -19,8 +19,23 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * during [com.example.vitruvianredux.MainActivity.onCreate].
  */
 @Database(
-    entities  = [SessionLog::class, ExerciseHistoryEntity::class, SetHistoryEntity::class, CachedVideoEntity::class],
-    version   = 8,
+    entities  = [
+        SessionLog::class,
+        ExerciseHistoryEntity::class,
+        SetHistoryEntity::class,
+        CachedVideoEntity::class,
+        ActiveWorkoutCheckpointEntity::class,
+        WorkoutFinalizationEntity::class,
+        IntegrationOutboxEntity::class,
+        PartnerWorkoutGroupEntity::class,
+        PartnerWorkoutParticipantEntity::class,
+        PartnerWorkoutPlanEntity::class,
+        PartnerSetAssignmentEntity::class,
+        PartnerWorkoutCheckpointEntity::class,
+        PartnerPersonalSessionEntity::class,
+        PartnerGroupFinalizationEntity::class,
+    ],
+    version   = 10,
     exportSchema = true,
 )
 abstract class SessionLogDatabase : RoomDatabase() {
@@ -28,6 +43,8 @@ abstract class SessionLogDatabase : RoomDatabase() {
     abstract fun sessionLogDao(): SessionLogDao
     abstract fun exerciseHistoryDao(): ExerciseHistoryDao
     abstract fun cachedVideoDao(): CachedVideoDao
+    abstract fun v4ReliabilityDao(): V4ReliabilityDao
+    abstract fun partnerWorkoutDao(): PartnerWorkoutDao
 
     companion object {
 
@@ -136,6 +153,69 @@ abstract class SessionLogDatabase : RoomDatabase() {
             }
         }
 
+        internal val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS active_workout_checkpoint (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        session_id TEXT NOT NULL,
+                        saved_at INTEGER NOT NULL,
+                        phase TEXT NOT NULL,
+                        payload_json TEXT NOT NULL,
+                        requires_user_confirmation INTEGER NOT NULL DEFAULT 1
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS workout_finalization (
+                        session_id TEXT NOT NULL PRIMARY KEY,
+                        finalized_at INTEGER NOT NULL,
+                        payload_hash TEXT NOT NULL,
+                        schema_version INTEGER NOT NULL DEFAULT 4
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS integration_outbox (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        session_id TEXT NOT NULL,
+                        destination TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        attempts INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        last_error TEXT DEFAULT NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_integration_outbox_status_updated_at " +
+                        "ON integration_outbox (status, updated_at)",
+                )
+            }
+        }
+
+        internal val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS partner_workout_group (group_id TEXT NOT NULL PRIMARY KEY, created_at INTEGER NOT NULL, status TEXT NOT NULL, rotation_mode TEXT NOT NULL, revision INTEGER NOT NULL, updated_at INTEGER NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS partner_workout_participant (id TEXT NOT NULL PRIMARY KEY, group_id TEXT NOT NULL, participant_id TEXT NOT NULL, display_name TEXT NOT NULL, avatar_uri TEXT, unit_preference TEXT NOT NULL, voice_enabled INTEGER NOT NULL, is_guest INTEGER NOT NULL, linked_account_id TEXT, profile_updated_at INTEGER NOT NULL, status TEXT NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_partner_workout_participant_group_id_participant_id ON partner_workout_participant (group_id, participant_id)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS partner_workout_plan (id TEXT NOT NULL PRIMARY KEY, group_id TEXT NOT NULL, participant_id TEXT NOT NULL, program_id TEXT, program_name TEXT, payload_json TEXT NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_partner_workout_plan_group_id ON partner_workout_plan (group_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_partner_workout_plan_participant_id ON partner_workout_plan (participant_id)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS partner_set_assignment (assignment_id TEXT NOT NULL PRIMARY KEY, group_id TEXT NOT NULL, participant_id TEXT NOT NULL, position INTEGER NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_partner_set_assignment_group_id ON partner_set_assignment (group_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_partner_set_assignment_participant_id ON partner_set_assignment (participant_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_partner_set_assignment_group_id_position ON partner_set_assignment (group_id, position)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS partner_workout_checkpoint (group_id TEXT NOT NULL PRIMARY KEY, saved_at INTEGER NOT NULL, payload_json TEXT NOT NULL, requires_user_confirmation INTEGER NOT NULL, resistance_armed INTEGER NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS partner_personal_session (personal_session_id TEXT NOT NULL PRIMARY KEY, group_id TEXT NOT NULL, participant_id TEXT NOT NULL)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_partner_personal_session_group_id_participant_id ON partner_personal_session (group_id, participant_id)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS partner_group_finalization (group_id TEXT NOT NULL PRIMARY KEY, finalized_at INTEGER NOT NULL, payload_hash TEXT NOT NULL)")
+            }
+        }
+
         /** Return the process-wide singleton, creating it on first call. */
         fun getInstance(context: Context): SessionLogDatabase =
             INSTANCE ?: synchronized(this) {
@@ -144,7 +224,17 @@ abstract class SessionLogDatabase : RoomDatabase() {
                     SessionLogDatabase::class.java,
                     DB_NAME,
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6,
+                        MIGRATION_6_7,
+                        MIGRATION_7_8,
+                        MIGRATION_8_9,
+                        MIGRATION_9_10,
+                    )
                     .build().also { INSTANCE = it }
             }
     }

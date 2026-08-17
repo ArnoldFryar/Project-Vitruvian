@@ -85,6 +85,8 @@ internal fun SetReadyContent(
     onToggleMode: (Boolean) -> Unit,
     onAutoPlayChange: (Boolean) -> Unit,
     onGo: () -> Unit,
+    goEnabled: Boolean = true,
+    goText: String? = null,
     onSkipSet: () -> Unit,
     onRepeatPreviousSet: () -> Unit = {},
     canRepeatPreviousSet: Boolean = false,
@@ -383,9 +385,10 @@ internal fun SetReadyContent(
             label = "goScale",
         )
         GradientButton(
-            text = if (isStrengthTest) "Start Attempt" else "GO",
+            text = goText ?: if (isStrengthTest) "Start Attempt" else "GO",
             icon = AppIcons.PlayArrow,
             onClick = onGo,
+            enabled = goEnabled,
             modifier = Modifier.graphicsLayer {
                 scaleX = goScale
                 scaleY = goScale

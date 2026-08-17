@@ -325,7 +325,16 @@ internal fun perExerciseSetInfoForSets(
     playerSets: List<PlayerSetParams>,
     flatIndex: Int,
 ): Pair<Int, Int> {
-    val name = playerSets.getOrNull(flatIndex)?.exerciseName ?: return Pair(0, 1)
+    val current = playerSets.getOrNull(flatIndex) ?: return Pair(0, 1)
+    if (current.participantId != null) {
+        val sameOwnerAndExercise: (PlayerSetParams) -> Boolean = {
+            it.participantId == current.participantId && it.exerciseName == current.exerciseName
+        }
+        val setIndex = playerSets.take(flatIndex).count(sameOwnerAndExercise)
+        val totalSets = playerSets.count(sameOwnerAndExercise).coerceAtLeast(1)
+        return setIndex to totalSets
+    }
+    val name = current.exerciseName
     var start = flatIndex
     while (start > 0 && playerSets[start - 1].exerciseName == name) start--
     var end = flatIndex
@@ -374,6 +383,17 @@ internal fun exerciseRepeatSets(
 ): List<PlayerSetParams> = sourceSets
     .filter { exerciseRepeatKey(it) == exerciseKey }
     .map { it.copy() }
+
+/** Minimal engine state needed to recover without re-applying machine resistance. */
+internal data class WorkoutEngineRecoverySnapshot(
+    val sets: List<PlayerSetParams>,
+    val originalSets: List<PlayerSetParams>,
+    val currentIndex: Int,
+    val completedStats: List<ExerciseStats>,
+    val skippedStats: List<ExerciseStats>,
+    val programName: String?,
+    val workoutStartMs: Long,
+)
 
 internal fun completedSetRepCounts(
     engineWarmupRepsCompleted: Int,
@@ -492,6 +512,70 @@ class WorkoutSessionEngine(
     private val skippedStatsList = mutableListOf<ExerciseStats>()
     /** Sets skipped (not completed) during this workout — merged into final stats. */
     val skippedStats: List<ExerciseStats> get() = skippedStatsList.toList()
+
+    /**
+     * Capture only durable workout evidence and queue position. Partial reps in
+     * an active set are intentionally not restored; that set restarts at zero.
+     */
+    internal fun createRecoverySnapshot(): WorkoutEngineRecoverySnapshot? {
+        if (playerSets.isEmpty()) return null
+        val phase = _state.value.sessionPhase
+        if (phase is SessionPhase.Idle || phase is SessionPhase.WorkoutComplete) return null
+        val recoveryIndex = when (phase) {
+            is SessionPhase.ExerciseComplete -> currentPlayerIndex + 1
+            else -> currentPlayerIndex
+        }
+        if (recoveryIndex !in playerSets.indices) return null
+        return WorkoutEngineRecoverySnapshot(
+            sets = playerSets.map { it.copy() },
+            originalSets = originalPlayerSets.map { it.copy() },
+            currentIndex = recoveryIndex,
+            completedStats = completedStats.toList(),
+            skippedStats = skippedStatsList.toList(),
+            programName = activeWorkoutProgramName,
+            workoutStartMs = workoutStartTimeMs,
+        )
+    }
+
+    /**
+     * Restore to SetReady only. No INIT, PARAMS, PRESET, START, or resistance
+     * command is sent until the athlete explicitly confirms the ready screen.
+     */
+    internal fun restoreRecoverySnapshot(snapshot: WorkoutEngineRecoverySnapshot): Boolean {
+        if (snapshot.sets.isEmpty() || snapshot.currentIndex !in snapshot.sets.indices) return false
+        stopMonitorPolling()
+        playerJob?.cancel()
+        restJob?.cancel()
+        postSetTransitionJob?.cancel()
+        programJob?.cancel()
+        resetSetCompletionGuard("process recovery")
+        resetStrengthTestRuntime()
+
+        playerSets = snapshot.sets.map { it.copy() }
+        originalPlayerSets = snapshot.originalSets.ifEmpty { snapshot.sets }.map { it.copy() }
+        currentPlayerIndex = snapshot.currentIndex
+        completedStats.clear()
+        completedStats.addAll(snapshot.completedStats)
+        skippedStatsList.clear()
+        skippedStatsList.addAll(snapshot.skippedStats)
+        activeWorkoutProgramName = snapshot.programName
+        workoutStartTimeMs = snapshot.workoutStartMs.takeIf { it > 0L } ?: System.currentTimeMillis()
+
+        val current = playerSets[currentPlayerIndex]
+        activeStrengthTestProtocolType = current.strengthTestProtocolType
+        activeStrengthTestConfig = current.strengthTestConfig
+        activeStrengthTestExerciseId = current.exerciseId.ifBlank { null }
+        activeStrengthTestExerciseName = current.exerciseName
+        justLiftArmed = current.isJustLift
+        engineState = EngineState()
+        repDetector.reset()
+        repCountPolicy.reset()
+        stallDetector.reset()
+        setVolumeAccumulator = VolumeAccumulator.ZERO
+        launchPlayerSet(currentPlayerIndex)
+        Log.i(TAG, "Recovered workout at set $currentPlayerIndex; waiting in SetReady")
+        return true
+    }
     private var activeStrengthTestProtocolType: String? = null
     private var activeStrengthTestConfig: OneRepMaxProtocol.Config? = null
     private var activeStrengthTestExerciseId: String? = null
@@ -1358,6 +1442,8 @@ class WorkoutSessionEngine(
         playerSets.getOrNull(currentPlayerIndex)?.let { s ->
             recordStrengthTestAbort(s, currentPlayerIndex)
             skippedStatsList.add(ExerciseStats(
+                participantId    = s.participantId,
+                assignmentId     = s.assignmentId,
                 exerciseId       = s.exerciseId,
                 exerciseName     = s.exerciseName,
                 muscleGroups     = s.muscleGroups,
@@ -1533,6 +1619,8 @@ class WorkoutSessionEngine(
             playerSets.getOrNull(i)?.let { s ->
                 recordStrengthTestAbort(s, i)
                 skippedStatsList.add(ExerciseStats(
+                    participantId    = s.participantId,
+                    assignmentId     = s.assignmentId,
                     exerciseId       = s.exerciseId,
                     exerciseName     = s.exerciseName,
                     muscleGroups     = s.muscleGroups,
@@ -1611,6 +1699,41 @@ class WorkoutSessionEngine(
             }
             _state.value = _state.value.copy(sessionPhase = phase.copy(next = next))
         }
+    }
+
+    /**
+     * Safely change which Partner Mode assignment is shown in SetReady.
+     *
+     * This method intentionally lives beside the BLE command queue: it emits an
+     * extra STOP before changing ownership, rejects moving cables, and never
+     * emits INIT/PARAMS/START. Resistance can only be armed later by an explicit
+     * [confirmReady] call.
+     */
+    fun stopAndSelectPartnerAssignment(assignmentId: String): Boolean {
+        if (_state.value.sessionPhase !is SessionPhase.SetReady) {
+            Log.w(TAG, "partner handoff rejected outside SetReady")
+            return false
+        }
+        val maxVelocity = maxOf(
+            kotlin.math.abs(_state.value.leftCable?.velocity ?: 0f),
+            kotlin.math.abs(_state.value.rightCable?.velocity ?: 0f),
+        )
+        if (maxVelocity >= WorkoutEngineWatchdog.DEFAULT_MOVING_VELOCITY_THRESHOLD) {
+            Log.w(TAG, "partner handoff rejected while cables are moving: $maxVelocity mm/s")
+            return false
+        }
+        val relative = upcomingSets.indexOfFirst { it.assignmentId == assignmentId }
+        if (relative < 0) return false
+
+        val reordered = upcomingSets.toMutableList().apply {
+            add(0, removeAt(relative))
+        }
+        if (bleClient.state.value is BleConnectionState.Connected) {
+            bleAdapter.execute(BleCommand.Stop, "PARTNER_HANDOFF_STOP")
+        }
+        playerSets = playerSets.take(currentPlayerIndex) + reordered
+        launchPlayerSet(currentPlayerIndex)
+        return true
     }
 
     /** Increment rep count by 1 for UI debug testing without a live BLE device. */
@@ -1875,6 +1998,16 @@ class WorkoutSessionEngine(
         }
         val index = currentPlayerIndex
         val original = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
+        if (original.participantId != null) {
+            val maxVelocity = maxOf(
+                kotlin.math.abs(_state.value.leftCable?.velocity ?: 0f),
+                kotlin.math.abs(_state.value.rightCable?.velocity ?: 0f),
+            )
+            if (maxVelocity >= WorkoutEngineWatchdog.DEFAULT_MOVING_VELOCITY_THRESHOLD) {
+                Log.w(TAG, "Partner set start blocked while cables are moving: $maxVelocity mm/s")
+                return
+            }
+        }
 
         // Apply any user overrides from the ready screen
         val draftSet = if (targetRepsOverride != null || targetDurationOverride != null ||
@@ -2052,6 +2185,8 @@ class WorkoutSessionEngine(
         val hPeakForce = heuristic?.let { maxOf(it.left.concentric.kgMax, it.right.concentric.kgMax) } ?: 0f
         val isEcho = set.programMode == "Echo"
         val baseStats = ExerciseStats(
+            participantId        = set.participantId,
+            assignmentId         = set.assignmentId,
             exerciseId           = set.exerciseId,
             exerciseName         = set.exerciseName,
             muscleGroups         = set.muscleGroups,
@@ -2295,9 +2430,8 @@ class WorkoutSessionEngine(
 
     // ── Disconnect recovery ───────────────────────────────────────────────────
 
-    /** Transition to [SessionPhase.Error] and save any completed sets to history. */
+    /** Transition to [SessionPhase.Error]; durable recovery owns partial evidence. */
     private fun handleDisconnectError(fromPhase: SessionPhase) {
-        if (completedStats.isNotEmpty()) savePartialWorkout()
         val msg = when (fromPhase) {
             is SessionPhase.InSet          -> "Device disconnected during set"
             is SessionPhase.ExerciseActive -> "Device disconnected during exercise"
@@ -2308,29 +2442,6 @@ class WorkoutSessionEngine(
         Log.w(TAG, "handleDisconnectError: $msg  (from=$fromPhase)")
         SessionEventLog.append(SessionEventLog.EventType.ERROR, "Disconnect error: $msg")
         _state.value = _state.value.copy(sessionPhase = SessionPhase.Error(msg))
-    }
-
-    /** Persist completed sets to workout history (called on reconnect timeout or error). */
-    private fun savePartialWorkout() {
-        if (completedStats.isEmpty()) return
-        val totalDurSec   = if (workoutStartTimeMs > 0L)
-            ((System.currentTimeMillis() - workoutStartTimeMs) / 1_000L).toInt() else 0
-        val totalReps     = completedStats.sumOf { it.repsCompleted }
-        val totalVolumeKg = completedStats.sumOf { it.volumeKg.toDouble() }.toFloat()
-        Log.i(TAG, "savePartialWorkout: ${completedStats.size} sets, $totalReps reps, ${totalDurSec}s")
-        com.example.vitruvianredux.data.ActivityStatsStore.recordSession(totalVolumeKg.toDouble())
-        com.example.vitruvianredux.data.WorkoutHistoryStore.record(
-            com.example.vitruvianredux.data.WorkoutHistoryStore.WorkoutRecord(
-                date          = java.time.LocalDate.now(),
-                exerciseNames = completedStats.map { it.exerciseName }.distinct(),
-                muscleGroups  = playerSets.flatMap { it.muscleGroups }.distinct(),
-                totalVolumeKg = totalVolumeKg.toDouble(),
-                durationSec   = totalDurSec,
-                totalSets     = completedStats.size,
-                totalReps     = totalReps,
-                programName   = activeWorkoutProgramName,
-            )
-        )
     }
 
     /**
@@ -2533,23 +2644,11 @@ class WorkoutSessionEngine(
             durationSec    = totalDurSec,
             totalSets      = completedStats.size,
             heaviestLiftLb = heaviest,
-            calories       = (totalVolumeKg / 0.45359237f * 0.04f).toInt(), // rough placeholder
+            // The trainer does not provide metabolic energy. Do not invent a calorie metric.
+            calories       = 0,
         )
         Log.i(TAG, "finishWorkout: ${completedStats.size} sets, $totalReps reps, ${totalDurSec}s")
         stopMonitorPolling()
-        com.example.vitruvianredux.data.ActivityStatsStore.recordSession(totalVolumeKg.toDouble())
-        com.example.vitruvianredux.data.WorkoutHistoryStore.record(
-            com.example.vitruvianredux.data.WorkoutHistoryStore.WorkoutRecord(
-                date          = java.time.LocalDate.now(),
-                exerciseNames = completedStats.map { it.exerciseName }.distinct(),
-                muscleGroups  = playerSets.flatMap { it.muscleGroups }.distinct(),
-                totalVolumeKg = totalVolumeKg.toDouble(),
-                durationSec   = totalDurSec,
-                totalSets     = completedStats.size,
-                totalReps     = totalReps,
-                programName   = activeWorkoutProgramName,
-            )
-        )
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.WorkoutComplete(
                 workoutStats = stats,

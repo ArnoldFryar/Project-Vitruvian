@@ -111,10 +111,10 @@ object AnalyticsProvenance {
             "Date-level; unaffected by per-set dedup issues",
         ),
         MetricInfo(
-            "calories", Source.PLACEHOLDER,
+            "calories", Source.UNKNOWN,
             "(totalVolumeKg / 0.45359237 × 0.04).toInt()",
-            Confidence.LOW,
-            "Rough placeholder; exported to Health Connect; not shown in-app",
+            Confidence.NONE,
+            "Unavailable from the trainer; stored as zero and omitted rather than estimated",
         ),
         MetricInfo(
             "points", Source.APP_DERIVED,

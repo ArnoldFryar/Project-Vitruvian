@@ -8,6 +8,9 @@ import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.data.ExerciseFavoritesStore
 import com.example.vitruvianredux.data.ProfileStore
+import com.example.vitruvianredux.data.PartnerWorkoutRepository
+import com.example.vitruvianredux.data.PartnerProfileStore
+import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.data.VoiceCoachingStore
 import com.example.vitruvianredux.data.VitruvianFavoritesStore
 import com.example.vitruvianredux.data.VitruvianLibrary
@@ -54,6 +57,9 @@ class VitruvianApp : Application() {
     override fun onCreate() {
         super.onCreate()
         if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
+        // Open the Room singleton before the application-scoped workout VM can
+        // load or persist a process-death recovery checkpoint.
+        SessionLogRepository.init(this)
         // Register the BLE notification channel once at process start.
         BleForegroundService.createNotificationChannel(this)
         // Register the workout reminder notification channel.
@@ -69,6 +75,8 @@ class VitruvianApp : Application() {
         ExerciseFavoritesStore.init(this)
         // Load the user's editable display name.
         ProfileStore.init(this)
+        PartnerWorkoutRepository.init(this)
+        PartnerProfileStore.init(this)
         // Load manually-entered body weight for relative strength calculations.
         BodyWeightStore.init(this)
         // Load persisted voice coaching preferences.

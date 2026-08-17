@@ -14,6 +14,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalConfiguration
 import com.vitruvian.trainer.R
 import com.example.vitruvianredux.presentation.ui.AppIcons
@@ -24,15 +25,18 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
  * Lightweight per-screen scaffold that supplies:
  *  - A Material 3 [TopAppBar] that collapses on scroll when [collapseOnScroll] is true.
  *  - Consistent horizontal + vertical content padding via [AppDimens].
- *  - Correct inset handling: the outer [innerPadding] (delivered by [AppScaffold]'s
- *    root Scaffold which already consumed status-bar insets) is applied first;
- *    the inner Scaffold then zeroes [contentWindowInsets] to avoid double-counting.
+ *  - Correct inset handling for both nested routes and standalone routes: parent top padding
+ *    wins when present; otherwise the screen consumes the system status-bar inset itself.
  *
  * The experimental [TopAppBarScrollBehavior] type is kept internal so call sites
  * do not require their own `@OptIn(ExperimentalMaterial3Api::class)`.
  *
  * @param title           Screen section title shown in the TopAppBar.
  * @param innerPadding    PaddingValues from the parent Scaffold's content lambda.
+ * @param parentProvidesTopInset True when [innerPadding] already includes a parent header or
+ *                         status-bar inset. The automatic default keeps nested routes from
+ *                         double-insetting while standalone routes remain status-bar safe.
+ * @param systemTopInsets System inset source, injectable for deterministic layout tests.
  * @param collapseOnScroll When true the TopAppBar uses [enterAlwaysScrollBehavior]
  *                         and collapses as the user scrolls down.
  * @param actions         Optional icon buttons placed in the TopAppBar end-slot.
@@ -48,6 +52,8 @@ import com.example.vitruvianredux.presentation.ui.AppDimens
 fun ScreenScaffold(
     title: String,
     innerPadding: PaddingValues,
+    parentProvidesTopInset: Boolean = innerPadding.calculateTopPadding() > 0.dp,
+    systemTopInsets: WindowInsets = WindowInsets.statusBars,
     collapseOnScroll: Boolean = false,
     showTopBar: Boolean = true,
     fillWidth: Boolean = false,
@@ -67,6 +73,7 @@ fun ScreenScaffold(
     } else {
         Modifier
     }
+    val safeTopInsets = if (parentProvidesTopInset) WindowInsets(0) else systemTopInsets
 
     PremiumScreenBackdrop {
     Scaffold(
@@ -92,14 +99,13 @@ fun ScreenScaffold(
                         containerColor = Color.Transparent,
                         scrolledContainerColor = Color.Transparent,
                     ),
-                    // The outer AppScaffold already handled status-bar insets; zero them here
-                    // to prevent the top bar from adding a second status-bar-height gap.
-                    windowInsets   = WindowInsets(0),
+                    windowInsets = safeTopInsets,
                 )
             }
         },
-        // Same reason: outer Scaffold already consumed all system-bar insets.
-        contentWindowInsets = WindowInsets(0),
+        // A visible TopAppBar consumes the system inset itself. Headerless standalone screens
+        // let Scaffold protect their content instead.
+        contentWindowInsets = if (showTopBar) WindowInsets(0) else safeTopInsets,
     ) { scaffoldPadding ->
         BoxWithConstraints(
             modifier = Modifier

@@ -28,7 +28,10 @@ class RecordedVoicePlayer(context: Context) {
             )
             addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) {
+                    // stop() also reports IDLE while an INTERRUPT request is replacing
+                    // the playlist. Clearing priority from that callback can race the
+                    // replacement clip and allow a lower-priority cue to cut it off.
+                    if (playbackState == Player.STATE_ENDED) {
                         activePriority = null
                     }
                 }

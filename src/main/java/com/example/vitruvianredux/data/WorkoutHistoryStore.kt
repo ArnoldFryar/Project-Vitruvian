@@ -34,6 +34,7 @@ object WorkoutHistoryStore {
     private const val KEY_HISTORY = "history_json"
 
     data class WorkoutRecord(
+        val id: String = "",
         val date: LocalDate,
         val exerciseNames: List<String>,
         val muscleGroups: List<String>,
@@ -61,8 +62,23 @@ object WorkoutHistoryStore {
 
     /** Record a completed workout. Called from WorkoutSessionEngine.finishWorkout(). */
     fun record(record: WorkoutRecord) {
-        _history.update { it + record }
+        val stable = if (record.id.isBlank()) record.copy(id = legacyId(record)) else record
+        _history.update { current ->
+            if (current.any { it.id == stable.id }) {
+                current.map { if (it.id == stable.id) stable else it }
+            } else {
+                current + stable
+            }
+        }
         persist()
+    }
+
+    fun deleteById(sessionId: String): Boolean {
+        val updated = _history.value.filterNot { it.id == sessionId }
+        if (updated.size == _history.value.size) return false
+        _history.value = updated
+        persist()
+        return true
     }
 
     /** Retag the most recent ad-hoc Just Lift record after the user chooses an exercise. */
@@ -210,6 +226,7 @@ object WorkoutHistoryStore {
             val arr = JSONArray()
             for (record in _history.value) {
                 arr.put(JSONObject().apply {
+                    put("id", record.id)
                     put("date", record.date.toString())                    // ISO-8601
                     put("exerciseNames", JSONArray(record.exerciseNames))
                     put("muscleGroups", JSONArray(record.muscleGroups))
@@ -232,7 +249,8 @@ object WorkoutHistoryStore {
             val arr = JSONArray(json)
             (0 until arr.length()).mapNotNull { i ->
                 val obj = arr.getJSONObject(i)
-                WorkoutRecord(
+                val parsed = WorkoutRecord(
+                    id            = obj.optString("id"),
                     date          = LocalDate.parse(obj.getString("date")),
                     exerciseNames = obj.getJSONArray("exerciseNames").let { a ->
                         (0 until a.length()).map { a.getString(it) }
@@ -246,10 +264,14 @@ object WorkoutHistoryStore {
                     totalReps     = obj.getInt("totalReps"),
                     programName   = obj.optString("programName").takeIf { it.isNotBlank() },
                 )
+                if (parsed.id.isBlank()) parsed.copy(id = legacyId(parsed, i)) else parsed
             }
         } catch (e: Exception) {
             Log.e(TAG, "load: ${e.message}")
             emptyList()
         }
     }
+
+    private fun legacyId(record: WorkoutRecord, ordinal: Int = 0): String =
+        "legacy:${record.date}:${record.durationSec}:${record.totalReps}:${record.totalSets}:$ordinal"
 }

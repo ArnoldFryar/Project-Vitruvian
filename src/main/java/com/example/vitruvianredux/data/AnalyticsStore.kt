@@ -194,6 +194,16 @@ object AnalyticsStore {
         record(log)
     }
 
+    /** Remove a session and immediately recalculate every derived flow from the remainder. */
+    fun deleteSession(sessionId: String): Boolean {
+        val updated = _logs.value.filterNot { it.id == sessionId }
+        if (updated.size == _logs.value.size) return false
+        _logs.value = updated
+        persist()
+        Timber.tag("analytics").i("deleted session $sessionId and recalculated local analytics")
+        return true
+    }
+
     fun clear() {
         _logs.value = emptyList()
         persist()

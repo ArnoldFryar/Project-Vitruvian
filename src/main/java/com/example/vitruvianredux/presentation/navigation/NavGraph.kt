@@ -21,11 +21,11 @@ import com.example.vitruvianredux.sync.LanSyncManager
 import com.vitruvian.trainer.BuildConfig
 
 enum class Route(val path: String) {
-    Activity("activity"),
-    Workout("workout"),
-    Coaching("coaching"),
+    Activity("today"),
+    Workout("train"),
+    Coaching("programs"),
     Device("device"),
-    Profile("profile"),
+    Profile("settings"),
     Debug("debug"),
     ExercisePlayer("player"),
     Repair("repair"),
@@ -33,7 +33,8 @@ enum class Route(val path: String) {
     ProgramDetail("program_detail"),
     Templates("templates"),
     ProgramEditor("program_editor"),
-    ActivityHistory("activity_history"),
+    ActivityHistory("progress"),
+    History("history"),
     ActivityMetricDetail("activity_metric_detail"),
     Sync("sync"),
     Account("account"),
@@ -46,6 +47,7 @@ enum class Route(val path: String) {
     TelemetryDetail("telemetry_detail"),
     OfficialPrograms("official_programs"),
     OfficialProgramDetail("official_program_detail"),
+    PartnerSetup("partner_setup"),
 }
 
 private const val ANIM_DURATION = 220
@@ -80,7 +82,7 @@ fun AppNavHost(
             HomeScreen(
                 innerPadding             = innerPadding,
                 workoutVM                = workoutVM,
-                onNavigateToHistory      = { nav.navigate(Route.ActivityHistory.path) },
+                onNavigateToHistory      = { nav.navigate(Route.History.path) },
                 onNavigateToMetricDetail = { type ->
                     nav.navigate("${Route.ActivityMetricDetail.path}/$type")
                 },
@@ -100,6 +102,14 @@ fun AppNavHost(
                 onStartOneRepMaxTest = { exercise ->
                     workoutVM.startOneRepMaxTest(exercise)
                 },
+                onStartPartnerWorkout = { nav.navigate(Route.PartnerSetup.path) },
+            )
+        }
+        composable(Route.PartnerSetup.path) {
+            PartnerSetupScreen(
+                innerPadding = innerPadding,
+                workoutVM = workoutVM,
+                onBack = { nav.popBackStack() },
             )
         }
         composable(Route.Coaching.path)  {
@@ -224,6 +234,14 @@ fun AppNavHost(
             )
         }
         composable(Route.ActivityHistory.path) {
+            AnalyticsDashboardScreen(
+                primaryDestination = true,
+                onNavigateToHistory = { nav.navigate(Route.History.path) },
+                onNavigateToTelemetry = { nav.navigate(Route.TelemetryDetail.path) },
+                onStartWorkout = { nav.navigate(Route.Workout.path) },
+            )
+        }
+        composable(Route.History.path) {
             ActivityHistoryScreen(
                 innerPadding = innerPadding,
                 onBack = { nav.popBackStack() },

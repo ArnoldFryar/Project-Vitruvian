@@ -104,7 +104,7 @@
 
         <!-- BLE foreground service — keeps process alive while trainer is connected -->
         <service
-            android:name=".ble.BleForegroundService"
+            android:name="com.example.vitruvianredux.ble.BleForegroundService"
             android:foregroundServiceType="connectedDevice"
             android:exported="false" />
 

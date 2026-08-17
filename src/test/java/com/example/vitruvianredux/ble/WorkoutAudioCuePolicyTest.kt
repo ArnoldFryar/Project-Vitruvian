@@ -1,7 +1,9 @@
 package com.example.vitruvianredux.ble
 
 import com.example.vitruvianredux.ble.session.NextStep
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -55,5 +57,20 @@ class WorkoutAudioCuePolicyTest {
         )
 
         assertFalse(shouldPlayRestCompleteCue(SessionPhase.Ready, current))
+    }
+
+    @Test
+    fun `five second warning survives a skipped timer emission`() {
+        assertEquals(5, durationWarningForTransition(previousSeconds = 6, currentSeconds = 4))
+    }
+
+    @Test
+    fun `ten second warning survives a skipped timer emission`() {
+        assertEquals(10, durationWarningForTransition(previousSeconds = 11, currentSeconds = 9))
+    }
+
+    @Test
+    fun `duration warning does not repeat below its threshold`() {
+        assertNull(durationWarningForTransition(previousSeconds = 5, currentSeconds = 4))
     }
 }

@@ -5,6 +5,10 @@ import com.example.vitruvianredux.data.OneRepMaxProtocol
 
 /** Per-set statistics captured during a player-mode set. */
 data class ExerciseStats(
+    /** Partner Mode owner. Null for legacy solo workouts. */
+    val participantId: String? = null,
+    /** Stable planned-set id used for exactly-once personal attribution. */
+    val assignmentId: String? = null,
     val exerciseId: String = "",
     val exerciseName: String = "",
     val muscleGroups: List<String> = emptyList(),
@@ -58,7 +62,8 @@ data class WorkoutStats(
     val durationSec: Int = 0,
     val totalSets: Int = 0,
     val heaviestLiftLb: Int = 0,
-    val calories: Int = 0,          // Placeholder
+    /** Calories are 0 when no measured energy source is available; never estimated. */
+    val calories: Int = 0,
     /** Average rep quality score across all scored sets (0–100), or null if no quality data. */
     val avgQualityScore: Int? = null,
 )
@@ -86,6 +91,10 @@ data class RepeatableExercise(
 
 /** Parameters for one set in a player-mode workout. */
 data class PlayerSetParams(
+    /** Partner Mode owner. Null for legacy solo workouts. */
+    val participantId: String? = null,
+    /** Stable planned-set id used for checkpoints and finalization. */
+    val assignmentId: String? = null,
     val exerciseId: String = "",
     val exerciseName: String,
     val thumbnailUrl: String? = null,

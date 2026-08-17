@@ -100,6 +100,7 @@ fun WorkoutScreen(
     workoutVM: WorkoutSessionViewModel,
     onStartExercise: (Exercise) -> Unit = {},
     onStartOneRepMaxTest: (Exercise) -> Boolean = { false },
+    onStartPartnerWorkout: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme
@@ -291,6 +292,12 @@ fun WorkoutScreen(
                                 onClick = openJustLift,
                                 modifier = Modifier.width(240.dp),
                             )
+                            AppTonalButton(
+                                text = "Start Partner Workout",
+                                icon = AppIcons.Assignment,
+                                onClick = onStartPartnerWorkout,
+                                modifier = Modifier.width(240.dp),
+                            )
                         }
                     } else {
                         Text(
@@ -308,6 +315,11 @@ fun WorkoutScreen(
                             text = "Start Just Lift",
                             icon = AppIcons.PlayArrow,
                             onClick = openJustLift,
+                        )
+                        AppTonalButton(
+                            text = "Start Partner Workout",
+                            icon = AppIcons.Assignment,
+                            onClick = onStartPartnerWorkout,
                         )
                     }
 

@@ -49,6 +49,8 @@ sealed interface WorkoutAudioEvent {
     object SetStarted : WorkoutAudioEvent
     object SetComplete : WorkoutAudioEvent
     object ConnectionLost : WorkoutAudioEvent
+    data class AthleteReady(val athleteName: String, val nextAthleteName: String?) : WorkoutAudioEvent
+    data class AthleteSetComplete(val athleteName: String, val nextAthleteName: String?) : WorkoutAudioEvent
     data class Coaching(val cue: VoiceCoachingCue, val repIndex: Int) : WorkoutAudioEvent
 }
 
@@ -449,6 +451,42 @@ class WorkoutAudioArbiter {
                 )
             }
 
+            is WorkoutAudioEvent.AthleteReady -> {
+                if (nowMs - lastCriticalSpeechAtMs < 900L) return null
+                cooldownUtterance(
+                    key = "athlete_ready_${event.athleteName.lowercase()}",
+                    cooldownMs = 2_000L,
+                    nowMs = nowMs,
+                    text = buildString {
+                        append(event.athleteName).append(", get ready.")
+                        event.nextAthleteName?.let { append(' ').append(it).append(" is up next.") }
+                    },
+                    utteranceId = "athlete_ready",
+                    queueMode = AUDIO_QUEUE_ADD,
+                    marksCriticalWindow = true,
+                    speechRate = delivery.speechRate,
+                    pitch = delivery.pitch,
+                )
+            }
+
+            is WorkoutAudioEvent.AthleteSetComplete -> {
+                if (nowMs - lastCriticalSpeechAtMs < 900L) return null
+                cooldownUtterance(
+                    key = "athlete_complete_${event.athleteName.lowercase()}",
+                    cooldownMs = 2_000L,
+                    nowMs = nowMs,
+                    text = buildString {
+                        append(event.athleteName).append(", set complete.")
+                        event.nextAthleteName?.let { append(' ').append(it).append(" is up next.") }
+                    },
+                    utteranceId = "athlete_complete",
+                    queueMode = AUDIO_QUEUE_ADD,
+                    marksCriticalWindow = true,
+                    speechRate = delivery.speechRate,
+                    pitch = delivery.pitch,
+                )
+            }
+
             WorkoutAudioEvent.Ready -> {
                 if (!levelPolicy.allowReady) return null
                 cooldownUtterance(
@@ -648,6 +686,8 @@ class WorkoutAudioArbiter {
         WorkoutAudioEvent.SetStarted -> styleText(style, "Start.", "Go.") to deliveryForEvent(event, styleProfile)
         WorkoutAudioEvent.SetComplete -> styleText(style, "Set complete.", "Done.") to deliveryForEvent(event, styleProfile)
         WorkoutAudioEvent.ConnectionLost -> styleText(style, "Connection lost. Hold tight.", "Connection lost.") to deliveryForEvent(event, styleProfile)
+        is WorkoutAudioEvent.AthleteReady -> "${event.athleteName}, get ready." to deliveryForEvent(event, styleProfile)
+        is WorkoutAudioEvent.AthleteSetComplete -> "${event.athleteName}, set complete." to deliveryForEvent(event, styleProfile)
         is WorkoutAudioEvent.Coaching -> coachingText(event.cue, style) to deliveryForEvent(event, styleProfile)
     }
 
@@ -778,6 +818,12 @@ class WorkoutAudioArbiter {
             WorkoutAudioEvent.SetComplete -> {
                 rateAdjustment = -0.04f
                 pitchAdjustment = 0.06f
+            }
+
+            is WorkoutAudioEvent.AthleteReady,
+            is WorkoutAudioEvent.AthleteSetComplete -> {
+                rateAdjustment = -0.02f
+                pitchAdjustment = 0.03f
             }
 
             WorkoutAudioEvent.ConnectionLost -> {

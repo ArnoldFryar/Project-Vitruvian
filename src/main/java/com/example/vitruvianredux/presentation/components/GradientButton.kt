@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.MotionTokens
+import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.presentation.ui.theme.NearBlack
 
 /**
  * Full-width gradient pill button.
@@ -50,16 +52,17 @@ fun GradientButton(
     enabled: Boolean = true,
 ) {
     val cs = MaterialTheme.colorScheme
+    val ext = LocalExtendedColors.current
     // Premium vertical gradient — slightly lightened top face, slightly
     // darkened base.  Reads as a single molded surface instead of a
     // two-tone transition, which now plays nicely against the deep
     // obsidian backgrounds.
     val fillColor = if (enabled) {
-        cs.primary
+        ext.primaryAction
     } else {
         cs.surfaceVariant.copy(alpha = 0.62f)
     }
-    val contentColor = if (enabled) cs.onPrimary else cs.onSurface.copy(alpha = 0.38f)
+    val contentColor = if (enabled) NearBlack else cs.onSurface.copy(alpha = 0.38f)
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(

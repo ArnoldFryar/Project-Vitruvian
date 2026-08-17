@@ -289,6 +289,12 @@ class ProgramRepository(
                             val programMode = itemObj.optString("programMode", "Old School")
                             val progressionRegressionLb = itemObj.optInt("progressionRegressionLb", 0)
                             val restTimerSec = itemObj.optInt("restTimerSec", 60)
+                            val repRangeMin = if (itemObj.has("repRangeMin") && !itemObj.isNull("repRangeMin")) {
+                                itemObj.optInt("repRangeMin")
+                            } else null
+                            val repRangeMax = if (itemObj.has("repRangeMax") && !itemObj.isNull("repRangeMax")) {
+                                itemObj.optInt("repRangeMax")
+                            } else null
                             
                             items.add(ProgramItemDraft(
                                 exerciseId = exerciseId,
@@ -302,6 +308,8 @@ class ProgramRepository(
                                 progressionRegressionLb = progressionRegressionLb,
                                 restTimerSec = restTimerSec,
                                 circuitGroup = if (itemObj.has("circuitGroup") && !itemObj.isNull("circuitGroup")) itemObj.optInt("circuitGroup") else null,
+                                repRangeMin = repRangeMin,
+                                repRangeMax = repRangeMax,
                             ))
                         }
                     }
@@ -356,6 +364,8 @@ class ProgramRepository(
                         put("progressionRegressionLb", item.progressionRegressionLb)
                         put("restTimerSec", item.restTimerSec)
                         if (item.circuitGroup != null) put("circuitGroup", item.circuitGroup)
+                        if (item.repRangeMin != null) put("repRangeMin", item.repRangeMin) else put("repRangeMin", JSONObject.NULL)
+                        if (item.repRangeMax != null) put("repRangeMax", item.repRangeMax) else put("repRangeMax", JSONObject.NULL)
                     })
                 }
                 put("items", itemsArray)

@@ -28,11 +28,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.presentation.ui.theme.accessibleBrandContentColor
 
 internal data class ChartMetric(
     val label: String,
@@ -92,6 +94,7 @@ internal fun PremiumChartHeader(
     selectionBadge: String? = null,
 ) {
     val cs = MaterialTheme.colorScheme
+    val contentAccent = accessibleBrandContentColor(accent, cs.background.luminance() < 0.5f)
     var metricsExpanded by remember(metrics) { mutableStateOf(false) }
     val displayedMetrics = if (metricsExpanded) metrics else metrics.take(2)
     val extraMetricCount = (metrics.size - displayedMetrics.size).coerceAtLeast(0)
@@ -105,7 +108,7 @@ internal fun PremiumChartHeader(
                 .clip(RoundedCornerShape(999.dp))
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(accent.copy(alpha = 0f), accent, accent.copy(alpha = 0.25f)),
+                        colors = listOf(contentAccent.copy(alpha = 0f), contentAccent, contentAccent.copy(alpha = 0.25f)),
                     )
                 ),
         )
@@ -127,15 +130,15 @@ internal fun PremiumChartHeader(
         }
         if (selectionBadge != null) {
             Surface(
-                color = accent.copy(alpha = 0.12f),
+                color = contentAccent.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(999.dp),
-                border = BorderStroke(AppDimens.Stroke.thin, accent.copy(alpha = 0.28f)),
+                border = BorderStroke(AppDimens.Stroke.thin, contentAccent.copy(alpha = 0.28f)),
             ) {
                 Text(
                     text = selectionBadge,
                     modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 6.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = accent,
+                    color = contentAccent,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -172,7 +175,10 @@ internal fun PremiumChartHeader(
                                 text = metric.value,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = metric.accent,
+                                color = accessibleBrandContentColor(
+                                    metric.accent,
+                                    cs.background.luminance() < 0.5f,
+                                ),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )

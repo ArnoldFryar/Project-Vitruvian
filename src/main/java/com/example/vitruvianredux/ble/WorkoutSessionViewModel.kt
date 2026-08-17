@@ -3,6 +3,7 @@
 import android.app.Application
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.speech.tts.TextToSpeech
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
@@ -20,8 +21,20 @@ import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.StrengthTestSessionMetadata
 import com.example.vitruvianredux.data.StrengthTestSetMetadata
+import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.data.VoiceCoachingSettings
 import com.example.vitruvianredux.data.VoiceCoachingStore
+import com.example.vitruvianredux.data.db.ActiveWorkoutCheckpointEntity
+import com.example.vitruvianredux.data.PartnerWorkoutRepository
+import com.example.vitruvianredux.partner.ParticipantSetAssignment
+import com.example.vitruvianredux.partner.PartnerAssignmentStatus
+import com.example.vitruvianredux.partner.PartnerRotationMode
+import com.example.vitruvianredux.partner.PartnerRotationScheduler
+import com.example.vitruvianredux.partner.PartnerWorkoutCheckpoint
+import com.example.vitruvianredux.partner.PartnerWorkoutGroup
+import com.example.vitruvianredux.partner.PartnerWorkoutParticipant
+import com.example.vitruvianredux.partner.PartnerWorkoutPlan
+import com.example.vitruvianredux.partner.PartnerWorkoutStatus
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.coaching.CoachingCueEngine
 import com.example.vitruvianredux.presentation.coaching.ModeProfile
@@ -39,6 +52,19 @@ import java.util.UUID
 internal fun shouldPlayRestCompleteCue(previous: SessionPhase?, current: SessionPhase): Boolean =
     previous is SessionPhase.Resting &&
         (current is SessionPhase.SetReady || current is SessionPhase.ExerciseActive)
+
+internal fun durationWarningForTransition(previousSeconds: Int?, currentSeconds: Int?): Int? {
+    if (currentSeconds == null || currentSeconds <= 0) return null
+    if (previousSeconds == null) {
+        return currentSeconds.takeIf { it == 10 || it == 5 }
+    }
+
+    return when {
+        previousSeconds > 5 && currentSeconds <= 5 -> 5
+        previousSeconds > 10 && currentSeconds <= 10 -> 10
+        else -> null
+    }
+}
 
 /**
  * Activity-scoped ViewModel that wraps [WorkoutSessionEngine].
@@ -59,6 +85,12 @@ class WorkoutSessionViewModel(
 
     /** Live session state — observe in Compose with [collectAsState]. */
     val state: StateFlow<SessionState> = engine.state
+
+    private val _recoveryCheckpoint = MutableStateFlow<ActiveWorkoutCheckpointEntity?>(null)
+    /** A cold-start checkpoint awaiting an explicit Resume or Discard choice. */
+    val recoveryCheckpoint: StateFlow<ActiveWorkoutCheckpointEntity?> =
+        _recoveryCheckpoint.asStateFlow()
+    private var lastCheckpointSignature: String? = null
 
     /**
      * When false (default), the final rep completes its full eccentric before
@@ -135,6 +167,24 @@ class WorkoutSessionViewModel(
      */
     private val _playerExercise = MutableStateFlow<Exercise?>(null)
     val playerExercise: StateFlow<Exercise?> = _playerExercise.asStateFlow()
+
+    private val _partnerGroup = MutableStateFlow<PartnerWorkoutGroup?>(null)
+    val partnerGroup: StateFlow<PartnerWorkoutGroup?> = _partnerGroup.asStateFlow()
+    val isPartnerSession: Boolean get() = _partnerGroup.value != null
+    val currentPartnerAssignment: ParticipantSetAssignment?
+        get() = upcomingSets.firstOrNull()?.assignmentId?.let { id ->
+            _partnerGroup.value?.assignments?.firstOrNull { it.assignmentId == id }
+        }
+    val currentPartner: PartnerWorkoutParticipant?
+        get() = currentPartnerAssignment?.participantId?.let { id ->
+            _partnerGroup.value?.participants?.firstOrNull { it.participantId == id }
+        }
+    val nextPartner: PartnerWorkoutParticipant?
+        get() {
+            val group = _partnerGroup.value ?: return null
+            val nextParticipantId = upcomingSets.drop(1).firstOrNull()?.participantId ?: return null
+            return group.participants.firstOrNull { it.participantId == nextParticipantId }
+        }
 
     // ── Program workout tracking (for "Save Changes" on completion) ──────────
     /** The program ID from which the current workout was started (null for ad-hoc). */
@@ -213,11 +263,16 @@ class WorkoutSessionViewModel(
     /** Tracks the last rest-countdown second we spoke so we don't repeat. */
     private var lastSpokenRestSecond = -1
     private var lastSpokenDurationWarningSecond = -1
+    private var lastObservedDurationSecond: Int? = null
     private var lastAudioSessionPhase: SessionPhase? = null
     private var lastRepQualitySessionPhase: SessionPhase? = null
     private val audioArbiter = WorkoutAudioArbiter()
     private val audioOutputRouter = WorkoutAudioOutputRouter()
     private val recordedVoicePlayer = RecordedVoicePlayer(app)
+    private var partnerTtsReady = false
+    private val partnerTextToSpeech = TextToSpeech(app) { status ->
+        partnerTtsReady = status == TextToSpeech.SUCCESS
+    }
     private val currentSetVoiceQualities = mutableListOf<RepQuality>()
     private val currentSetVoiceRepSignals = mutableListOf<VoiceRepSignal>()
     private var bestConcentricWattMaxForSet: Float? = null
@@ -243,12 +298,21 @@ class WorkoutSessionViewModel(
         watchdog.start(viewModelScope)
         engine.completedSetStatsEnricher = ::enrichCompletedSetStats
 
+        viewModelScope.launch {
+            _recoveryCheckpoint.value = runCatching {
+                SessionLogRepository.getActiveCheckpoint()
+            }.onFailure { Log.e("WorkoutRecovery", "Unable to load checkpoint", it) }
+                .getOrNull()
+        }
+
         // Voice rep counter — matches Phoenix: only announce WORKING rep numbers.
         // Warmup reps are silent. Working reps are spoken via TTS (1, 2, 3...).
         viewModelScope.launch {
             state.collect { currentState ->
                 val phase = currentState.setPhase
                 val sessionPhase = currentState.sessionPhase
+                synchronizePartnerPhase(sessionPhase)
+                persistRecoveryCheckpointIfNeeded(sessionPhase)
                 val warmupTarget = (sessionPhase as? SessionPhase.ExerciseActive)?.warmupReps ?: 0
 
                 if (sessionPhase != lastAudioSessionPhase) {
@@ -351,12 +415,15 @@ class WorkoutSessionViewModel(
                     sessionPhase.targetReps == null
                 ) {
                     val sec = currentState.durationCountdownSec
-                    if ((sec == 10 || sec == 5) && sec != lastSpokenDurationWarningSecond) {
-                        lastSpokenDurationWarningSecond = sec
-                        speakEvent(WorkoutAudioEvent.DurationEnding(sec))
+                    val warningSecond = durationWarningForTransition(lastObservedDurationSecond, sec)
+                    lastObservedDurationSecond = sec
+                    if (warningSecond != null && warningSecond != lastSpokenDurationWarningSecond) {
+                        lastSpokenDurationWarningSecond = warningSecond
+                        speakEvent(WorkoutAudioEvent.DurationEnding(warningSecond))
                     }
                 } else {
                     lastSpokenDurationWarningSecond = -1
+                    lastObservedDurationSecond = null
                 }
             }
         }
@@ -374,6 +441,7 @@ class WorkoutSessionViewModel(
             }) {
                 is WorkoutAudioPlaybackRequest.None -> Unit
                 is WorkoutAudioPlaybackRequest.Recorded -> recordedVoicePlayer.play(request.plan)
+                is WorkoutAudioPlaybackRequest.Spoken -> Unit
             }
         }
     }
@@ -390,7 +458,20 @@ class WorkoutSessionViewModel(
         val utterance = audioArbiter.nextUtterance(event, settings)
         when (val request = audioOutputRouter.route(event, utterance, settings)) {
             is WorkoutAudioPlaybackRequest.None -> Unit
-            is WorkoutAudioPlaybackRequest.Recorded -> recordedVoicePlayer.play(request.plan)
+            is WorkoutAudioPlaybackRequest.Recorded -> {
+                partnerTextToSpeech.stop()
+                recordedVoicePlayer.play(request.plan)
+            }
+            is WorkoutAudioPlaybackRequest.Spoken -> {
+                if (!partnerTtsReady) return
+                recordedVoicePlayer.stop()
+                partnerTextToSpeech.speak(
+                    request.utterance.text,
+                    request.utterance.queueMode,
+                    null,
+                    request.utterance.utteranceId,
+                )
+            }
         }
     }
 
@@ -418,7 +499,12 @@ class WorkoutSessionViewModel(
                 audioArbiter.resetSet()
                 audioOutputRouter.resetSet()
                 if (!restCompleted) {
-                    speakEvent(WorkoutAudioEvent.Ready)
+                    val athlete = currentPartner
+                    if (athlete?.voiceEnabled == true) {
+                        speakEvent(WorkoutAudioEvent.AthleteReady(athlete.displayName, nextPartner?.displayName))
+                    } else {
+                        speakEvent(WorkoutAudioEvent.Ready)
+                    }
                 }
             }
 
@@ -434,7 +520,15 @@ class WorkoutSessionViewModel(
             }
 
             current is SessionPhase.Resting && previous !is SessionPhase.Resting -> {
-                speakEvent(WorkoutAudioEvent.SetComplete)
+                val completed = completedExerciseStats.lastOrNull()
+                val athlete = _partnerGroup.value?.participants?.firstOrNull {
+                    it.participantId == completed?.participantId
+                }
+                if (athlete?.voiceEnabled == true) {
+                    speakEvent(WorkoutAudioEvent.AthleteSetComplete(athlete.displayName, nextPartner?.displayName))
+                } else {
+                    speakEvent(WorkoutAudioEvent.SetComplete)
+                }
             }
 
             current is SessionPhase.Reconnecting && previous !is SessionPhase.Reconnecting -> {
@@ -499,9 +593,11 @@ class WorkoutSessionViewModel(
     }
 
     override fun onCleared() {
-        super.onCleared()
+        partnerTextToSpeech.stop()
+        partnerTextToSpeech.shutdown()
         recordedVoicePlayer.release()
         warmupToneGenerator.release()
+        super.onCleared()
     }
 
     /** Call before navigating to the player screen to hand off the full Exercise object.
@@ -557,6 +653,8 @@ class WorkoutSessionViewModel(
     fun startProgram(sets: List<WorkoutParameters>) = engine.startProgram(sets)
 
     fun startPlayerWorkout(sets: List<PlayerSetParams>): Boolean {
+        _partnerGroup.value = null
+        beginNewRecoverySession()
         isJustLiftSession = false
         activeStrengthTestProtocolType = sets.firstOrNull()?.strengthTestProtocolType
         activeProgramIsDeload = false
@@ -574,11 +672,121 @@ class WorkoutSessionViewModel(
         return engine.startPlayerWorkout(sets)
     }
 
+    /** Launch a fully attributed alternating-set workout through the validated player engine. */
+    fun startPartnerWorkout(
+        participants: List<PartnerWorkoutParticipant>,
+        plans: List<PartnerWorkoutPlan>,
+        rotationMode: PartnerRotationMode,
+        groupId: String = UUID.randomUUID().toString(),
+    ): Boolean {
+        val assignments = PartnerRotationScheduler.buildAssignments(groupId, participants, plans, rotationMode)
+        if (assignments.isEmpty()) return false
+        val group = PartnerWorkoutGroup(
+            groupId = groupId,
+            createdAt = System.currentTimeMillis(),
+            participants = participants,
+            plans = plans,
+            assignments = assignments,
+            rotation = PartnerRotationScheduler.initialState(rotationMode, assignments),
+            status = PartnerWorkoutStatus.READY,
+        )
+        beginNewRecoverySession()
+        isJustLiftSession = false
+        activeStrengthTestProtocolType = null
+        activeProgramId = null
+        activeProgramName = "Partner Workout"
+        activeDayName = null
+        activeProgramIsDeload = false
+        activeProgramDeloadPercent = null
+        activeProgramDeloadRemainingSessions = null
+        activeProgramDeloadSetReduction = 0
+        sessionStartMs = System.currentTimeMillis()
+        _completedExerciseStats.clear()
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
+        currentSetVoiceQualities.clear()
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
+        resetAudioStateForNewWorkout()
+        _playerExercise.value = null
+        _partnerGroup.value = group
+        autoPlay = false
+        viewModelScope.launch { PartnerWorkoutRepository.saveDraft(group) }
+        val started = engine.startPlayerWorkout(assignments.map(::partnerSetParams), "Partner Workout")
+        if (!started) _partnerGroup.value = null
+        return started
+    }
+
+    /** Change the next athlete only from non-resisting SetReady; emits STOP before ownership changes. */
+    fun changePartnerAssignment(assignmentId: String): Boolean {
+        val group = _partnerGroup.value ?: return false
+        if (!engine.stopAndSelectPartnerAssignment(assignmentId)) return false
+        val pending = group.rotation.orderedAssignmentIds.filterNot {
+            it in group.rotation.completedAssignmentIds || it in group.rotation.skippedAssignmentIds
+        }.toMutableList()
+        if (!pending.remove(assignmentId)) return false
+        pending.add(0, assignmentId)
+        _partnerGroup.value = group.copy(
+            rotation = group.rotation.copy(
+                orderedAssignmentIds = group.rotation.orderedAssignmentIds.filter {
+                    it in group.rotation.completedAssignmentIds || it in group.rotation.skippedAssignmentIds
+                } + pending,
+                currentAssignmentId = assignmentId,
+                revision = group.rotation.revision + 1,
+            ),
+        )
+        return true
+    }
+
+    fun skipCurrentPartnerSet() {
+        val group = _partnerGroup.value ?: return
+        val id = currentPartnerAssignment?.assignmentId ?: return
+        _partnerGroup.value = group.copy(
+            rotation = PartnerRotationScheduler.skipAssignment(group.rotation, id),
+        )
+        engine.skipSet()
+    }
+
+    fun partnerLeaves(participantId: String): Boolean {
+        val group = _partnerGroup.value ?: return false
+        if (state.value.sessionPhase !is SessionPhase.SetReady) return false
+        val leavingCurrent = currentPartnerAssignment?.participantId == participantId
+        val updatedParticipants = group.participants.map {
+            if (it.participantId == participantId) it.copy(
+                status = com.example.vitruvianredux.partner.PartnerParticipantStatus.LEFT,
+                updatedAt = System.currentTimeMillis(),
+            ) else it
+        }
+        val rotation = PartnerRotationScheduler.participantLeaves(group.rotation, participantId, group.assignments)
+        val remaining = upcomingSets.filterNot { it.participantId == participantId }
+        if (remaining.isEmpty()) return false
+        _partnerGroup.value = group.copy(participants = updatedParticipants, rotation = rotation)
+        engine.updateUpcomingSets(remaining)
+        return if (leavingCurrent) {
+            engine.stopAndSelectPartnerAssignment(remaining.first().assignmentId ?: return false)
+        } else true
+    }
+
+    private fun partnerSetParams(assignment: ParticipantSetAssignment) = PlayerSetParams(
+        participantId = assignment.participantId,
+        assignmentId = assignment.assignmentId,
+        exerciseId = assignment.exerciseId,
+        exerciseName = assignment.exerciseName,
+        targetReps = assignment.targetReps,
+        targetDurationSec = assignment.targetDurationSec,
+        weightPerCableLb = assignment.loadPerCableLb,
+        restAfterSec = assignment.restAfterSec,
+        warmupReps = assignment.warmupReps,
+        programMode = assignment.programMode,
+        numCables = assignment.numCables,
+    )
+
     fun startOneRepMaxTest(
         exercise: Exercise,
         fallbackWeightPerCableLb: Int? = null,
         config: OneRepMaxProtocol.Config = OneRepMaxProtocol.Config(),
     ): Boolean {
+        beginNewRecoverySession()
         isJustLiftSession = false
         activeProgramId = null
         activeProgramName = null
@@ -651,6 +859,7 @@ class WorkoutSessionViewModel(
         deloadRemainingSessions: Int? = null,
         deloadSetReduction: Int = 0,
     ): Boolean {
+        beginNewRecoverySession()
         isJustLiftSession = false
         activeStrengthTestProtocolType = null
         val programName = com.example.vitruvianredux.data.ProgramStore
@@ -830,7 +1039,9 @@ class WorkoutSessionViewModel(
         repCountTiming: com.example.vitruvianredux.ble.protocol.RepCountTiming =
             com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM,
     ) {
+        beginNewRecoverySession()
         isJustLiftSession = isJustLift
+        sessionStartMs = System.currentTimeMillis()
         activeStrengthTestProtocolType = null
         _playerExercise.value = exercise
         repQualityTracker.discardCurrentSet()
@@ -915,15 +1126,33 @@ class WorkoutSessionViewModel(
         programModeOverride: String? = null,
         echoLevelOverride: com.example.vitruvianredux.ble.protocol.EchoLevel? = null,
         eccentricLoadPctOverride: Int? = null,
-    ) = engine.confirmReady(
-        targetRepsOverride = targetRepsOverride,
-        targetDurationOverride = targetDurationOverride,
-        weightOverride = weightOverride,
-        warmupOverride = warmupOverride,
-        programModeOverride = programModeOverride,
-        echoLevelOverride = echoLevelOverride,
-        eccentricLoadPctOverride = eccentricLoadPctOverride,
-    )
+    ) {
+        val group = _partnerGroup.value
+        val assignmentId = currentPartnerAssignment?.assignmentId
+        if (group != null && assignmentId != null) {
+            _partnerGroup.value = group.copy(
+                assignments = group.assignments.map { assignment ->
+                    if (assignment.assignmentId == assignmentId) assignment.copy(
+                        targetReps = targetRepsOverride ?: assignment.targetReps,
+                        targetDurationSec = targetDurationOverride ?: assignment.targetDurationSec,
+                        loadPerCableLb = weightOverride ?: assignment.loadPerCableLb,
+                        warmupReps = warmupOverride ?: assignment.warmupReps,
+                        programMode = programModeOverride ?: assignment.programMode,
+                    ) else assignment
+                },
+            )
+            autoPlay = false
+        }
+        engine.confirmReady(
+            targetRepsOverride = targetRepsOverride,
+            targetDurationOverride = targetDurationOverride,
+            weightOverride = weightOverride,
+            warmupOverride = warmupOverride,
+            programModeOverride = programModeOverride,
+            echoLevelOverride = echoLevelOverride,
+            eccentricLoadPctOverride = eccentricLoadPctOverride,
+        )
+    }
 
     /** Skip the current exercise entirely and advance to the next different exercise. */
     fun skipExercise() {
@@ -973,6 +1202,9 @@ class WorkoutSessionViewModel(
     /** Update the upcoming sets in the player workout. */
     fun updateUpcomingSets(newSets: List<PlayerSetParams>) = engine.updateUpcomingSets(newSets)
 
+    fun stopAndSelectPartnerAssignment(assignmentId: String): Boolean =
+        engine.stopAndSelectPartnerAssignment(assignmentId)
+
     val upcomingSets: List<PlayerSetParams>
         get() = engine.upcomingSets
 
@@ -982,8 +1214,46 @@ class WorkoutSessionViewModel(
     fun ensureCompletionSessionId(): String = completionSessionId
         ?: UUID.randomUUID().toString().also { completionSessionId = it }
 
+    /** Restore a cold-start checkpoint to SetReady; machine resistance remains off. */
+    fun resumeRecoveredWorkout(): Boolean {
+        val checkpoint = _recoveryCheckpoint.value ?: return false
+        val payload = runCatching { WorkoutRecoveryCodec.decode(checkpoint.payloadJson) }
+            .onFailure { Log.e("WorkoutRecovery", "Invalid checkpoint", it) }
+            .getOrNull() ?: return false
+        if (!checkpoint.requiresUserConfirmation) return false
+        if (!engine.restoreRecoverySnapshot(payload.engine)) return false
+
+        completionSessionId = payload.sessionId
+        sessionStartMs = payload.sessionStartMs
+        activeProgramId = payload.programId
+        activeProgramName = payload.programName
+        activeDayName = payload.dayName
+        isJustLiftSession = payload.isJustLift
+        _partnerGroup.value = payload.partnerGroup?.copy(status = PartnerWorkoutStatus.RECOVERY)
+        if (_partnerGroup.value != null) autoPlay = false
+        activeStrengthTestProtocolType = payload.engine.sets
+            .getOrNull(payload.engine.currentIndex)?.strengthTestProtocolType
+        _completedExerciseStats.clear()
+        _completedExerciseStats.addAll(payload.engine.completedStats)
+        _recoveryCheckpoint.value = null
+        lastCheckpointSignature = null
+        return true
+    }
+
+    /** Permanently discard the saved recovery offer without mutating history. */
+    fun discardRecoveredWorkout() {
+        _recoveryCheckpoint.value = null
+        lastCheckpointSignature = null
+        viewModelScope.launch {
+            runCatching { SessionLogRepository.clearActiveCheckpoint() }
+                .onFailure { Log.e("WorkoutRecovery", "Unable to clear checkpoint", it) }
+        }
+    }
+
     /** Reset from WorkoutComplete back to Idle. Call after user dismisses the summary. */
     fun resetAfterWorkout() {
+        val partnerGroupId = _partnerGroup.value?.groupId
+        _partnerGroup.value = null
         isJustLiftSession = false
         activeStrengthTestProtocolType = null
         activeProgramId   = null
@@ -1006,6 +1276,109 @@ class WorkoutSessionViewModel(
         resetVoiceCueMetricsForSet()
         resetAudioStateForNewWorkout()
         engine.resetAfterWorkout()
+        lastCheckpointSignature = null
+        viewModelScope.launch {
+            runCatching { SessionLogRepository.clearActiveCheckpoint() }
+                .onFailure { Log.e("WorkoutRecovery", "Unable to clear checkpoint", it) }
+            partnerGroupId?.let { runCatching { PartnerWorkoutRepository.clearCheckpoint(it) } }
+        }
+    }
+
+    private fun beginNewRecoverySession() {
+        completionSessionId = UUID.randomUUID().toString()
+        _recoveryCheckpoint.value = null
+        lastCheckpointSignature = null
+    }
+
+    private fun persistRecoveryCheckpointIfNeeded(phase: SessionPhase) {
+        if (phase is SessionPhase.Idle || phase is SessionPhase.WorkoutComplete) return
+        val snapshot = engine.createRecoverySnapshot() ?: return
+        val signature = buildString {
+            append(phase::class.java.simpleName).append('|')
+            append(snapshot.currentIndex).append('|')
+            append(snapshot.sets.size).append('|')
+            append(snapshot.completedStats.size).append('|')
+            append(snapshot.skippedStats.size)
+        }
+        if (signature == lastCheckpointSignature) return
+        lastCheckpointSignature = signature
+        val sessionId = ensureCompletionSessionId()
+        val payload = WorkoutRecoveryPayload(
+            sessionId = sessionId,
+            sessionStartMs = sessionStartMs.takeIf { it > 0L } ?: snapshot.workoutStartMs,
+            programId = activeProgramId,
+            programName = activeProgramName,
+            dayName = activeDayName,
+            isJustLift = isJustLiftSession,
+            partnerGroup = _partnerGroup.value,
+            engine = snapshot,
+        )
+        viewModelScope.launch {
+            runCatching {
+                SessionLogRepository.saveActiveCheckpoint(
+                    ActiveWorkoutCheckpointEntity(
+                        sessionId = sessionId,
+                        savedAt = System.currentTimeMillis(),
+                        phase = phase::class.java.simpleName,
+                        payloadJson = WorkoutRecoveryCodec.encode(payload),
+                        requiresUserConfirmation = true,
+                    )
+                )
+                _partnerGroup.value?.let { group ->
+                    PartnerWorkoutRepository.saveCheckpoint(
+                        group = group,
+                        checkpoint = PartnerWorkoutCheckpoint(
+                            groupId = group.groupId,
+                            savedAt = System.currentTimeMillis(),
+                            rotation = group.rotation,
+                            activeParticipantId = currentPartner?.participantId,
+                            activeAssignmentId = currentPartnerAssignment?.assignmentId,
+                            requiresUserConfirmation = true,
+                            resistanceArmed = false,
+                        ),
+                    )
+                }
+            }.onFailure { Log.e("WorkoutRecovery", "Unable to save checkpoint", it) }
+        }
+    }
+
+    private fun synchronizePartnerPhase(phase: SessionPhase) {
+        val group = _partnerGroup.value ?: return
+        val upcoming = engine.upcomingSets.firstOrNull()
+        val assignmentId = upcoming?.assignmentId
+        val nextStatus = when (phase) {
+            is SessionPhase.Paused -> PartnerWorkoutStatus.PAUSED
+            is SessionPhase.Reconnecting, is SessionPhase.Error -> PartnerWorkoutStatus.RECOVERY
+            is SessionPhase.WorkoutComplete -> PartnerWorkoutStatus.COMPLETED
+            else -> PartnerWorkoutStatus.ACTIVE
+        }
+        var rotation = group.rotation
+        if (phase is SessionPhase.ExerciseComplete) {
+            phase.stats.assignmentId?.let { completedId ->
+                if (completedId !in rotation.completedAssignmentIds) {
+                    val assignment = group.assignments.firstOrNull { it.assignmentId == completedId }
+                    rotation = rotation.copy(
+                        currentAssignmentId = null,
+                        completedAssignmentIds = rotation.completedAssignmentIds + completedId,
+                        participantEligibleAtMs = assignment?.let {
+                            rotation.participantEligibleAtMs +
+                                (it.participantId to System.currentTimeMillis() + it.restAfterSec * 1_000L)
+                        } ?: rotation.participantEligibleAtMs,
+                        revision = rotation.revision + 1,
+                    )
+                }
+            }
+        } else if (phase is SessionPhase.SetReady && assignmentId != null &&
+            rotation.currentAssignmentId != assignmentId
+        ) {
+            rotation = rotation.copy(
+                currentAssignmentId = assignmentId,
+                revision = rotation.revision + 1,
+            )
+        }
+        if (rotation != group.rotation || nextStatus != group.status) {
+            _partnerGroup.value = group.copy(rotation = rotation, status = nextStatus)
+        }
     }
 
     private fun currentAudioResetState(): WorkoutAudioResetState = WorkoutAudioResetState(

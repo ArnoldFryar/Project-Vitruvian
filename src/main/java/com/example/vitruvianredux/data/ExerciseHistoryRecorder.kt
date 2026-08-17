@@ -27,6 +27,88 @@ object ExerciseHistoryRecorder {
 
     private const val TAG = "ExerciseHistoryRecorder"
 
+    internal data class Rows(
+        val exercises: List<ExerciseHistoryEntity>,
+        val sets: List<SetHistoryEntity>,
+    )
+
+    internal fun buildRows(
+        sessionId: String,
+        completedStats: List<ExerciseStats>,
+        completedAtMs: Long,
+        originMode: String? = null,
+        taggedExercise: Exercise? = null,
+        setStrengthTestsBySetIndex: Map<Int, StrengthTestSetMetadata> = emptyMap(),
+        updatedAtMs: Long = System.currentTimeMillis(),
+    ): Rows {
+        val statsForHistory = if (taggedExercise != null) {
+            completedStats.map { stat ->
+                stat.copy(
+                    exerciseId = taggedExercise.id,
+                    exerciseName = taggedExercise.name,
+                    muscleGroups = taggedExercise.muscleGroups,
+                    muscles = taggedExercise.muscles,
+                )
+            }
+        } else {
+            completedStats
+        }
+
+        val exerciseEntities = statsForHistory.groupBy { it.exerciseName }.map { (name, stats) ->
+            ExerciseHistoryEntity(
+                id = deterministicId(sessionId, name),
+                sessionId = sessionId,
+                exerciseName = name,
+                setCount = stats.size,
+                totalReps = stats.sumOf { it.repsCompleted },
+                totalVolumeKg = stats.sumOf { it.volumeKg.toDouble() }.toFloat(),
+                heaviestWeightLb = stats.maxOfOrNull { it.weightPerCableLb } ?: 0,
+                avgQualityScore = stats.mapNotNull { it.avgQualityScore }
+                    .takeIf { it.isNotEmpty() }
+                    ?.average()
+                    ?.toInt(),
+                originMode = originMode,
+                completedAt = completedAtMs,
+                updatedAt = updatedAtMs,
+                syncPending = true,
+            )
+        }
+
+        val setEntities = statsForHistory.map { stat ->
+            val exerciseId = deterministicId(sessionId, stat.exerciseName)
+            val strengthTest = setStrengthTestsBySetIndex[stat.setIndex]
+            SetHistoryEntity(
+                id = deterministicId(sessionId, stat.exerciseName, stat.setIndex),
+                exerciseHistoryId = exerciseId,
+                sessionId = sessionId,
+                exerciseName = stat.exerciseName,
+                setIndex = stat.setIndex,
+                reps = stat.repsCompleted,
+                weightLb = stat.weightPerCableLb,
+                volumeKg = stat.volumeKg,
+                durationSec = stat.durationSec,
+                avgQualityScore = stat.avgQualityScore,
+                avgRom = stat.avgRom,
+                avgTempo = stat.avgTempo,
+                avgSymmetry = stat.avgSymmetry,
+                avgSmoothness = stat.avgSmoothness,
+                avgForce = stat.avgForce,
+                peakForce = stat.peakForce,
+                echoLevel = stat.echoLevel,
+                eccentricLoadPct = stat.eccentricLoadPct,
+                protocolType = strengthTest?.protocolType,
+                attemptNumber = strengthTest?.attemptNumber,
+                attemptOutcome = strengthTest?.attemptOutcome,
+                completedAt = completedAtMs,
+                originMode = originMode,
+                updatedAt = updatedAtMs,
+                syncPending = true,
+            )
+        }
+
+        return Rows(exercises = exerciseEntities, sets = setEntities)
+    }
+
     /**
      * Record completed exercise and set history for a finished workout session.
      *
@@ -46,80 +128,21 @@ object ExerciseHistoryRecorder {
 
         try {
             val dao = SessionLogRepository.exerciseHistoryDao()
-            val now = System.currentTimeMillis()
-            val statsForHistory = if (taggedExercise != null) {
-                completedStats.map { stat ->
-                    stat.copy(
-                        exerciseId = taggedExercise.id,
-                        exerciseName = taggedExercise.name,
-                        muscleGroups = taggedExercise.muscleGroups,
-                        muscles = taggedExercise.muscles,
-                    )
-                }
-            } else {
-                completedStats
-            }
+            val rows = buildRows(
+                sessionId = sessionId,
+                completedStats = completedStats,
+                completedAtMs = completedAtMs,
+                originMode = originMode,
+                taggedExercise = taggedExercise,
+                setStrengthTestsBySetIndex = setStrengthTestsBySetIndex,
+            )
 
-            // Group stats by exercise name to build per-exercise aggregates
-            val byExercise = statsForHistory.groupBy { it.exerciseName }
-
-            val exerciseEntities = byExercise.map { (name, stats) ->
-                val exerciseId = deterministicId(sessionId, name)
-                ExerciseHistoryEntity(
-                    id               = exerciseId,
-                    sessionId        = sessionId,
-                    exerciseName     = name,
-                    setCount         = stats.size,
-                    totalReps        = stats.sumOf { it.repsCompleted },
-                    totalVolumeKg    = stats.sumOf { it.volumeKg.toDouble() }.toFloat(),
-                    heaviestWeightLb = stats.maxOfOrNull { it.weightPerCableLb } ?: 0,
-                    avgQualityScore  = stats.mapNotNull { it.avgQualityScore }.takeIf { it.isNotEmpty() }
-                                           ?.average()?.toInt(),
-                    originMode       = originMode,
-                    completedAt      = completedAtMs,
-                    updatedAt        = now,
-                    syncPending      = true,
-                )
-            }
-
-            val setEntities = statsForHistory.map { stat ->
-                val exerciseId = deterministicId(sessionId, stat.exerciseName)
-                val strengthTest = setStrengthTestsBySetIndex[stat.setIndex]
-                SetHistoryEntity(
-                    id                = deterministicId(sessionId, stat.exerciseName, stat.setIndex),
-                    exerciseHistoryId = exerciseId,
-                    sessionId         = sessionId,
-                    exerciseName      = stat.exerciseName,
-                    setIndex          = stat.setIndex,
-                    reps              = stat.repsCompleted,
-                    weightLb          = stat.weightPerCableLb,
-                    volumeKg          = stat.volumeKg,
-                    durationSec       = stat.durationSec,
-                    avgQualityScore   = stat.avgQualityScore,
-                    avgRom            = stat.avgRom,
-                    avgTempo          = stat.avgTempo,
-                    avgSymmetry       = stat.avgSymmetry,
-                    avgSmoothness     = stat.avgSmoothness,
-                    avgForce          = stat.avgForce,
-                    peakForce         = stat.peakForce,
-                    echoLevel         = stat.echoLevel,
-                    eccentricLoadPct  = stat.eccentricLoadPct,
-                    protocolType      = strengthTest?.protocolType,
-                    attemptNumber     = strengthTest?.attemptNumber,
-                    attemptOutcome    = strengthTest?.attemptOutcome,
-                    completedAt       = completedAtMs,
-                    originMode        = originMode,
-                    updatedAt         = now,
-                    syncPending       = true,
-                )
-            }
-
-            dao.insertExercises(exerciseEntities)
-            dao.insertSets(setEntities)
+            dao.insertExercises(rows.exercises)
+            dao.insertSets(rows.sets)
 
             Timber.tag(TAG).i(
-                "Recorded ${exerciseEntities.size} exercise(s), " +
-                    "${setEntities.size} set(s) for session $sessionId"
+                "Recorded ${rows.exercises.size} exercise(s), " +
+                    "${rows.sets.size} set(s) for session $sessionId"
             )
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Failed to record exercise history: ${e.message}")

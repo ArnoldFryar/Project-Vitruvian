@@ -186,6 +186,22 @@ class ProgramRepositoryTest {
         assertEquals("dev1", loaded.single().deviceId)
     }
 
+    @Test fun `per-exercise progression range survives restart`() {
+        val item = ProgramItemDraft(
+            exerciseId = "bench",
+            exerciseName = "Bench Press",
+            reps = 8,
+            repRangeMin = 6,
+            repRangeMax = 8,
+        )
+        repo.add(SavedProgram("strength", "Strength", 1, items = listOf(item)))
+
+        val restored = restart().loadActive().single { it.id == "strength" }.items.single()
+
+        assertEquals(6, restored.repRangeMin)
+        assertEquals(8, restored.repRangeMax)
+    }
+
     @Test fun `meta with deletedIds survives JSON serialization round-trip`() {
         val meta = ProgramRepository.Meta(seedVersion = 1, deletedIds = setOf("a", "b"))
         repo.writeMeta(meta)

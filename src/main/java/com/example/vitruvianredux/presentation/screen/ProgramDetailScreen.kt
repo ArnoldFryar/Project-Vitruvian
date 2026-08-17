@@ -120,6 +120,11 @@ fun ProgramDetailScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
+                        text = "${recommendation.confidence.label} • ${recommendation.dataSufficiency}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
                         text = if (recommendation is AdaptiveProgramRecommendation.SubstitutionReview) {
                             "No replacement will be selected automatically. Choose the movement that fits in the editor."
                         } else {
@@ -128,6 +133,15 @@ fun ProgramDetailScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    TextButton(
+                        onClick = {
+                            pendingAdaptiveRecommendation = null
+                            onEditProgram()
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text("Modify in editor")
+                    }
                 }
             },
             confirmButton = {
@@ -557,6 +571,11 @@ private fun AdaptiveProgramReviewCard(
                         text = recommendation.evidence,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "${recommendation.confidence.label} • ${recommendation.dataSufficiency}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
                     )
                     TextButton(
                         onClick = { onReview(recommendation) },

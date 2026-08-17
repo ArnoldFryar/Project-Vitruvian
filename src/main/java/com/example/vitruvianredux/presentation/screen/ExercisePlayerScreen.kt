@@ -10,6 +10,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import com.vitruvian.trainer.BuildConfig
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -18,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.example.vitruvianredux.ble.SessionPhase
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
@@ -38,7 +41,6 @@ import com.example.vitruvianredux.data.ProgressionResult
 import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.data.UxTelemetryStore
-import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.UnitConversions
 import kotlinx.coroutines.launch
@@ -67,6 +69,7 @@ fun ExercisePlayerScreen(
     val machineUpdateState by workoutVM.machineUpdateState.collectAsState()
     val machineBleUpdateRequest by workoutVM.machineBleUpdateRequest.collectAsState()
     val lastRepQuality     by workoutVM.lastRepQuality.collectAsState()
+    val partnerGroup       by workoutVM.partnerGroup.collectAsState()
     val phase = sessionState.sessionPhase
     val phaseVideoUrl = when (phase) {
         is SessionPhase.SetReady -> phase.videoUrl
@@ -236,13 +239,13 @@ fun ExercisePlayerScreen(
     val effectiveResistanceLb = if (isBodyweight) 0f else resistanceLb
     val effectiveSelectedMode = if (isBodyweight) "Old School" else selectedMode
     val effectiveProgramMode = if (isBodyweight) "Old School" else if (selectedMode == "TUT" && isBeastMode) "TUT Beast" else selectedMode
-    val canRepeatPreviousSet = when (phase) {
+    val canRepeatPreviousSet = partnerGroup == null && when (phase) {
         is SessionPhase.SetReady -> phase.setIndex > 0
         is SessionPhase.Resting -> workoutVM.completedExerciseStats.isNotEmpty()
         else -> false
     }
     val repeatableExercises = workoutVM.repeatableExercises
-    val canRepeatExercise = workoutVM.activeProgramId != null &&
+    val canRepeatExercise = partnerGroup == null && workoutVM.activeProgramId != null &&
         repeatableExercises.isNotEmpty() &&
         (phase is SessionPhase.SetReady || phase is SessionPhase.Resting)
 
@@ -308,6 +311,7 @@ fun ExercisePlayerScreen(
             TopAppBar(
                 title = {
                     val titleText = exercise?.name 
+                        ?: (phase as? SessionPhase.SetReady)?.exerciseName
                         ?: (phase as? SessionPhase.ExerciseActive)?.exerciseName 
                         ?: (phase as? SessionPhase.ExerciseComplete)?.exerciseName
                         ?: ((phase as? SessionPhase.Resting)?.next as? com.example.vitruvianredux.ble.session.NextStep.NextSet)?.exerciseName
@@ -365,11 +369,13 @@ fun ExercisePlayerScreen(
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
 
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
+        val showPartnerCockpit = partnerGroup != null && phase !is SessionPhase.WorkoutComplete
+        val partnerWideLayout = showPartnerCockpit && maxWidth >= 840.dp
         AnimatedContent(
             targetState = view,
             transitionSpec = {
@@ -387,6 +393,10 @@ fun ExercisePlayerScreen(
             modifier = Modifier
                 .widthIn(max = AppDimens.Layout.maxContentWidth)
                 .fillMaxSize()
+                .padding(
+                    top = if (showPartnerCockpit && !partnerWideLayout) 112.dp else 0.dp,
+                    end = if (partnerWideLayout) 344.dp else 0.dp,
+                )
                 .align(Alignment.TopCenter),
         ) { currentView ->
             when (currentView) {
@@ -413,22 +423,19 @@ fun ExercisePlayerScreen(
                 PlayerView.WORKOUT_COMPLETE -> {
                     val completePhase = phase as? SessionPhase.WorkoutComplete
                     if (completePhase != null) {
+                        val completedPartnerGroup = partnerGroup
+                        if (completedPartnerGroup != null) {
+                            PartnerWorkoutCompleteContent(
+                                group = completedPartnerGroup,
+                                completedStats = workoutVM.completedExerciseStats,
+                                onFinish = { scope.launch { finalizeAndExit(saveProgramChanges = false) } },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
                         // â”€â”€ Passive session recording (fires exactly once per session) â”€â”€
                         // LaunchedEffect is keyed on completePhase so it re-fires only when
                         // a new WorkoutComplete phase object arrives. Never touches BLE or
                         // rep-detection code — purely reads the final stats and writes to DB.
-                        LaunchedEffect(completePhase) {
-                            WorkoutSessionRecorder.record(
-                                stats       = completePhase.workoutStats,
-                                programName = workoutVM.activeProgramName,
-                                dayName     = workoutVM.activeDayName,
-                                startTimeMs = workoutVM.sessionStartMs,
-                                avgQualityScore = workoutVM.completedExerciseStats
-                                    .mapNotNull { it.avgQualityScore }
-                                    .takeIf { it.isNotEmpty() }
-                                    ?.average()?.toInt(),
-                            )
-                        }
                         val hasProgramChanges = workoutVM.activeProgramId != null
                         val remainingDeloadSessions = workoutVM.activeProgramDeloadRemainingSessions
                         val isFinalDeloadSession = workoutVM.activeProgramIsDeload && (remainingDeloadSessions ?: 1) <= 1
@@ -494,6 +501,7 @@ fun ExercisePlayerScreen(
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
+                        }
                     }
                 }
 
@@ -502,7 +510,8 @@ fun ExercisePlayerScreen(
                     if (readyPhase != null) {
                         val isOpenEnded = readyPhase.isJustLift
                         val isStrengthTest = readyPhase.strengthTestProtocolType == StrengthTestProtocolType.ONE_REP_MAX
-                        val isExerciseMenuLaunch = !isOpenEnded && workoutVM.activeProgramId == null && !isStrengthTest
+                        val isExerciseMenuLaunch = partnerGroup == null && !isOpenEnded &&
+                            workoutVM.activeProgramId == null && !isStrengthTest
                         val canEditExerciseMenuPlan = isExerciseMenuLaunch && readyPhase.setIndex == 0
                         val activeDeloadPercent = workoutVM.activeProgramDeloadPercent
 
@@ -547,7 +556,7 @@ fun ExercisePlayerScreen(
                             showSetsStepper   = isOpenEnded || canEditExerciseMenuPlan,
                             showRestTimerPicker = canEditExerciseMenuPlan,
                             isBodyweight      = isBodyweight,
-                            autoPlay          = autoPlay,
+                            autoPlay          = if (partnerGroup != null) false else autoPlay,
                             onTargetRepsChange = { targetReps = it.coerceIn(1, 100) },
                             onTargetDurationChange = { targetDuration = it.coerceIn(5, 300) },
                             onWarmupRepsChange = { warmupReps = it.coerceIn(0, 20) },
@@ -562,7 +571,16 @@ fun ExercisePlayerScreen(
                                     targetDurationSec = if (!reps) targetDuration else null,
                                 )
                             },
-                            onAutoPlayChange   = { autoPlay = it; workoutVM.autoPlay = it },
+                            onAutoPlayChange   = {
+                                if (partnerGroup == null) {
+                                    autoPlay = it
+                                    workoutVM.autoPlay = it
+                                } else {
+                                    autoPlay = false
+                                    workoutVM.autoPlay = false
+                                    showConfirmation("Partner handoffs always require confirmation")
+                                }
+                            },
                             onGo = {
                                 if (isStrengthTest) {
                                     workoutVM.confirmReady()
@@ -604,17 +622,28 @@ fun ExercisePlayerScreen(
                                     )
                                 }
                             },
-                            onSkipSet      = { workoutVM.skipSet() },
+                            onSkipSet      = {
+                                if (partnerGroup != null) workoutVM.skipCurrentPartnerSet() else workoutVM.skipSet()
+                            },
+                            goEnabled = partnerGroup == null || isReady || isBodyweight,
+                            goText = if (partnerGroup != null && !isReady && !isBodyweight) {
+                                "Connect trainer to start"
+                            } else null,
                             onRepeatPreviousSet = ::repeatLastSetWithFeedback,
                             canRepeatPreviousSet = canRepeatPreviousSet,
                             onRepeatExercise = { showRepeatExercisePicker = true },
                             canRepeatExercise = canRepeatExercise,
-                            onSkipExercise = { workoutVM.skipExercise() },
+                            onSkipExercise = {
+                                if (partnerGroup != null) showConfirmation("Use Skip set to preserve athlete ownership")
+                                else workoutVM.skipExercise()
+                            },
                             onFinishWorkout = if (isOpenEnded && workoutVM.completedExerciseStats.isNotEmpty()) {
                                 { workoutVM.finishWorkout() }
                             } else null,
                             onAddSet       = {
-                                workoutVM.addSet(
+                                if (partnerGroup != null) {
+                                    showConfirmation("Add sets from the rotation panel")
+                                } else workoutVM.addSet(
                                     weightOverrideLb        = resistanceLb.roundToInt(),
                                     targetRepsOverride      = if (isRepsMode) targetReps else null,
                                     targetDurationOverride  = if (!isRepsMode) targetDuration else null,
@@ -732,8 +761,13 @@ fun ExercisePlayerScreen(
                             }
                         },
                         onPanicStop            = { WiringRegistry.hit(A_PLAYER_PANIC_STOP); WiringRegistry.recordOutcome(A_PLAYER_PANIC_STOP, ActualOutcome.StateChanged("paused")); workoutVM.pausePlayerWorkout() },
-                        onSkipSet              = { workoutVM.skipSet() },
-                        onSkipExercise         = { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() },
+                        onSkipSet              = {
+                            if (partnerGroup != null) workoutVM.skipCurrentPartnerSet() else workoutVM.skipSet()
+                        },
+                        onSkipExercise         = {
+                            if (partnerGroup != null) showConfirmation("Use Skip set to preserve athlete ownership")
+                            else { WiringRegistry.hit(A_PLAYER_SKIP_EXERCISE); WiringRegistry.recordOutcome(A_PLAYER_SKIP_EXERCISE, ActualOutcome.StateChanged("exerciseSkipped")); workoutVM.skipExercise() }
+                        },
                         onDebugRepIncrement    = workoutVM::debugIncrementRep,
                         lastRepQuality         = lastRepQuality,
                         deloadPercentOff       = workoutVM.activeProgramDeloadPercent,
@@ -846,6 +880,259 @@ fun ExercisePlayerScreen(
                 }
             }
         }
+        partnerGroup?.takeUnless { phase is SessionPhase.WorkoutComplete }?.let { group ->
+            PartnerCockpitPanel(
+                group = group,
+                currentAssignment = workoutVM.currentPartnerAssignment,
+                nextParticipant = workoutVM.nextPartner,
+                phase = phase,
+                connected = isReady,
+                onChangeAssignment = workoutVM::changePartnerAssignment,
+                onSkip = workoutVM::skipCurrentPartnerSet,
+                onParticipantLeaves = workoutVM::partnerLeaves,
+                onEmergencyStop = workoutVM::panicStop,
+                modifier = if (partnerWideLayout) {
+                    Modifier.align(Alignment.CenterEnd).width(336.dp).fillMaxHeight()
+                } else {
+                    Modifier.align(Alignment.TopCenter).fillMaxWidth().height(108.dp)
+                },
+                wide = partnerWideLayout,
+            )
+        }
+        }
+    }
+}
+
+@Composable
+internal fun PartnerWorkoutCompleteContent(
+    group: com.example.vitruvianredux.partner.PartnerWorkoutGroup,
+    completedStats: List<com.example.vitruvianredux.ble.session.ExerciseStats>,
+    onFinish: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        item {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    AppIcons.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(56.dp),
+                )
+                Text("Partner workout complete", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+                Text(
+                    "${completedStats.count { !it.skipped }} sets · ${completedStats.sumOf { it.repsCompleted }} reps · saved offline",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        group.participants.forEach { participant ->
+            item(key = participant.participantId) {
+                val stats = completedStats.filter { it.participantId == participant.participantId }
+                Card(modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(participant.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            SummaryMetric("Sets", stats.count { !it.skipped }.toString())
+                            SummaryMetric("Reps", stats.sumOf { it.repsCompleted }.toString())
+                            SummaryMetric("Volume", "%.1f kg".format(stats.sumOf { it.volumeKg.toDouble() }))
+                        }
+                        val quality = stats.mapNotNull { it.avgQualityScore }.takeIf { it.isNotEmpty() }?.average()?.toInt()
+                        Text(
+                            quality?.let { "Average rep quality $it" } ?: "Rep quality unavailable",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            if (participant.isGuest) "Guest record is exportable and recoverable."
+                            else "Personal record queued for this athlete’s integrations.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+        }
+        item {
+            Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp).heightIn(min = 56.dp)) {
+                Text("Save individual records")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryMetric(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+internal fun PartnerCockpitPanel(
+    group: com.example.vitruvianredux.partner.PartnerWorkoutGroup,
+    currentAssignment: com.example.vitruvianredux.partner.ParticipantSetAssignment?,
+    nextParticipant: com.example.vitruvianredux.partner.PartnerWorkoutParticipant?,
+    phase: SessionPhase,
+    connected: Boolean,
+    onChangeAssignment: (String) -> Boolean,
+    onSkip: () -> Unit,
+    onParticipantLeaves: (String) -> Boolean,
+    onEmergencyStop: () -> Unit,
+    modifier: Modifier,
+    wide: Boolean,
+) {
+    val currentParticipant = group.participants.firstOrNull {
+        it.participantId == currentAssignment?.participantId
+    }
+    var rotationOpen by remember { mutableStateOf(false) }
+    val pendingAssignments = group.rotation.orderedAssignmentIds.mapNotNull { id ->
+        group.assignments.firstOrNull { it.assignmentId == id }
+    }.filter {
+        it.assignmentId !in group.rotation.completedAssignmentIds &&
+            it.assignmentId !in group.rotation.skippedAssignmentIds
+    }
+
+    Surface(
+        modifier = modifier.semantics {
+            contentDescription = "Partner workout. Current athlete ${currentParticipant?.displayName ?: "none"}. " +
+                "Next athlete ${nextParticipant?.displayName ?: "none"}."
+        },
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 6.dp,
+        shadowElevation = 4.dp,
+    ) {
+        if (wide) {
+            Column(
+                Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("PARTNER MODE", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    currentParticipant?.displayName ?: "Set complete",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                )
+                Text(
+                    currentAssignment?.let {
+                        "${it.exerciseName} · Set ${it.exerciseSetOrdinal + 1} · ${it.loadPerCableLb} lb/cable"
+                    } ?: "Choose the next athlete",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                AssistChip(
+                    onClick = {},
+                    label = { Text(if (connected) "Trainer connected" else "Trainer disconnected") },
+                    leadingIcon = {
+                        Icon(
+                            if (connected) AppIcons.CheckCircle else AppIcons.Warning,
+                            contentDescription = null,
+                            tint = if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        )
+                    },
+                )
+                Divider()
+                Text("Rotation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                pendingAssignments.forEach { assignment ->
+                    val athlete = group.participants.firstOrNull { it.participantId == assignment.participantId }
+                    val isCurrent = assignment.assignmentId == currentAssignment?.assignmentId
+                    Surface(
+                        onClick = { if (phase is SessionPhase.SetReady) onChangeAssignment(assignment.assignmentId) },
+                        enabled = phase is SessionPhase.SetReady,
+                        color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(athlete?.displayName ?: "Athlete", fontWeight = FontWeight.Bold)
+                                Text(
+                                    "${assignment.exerciseName} · ${assignment.loadPerCableLb} lb/cable",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                            val remaining = group.assignments.count {
+                                it.participantId == assignment.participantId &&
+                                    it.assignmentId !in group.rotation.completedAssignmentIds &&
+                                    it.assignmentId !in group.rotation.skippedAssignmentIds
+                            }
+                            Text("$remaining left", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(onClick = onSkip, modifier = Modifier.fillMaxWidth(), enabled = phase is SessionPhase.SetReady) {
+                    Text("Skip set")
+                }
+                currentParticipant?.let { athlete ->
+                    TextButton(
+                        onClick = { onParticipantLeaves(athlete.participantId) },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = phase is SessionPhase.SetReady,
+                    ) { Text("${athlete.displayName} leaves workout") }
+                }
+                Button(
+                    onClick = onEmergencyStop,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Icon(AppIcons.Stop, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Emergency stop")
+                }
+            }
+        } else {
+            Row(
+                Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("NOW · ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(currentParticipant?.displayName ?: "Ready", fontWeight = FontWeight.Black, maxLines = 1)
+                    }
+                    Text(
+                        currentAssignment?.let { "${it.exerciseName} · ${it.loadPerCableLb} lb/cable" } ?: "Select next set",
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        "NEXT · ${nextParticipant?.displayName ?: "Finish"} · ${if (connected) "Connected" else "Disconnected"}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (connected) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                    )
+                }
+                Box {
+                    OutlinedButton(onClick = { rotationOpen = true }, enabled = phase is SessionPhase.SetReady) {
+                        Text("Change")
+                    }
+                    DropdownMenu(expanded = rotationOpen, onDismissRequest = { rotationOpen = false }) {
+                        pendingAssignments.forEach { assignment ->
+                            val athlete = group.participants.firstOrNull { it.participantId == assignment.participantId }
+                            DropdownMenuItem(
+                                text = { Text("${athlete?.displayName} · ${assignment.exerciseName}") },
+                                onClick = { onChangeAssignment(assignment.assignmentId); rotationOpen = false },
+                            )
+                        }
+                        currentParticipant?.let { athlete ->
+                            Divider()
+                            DropdownMenuItem(
+                                text = { Text("${athlete.displayName} leaves workout") },
+                                onClick = { onParticipantLeaves(athlete.participantId); rotationOpen = false },
+                            )
+                        }
+                    }
+                }
+                FilledIconButton(
+                    onClick = onEmergencyStop,
+                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.size(56.dp),
+                ) { Icon(AppIcons.Stop, contentDescription = "Emergency stop") }
+            }
         }
     }
 }

@@ -29,14 +29,14 @@ private data class NavItem(
 )
 
 private val primaryNavItems = listOf(
-    NavItem(Route.Activity, AppIcons.Home, AppIcons.Home, "Home"),
-    NavItem(Route.Workout, AppIcons.FitnessCenter, AppIcons.FitnessCenter, "Workout"),
+    NavItem(Route.Activity, AppIcons.Home, AppIcons.Home, "Today"),
+    NavItem(Route.Workout, AppIcons.FitnessCenter, AppIcons.FitnessCenter, "Train"),
     NavItem(Route.Coaching, AppIcons.Assignment, AppIcons.Assignment, "Programs"),
-    NavItem(Route.ActivityHistory, AppIcons.BarChart, AppIcons.BarChart, "History"),
+    NavItem(Route.ActivityHistory, AppIcons.BarChart, AppIcons.BarChart, "Progress"),
 )
 
-private val profileNavItem = NavItem(Route.Profile, AppIcons.Person, AppIcons.Person, "Profile")
-private val bottomNavItems = primaryNavItems + profileNavItem
+private val profileNavItem = NavItem(Route.Profile, AppIcons.AccountCircle, AppIcons.AccountCircle, "Settings")
+private val bottomNavItems = primaryNavItems
 
 private val primaryNavHitIds = mapOf(
     Route.Activity to A_NAV_ACTIVITY,

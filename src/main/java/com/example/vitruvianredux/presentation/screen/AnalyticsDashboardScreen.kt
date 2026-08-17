@@ -62,17 +62,26 @@ import com.example.vitruvianredux.presentation.components.PremiumChartPlotSurfac
 import com.example.vitruvianredux.presentation.components.ShimmerBox
 import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
-import com.example.vitruvianredux.presentation.ui.theme.AccentRed
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import com.example.vitruvianredux.presentation.ui.theme.BrandBrass
 import com.example.vitruvianredux.presentation.ui.theme.BrandClay
-import com.example.vitruvianredux.presentation.ui.theme.BrandOxblood
+import com.example.vitruvianredux.presentation.ui.theme.ChartGrayDark
+import com.example.vitruvianredux.presentation.ui.theme.ChartGrayLight
+import com.example.vitruvianredux.presentation.ui.theme.ChartGrayMedium
+import com.example.vitruvianredux.presentation.ui.theme.ChartOrangeHigh
+import com.example.vitruvianredux.presentation.ui.theme.ChartOrangeLow
+import com.example.vitruvianredux.presentation.ui.theme.ChartOrangeMedium
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.presentation.ui.theme.MuscleHeatMapPalette
 import com.example.vitruvianredux.presentation.ui.theme.Success
 import com.example.vitruvianredux.presentation.ui.theme.Warning
 import com.example.vitruvianredux.presentation.ui.theme.WarningContainer
 import com.example.vitruvianredux.presentation.ui.theme.WarningOnContainer
+import com.example.vitruvianredux.presentation.ui.theme.muscleHeatMapColor
+import com.example.vitruvianredux.presentation.ui.theme.muscleHeatMapLegendColors
+import com.example.vitruvianredux.presentation.ui.theme.muscleHeatMapPalette
+import com.example.vitruvianredux.presentation.ui.theme.toSvgHex
 import com.example.vitruvianredux.presentation.util.loadAllExercises
 import com.example.vitruvianredux.util.UnitConversions
 import java.time.Instant
@@ -93,6 +102,8 @@ fun AnalyticsDashboardScreen(
     onBack: () -> Unit = {},
     onNavigateToTelemetry: () -> Unit = {},
     onStartWorkout: () -> Unit = {},
+    primaryDestination: Boolean = false,
+    onNavigateToHistory: () -> Unit = {},
 ) {
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
@@ -113,7 +124,10 @@ fun AnalyticsDashboardScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
+        topBar = if (primaryDestination) {
+            {}
+        } else {
+            {
             TopAppBar(
                 title = { Text("Analytics") },
                 navigationIcon = {
@@ -125,6 +139,7 @@ fun AnalyticsDashboardScreen(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
             )
+            }
         },
     ) { innerPadding ->
         BoxWithConstraints(
@@ -159,6 +174,16 @@ fun AnalyticsDashboardScreen(
                     .padding(horizontal = hPad, vertical = AppDimens.Spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
             ) {
+                if (primaryDestination) {
+                    OutlinedButton(
+                        onClick = onNavigateToHistory,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(AppIcons.Assignment, contentDescription = null)
+                        Spacer(Modifier.width(AppDimens.Spacing.sm))
+                        Text("Workout history")
+                    }
+                }
                 if (analyticsRecommendation != null) {
                     TrainingInsightCard(analyticsRecommendation)
                 }
@@ -718,29 +743,24 @@ private fun MostTrainedExercises(logs: List<AnalyticsStore.SessionLog>) {
 //  Muscle Silhouette Heatmap (SVG-based)
 // ─────────────────────────────────────────────────────────────────────────────
 
-private fun buildStyledMuscleSvg(
+internal fun buildStyledMuscleSvg(
     rawSvg: String,
     distribution: Map<String, Double>,
     maxVal: Double,
     viewBox: String,
-    darkTheme: Boolean,
+    palette: MuscleHeatMapPalette,
 ): String {
     fun intensityColor(regionId: String): String {
         val count = distribution[regionId] ?: 0.0
-        if (count == 0.0) return if (darkTheme) "#221A18" else "#E2DED5"
-        val v = (count / maxVal).toFloat().coerceIn(0f, 1f)
-        val alpha = 0.15f + v * 0.75f
-        // Pre-blend brass over a warm charcoal base — AndroidSVG doesn't support rgba().
-        val r = (18 * (1 - alpha) + 192 * alpha).toInt()
-        val g = (14 * (1 - alpha) + 138 * alpha).toInt()
-        val b = (13 * (1 - alpha) + 46 * alpha).toInt()
-        return "#%02x%02x%02x".format(r, g, b)
+        val normalized = if (count <= 0.0 || maxVal <= 0.0) 0f
+            else (count / maxVal).toFloat().coerceIn(0f, 1f)
+        return muscleHeatMapColor(palette, normalized).toSvgHex()
     }
 
     // CSS: remove fill from .st3/.st4/.st5 so that the presentation-attribute fill we inject
     // directly on each <path> below is the highest-priority style applied (no CSS override).
-    val outline = if (darkTheme) "#5F4D46" else "#8F877B"
-    val baseFill = if (darkTheme) "#1E293B" else "#E2DED5"
+    val outline = palette.outline.toSvgHex()
+    val baseFill = palette.neutral.toSvgHex()
     val baseCss = """
         .st0{fill:none;stroke:$outline;stroke-width:5;stroke-miterlimit:10;}
         .st1{display:none;}
@@ -748,7 +768,7 @@ private fun buildStyledMuscleSvg(
         .st3{stroke:$outline;stroke-width:5;stroke-miterlimit:10;}
         .st4{stroke:$outline;stroke-width:5;stroke-miterlimit:10;}
         .st5{stroke:$outline;stroke-width:5;stroke-linejoin:round;stroke-miterlimit:10;}
-        .st6{stroke:$outline;stroke-width:3;stroke-miterlimit:10;}
+        .st6{fill:$baseFill;stroke:$outline;stroke-width:3;stroke-miterlimit:10;}
     """.trimIndent()
 
     var svg = rawSvg
@@ -768,6 +788,7 @@ private fun buildStyledMuscleSvg(
         val endIdx = svg.indexOf("</g>", contentStart)
         if (endIdx < 0) continue
         val groupContent = svg.substring(contentStart, endIdx)
+            .replace(Regex("""\sfill="[^"]*"""), "")
             .replace("<path ", "<path fill=\"$color\" ")
         svg = svg.substring(0, startIdx) +
             "<g id=\"$groupId\" fill=\"$color\">" +
@@ -775,7 +796,7 @@ private fun buildStyledMuscleSvg(
             svg.substring(endIdx)
     }
 
-    return svg
+    return svg.replace(Regex("#FF0000", RegexOption.IGNORE_CASE), outline)
 }
 
 private suspend fun renderMuscleSvgBitmap(
@@ -783,11 +804,11 @@ private suspend fun renderMuscleSvgBitmap(
     distribution: Map<String, Double>,
     maxVal: Double,
     viewBox: String,
-    darkTheme: Boolean,
+    palette: MuscleHeatMapPalette,
     widthPx: Int = 480,
 ): ImageBitmap = withContext(Dispatchers.IO) {
     val rawSvg = context.assets.open("muscles.svg").bufferedReader().readText()
-    val styledSvg = buildStyledMuscleSvg(rawSvg, distribution, maxVal, viewBox, darkTheme)
+    val styledSvg = buildStyledMuscleSvg(rawSvg, distribution, maxVal, viewBox, palette)
     val svg = SVG.getFromString(styledSvg)
     // Each half viewBox is 1800 wide × 3240 tall
     val heightPx = (widthPx * 3240f / 1800f).toInt()
@@ -811,6 +832,7 @@ private fun MuscleSilhouetteSection(
 ) {
     val context = LocalContext.current
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val heatMapPalette = remember(darkTheme) { muscleHeatMapPalette(darkTheme) }
     var period by remember { mutableStateOf(HeatmapPeriod.WEEK) }
 
     val distribution = remember(allLogs, catalogLookup, period) {
@@ -824,9 +846,9 @@ private fun MuscleSilhouetteSection(
 
     val maxVal = distribution.values.maxOrNull()?.coerceAtLeast(1.0) ?: 1.0
 
-    val bitmaps by produceState<Pair<ImageBitmap, ImageBitmap>?>(null, distribution, darkTheme) {
-        val front = renderMuscleSvgBitmap(context, distribution, maxVal, "-20 -20 1800 3240", darkTheme)
-        val back  = renderMuscleSvgBitmap(context, distribution, maxVal, "1748 -20 1800 3240", darkTheme)
+    val bitmaps by produceState<Pair<ImageBitmap, ImageBitmap>?>(null, distribution, heatMapPalette) {
+        val front = renderMuscleSvgBitmap(context, distribution, maxVal, "-20 -20 1800 3240", heatMapPalette)
+        val back  = renderMuscleSvgBitmap(context, distribution, maxVal, "1748 -20 1800 3240", heatMapPalette)
         value = Pair(front, back)
     }
 
@@ -853,6 +875,15 @@ private fun MuscleSilhouetteSection(
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
+        }
+        if (distribution.none { it.value > 0.0 }) {
+            Text(
+                text = "No training data for this period yet.",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
         when (val pair = bitmaps) {
             null -> Box(
@@ -909,11 +940,10 @@ private fun MuscleSilhouetteSection(
                     Text("Low", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(4.dp))
-                    (1..4).forEach { lvl ->
-                        val alpha = 0.15f + (lvl / 4f) * 0.75f
+                    muscleHeatMapLegendColors(heatMapPalette).forEach { legendColor ->
                         Canvas(modifier = Modifier.size(16.dp)) {
                             drawRoundRect(
-                                color = BrandBrass.copy(alpha = alpha),
+                                color = legendColor,
                                 cornerRadius = CornerRadius(3f, 3f),
                             )
                         }
@@ -962,20 +992,20 @@ private object AnalyticsLayout {
 }
 
 private val MODE_COLORS = mapOf(
-    "pump"       to ModeMeta("Pump",       AccentAmber),
-    "echo"       to ModeMeta("Echo",       BrandBrass),
-    "focused"    to ModeMeta("Focused",    Success),
-    "static"     to ModeMeta("Static",     BrandClay),
-    "eccentric"  to ModeMeta("Eccentric",  AccentRed),
-    "external"   to ModeMeta("External",   BrandOxblood),
-    "assessment" to ModeMeta("Assessment", Warning),
+    "pump"       to ModeMeta("Pump",       ChartOrangeMedium),
+    "echo"       to ModeMeta("Echo",       ChartOrangeHigh),
+    "focused"    to ModeMeta("Focused",    ChartGrayLight),
+    "static"     to ModeMeta("Static",     ChartGrayMedium),
+    "eccentric"  to ModeMeta("Eccentric",  ChartOrangeLow),
+    "external"   to ModeMeta("External",   ChartGrayDark),
+    "assessment" to ModeMeta("Assessment", ChartOrangeMedium),
 )
 
 private val ECHO_COLORS = mapOf(
-    "hard" to BrandClay,
-    "harder" to AccentAmber,
-    "hardest" to AccentRed,
-    "epic" to BrandBrass,
+    "hard" to ChartGrayMedium,
+    "harder" to ChartOrangeLow,
+    "hardest" to ChartOrangeMedium,
+    "epic" to ChartOrangeHigh,
 )
 
 @Composable

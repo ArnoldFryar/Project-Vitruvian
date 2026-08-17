@@ -28,7 +28,7 @@ import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.VideoCache
 import com.example.vitruvianredux.data.ThemeStore
 import com.example.vitruvianredux.data.UnitsStore
-import com.example.vitruvianredux.data.HistorySeedManager
+import com.example.vitruvianredux.data.CanonicalProjectionRecovery
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.AppScaffold
 import com.example.vitruvianredux.presentation.util.loadAllExercises
@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
 
             WorkoutHistoryStore.init(applicationContext)
             AnalyticsStore.init(applicationContext)
-            HistorySeedManager.seed(applicationContext)
+            CanonicalProjectionRecovery.recoverPending()
             runCatching {
                 AnalyticsStore.backfillExerciseSetSnapshots(loadAllExercises(applicationContext))
             }.onFailure {
@@ -145,7 +145,13 @@ class MainActivity : ComponentActivity() {
             if (HevyStore.enabled && HevyStore.apiKey.isNotBlank()) {
                 val unsyncedHevy = recentSessions.filter { !HevySyncStore.isSynced(it.id) }
                 unsyncedHevy.forEachIndexed { index, session ->
-                    HevyClient.pushSession(session)
+                    val result = HevyClient.pushSession(session)
+                    SessionLogRepository.markIntegration(
+                        session.id,
+                        "HEVY",
+                        result.isSuccess,
+                        result.exceptionOrNull()?.message,
+                    )
                     if (index < unsyncedHevy.lastIndex) kotlinx.coroutines.delay(400L)
                 }
             }
@@ -171,6 +177,12 @@ class MainActivity : ComponentActivity() {
                         )
                     )
                     if (ok) HealthConnectSyncStore.markSynced(session.id)
+                    SessionLogRepository.markIntegration(
+                        session.id,
+                        "HEALTH_CONNECT",
+                        ok,
+                        if (ok) null else "Health Connect retry failed",
+                    )
                 }
             }
         }

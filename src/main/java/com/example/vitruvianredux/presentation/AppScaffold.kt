@@ -53,6 +53,14 @@ import com.example.vitruvianredux.data.WorkoutSessionRecorder
 import com.example.vitruvianredux.data.WorkoutSessionRecord
 import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.data.StrengthTestProtocolType
+import com.example.vitruvianredux.data.CanonicalWorkoutCommit
+import com.example.vitruvianredux.data.SessionLogRepository
+import com.example.vitruvianredux.data.CanonicalProjectionRecovery
+import com.example.vitruvianredux.data.PartnerCanonicalCommit
+import com.example.vitruvianredux.data.PartnerPersonalWorkoutCommit
+import com.example.vitruvianredux.data.PartnerWorkoutRepository
+import com.example.vitruvianredux.ble.session.WorkoutStats
+import com.example.vitruvianredux.partner.PartnerSetAttribution
 import com.example.vitruvianredux.sync.SyncServiceLocator
 import com.example.vitruvianredux.presentation.screen.OnboardingScreen
 import com.example.vitruvianredux.presentation.screen.ExercisePlayerScreen
@@ -94,6 +102,26 @@ fun AppScaffold() {
         // Application-scoped: same instances survive Activity recreation and tab switching.
         val bleVM = vitruvianApp.bleViewModel
         val workoutVM = vitruvianApp.workoutViewModel
+        val recoveryCheckpoint by workoutVM.recoveryCheckpoint.collectAsState()
+        val recoverySessionState by workoutVM.state.collectAsState()
+
+        if (recoveryCheckpoint != null && recoverySessionState.sessionPhase is SessionPhase.Idle) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(stringResource(R.string.recovery_workout_title)) },
+                text = { Text(stringResource(R.string.recovery_workout_message)) },
+                confirmButton = {
+                    Button(onClick = { workoutVM.resumeRecoveredWorkout() }) {
+                        Text(stringResource(R.string.recovery_workout_resume))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { workoutVM.discardRecoveredWorkout() }) {
+                        Text(stringResource(R.string.recovery_workout_discard))
+                    }
+                },
+            )
+        }
 
         // LAN sync manager for mDNS-based hub discovery
         val lanSyncManager = remember(activity) {
@@ -125,7 +153,7 @@ fun AppScaffold() {
         // Bottom bar should only show on top-level tabs
         val showBottomBar = currentRoute in setOf(
             Route.Activity.path, Route.Workout.path, Route.Coaching.path,
-            Route.ActivityHistory.path, Route.Profile.path,
+            Route.ActivityHistory.path,
         )
 
         var showDevicePicker by remember { mutableStateOf(false) }
@@ -160,6 +188,7 @@ fun AppScaffold() {
                             bleVM.disconnect()
                         },
                         onNavigateToAudit     = { nav.navigate(Route.Audit.path) },
+                        onNavigateToSettings  = { nav.navigate(Route.Profile.path) },
                     )
                 }
 
@@ -172,7 +201,9 @@ fun AppScaffold() {
                                 appHeader(
                                     when (currentRoute) {
                                         Route.Activity.path -> stringResource(R.string.screen_title_home)
-                                        Route.ActivityHistory.path -> stringResource(R.string.home_action_history)
+                                        Route.Workout.path -> stringResource(R.string.screen_title_train)
+                                        Route.Coaching.path -> stringResource(R.string.screen_title_programs)
+                                        Route.ActivityHistory.path -> stringResource(R.string.screen_title_progress)
                                         else -> null
                                     }
                                 )
@@ -195,10 +226,12 @@ fun AppScaffold() {
                         topBar = {
                             if (showBottomBar) {
                                 appHeader(
-                                    if (currentRoute == Route.ActivityHistory.path) {
-                                        stringResource(R.string.home_action_history)
-                                    } else {
-                                        null
+                                    when (currentRoute) {
+                                        Route.Activity.path -> stringResource(R.string.screen_title_home)
+                                        Route.Workout.path -> stringResource(R.string.screen_title_train)
+                                        Route.Coaching.path -> stringResource(R.string.screen_title_programs)
+                                        Route.ActivityHistory.path -> stringResource(R.string.screen_title_progress)
+                                        else -> null
                                     },
                                 )
                             }
@@ -254,19 +287,9 @@ fun AppScaffold() {
                         else -> null
                     }
 
-                    if (taggedExercise != null) {
-                        WorkoutHistoryStore.retagLatestJustLiftRecord(
-                            taggedExercise = taggedExercise,
-                            totalSets = stats.totalSets,
-                            totalReps = stats.totalReps,
-                            durationSec = stats.durationSec,
-                        )
-                    }
-
                     val completedStats = workoutVM.completedExerciseStats
                         .distinctBy { it.setIndex }
                     val exerciseNames = taggedExercise?.let { listOf(it.name) }
-                        ?: WorkoutHistoryStore.historyFlow.value.lastOrNull()?.exerciseNames
                         ?: completedStats.map { it.exerciseName }.distinct()
                     val exerciseSets = completedStats.map { es ->
                         val telemetry = com.example.vitruvianredux.data.TelemetryInsights.summarizeSamples(
@@ -313,6 +336,120 @@ fun AppScaffold() {
                         append(workoutVM.sessionNotes)
                     }
 
+                    val historyRows = ExerciseHistoryRecorder.buildRows(
+                        sessionId = sessionId,
+                        completedStats = completedStats,
+                        completedAtMs = endMs,
+                        originMode = trainingMode,
+                        taggedExercise = taggedExercise,
+                        setStrengthTestsBySetIndex = strengthTestSetMetadata,
+                        updatedAtMs = endMs,
+                    )
+                    val canonicalSession = WorkoutSessionRecorder.buildSessionLog(
+                        stats = stats,
+                        endTimeMs = endMs,
+                        sessionId = sessionId,
+                        programName = workoutVM.activeProgramName,
+                        dayName = workoutVM.activeDayName,
+                        startTimeMs = startMs,
+                        avgQualityScore = completedStats
+                            .mapNotNull { it.avgQualityScore }
+                            .takeIf { it.isNotEmpty() }
+                            ?.average()
+                            ?.toInt(),
+                        trainingMode = trainingMode,
+                        taggedExercise = taggedExercise,
+                        strengthTest = strengthTest,
+                    )
+                    val integrationDestinations = buildSet {
+                        add(CanonicalProjectionRecovery.DESTINATION)
+                        if (com.example.vitruvianredux.data.HevyStore.enabled &&
+                            com.example.vitruvianredux.data.HevyStore.apiKey.isNotBlank()) add("HEVY")
+                        if (HealthConnectStore.isEnabled) add("HEALTH_CONNECT")
+                        if (SyncServiceLocator.isInitialized) add("LAN_SYNC")
+                    }
+                    val partnerGroup = workoutVM.partnerGroup.value
+                    if (partnerGroup != null) {
+                        val attributedStats = PartnerSetAttribution.partition(partnerGroup, completedStats)
+                        val personalCommits = partnerGroup.participants.map { participant ->
+                            val personalStats = attributedStats.getValue(participant.participantId)
+                            val personalSessionId = PartnerWorkoutRepository.stablePersonalSessionId(
+                                partnerGroup.groupId,
+                                participant.participantId,
+                            )
+                            val personalWorkoutStats = WorkoutStats(
+                                totalReps = personalStats.sumOf { it.repsCompleted },
+                                totalVolumeKg = personalStats.sumOf { it.volumeKg.toDouble() }.toFloat(),
+                                durationSec = personalStats.sumOf { it.durationSec },
+                                totalSets = personalStats.count { !it.skipped },
+                                heaviestLiftLb = personalStats.maxOfOrNull {
+                                    it.weightPerCableLb * it.numCables
+                                } ?: 0,
+                                avgQualityScore = personalStats.mapNotNull { it.avgQualityScore }
+                                    .takeIf { it.isNotEmpty() }?.average()?.toInt(),
+                            )
+                            val personalHistory = ExerciseHistoryRecorder.buildRows(
+                                sessionId = personalSessionId,
+                                completedStats = personalStats,
+                                completedAtMs = endMs,
+                                originMode = "PARTNER",
+                                updatedAtMs = endMs,
+                            )
+                            val plan = partnerGroup.plans.firstOrNull {
+                                it.participantId == participant.participantId
+                            }
+                            val personalSession = WorkoutSessionRecorder.buildSessionLog(
+                                stats = personalWorkoutStats,
+                                endTimeMs = endMs,
+                                sessionId = personalSessionId,
+                                programName = plan?.programName ?: "Partner Workout",
+                                startTimeMs = startMs,
+                                avgQualityScore = personalWorkoutStats.avgQualityScore,
+                                trainingMode = "PARTNER",
+                            )
+                            PartnerPersonalWorkoutCommit(
+                                participantId = participant.participantId,
+                                workout = CanonicalWorkoutCommit(
+                                    session = personalSession,
+                                    exercises = personalHistory.exercises,
+                                    sets = personalHistory.sets,
+                                    integrationDestinations = integrationDestinations,
+                                ),
+                            )
+                        }
+                        PartnerWorkoutRepository.finalizePartnerWorkout(
+                            PartnerCanonicalCommit(
+                                group = partnerGroup,
+                                personalWorkouts = personalCommits,
+                            ),
+                        )
+                        com.example.vitruvianredux.data.ActivityStatsStore.seedFromAnalytics()
+                        return
+                    }
+                    SessionLogRepository.finalizeWorkout(
+                        CanonicalWorkoutCommit(
+                            session = canonicalSession,
+                            exercises = historyRows.exercises,
+                            sets = historyRows.sets,
+                            integrationDestinations = integrationDestinations,
+                        ),
+                    )
+                    WorkoutHistoryStore.record(
+                        WorkoutHistoryStore.WorkoutRecord(
+                            id = sessionId,
+                            date = java.time.Instant.ofEpochMilli(endMs)
+                                .atZone(java.time.ZoneId.systemDefault()).toLocalDate(),
+                            exerciseNames = exerciseNames,
+                            muscleGroups = taggedExercise?.muscleGroups
+                                ?: completedStats.flatMap { it.muscleGroups }.distinct(),
+                            totalVolumeKg = stats.totalVolumeKg.toDouble(),
+                            durationSec = stats.durationSec,
+                            totalSets = stats.totalSets,
+                            totalReps = stats.totalReps,
+                            programName = workoutVM.activeProgramName,
+                        ),
+                    )
+
                     AnalyticsRecorder.onSessionCompleted(
                         stats         = stats,
                         sessionId     = sessionId,
@@ -325,29 +462,10 @@ fun AppScaffold() {
                         strengthTest  = strengthTest,
                     )
                     com.example.vitruvianredux.data.ActivityStatsStore.seedFromAnalytics()
-
-                    ExerciseHistoryRecorder.record(
-                        sessionId      = sessionId,
-                        completedStats = completedStats,
-                        completedAtMs  = endMs,
-                        originMode     = trainingMode,
-                        taggedExercise = taggedExercise,
-                        setStrengthTestsBySetIndex = strengthTestSetMetadata,
-                    )
-
-                    WorkoutSessionRecorder.record(
-                        stats           = stats,
-                        sessionId       = sessionId,
-                        programName     = workoutVM.activeProgramName,
-                        dayName         = workoutVM.activeDayName,
-                        startTimeMs     = startMs,
-                        avgQualityScore = workoutVM.completedExerciseStats
-                            .mapNotNull { it.avgQualityScore }
-                            .takeIf { it.isNotEmpty() }
-                            ?.average()?.toInt(),
-                        trainingMode    = trainingMode,
-                        taggedExercise  = taggedExercise,
-                        strengthTest    = strengthTest,
+                    SessionLogRepository.markIntegration(
+                        sessionId = sessionId,
+                        destination = CanonicalProjectionRecovery.DESTINATION,
+                        succeeded = true,
                     )
 
                     if (SyncServiceLocator.isInitialized) {
@@ -373,6 +491,7 @@ fun AppScaffold() {
                                 failedOneRepMaxLb = strengthTest?.failedOneRepMaxLb,
                             )
                         )
+                        SessionLogRepository.markIntegration(sessionId, "LAN_SYNC", true)
                     }
 
                     if (HealthConnectStore.isEnabled) {
@@ -392,6 +511,12 @@ fun AppScaffold() {
                         )
                         val ok = HealthConnectManager.writeWorkoutSummary(summary)
                         if (ok) HealthConnectSyncStore.markSynced(sessionId)
+                        SessionLogRepository.markIntegration(
+                            sessionId,
+                            "HEALTH_CONNECT",
+                            ok,
+                            if (ok) null else "Health Connect write failed or permission unavailable",
+                        )
                     }
                 }
                 
@@ -441,6 +566,7 @@ private fun AppTopBar(
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
     onNavigateToAudit: () -> Unit,
+    onNavigateToSettings: () -> Unit,
 ) {
     // Hidden dev entry — long-press "Project Vitruvian" 5× to open Audit screen
     var longPressCount by remember { mutableIntStateOf(0) }
@@ -579,9 +705,18 @@ private fun AppTopBar(
                         if (!veryCompact) Text(stringResource(R.string.trainer_connect), style = MaterialTheme.typography.labelLarge)
                     }
                 }
+                }
+                IconButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier.size(AppDimens.Component.buttonHeight),
+                ) {
+                    Icon(
+                        AppIcons.AccountCircle,
+                        contentDescription = stringResource(R.string.cd_settings),
+                    )
+                }
             }
             }
-        }
         // Bottom hairline grounds the header against page content
         Divider(
             color     = MaterialTheme.colorScheme.outline,

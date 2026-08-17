@@ -154,6 +154,7 @@ object SyncServiceLocator {
                 val histKey = "${sessionDate}_${log.totalSets}_${log.totalReps}_${log.durationSec}"
                 if (histKey in existingHistDates) continue
                 val histRecord = WorkoutHistoryStore.WorkoutRecord(
+                    id            = log.id,
                     date          = sessionDate,
                     exerciseNames = log.exerciseNames,
                     muscleGroups  = emptyList(),

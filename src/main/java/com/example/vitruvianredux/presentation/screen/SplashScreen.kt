@@ -80,9 +80,9 @@ fun SplashScreen(
             .background(
                 Brush.radialGradient(
                     colorStops = arrayOf(
-                        0.0f to Surface3,
-                        0.55f to Surface1,
-                        1.0f to Surface0,
+                        0.0f to Graphite,
+                        0.55f to Charcoal,
+                        1.0f to NearBlack,
                     ),
                     radius = 900f,
                 )
@@ -94,13 +94,13 @@ fun SplashScreen(
             modifier = Modifier
                 .size(220.dp)
                 .graphicsLayer { scaleX = ring1; scaleY = ring1; this.alpha = ring1Alpha }
-                .background(BrandCyan.copy(alpha = 1f), CircleShape),
+                .background(PrimaryOrange, CircleShape),
         )
         Box(
             modifier = Modifier
                 .size(220.dp)
                 .graphicsLayer { scaleX = ring2; scaleY = ring2; this.alpha = ring2Alpha }
-                .background(BrandCyan.copy(alpha = 1f), CircleShape),
+                .background(PrimaryOrange, CircleShape),
         )
 
         // ── Content ───────────────────────────────────────────────────
@@ -115,7 +115,7 @@ fun SplashScreen(
                 text = "V",
                 fontSize = 88.sp,
                 fontWeight = FontWeight.Black,
-                color = BrandCyan,
+                color = PrimaryOrange,
                 letterSpacing = (-4).sp,
             )
 
@@ -133,7 +133,7 @@ fun SplashScreen(
                 text = "TRAIN SMARTER",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = BrandCyan.copy(alpha = 0.7f),
+                color = PrimaryOrange.copy(alpha = 0.7f),
                 letterSpacing = AppDimens.LetterSpacing.heroTitle,
             )
         }

@@ -47,6 +47,12 @@
 
     <!-- ── Screen titles ───────────────────────────────────────────────── -->
     <string name="screen_title_home">Today</string>
+    <string name="screen_title_train">Train</string>
+    <string name="screen_title_progress">Progress</string>
+    <string name="recovery_workout_title">Resume workout?</string>
+    <string name="recovery_workout_message">An unfinished workout was found. Resume returns to the next Set Ready screen; the trainer will not apply resistance until you press Go.</string>
+    <string name="recovery_workout_resume">Resume workout</string>
+    <string name="recovery_workout_discard">Discard</string>
     <string name="screen_title_workout">Workout</string>
     <string name="screen_title_programs">Programs</string>
     <string name="screen_title_device">Device</string>
@@ -477,7 +483,6 @@
     <string name="complete_total_sets">Total Sets</string>
     <string name="complete_heaviest">Heaviest Lift</string>
     <string name="complete_quality">Lift Quality</string>
-    <string name="complete_chart_placeholder">Performance insights — coming soon</string>
     <string name="complete_notes_label">Workout notes (optional)</string>
     <string name="complete_notes_placeholder">How did it go? Any PRs?</string>
     <string name="complete_done">Done</string>

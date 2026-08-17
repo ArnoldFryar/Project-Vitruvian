@@ -9,6 +9,25 @@ import org.junit.Test
 class WorkoutAudioOutputRouterTest {
 
     @Test
+    fun `dynamic athlete cue routes through spoken output`() {
+        val router = WorkoutAudioOutputRouter()
+        val utterance = WorkoutAudioUtterance(
+            text = "Alex, get ready.",
+            utteranceId = "athlete_ready",
+            queueMode = AUDIO_QUEUE_ADD,
+            marksCriticalWindow = true,
+        )
+        assertEquals(
+            WorkoutAudioPlaybackRequest.Spoken(utterance),
+            router.route(
+                WorkoutAudioEvent.AthleteReady("Alex", "Sam"),
+                utterance,
+                VoiceCoachingSettings(),
+            ),
+        )
+    }
+
+    @Test
     fun `recorded mode uses rep clip instead of tts`() {
         val router = WorkoutAudioOutputRouter()
         val utterance = WorkoutAudioUtterance(
@@ -190,7 +209,7 @@ class WorkoutAudioOutputRouterTest {
 
         assertEquals(
             WorkoutAudioPlaybackRequest.Recorded(
-                RecordedAudioPlan(listOf("voice_count_10"), AUDIO_QUEUE_ADD),
+                RecordedAudioPlan(listOf("voice_count_10"), AUDIO_QUEUE_FLUSH),
             ),
             focusRequest,
         )
@@ -199,6 +218,30 @@ class WorkoutAudioOutputRouterTest {
                 RecordedAudioPlan(listOf("voice_count_06"), AUDIO_QUEUE_ADD),
             ),
             fallbackRequest,
+        )
+    }
+
+    @Test
+    fun `rest countdown five replaces stale queued seconds`() {
+        val router = WorkoutAudioOutputRouter()
+        val utterance = WorkoutAudioUtterance(
+            text = "5",
+            utteranceId = "rest_5",
+            queueMode = AUDIO_QUEUE_ADD,
+            marksCriticalWindow = true,
+        )
+
+        val request = router.route(
+            event = WorkoutAudioEvent.RestCountdown(5),
+            utterance = utterance,
+            settings = VoiceCoachingSettings(recordedCountStyle = RecordedCountStyle.BASE),
+        )
+
+        assertEquals(
+            WorkoutAudioPlaybackRequest.Recorded(
+                RecordedAudioPlan(listOf("voice_count_05"), AUDIO_QUEUE_FLUSH),
+            ),
+            request,
         )
     }
 

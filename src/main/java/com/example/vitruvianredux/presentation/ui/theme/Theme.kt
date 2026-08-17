@@ -17,66 +17,70 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.example.vitruvianredux.presentation.ui.AppDimens
 
-// ── Light scheme — warm paper with polished-brass primary ──────────────
+// Light scheme — off-white canvas, white surfaces, accessible orange interaction.
 private val LightColors = lightColorScheme(
-    primary              = PrimaryCopper,
+    primary              = DarkAccessibleOrange,
     onPrimary            = White,
-    primaryContainer     = Color(0xFFE9D7C1),
-    onPrimaryContainer   = PrimaryText,
-    secondary            = Color(0xFF555A53),
+    primaryContainer     = Color(0xFFFFDEC9),
+    onPrimaryContainer   = DarkAccessibleOrange,
+    secondary            = Graphite,
     onSecondary          = White,
-    secondaryContainer   = Color(0xFFE6E2D9),
-    onSecondaryContainer = PrimaryText,
-    tertiary             = PerformanceTeal,
+    secondaryContainer   = LightGray,
+    onSecondaryContainer = NearBlack,
+    tertiary             = DarkAccessibleOrange,
     onTertiary           = White,
-    tertiaryContainer    = Color(0xFFC8E1E2),
-    onTertiaryContainer  = PrimaryText,
+    tertiaryContainer    = Color(0xFFFFE7D8),
+    onTertiaryContainer  = NearBlack,
     background           = LightCanvas,
-    onBackground         = PrimaryText,
+    onBackground         = NearBlack,
     surface              = LightSurface,
-    onSurface            = PrimaryText,
+    onSurface            = NearBlack,
     surfaceVariant       = LightSurface2,
-    onSurfaceVariant     = Color(0xFF5D625B),
-    outline              = Color(0xFF777B74),
-    outlineVariant       = Color(0xFFD7D2C8),
+    onSurfaceVariant     = Color(0xFF555B5F),
+    outline              = Color(0xFF6B7175),
+    outlineVariant       = LightGray,
     error                = SemanticError,
     onError              = White,
-    errorContainer       = Color(0xFFF2D9D5),
-    onErrorContainer     = PrimaryText,
+    errorContainer       = Color(0xFFFFDAD6),
+    onErrorContainer     = Color(0xFF410002),
     scrim                = Black,
+    inverseSurface       = Charcoal,
+    inverseOnSurface     = OffWhite,
+    inversePrimary       = BrightActiveOrange,
+    surfaceTint          = PrimaryOrange,
 )
 
-// ── Dark scheme — espresso obsidian + polished-brass primary ───────────
+// Dark scheme — near-black canvas, charcoal/graphite surfaces, bright active orange.
 private val DarkColors = darkColorScheme(
-    primary              = DarkCopper,
-    onPrimary            = DarkCanvas,
-    primaryContainer     = Color(0xFF49341E),
-    onPrimaryContainer   = Color(0xFFF2D7B8),
-    secondary            = Color(0xFFC5C9C1),
-    onSecondary          = DarkCanvas,
-    secondaryContainer   = Color(0xFF2A2E28),
-    onSecondaryContainer = Gray50,
-    tertiary             = DarkPerformanceTeal,
-    onTertiary           = DarkCanvas,
-    tertiaryContainer    = Color(0xFF1B3B3D),
-    onTertiaryContainer  = Color(0xFFBDE5E7),
+    primary              = BrightActiveOrange,
+    onPrimary            = NearBlack,
+    primaryContainer     = Color(0xFF5A2608),
+    onPrimaryContainer   = Color(0xFFFFD9C2),
+    secondary            = LightGray,
+    onSecondary          = NearBlack,
+    secondaryContainer   = Graphite,
+    onSecondaryContainer = OffWhite,
+    tertiary             = PrimaryOrange,
+    onTertiary           = NearBlack,
+    tertiaryContainer    = Color(0xFF4B230D),
+    onTertiaryContainer  = Color(0xFFFFD9C2),
     background           = DarkCanvas,
-    onBackground         = Gray50,
+    onBackground         = OffWhite,
     surface              = DarkSurface,
-    onSurface            = Gray50,
+    onSurface            = OffWhite,
     surfaceVariant       = Surface2,
-    onSurfaceVariant     = Gray300,
-    outline              = Gray500,
-    outlineVariant       = Gray700,
+    onSurfaceVariant     = LightGray,
+    outline              = MediumGray,
+    outlineVariant       = Graphite,
     error                = DarkError,
-    onError              = DarkCanvas,
+    onError              = NearBlack,
     errorContainer       = ErrorContainer,
     onErrorContainer     = Color(0xFFFFDAD5),
     scrim                = Black,
-    inverseSurface       = Gray50,
+    inverseSurface       = OffWhite,
     inverseOnSurface     = Surface0,
-    inversePrimary       = PrimaryCopper,
-    surfaceTint          = DarkCopper,
+    inversePrimary       = DarkAccessibleOrange,
+    surfaceTint          = BrightActiveOrange,
 )
 
 // ── Shapes — disciplined 4/8/16 system ─────────────────────────────────
@@ -130,7 +134,7 @@ fun VitruvianTheme(
         else      -> LightColors
     }
 
-    // Push status bar / nav bar into our dark surface color
+    // Keep system bars aligned with the active light or dark canvas.
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

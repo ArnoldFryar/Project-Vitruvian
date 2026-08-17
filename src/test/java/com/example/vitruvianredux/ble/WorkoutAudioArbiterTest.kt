@@ -14,6 +14,23 @@ import org.junit.Test
 class WorkoutAudioArbiterTest {
 
     @Test
+    fun `athlete transition names owner but never interrupts critical countdown`() {
+        val settings = VoiceCoachingSettings()
+        val arbiter = WorkoutAudioArbiter()
+        val five = arbiter.nextUtterance(WorkoutAudioEvent.RestCountdown(5), settings, 10_000L)
+        val tooSoon = arbiter.nextUtterance(
+            WorkoutAudioEvent.AthleteReady("Alex", "Sam"), settings, 10_400L,
+        )
+        val later = arbiter.nextUtterance(
+            WorkoutAudioEvent.AthleteReady("Alex", "Sam"), settings, 11_000L,
+        )
+
+        assertEquals("5", five?.text)
+        assertNull(tooSoon)
+        assertEquals("Alex, get ready. Sam is up next.", later?.text)
+    }
+
+    @Test
     fun `rep counts are monotonic de duplicated and queued`() {
         val arbiter = WorkoutAudioArbiter()
         val settings = VoiceCoachingSettings()

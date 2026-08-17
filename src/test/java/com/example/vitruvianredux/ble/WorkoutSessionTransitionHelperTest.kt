@@ -11,6 +11,19 @@ import org.junit.Test
 class WorkoutSessionTransitionHelperTest {
 
     @Test
+    fun `partner set numbering stays personal through interleaved exercise`() {
+        val sets = listOf(
+            PlayerSetParams(participantId = "alex", exerciseName = "Squat"),
+            PlayerSetParams(participantId = "sam", exerciseName = "Squat"),
+            PlayerSetParams(participantId = "alex", exerciseName = "Squat"),
+            PlayerSetParams(participantId = "sam", exerciseName = "Squat"),
+        )
+        assertEquals(0 to 2, perExerciseSetInfoForSets(sets, 0))
+        assertEquals(0 to 2, perExerciseSetInfoForSets(sets, 1))
+        assertEquals(1 to 2, perExerciseSetInfoForSets(sets, 2))
+    }
+
+    @Test
     fun `nextStepAfterCompletedSet preserves flat index and per exercise numbering`() {
         val sets = listOf(
             PlayerSetParams(exerciseName = "Bench Press"),

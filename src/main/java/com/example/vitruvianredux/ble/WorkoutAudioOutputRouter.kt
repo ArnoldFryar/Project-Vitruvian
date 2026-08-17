@@ -11,6 +11,7 @@ sealed interface WorkoutAudioPlaybackRequest {
     data object None : WorkoutAudioPlaybackRequest
 
     data class Recorded(val plan: RecordedAudioPlan) : WorkoutAudioPlaybackRequest
+    data class Spoken(val utterance: WorkoutAudioUtterance) : WorkoutAudioPlaybackRequest
 }
 
 class WorkoutAudioOutputRouter {
@@ -39,6 +40,9 @@ class WorkoutAudioOutputRouter {
     ): WorkoutAudioPlaybackRequest {
         if (utterance == null) return WorkoutAudioPlaybackRequest.None
 
+        if (event is WorkoutAudioEvent.AthleteReady || event is WorkoutAudioEvent.AthleteSetComplete) {
+            return WorkoutAudioPlaybackRequest.Spoken(utterance)
+        }
         val recordedPlan = recordedPlanFor(event, settings)
         return recordedPlan?.let(WorkoutAudioPlaybackRequest::Recorded)
             ?: WorkoutAudioPlaybackRequest.None
@@ -80,13 +84,17 @@ class WorkoutAudioOutputRouter {
         is WorkoutAudioEvent.RestCountdown -> repPlan(
             event.seconds,
             settings.recordedCountStyle,
-            AUDIO_QUEUE_ADD,
+            // Countdown speech must stay aligned with the visible timer. If audio
+            // startup is delayed, replace the stale second instead of building a
+            // queue that can be cut off when rest ends.
+            AUDIO_QUEUE_FLUSH,
         )
         is WorkoutAudioEvent.DurationEnding -> durationPlan(event.seconds, settings)
         WorkoutAudioEvent.Ready -> singleClip(generatedStyleClip(settings, "ready", "ready"), AUDIO_QUEUE_ADD)
         WorkoutAudioEvent.SetStarted -> singleClip(generatedStyleClip(settings, "set_started", "set_started"), AUDIO_QUEUE_ADD)
         WorkoutAudioEvent.SetComplete -> singleClip(generatedStyleClip(settings, "set_complete", "set_complete"), AUDIO_QUEUE_ADD)
         WorkoutAudioEvent.ConnectionLost -> singleClip(generatedStyleClip(settings, "connection_lost", "connection_lost"), AUDIO_QUEUE_FLUSH)
+        is WorkoutAudioEvent.AthleteReady, is WorkoutAudioEvent.AthleteSetComplete -> null
         is WorkoutAudioEvent.Coaching -> coachingPlan(event.cue, settings)
     }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.ActivityStatsStore
+import com.example.vitruvianredux.data.SessionLogRepository
+import com.example.vitruvianredux.data.WorkoutHistoryStore
+import com.example.vitruvianredux.sync.SyncServiceLocator
 import com.example.vitruvianredux.data.TelemetryInsights
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.AppErrorState
@@ -38,6 +43,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * Premium Session Detail screen — shows a single completed workout session.
@@ -53,6 +59,36 @@ fun SessionDetailScreen(
     val session = remember(logs, sessionId) { AnalyticsStore.sessionById(sessionId) }
     val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
     val zone = ZoneId.systemDefault()
+    val scope = rememberCoroutineScope()
+    var showDeleteConfirmation by rememberSaveable { mutableStateOf(false) }
+
+    if (showDeleteConfirmation && session != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete workout?") },
+            text = { Text("This removes the session and recalculates progress, records, and trends from the remaining stored sets.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmation = false
+                        scope.launch {
+                            SessionLogRepository.deleteWorkout(sessionId)
+                            AnalyticsStore.deleteSession(sessionId)
+                            WorkoutHistoryStore.deleteById(sessionId)
+                            if (SyncServiceLocator.isInitialized) {
+                                SyncServiceLocator.sessionRepo.delete(sessionId)
+                            }
+                            ActivityStatsStore.seedFromAnalytics()
+                            onBack()
+                        }
+                    },
+                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -61,6 +97,13 @@ fun SessionDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(AppIcons.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (session != null) {
+                        IconButton(onClick = { showDeleteConfirmation = true }) {
+                            Icon(AppIcons.Delete, contentDescription = "Delete workout")
+                        }
                     }
                 },
             )

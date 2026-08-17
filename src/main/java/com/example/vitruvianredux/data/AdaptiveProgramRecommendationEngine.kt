@@ -8,6 +8,8 @@ sealed interface AdaptiveProgramRecommendation {
     val title: String
     val reason: String
     val evidence: String
+    val confidence: RecommendationConfidence
+    val dataSufficiency: String
 
     data class LoadChange(
         val itemIndex: Int,
@@ -16,6 +18,8 @@ sealed interface AdaptiveProgramRecommendation {
         val proposedWeightLb: Int,
         override val reason: String,
         override val evidence: String,
+        override val confidence: RecommendationConfidence = RecommendationConfidence.MODERATE,
+        override val dataSufficiency: String = "Two or more eligible sessions",
     ) : AdaptiveProgramRecommendation {
         override val key = "load:$itemIndex:$proposedWeightLb"
         override val eyebrow = "LOAD"
@@ -29,6 +33,8 @@ sealed interface AdaptiveProgramRecommendation {
         val proposedSets: Int,
         override val reason: String,
         override val evidence: String,
+        override val confidence: RecommendationConfidence = RecommendationConfidence.MODERATE,
+        override val dataSufficiency: String = "Two or more eligible sessions",
     ) : AdaptiveProgramRecommendation {
         override val key = "volume:$itemIndex:$proposedSets"
         override val eyebrow = "VOLUME"
@@ -40,6 +46,8 @@ sealed interface AdaptiveProgramRecommendation {
         val exerciseName: String,
         override val reason: String,
         override val evidence: String,
+        override val confidence: RecommendationConfidence = RecommendationConfidence.MODERATE,
+        override val dataSufficiency: String = "Repeated behavior across recent sessions",
     ) : AdaptiveProgramRecommendation {
         override val key = "substitution:$itemIndex"
         override val eyebrow = "SUBSTITUTION"
@@ -50,11 +58,19 @@ sealed interface AdaptiveProgramRecommendation {
         val proposedState: ProgramDeloadState,
         override val reason: String,
         override val evidence: String,
+        override val confidence: RecommendationConfidence = RecommendationConfidence.HIGH,
+        override val dataSufficiency: String = "At least five sessions in seven days",
     ) : AdaptiveProgramRecommendation {
         override val key = "deload:${proposedState.percentOff}:${proposedState.remainingSessions}"
         override val eyebrow = "RECOVERY"
         override val title = "Run a ${proposedState.remainingSessions}-session deload"
     }
+}
+
+enum class RecommendationConfidence(val label: String) {
+    LOW("Low confidence"),
+    MODERATE("Moderate confidence"),
+    HIGH("High confidence"),
 }
 
 data class AdaptiveProgramReview(
@@ -193,6 +209,12 @@ object AdaptiveProgramRecommendationEngine {
                                     proposedWeightLb = proposed,
                                     reason = "Rep quality is below the threshold for productive load progression.",
                                     evidence = "Average quality $averageQuality / 100 across ${qualityScores.size} scored sets",
+                                    confidence = if (qualityScores.size >= 4) {
+                                        RecommendationConfidence.HIGH
+                                    } else {
+                                        RecommendationConfidence.MODERATE
+                                    },
+                                    dataSufficiency = "${qualityScores.size} scored working sets",
                                 ),
                             )
                             return@forEachIndexed
@@ -207,6 +229,12 @@ object AdaptiveProgramRecommendationEngine {
                                 proposedSets = item.sets - 1,
                                 reason = "Quality is serviceable but fades under the current amount of work.",
                                 evidence = "Average quality $averageQuality / 100 across ${qualityScores.size} scored sets",
+                                confidence = if (qualityScores.size >= 4) {
+                                    RecommendationConfidence.HIGH
+                                } else {
+                                    RecommendationConfidence.MODERATE
+                                },
+                                dataSufficiency = "${qualityScores.size} scored working sets",
                             ),
                         )
                     }
