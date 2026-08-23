@@ -35,6 +35,7 @@ import com.example.vitruvianredux.presentation.components.rememberExerciseVideoP
 import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.AnalyticsMath
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.ProgressionResult
@@ -424,7 +425,7 @@ fun ExercisePlayerScreen(
                     val completePhase = phase as? SessionPhase.WorkoutComplete
                     if (completePhase != null) {
                         val completedPartnerGroup = partnerGroup
-                        if (completedPartnerGroup != null) {
+                        if (completedPartnerGroup != null && !workoutVM.isMultiDevicePartnerSession) {
                             PartnerWorkoutCompleteContent(
                                 group = completedPartnerGroup,
                                 completedStats = workoutVM.completedExerciseStats,
@@ -469,10 +470,10 @@ fun ExercisePlayerScreen(
                             onPromoteDeloadWeights = if (isFinalDeloadSession) {
                                 { scope.launch { finalizeAndExit(saveProgramChanges = false, promoteDeloadWeights = true) } }
                             } else null,
-                            avgQualityScore = workoutVM.completedExerciseStats
-                                .mapNotNull { it.avgQualityScore }
-                                .takeIf { it.isNotEmpty() }
-                                ?.average()?.toInt(),
+                            avgQualityScore = AnalyticsMath.repWeightedQuality(
+                                workoutVM.completedExerciseStats.filterNot { it.skipped }
+                                    .map { it.avgQualityScore to it.repsCompleted },
+                            ),
                             notes        = workoutVM.sessionNotes,
                             onNotesChange = { workoutVM.sessionNotes = it },
                             isJustLift   = workoutVM.isJustLiftSession,
@@ -496,6 +497,9 @@ fun ExercisePlayerScreen(
                                     volumeKg     = es.volumeKg,
                                     avgQualityScore = es.avgQualityScore,
                                     numCables    = es.numCables,
+                                    plannedNumCables = es.plannedNumCables,
+                                    cableExecutionMode = es.cableExecutionMode.name,
+                                    cableDetectionConfidence = es.cableDetectionConfidence,
                                     skipped      = es.skipped,
                                 )
                             },
@@ -625,8 +629,15 @@ fun ExercisePlayerScreen(
                             onSkipSet      = {
                                 if (partnerGroup != null) workoutVM.skipCurrentPartnerSet() else workoutVM.skipSet()
                             },
-                            goEnabled = partnerGroup == null || isReady || isBodyweight,
-                            goText = if (partnerGroup != null && !isReady && !isBodyweight) {
+                            goEnabled = when {
+                                isBodyweight -> true
+                                workoutVM.isMultiDevicePartnerSession -> workoutVM.isLocalPartnerTurnReady
+                                partnerGroup != null -> isReady
+                                else -> true
+                            },
+                            goText = if (workoutVM.isMultiDevicePartnerSession && !workoutVM.isLocalPartnerTurnReady) {
+                                "Waiting for trainer handoff"
+                            } else if (partnerGroup != null && !isReady && !isBodyweight) {
                                 "Connect trainer to start"
                             } else null,
                             onRepeatPreviousSet = ::repeatLastSetWithFeedback,
@@ -887,6 +898,7 @@ fun ExercisePlayerScreen(
                 nextParticipant = workoutVM.nextPartner,
                 phase = phase,
                 connected = isReady,
+                distributed = workoutVM.isMultiDevicePartnerSession,
                 onChangeAssignment = workoutVM::changePartnerAssignment,
                 onSkip = workoutVM::skipCurrentPartnerSet,
                 onParticipantLeaves = workoutVM::partnerLeaves,
@@ -942,7 +954,9 @@ internal fun PartnerWorkoutCompleteContent(
                             SummaryMetric("Reps", stats.sumOf { it.repsCompleted }.toString())
                             SummaryMetric("Volume", "%.1f kg".format(stats.sumOf { it.volumeKg.toDouble() }))
                         }
-                        val quality = stats.mapNotNull { it.avgQualityScore }.takeIf { it.isNotEmpty() }?.average()?.toInt()
+                        val quality = AnalyticsMath.repWeightedQuality(
+                            stats.filterNot { it.skipped }.map { it.avgQualityScore to it.repsCompleted },
+                        )
                         Text(
                             quality?.let { "Average rep quality $it" } ?: "Rep quality unavailable",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -979,6 +993,7 @@ internal fun PartnerCockpitPanel(
     nextParticipant: com.example.vitruvianredux.partner.PartnerWorkoutParticipant?,
     phase: SessionPhase,
     connected: Boolean,
+    distributed: Boolean = false,
     onChangeAssignment: (String) -> Boolean,
     onSkip: () -> Unit,
     onParticipantLeaves: (String) -> Boolean,
@@ -1025,7 +1040,7 @@ internal fun PartnerCockpitPanel(
                 )
                 AssistChip(
                     onClick = {},
-                    label = { Text(if (connected) "Trainer connected" else "Trainer disconnected") },
+                    label = { Text(if (connected) "Trainer ready on this device" else if (distributed) "Trainer assigned by turn" else "Trainer disconnected") },
                     leadingIcon = {
                         Icon(
                             if (connected) AppIcons.CheckCircle else AppIcons.Warning,
@@ -1041,7 +1056,7 @@ internal fun PartnerCockpitPanel(
                     val isCurrent = assignment.assignmentId == currentAssignment?.assignmentId
                     Surface(
                         onClick = { if (phase is SessionPhase.SetReady) onChangeAssignment(assignment.assignmentId) },
-                        enabled = phase is SessionPhase.SetReady,
+                        enabled = phase is SessionPhase.SetReady && !distributed,
                         color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                         shape = MaterialTheme.shapes.medium,
                     ) {
@@ -1063,14 +1078,14 @@ internal fun PartnerCockpitPanel(
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                OutlinedButton(onClick = onSkip, modifier = Modifier.fillMaxWidth(), enabled = phase is SessionPhase.SetReady) {
+                OutlinedButton(onClick = onSkip, modifier = Modifier.fillMaxWidth(), enabled = phase is SessionPhase.SetReady && !distributed) {
                     Text("Skip set")
                 }
                 currentParticipant?.let { athlete ->
                     TextButton(
                         onClick = { onParticipantLeaves(athlete.participantId) },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = phase is SessionPhase.SetReady,
+                        enabled = phase is SessionPhase.SetReady && !distributed,
                     ) { Text("${athlete.displayName} leaves workout") }
                 }
                 Button(
@@ -1107,7 +1122,7 @@ internal fun PartnerCockpitPanel(
                     )
                 }
                 Box {
-                    OutlinedButton(onClick = { rotationOpen = true }, enabled = phase is SessionPhase.SetReady) {
+                    OutlinedButton(onClick = { rotationOpen = true }, enabled = phase is SessionPhase.SetReady && !distributed) {
                         Text("Change")
                     }
                     DropdownMenu(expanded = rotationOpen, onDismissRequest = { rotationOpen = false }) {

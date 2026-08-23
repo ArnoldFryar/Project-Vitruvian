@@ -245,9 +245,38 @@ object RemoteDataSource {
 
     suspend fun upsertSetHistory(records: List<RemoteSetHistory>) {
         if (records.isEmpty()) return
-        db.from("set_history").upsert(records)
+        try {
+            db.from("set_history").upsert(records)
+        } catch (e: Exception) {
+            // Rolling compatibility: older deployments do not yet expose the
+            // schema-12 cable evidence columns. Preserve sync availability;
+            // the richer payload begins flowing automatically after migration.
+            Timber.tag(TAG).w(e, "Cable evidence columns unavailable; using legacy set payload")
+            db.from("set_history").upsert(records.map { it.toLegacy() })
+        }
         Timber.tag(TAG).d("upserted ${records.size} set history record(s)")
     }
+
+    private fun RemoteSetHistory.toLegacy() = RemoteSetHistoryLegacy(
+        id = id,
+        userId = userId,
+        exerciseHistoryId = exerciseHistoryId,
+        sessionId = sessionId,
+        exerciseName = exerciseName,
+        setIndex = setIndex,
+        reps = reps,
+        weightLb = weightLb,
+        volumeKg = volumeKg,
+        durationSec = durationSec,
+        avgForce = avgForce,
+        peakForce = peakForce,
+        echoLevel = echoLevel,
+        eccentricLoadPct = eccentricLoadPct,
+        originMode = originMode,
+        completedAt = completedAt,
+        deviceId = deviceId,
+        updatedAt = updatedAt,
+    )
 
     suspend fun getSetHistory(): List<RemoteSetHistory> {
         return try {

@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,14 +19,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.*
 import kotlinx.coroutines.delay
 
 /**
- * Premium splash — brand mark with radial glow rings, then [onFinished].
+ * Version 4 launch experience — strength orange over a precise teal signal.
  */
 @Composable
 fun SplashScreen(
@@ -80,7 +81,7 @@ fun SplashScreen(
             .background(
                 Brush.radialGradient(
                     colorStops = arrayOf(
-                        0.0f to Graphite,
+                        0.0f to Surface3,
                         0.55f to Charcoal,
                         1.0f to NearBlack,
                     ),
@@ -94,13 +95,13 @@ fun SplashScreen(
             modifier = Modifier
                 .size(220.dp)
                 .graphicsLayer { scaleX = ring1; scaleY = ring1; this.alpha = ring1Alpha }
-                .background(PrimaryOrange, CircleShape),
+                .background(ElectricOrange, CircleShape),
         )
         Box(
             modifier = Modifier
                 .size(220.dp)
                 .graphicsLayer { scaleX = ring2; scaleY = ring2; this.alpha = ring2Alpha }
-                .background(PrimaryOrange, CircleShape),
+                .background(DarkPerformanceTeal, CircleShape),
         )
 
         // ── Content ───────────────────────────────────────────────────
@@ -111,12 +112,11 @@ fun SplashScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
         ) {
-            Text(
-                text = "V",
-                fontSize = 88.sp,
-                fontWeight = FontWeight.Black,
-                color = PrimaryOrange,
-                letterSpacing = (-4).sp,
+            Icon(
+                painter = painterResource(R.drawable.ic_splash_mark),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(112.dp),
             )
 
             Text(
@@ -130,10 +130,10 @@ fun SplashScreen(
             Spacer(Modifier.height(AppDimens.Spacing.xs))
 
             Text(
-                text = "TRAIN SMARTER",
+                text = "KINETIC INTELLIGENCE",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = PrimaryOrange.copy(alpha = 0.7f),
+                color = DarkPerformanceTeal.copy(alpha = 0.82f),
                 letterSpacing = AppDimens.LetterSpacing.heroTitle,
             )
         }

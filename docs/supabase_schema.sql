@@ -235,6 +235,10 @@ CREATE TABLE IF NOT EXISTS set_history (
     set_index   INTEGER DEFAULT 0,
     reps        INTEGER DEFAULT 0,
     weight_lb   INTEGER DEFAULT 0,
+    num_cables INTEGER NOT NULL DEFAULT 2,
+    planned_num_cables INTEGER NOT NULL DEFAULT 2,
+    cable_execution_mode TEXT NOT NULL DEFAULT 'UNKNOWN',
+    cable_detection_confidence INTEGER NOT NULL DEFAULT 0,
     volume_kg   REAL DEFAULT 0,
     duration_sec INTEGER DEFAULT 0,
     avg_force   REAL DEFAULT 0,
@@ -253,6 +257,10 @@ ALTER TABLE set_history ADD COLUMN IF NOT EXISTS peak_force REAL DEFAULT 0;
 ALTER TABLE set_history ADD COLUMN IF NOT EXISTS echo_level TEXT;
 ALTER TABLE set_history ADD COLUMN IF NOT EXISTS eccentric_load_pct INTEGER DEFAULT 100;
 ALTER TABLE set_history ADD COLUMN IF NOT EXISTS origin_mode TEXT;
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS num_cables INTEGER NOT NULL DEFAULT 2;
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS planned_num_cables INTEGER NOT NULL DEFAULT 2;
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS cable_execution_mode TEXT NOT NULL DEFAULT 'UNKNOWN';
+ALTER TABLE set_history ADD COLUMN IF NOT EXISTS cable_detection_confidence INTEGER NOT NULL DEFAULT 0;
 
 ALTER TABLE set_history ENABLE ROW LEVEL SECURITY;
 

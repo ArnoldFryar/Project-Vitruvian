@@ -94,13 +94,15 @@ object RepQualityCalculator {
     ): RepQuality? {
         if (frames.size < MIN_FRAMES) return null
 
-        val effectiveSymmetryApplicable = symmetryApplicable && !isEffectivelySingleCable(frames)
+        // Cable count is workout configuration, not something telemetry should
+        // infer. On a bilateral exercise, one stationary side is a quality fault.
+        val effectiveSymmetryApplicable = symmetryApplicable
 
         val romReferenceMm = calibratedRomMm?.coerceAtLeast(MIN_CALIBRATED_ROM_MM) ?: REFERENCE_ROM_MM
-        val rom        = scoreRom(frames, romReferenceMm)
-        val tempo      = scoreTempo(frames)
+        val rom        = scoreRom(frames, romReferenceMm, effectiveSymmetryApplicable)
+        val tempo      = scoreTempo(frames, effectiveSymmetryApplicable)
         val symmetry   = if (effectiveSymmetryApplicable) scoreSymmetry(frames, symmetryForceBiasOverride) else 100
-        val smoothness = scoreSmoothness(frames)
+        val smoothness = scoreSmoothness(frames, effectiveSymmetryApplicable)
 
         val composite = if (profile != null) {
             val effectiveSymmetryWeight = if (effectiveSymmetryApplicable) profile.symmetryWeight else 0f
@@ -108,10 +110,10 @@ object RepQualityCalculator {
             ((rom * profile.romWeight +
              tempo * profile.tempoWeight +
              symmetry * effectiveSymmetryWeight +
-             smoothness * profile.smoothnessWeight) / totalWeight).toInt().coerceIn(0, 100)
+             smoothness * profile.smoothnessWeight) / totalWeight).roundToInt().coerceIn(0, 100)
         } else {
             val divisor = if (effectiveSymmetryApplicable) 4f else 3f
-            ((rom + tempo + smoothness + if (effectiveSymmetryApplicable) symmetry else 0) / divisor).toInt().coerceIn(0, 100)
+            ((rom + tempo + smoothness + if (effectiveSymmetryApplicable) symmetry else 0) / divisor).roundToInt().coerceIn(0, 100)
         }
 
         return RepQuality(
@@ -127,13 +129,25 @@ object RepQualityCalculator {
     // ── Sub-scores ──────────────────────────────────────────────────────────
 
     /** ROM: ratio of observed position swing to [romReferenceMm], clamped to 100. */
-    private fun scoreRom(frames: List<TelemetryFrame>, romReferenceMm: Float): Int {
+    private fun scoreRom(
+        frames: List<TelemetryFrame>,
+        romReferenceMm: Float,
+        bothCablesActive: Boolean,
+    ): Int {
         fun swing(selector: (TelemetryFrame) -> CableSample): Float {
             val positions = frames.map { selector(it).position }
             return (positions.max() - positions.min())
         }
-        val avgSwing = (swing { it.left } + swing { it.right }) / 2f
-        return ((avgSwing / romReferenceMm) * 100f).toInt().coerceIn(0, 100)
+        val leftSwing = swing { it.left }
+        val rightSwing = swing { it.right }
+        // A parked cable has zero swing. Averaging it into a single-cable rep
+        // would incorrectly cut the athlete's ROM score in half.
+        val observedSwing = if (bothCablesActive) {
+            (leftSwing + rightSwing) / 2f
+        } else {
+            maxOf(leftSwing, rightSwing)
+        }
+        return ((observedSwing / romReferenceMm) * 100f).roundToInt().coerceIn(0, 100)
     }
 
     /**
@@ -145,10 +159,8 @@ object RepQualityCalculator {
      * grades whether speed builds to one peak and then settles cleanly, rather
      * than repeatedly surging and crashing.
      */
-    private fun scoreTempo(frames: List<TelemetryFrame>): Int {
-        val speeds = frames.map { f ->
-            (abs(f.left.velocity) + abs(f.right.velocity)) / 2f
-        }
+    private fun scoreTempo(frames: List<TelemetryFrame>, bothCablesActive: Boolean): Int {
+        val speeds = movementSpeeds(frames, bothCablesActive)
         val peak = speeds.maxOrNull() ?: return 50
         if (peak < 1f) return 50 // essentially static — neutral score
 
@@ -257,11 +269,14 @@ object RepQualityCalculator {
         val rangeWeight = if (forceBiasOverride != null) 0.15f else 0.35f
         val progressWeight = if (forceBiasOverride != null) 0.10f else 0.20f
 
-        return ((forceBalanceScore * forceWeight) +
+        val weightedScore = ((forceBalanceScore * forceWeight) +
             (rangeBalanceScore * rangeWeight) +
             (progressScore * progressWeight))
             .roundToInt()
             .coerceIn(0, 100)
+        // Equal cable tension cannot erase a near-stationary side. A severe
+        // range mismatch is itself decisive bilateral evidence.
+        return if (metrics.rangeGapRatio >= 0.75f) minOf(weightedScore, 15) else weightedScore
     }
 
     private fun symmetryMetrics(frames: List<TelemetryFrame>, forceBiasOverride: Float? = null): SymmetryMetrics {
@@ -295,24 +310,6 @@ object RepQualityCalculator {
         )
     }
 
-    private fun averageSwing(frames: List<TelemetryFrame>): Float {
-        fun swing(selector: (TelemetryFrame) -> CableSample): Float {
-            val positions = frames.map { selector(it).position }
-            return positions.max() - positions.min()
-        }
-
-        return (swing { it.left } + swing { it.right }) / 2f
-    }
-
-    private fun isEffectivelySingleCable(frames: List<TelemetryFrame>): Boolean {
-        val leftRange = frames.maxOf { it.left.position } - frames.minOf { it.left.position }
-        val rightRange = frames.maxOf { it.right.position } - frames.minOf { it.right.position }
-        val activeRange = maxOf(leftRange, rightRange)
-        val passiveRange = minOf(leftRange, rightRange)
-        if (activeRange < 12f) return false
-        return passiveRange / activeRange <= 0.2f
-    }
-
     private fun loadedFrames(frames: List<TelemetryFrame>): List<TelemetryFrame> {
         val forceLevels = frames.map { (abs(it.left.force) + abs(it.right.force)) / 2f }
         val peakForce = forceLevels.maxOrNull() ?: return frames
@@ -331,10 +328,8 @@ object RepQualityCalculator {
      * the rep's own peak speed makes the score scale-aware while still catching
      * sudden surges and stalls.
      */
-    private fun scoreSmoothness(frames: List<TelemetryFrame>): Int {
-        val speeds = frames.map { frame ->
-            (abs(frame.left.velocity) + abs(frame.right.velocity)) / 2f
-        }
+    private fun scoreSmoothness(frames: List<TelemetryFrame>, bothCablesActive: Boolean): Int {
+        val speeds = movementSpeeds(frames, bothCablesActive)
         val peak = speeds.maxOrNull() ?: return 50
         if (peak < 1f) return 50
 
@@ -353,6 +348,15 @@ object RepQualityCalculator {
         return ((1f - normalizedRmsJerk / 0.6f) * 100f)
             .roundToInt()
             .coerceIn(0, 100)
+    }
+
+    private fun movementSpeeds(
+        frames: List<TelemetryFrame>,
+        bothCablesActive: Boolean,
+    ): List<Float> = frames.map { frame ->
+        val leftSpeed = abs(frame.left.velocity)
+        val rightSpeed = abs(frame.right.velocity)
+        if (bothCablesActive) (leftSpeed + rightSpeed) / 2f else maxOf(leftSpeed, rightSpeed)
     }
 
     // ── Label ───────────────────────────────────────────────────────────────

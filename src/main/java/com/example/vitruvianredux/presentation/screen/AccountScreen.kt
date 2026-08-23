@@ -27,6 +27,8 @@ import androidx.compose.ui.res.stringResource
 import com.example.vitruvianredux.cloud.AuthRepository
 import com.example.vitruvianredux.cloud.CloudSyncRepository
 import com.example.vitruvianredux.cloud.CloudSyncState
+import com.example.vitruvianredux.cloud.CloudSyncWorker
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import com.example.vitruvianredux.cloud.SupabaseProvider
 import com.example.vitruvianredux.cloud.VitruvianApiClient
 import com.example.vitruvianredux.cloud.VitruvianAuthManager
@@ -244,6 +246,7 @@ private fun SignedInContent(
 @Composable
 private fun SignInContent() {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     var email by rememberSaveable { mutableStateOf("") }
@@ -345,6 +348,8 @@ private fun SignInContent() {
                                 CloudSyncRepository.ensureProfile()
                                 CloudSyncRepository.registerDevice()
                             } catch (_: Exception) {}
+                            CloudSyncWorker.enqueue(context.applicationContext)
+                            ImmediateCloudSyncTrigger.requestDataSync()
                         }
                     }
                 },

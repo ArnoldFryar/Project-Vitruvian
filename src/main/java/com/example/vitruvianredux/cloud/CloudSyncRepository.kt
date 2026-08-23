@@ -13,6 +13,8 @@ import com.example.vitruvianredux.util.InstallationId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.json.JSONArray
@@ -43,6 +45,7 @@ object CloudSyncRepository {
 
     private lateinit var prefs: SharedPreferences
     private lateinit var deviceId: String
+    private val syncMutex = Mutex()
 
     private val _state = MutableStateFlow<CloudSyncState>(CloudSyncState.Idle)
     val state: StateFlow<CloudSyncState> = _state.asStateFlow()
@@ -58,11 +61,15 @@ object CloudSyncRepository {
     //  Full sync: push all local → remote, then pull remote → local
     // ═════════════════════════════════════════════════════════════════════════
 
-    suspend fun syncAll(): CloudSyncState {
-        if (!AuthRepository.isSignedIn) {
-            return CloudSyncState.Failed("Not signed in")
+    suspend fun syncAll(): CloudSyncState = syncMutex.withLock {
+        if (!::prefs.isInitialized || !::deviceId.isInitialized) {
+            return@withLock CloudSyncState.Failed("Cloud sync is still starting")
         }
-        val userId = AuthRepository.userId ?: return CloudSyncState.Failed("No user ID")
+        if (!AuthRepository.isSignedIn) {
+            return@withLock CloudSyncState.Failed("Not signed in")
+        }
+        val userId = AuthRepository.userId
+            ?: return@withLock CloudSyncState.Failed("No user ID")
 
         _state.value = CloudSyncState.Syncing
         Timber.tag(TAG).i("Cloud sync starting for user=$userId, device=$deviceId")
@@ -480,12 +487,12 @@ object CloudSyncRepository {
                     perSide = re.perSide,
                     isFavorite = re.isFavorite,
                 )
-                CustomExerciseStore.add(exercise)
+                CustomExerciseStore.add(exercise, requestSync = false)
                 accepted++
             }
             // If exists locally but remotely deleted, remove locally
             else if (re.deletedAt != null && re.updatedAt > 0) {
-                CustomExerciseStore.delete(re.id)
+                CustomExerciseStore.delete(re.id, requestSync = false)
                 accepted++
             }
             // If exists locally and remotely updated more recently, apply remote edits
@@ -503,7 +510,7 @@ object CloudSyncRepository {
                     perSide = re.perSide,
                     isFavorite = re.isFavorite,
                 )
-                CustomExerciseStore.update(updated)
+                CustomExerciseStore.update(updated, requestSync = false)
                 accepted++
             }
         }
@@ -677,6 +684,9 @@ object CloudSyncRepository {
                 put("reps", s.reps)
                 put("weightLb", s.weightLb)
                 put("numCables", s.numCables)
+                put("plannedNumCables", s.plannedNumCables)
+                put("cableExecutionMode", s.cableExecutionMode)
+                put("cableDetectionConfidence", s.cableDetectionConfidence)
                 put("volumeKg", s.volumeKg.toDouble())
                 if (s.avgQualityScore != null) put("avgQualityScore", s.avgQualityScore)
                 if (s.avgRom        != null) put("avgRom",        s.avgRom)
@@ -719,6 +729,9 @@ object CloudSyncRepository {
                     weightLb = obj.optInt("weightLb", 0),
                     volumeKg = obj.optDouble("volumeKg", 0.0).toFloat(),
                     numCables = obj.optInt("numCables", 2),
+                    plannedNumCables = obj.optInt("plannedNumCables", obj.optInt("numCables", 2)),
+                    cableExecutionMode = obj.optString("cableExecutionMode", "UNKNOWN"),
+                    cableDetectionConfidence = obj.optInt("cableDetectionConfidence", 0).coerceIn(0, 100),
                     avgQualityScore = if (obj.has("avgQualityScore")) obj.getInt("avgQualityScore") else null,
                     avgRom          = if (obj.has("avgRom"))        obj.getInt("avgRom")        else null,
                     avgTempo        = if (obj.has("avgTempo"))      obj.getInt("avgTempo")      else null,
@@ -931,6 +944,10 @@ object CloudSyncRepository {
                 setIndex          = s.setIndex,
                 reps              = s.reps,
                 weightLb          = s.weightLb,
+                numCables         = s.numCables,
+                plannedNumCables  = s.plannedNumCables,
+                cableExecutionMode = s.cableExecutionMode,
+                cableDetectionConfidence = s.cableDetectionConfidence,
                 volumeKg          = s.volumeKg,
                 durationSec       = s.durationSec,
                 avgForce          = s.avgForce,
@@ -1004,6 +1021,10 @@ object CloudSyncRepository {
                     setIndex          = rs.setIndex,
                     reps              = rs.reps,
                     weightLb          = rs.weightLb,
+                    numCables         = rs.numCables,
+                    plannedNumCables  = rs.plannedNumCables,
+                    cableExecutionMode = rs.cableExecutionMode,
+                    cableDetectionConfidence = rs.cableDetectionConfidence,
                     volumeKg          = rs.volumeKg,
                     durationSec       = rs.durationSec,
                     avgForce          = rs.avgForce,

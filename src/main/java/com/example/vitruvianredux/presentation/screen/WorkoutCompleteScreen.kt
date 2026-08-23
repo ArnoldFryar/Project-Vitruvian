@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.AnalyticsMath
 import com.example.vitruvianredux.data.StrengthTestSessionMetadata
 import com.example.vitruvianredux.data.TrainingInsightEngine
 import com.example.vitruvianredux.data.PostWorkoutRecommendationEngine
@@ -564,12 +565,14 @@ private fun SessionBenchmarkCard(
     val cs = MaterialTheme.colorScheme
     val ext = LocalExtendedColors.current
     val recentLogs = remember(allLogs) { allLogs.sortedByDescending { it.endTimeMs }.take(16) }
-    val qualityHistory = remember(recentLogs) { recentLogs.mapNotNull { it.avgQualityScore?.takeIf { score -> score > 0 } } }
-
     val avgReps = recentLogs.map { it.totalReps }.average().takeIf { it > 0 } ?: stats.totalReps.toDouble().coerceAtLeast(1.0)
-    val avgVolumeKg = recentLogs.map { it.totalVolumeKg }.average().takeIf { it > 0 } ?: stats.totalVolumeKg.toDouble().coerceAtLeast(1.0)
+    val avgVolumeKg = recentLogs.filter { it.volumeAvailable }
+        .map { it.totalVolumeKg }.average().takeIf { it.isFinite() && it > 0 }
+        ?: stats.totalVolumeKg.toDouble().coerceAtLeast(1.0)
     val avgDurationSec = recentLogs.map { it.durationSec }.average().takeIf { it > 0 } ?: stats.durationSec.toDouble().coerceAtLeast(1.0)
-    val avgQuality = qualityHistory.average().takeIf { !it.isNaN() && it > 0 }
+    val avgQuality = AnalyticsMath.repWeightedQuality(
+        recentLogs.map { it.avgQualityScore to it.totalReps },
+    )?.toDouble()
 
     val comparisons = buildList {
         add(

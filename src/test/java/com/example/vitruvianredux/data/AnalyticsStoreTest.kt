@@ -125,7 +125,7 @@ class AnalyticsStoreTest {
 
         injectLogs(listOf(
             logOnDate(thisMonday, volumeKg = 100.0),
-            logOnDate(thisMonday.plusDays(1), volumeKg = 50.0),
+            logOnDate(today, volumeKg = 50.0),
             logOnDate(lastMonday, volumeKg = 200.0),
         ))
 
@@ -173,7 +173,7 @@ class AnalyticsStoreTest {
 
         injectLogs(listOf(
             logOnDate(thisMonday),
-            logOnDate(thisMonday.plusDays(2)),
+            logOnDate(today),
             logOnDate(thisMonday.minusWeeks(1)),
         ))
 
@@ -218,6 +218,20 @@ class AnalyticsStoreTest {
     }
 
     @Test
+    fun `session points reject invalid volume and clamp imported quality`() {
+        assertEquals(0, AnalyticsStore.sessionPoints(Double.NaN, 90))
+        assertEquals(0, AnalyticsStore.sessionPoints(-100.0, 90))
+        assertEquals(
+            AnalyticsStore.sessionPoints(1_000.0, 100),
+            AnalyticsStore.sessionPoints(1_000.0, 500),
+        )
+        assertEquals(
+            AnalyticsStore.sessionPoints(1_000.0, 0),
+            AnalyticsStore.sessionPoints(1_000.0, -500),
+        )
+    }
+
+    @Test
     fun `quality score is rep weighted and ignores skipped sets`() {
         val sets = listOf(
             AnalyticsStore.ExerciseSetLog(
@@ -251,6 +265,30 @@ class AnalyticsStoreTest {
     }
 
     @Test
+    fun `quality score ignores a scored set with zero completed reps`() {
+        val sets = listOf(
+            AnalyticsStore.ExerciseSetLog(
+                exerciseName = "Bench Press",
+                setIndex = 0,
+                reps = 0,
+                weightLb = 100,
+                volumeKg = 0f,
+                avgQualityScore = 10,
+            ),
+            AnalyticsStore.ExerciseSetLog(
+                exerciseName = "Bench Press",
+                setIndex = 1,
+                reps = 8,
+                weightLb = 100,
+                volumeKg = 80f,
+                avgQualityScore = 90,
+            ),
+        )
+
+        assertEquals(90, AnalyticsStore.qualityScoreForSets(sets))
+    }
+
+    @Test
     fun `exercise points group names without case fragmentation`() {
         val sets = listOf(
             AnalyticsStore.ExerciseSetLog("", "Bench Press", setIndex = 0, reps = 10, weightLb = 100, volumeKg = 100f),
@@ -274,6 +312,9 @@ class AnalyticsStoreTest {
         assertEquals(1, AnalyticsStore.sessionCount(7))
         assertEquals(50.0, AnalyticsStore.rollingVolumeKg(7), 0.01)
         assertEquals(setOf(today), AnalyticsStore.last30DaysActivity())
+        assertEquals(50.0, AnalyticsStore.weeklyVolumesKg(1).single().second, 0.01)
+        assertEquals(1, AnalyticsStore.sessionsPerWeek(1).single().second)
+        assertEquals(1, AnalyticsStore.currentStreak())
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

@@ -136,11 +136,12 @@ class RepQualityCalculatorTest {
         )!!
 
         assertEquals(100, quality.symmetry)
+        assertEquals(100, quality.rom)
         assertTrue(quality.score >= 65)
     }
 
     @Test
-    fun `telemetry inferred single cable rep ignores symmetry even when symmetry is nominally applicable`() {
+    fun `stationary side in bilateral rep is scored as asymmetry`() {
         val quality = RepQualityCalculator.score(
             frames = bilateralFramesFor(
                 leftPositions = listOf(4f, 4.5f, 5f, 5.5f, 5.2f, 4.8f, 4.3f, 4f),
@@ -154,8 +155,8 @@ class RepQualityCalculatorTest {
             calibratedRomMm = 48f,
         )!!
 
-        assertEquals(100, quality.symmetry)
-        assertTrue(quality.score >= 65)
+        assertTrue(quality.symmetry <= 25)
+        assertTrue(quality.score < 65)
     }
 
     @Test

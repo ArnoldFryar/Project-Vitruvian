@@ -2,6 +2,7 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.model.ExerciseSource
 import com.example.vitruvianredux.model.TrackingType
@@ -54,7 +55,7 @@ object CustomExerciseStore {
      * Save a new custom exercise.  If [exercise.id] is blank a UUID is
      * assigned automatically.  Notifies [exercises] flow on success.
      */
-    fun add(exercise: Exercise): Exercise {
+    fun add(exercise: Exercise, requestSync: Boolean = true): Exercise {
         val withId = if (exercise.id.isBlank())
             exercise.copy(id = "custom_${UUID.randomUUID()}", source = ExerciseSource.CUSTOM)
         else
@@ -62,6 +63,7 @@ object CustomExerciseStore {
         val updated = (_exercises.value + withId).sortedBy { it.name.lowercase() }
         persist(updated)
         _exercises.update { updated }
+        if (requestSync) ImmediateCloudSyncTrigger.requestDataSync()
         return withId
     }
 
@@ -69,21 +71,23 @@ object CustomExerciseStore {
      * Replace an existing custom exercise (matched by id).
      * No-op if the id is not found.
      */
-    fun update(exercise: Exercise) {
+    fun update(exercise: Exercise, requestSync: Boolean = true) {
         val updated = _exercises.value.map { if (it.id == exercise.id) exercise else it }
             .sortedBy { it.name.lowercase() }
         persist(updated)
         _exercises.update { updated }
+        if (requestSync) ImmediateCloudSyncTrigger.requestDataSync()
     }
 
     /**
      * Remove a custom exercise by id.
      * No-op if the id is not found.
      */
-    fun delete(id: String) {
+    fun delete(id: String, requestSync: Boolean = true) {
         val updated = _exercises.value.filter { it.id != id }
         persist(updated)
         _exercises.update { updated }
+        if (requestSync) ImmediateCloudSyncTrigger.requestDataSync()
     }
 
     // ── Serialization ─────────────────────────────────────────────────────────

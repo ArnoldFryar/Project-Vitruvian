@@ -4,8 +4,12 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- V lettermark in the Version 4 primary orange. -->
+    <!-- Strength: a compact electric-orange V inside the adaptive safe zone. -->
     <path
-        android:fillColor="#F47721"
-        android:pathData="M20,20 L44,88 L54,64 L64,88 L88,20 L74,20 L54,72 L34,20 Z"/>
+        android:fillColor="#FF3503"
+        android:pathData="M24,27 L43,81 L54,59 L65,81 L84,27 L70,27 L54,65 L38,27 Z"/>
+    <!-- Intelligence: the teal telemetry baseline makes the mark unmistakably V4. -->
+    <path
+        android:fillColor="#63C9C7"
+        android:pathData="M40,86 L68,86 L68,90 L40,90 Z"/>
 </vector>

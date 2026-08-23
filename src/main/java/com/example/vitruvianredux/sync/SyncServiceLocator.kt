@@ -3,6 +3,7 @@ package com.example.vitruvianredux.sync
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.AnalyticsMath
 import com.example.vitruvianredux.data.ProgramBackingStore
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SessionRepository
@@ -17,6 +18,8 @@ import com.example.vitruvianredux.util.InstallationId
 import timber.log.Timber
 import java.time.Instant
 import java.time.ZoneId
+import com.example.vitruvianredux.partner.PartnerLiveSessionHost
+import com.example.vitruvianredux.partner.PartnerSessionBacking
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SyncServiceLocator — application-scoped singleton that wires together all
@@ -45,6 +48,11 @@ object SyncServiceLocator {
     private var _syncClient: SyncClient? = null
     val syncClient: SyncClient get() = _syncClient ?: error("SyncServiceLocator.syncClient accessed before init()")
 
+    lateinit var partnerHost: PartnerLiveSessionHost
+        private set
+    lateinit var partnerClient: PartnerLiveSessionClient
+        private set
+
     var isInitialized = false
         private set
 
@@ -70,10 +78,23 @@ object SyncServiceLocator {
         // Create SyncHub and SyncClient using the shared repo from ProgramStore
         val programRepo = ProgramStore.repository
 
+        // Partner dependencies must exist before SyncHub receives the host.
+        // Keeping this ahead of hub construction also makes restored partner
+        // sessions available to the server from its first request.
+        val partnerPrefs = context.getSharedPreferences("partner_live_sessions_v1", Context.MODE_PRIVATE)
+        partnerHost = PartnerLiveSessionHost(backing = object : PartnerSessionBacking {
+            override fun read(): String? = partnerPrefs.getString("sessions", null)
+            override fun write(value: String) {
+                partnerPrefs.edit().putString("sessions", value).apply()
+            }
+        })
+        partnerClient = PartnerLiveSessionClient()
+
         _syncHub = SyncHub(
             programRepo    = programRepo,
             sessionRepo    = sessionRepo,
             pairingManager = pairingManager,
+            partnerHost    = partnerHost,
         )
 
         _syncClient = SyncClient(
@@ -219,10 +240,7 @@ object SyncServiceLocator {
             .distinct()
         val exerciseSets = mergeExerciseSets(existingLog, sets)
         val completedSets = exerciseSets.filter { !it.skipped }
-        val avgQualityScore = completedSets.mapNotNull { it.avgQualityScore }
-            .takeIf { it.isNotEmpty() }
-            ?.average()
-            ?.toInt()
+        val avgQualityScore = AnalyticsStore.qualityScoreForSets(completedSets)
 
         return AnalyticsStore.SessionLog(
             id = session.id,
@@ -248,10 +266,10 @@ object SyncServiceLocator {
             calories = existingLog?.calories ?: 0,
             createdAt = existingLog?.createdAt ?: session.endedAt,
             exerciseSets = exerciseSets,
-            avgQualityScore = avgQualityScore ?: existingLog?.avgQualityScore ?: exercises.mapNotNull { it.avgQualityScore }
-                .takeIf { it.isNotEmpty() }
-                ?.average()
-                ?.toInt(),
+            avgQualityScore = avgQualityScore ?: existingLog?.avgQualityScore
+                ?: AnalyticsMath.repWeightedQuality(
+                    exercises.map { it.avgQualityScore to it.totalReps },
+                ),
             notes = existingLog?.notes.orEmpty(),
             trainingMode = existingLog?.trainingMode,
             strengthTest = existingLog?.strengthTest ?: session.strengthTestProtocolType?.let { protocolType ->
@@ -286,14 +304,18 @@ object SyncServiceLocator {
                     muscles = existing?.muscles ?: existing?.muscleGroups.orEmpty(),
                     setIndex = roomSet.setIndex,
                     reps = roomSet.reps,
-                    weightLb = roomSet.weightLb,
+                    weightLb = roomSet.weightLb * (existing?.numCables ?: roomSet.numCables).coerceAtLeast(1),
                     volumeKg = roomSet.volumeKg,
                     avgQualityScore = roomSet.avgQualityScore ?: existing?.avgQualityScore,
                     avgRom = roomSet.avgRom ?: existing?.avgRom,
                     avgTempo = roomSet.avgTempo ?: existing?.avgTempo,
                     avgSymmetry = roomSet.avgSymmetry ?: existing?.avgSymmetry,
                     avgSmoothness = roomSet.avgSmoothness ?: existing?.avgSmoothness,
-                    numCables = existing?.numCables ?: 2,
+                    numCables = existing?.numCables ?: roomSet.numCables.coerceAtLeast(1),
+                    plannedNumCables = existing?.plannedNumCables ?: roomSet.plannedNumCables.coerceAtLeast(1),
+                    cableExecutionMode = existing?.cableExecutionMode ?: roomSet.cableExecutionMode,
+                    cableDetectionConfidence = existing?.cableDetectionConfidence
+                        ?: roomSet.cableDetectionConfidence.coerceIn(0, 100),
                     skipped = roomSet.reps <= 0 && roomSet.weightLb <= 0 && roomSet.volumeKg <= 0f,
                     avgForce = roomSet.avgForce.takeIf { it > 0f } ?: existing?.avgForce ?: 0f,
                     peakForce = roomSet.peakForce.takeIf { it > 0f } ?: existing?.peakForce ?: 0f,
@@ -301,11 +323,16 @@ object SyncServiceLocator {
                     eccentricLoadPct = roomSet.eccentricLoadPct.takeIf { it != 100 }
                         ?: existing?.eccentricLoadPct
                         ?: 100,
-                    telemetryAvgLeftForce = existing?.telemetryAvgLeftForce ?: 0f,
-                    telemetryAvgRightForce = existing?.telemetryAvgRightForce ?: 0f,
-                    telemetryBalancePct = existing?.telemetryBalancePct ?: 0,
-                    telemetryFinishForcePct = existing?.telemetryFinishForcePct ?: 100,
-                    telemetrySampleCount = existing?.telemetrySampleCount ?: 0,
+                    telemetryAvgLeftForce = roomSet.telemetryAvgLeftForce.takeIf { roomSet.telemetrySampleCount > 0 }
+                        ?: existing?.telemetryAvgLeftForce ?: 0f,
+                    telemetryAvgRightForce = roomSet.telemetryAvgRightForce.takeIf { roomSet.telemetrySampleCount > 0 }
+                        ?: existing?.telemetryAvgRightForce ?: 0f,
+                    telemetryBalancePct = roomSet.telemetryBalancePct.takeIf { roomSet.telemetrySampleCount > 0 }
+                        ?: existing?.telemetryBalancePct ?: 0,
+                    telemetryFinishForcePct = roomSet.telemetryFinishForcePct.takeIf { roomSet.telemetrySampleCount > 0 }
+                        ?: existing?.telemetryFinishForcePct ?: 100,
+                    telemetrySampleCount = roomSet.telemetrySampleCount.takeIf { it > 0 }
+                        ?: existing?.telemetrySampleCount ?: 0,
                     strengthTest = existing?.strengthTest ?: roomSet.protocolType?.let { protocolType ->
                         StrengthTestSetMetadata(
                             protocolType = protocolType,

@@ -274,6 +274,14 @@ data class RemoteSetHistory(
     val reps: Int = 0,
     @SerialName("weight_lb")
     val weightLb: Int = 0,
+    @SerialName("num_cables")
+    val numCables: Int = 2,
+    @SerialName("planned_num_cables")
+    val plannedNumCables: Int = numCables,
+    @SerialName("cable_execution_mode")
+    val cableExecutionMode: String = "UNKNOWN",
+    @SerialName("cable_detection_confidence")
+    val cableDetectionConfidence: Int = 0,
     @SerialName("volume_kg")
     val volumeKg: Float = 0f,
     @SerialName("duration_sec")
@@ -294,4 +302,27 @@ data class RemoteSetHistory(
     val deviceId: String = "",
     @SerialName("updated_at")
     val updatedAt: Long = 0L,
+)
+
+/** Compatibility payload for deployments that have not applied schema 12 cable columns yet. */
+@Serializable
+data class RemoteSetHistoryLegacy(
+    val id: String,
+    @SerialName("user_id") val userId: String,
+    @SerialName("exercise_history_id") val exerciseHistoryId: String,
+    @SerialName("session_id") val sessionId: String,
+    @SerialName("exercise_name") val exerciseName: String,
+    @SerialName("set_index") val setIndex: Int = 0,
+    val reps: Int = 0,
+    @SerialName("weight_lb") val weightLb: Int = 0,
+    @SerialName("volume_kg") val volumeKg: Float = 0f,
+    @SerialName("duration_sec") val durationSec: Int = 0,
+    @SerialName("avg_force") val avgForce: Float = 0f,
+    @SerialName("peak_force") val peakForce: Float = 0f,
+    @SerialName("echo_level") val echoLevel: String? = null,
+    @SerialName("eccentric_load_pct") val eccentricLoadPct: Int = 100,
+    @SerialName("origin_mode") val originMode: String? = null,
+    @SerialName("completed_at") val completedAt: Long = 0L,
+    @SerialName("device_id") val deviceId: String = "",
+    @SerialName("updated_at") val updatedAt: Long = 0L,
 )

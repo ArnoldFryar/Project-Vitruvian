@@ -29,8 +29,10 @@ object TrainingInsightEngine {
     ): TrainingInsight? {
         if (logs.isEmpty()) return null
         val recent = logs.filter { nowMs - it.endTimeMs in 0L..(7L * DAY_MS) }
-        val qualityValues = recent.mapNotNull { it.avgQualityScore }
-        val averageQuality = qualityValues.takeIf { it.isNotEmpty() }?.average()
+        val scoredSessionCount = recent.count { it.avgQualityScore != null && it.totalReps > 0 }
+        val averageQuality = AnalyticsMath.repWeightedQuality(
+            recent.map { it.avgQualityScore to it.totalReps },
+        )?.toDouble()
         val lastSession = logs.maxByOrNull { it.endTimeMs }
 
         return when {
@@ -48,7 +50,7 @@ object TrainingInsightEngine {
                 tone = TrainingInsightTone.Caution,
                 priority = 90,
                 nextStep = "Hold or reduce load 5–10% until quality trends above 75.",
-                evidence = "Based on ${qualityValues.size} scored sessions",
+                evidence = "Based on $scoredSessionCount scored sessions",
             )
             lastSession != null && nowMs - lastSession.endTimeMs > 4L * DAY_MS -> TrainingInsight(
                 title = "Resume with a low-friction session",

@@ -42,7 +42,7 @@ interface SessionLogDao {
      *
      * Typical use: history list, activity feed on the dashboard.
      */
-    @Query("SELECT * FROM session_log ORDER BY created_at DESC LIMIT :limit")
+    @Query("SELECT * FROM session_log ORDER BY end_time DESC LIMIT :limit")
     suspend fun getRecentSessions(limit: Int): List<SessionLog>
 
     @Query("SELECT * FROM session_log WHERE id = :sessionId LIMIT 1")
@@ -52,15 +52,15 @@ interface SessionLogDao {
     suspend fun deleteById(sessionId: String)
 
     /**
-     * Return all sessions whose [SessionLog.startTime] falls within the
+     * Return all sessions whose [SessionLog.endTime] falls within the
      * closed interval [[start], [end]] (epoch millis), ordered chronologically.
      *
      * Typical use: volume/streak charts for a chosen date range.
      */
     @Query("""
         SELECT * FROM session_log
-        WHERE start_time >= :start AND start_time <= :end
-        ORDER BY start_time ASC
+        WHERE end_time >= :start AND end_time <= :end
+        ORDER BY end_time ASC
     """)
     suspend fun getSessionsInDateRange(start: Long, end: Long): List<SessionLog>
 
@@ -72,26 +72,26 @@ interface SessionLogDao {
      */
     @Query("""
         SELECT
-            DATE(start_time / 1000, 'unixepoch', 'localtime') AS day_date,
+            DATE(end_time / 1000, 'unixepoch', 'localtime') AS day_date,
             COALESCE(SUM(total_volume_kg), 0.0)               AS volume_kg,
             COUNT(*)                                           AS session_count
         FROM session_log
-        WHERE start_time >= :fromMs AND start_time <= :toMs
+        WHERE end_time >= :fromMs AND end_time <= :toMs
         GROUP BY day_date
         ORDER BY day_date ASC
     """)
     suspend fun getDailyStats(fromMs: Long, toMs: Long): List<DailyStatsRow>
 
     /**
-     * Reactive total volume (kg) for all sessions whose [SessionLog.startTime]
+     * Reactive total volume (kg) for all sessions whose [SessionLog.endTime]
      * is on or after [weekStartMs].  Emits a new value whenever the table changes.
      * Used by ProfileScreen to replace the O(n) [AnalyticsStore.weeklyVolumesKg] call.
      */
-    @Query("SELECT COALESCE(SUM(total_volume_kg), 0.0) FROM session_log WHERE start_time >= :weekStartMs")
+    @Query("SELECT COALESCE(SUM(total_volume_kg), 0.0) FROM session_log WHERE end_time >= :weekStartMs AND end_time <= (strftime('%s', 'now') * 1000)")
     fun currentWeekVolumeKgFlow(weekStartMs: Long): Flow<Double>
 
     /** Reactive session count for the current week. */
-    @Query("SELECT COUNT(*) FROM session_log WHERE start_time >= :weekStartMs")
+    @Query("SELECT COUNT(*) FROM session_log WHERE end_time >= :weekStartMs AND end_time <= (strftime('%s', 'now') * 1000)")
     fun currentWeekSessionCountFlow(weekStartMs: Long): Flow<Int>
 
     /** Reactive points total for the current week, using the same formula as AnalyticsStore.sessionPoints. */
@@ -99,11 +99,12 @@ interface SessionLogDao {
         SELECT COALESCE(SUM(
             CASE
                 WHEN total_volume_kg IS NULL OR total_volume_kg <= 0 THEN 0
-                ELSE CAST((total_volume_kg * (0.50 + COALESCE(avg_quality_score, 50) / 200.0) / 10.0) + 0.5 AS INTEGER)
+                ELSE CAST((total_volume_kg * (0.50 + MIN(100, MAX(0, COALESCE(avg_quality_score, 50))) / 200.0) / 10.0) + 0.5 AS INTEGER)
             END
         ), 0)
         FROM session_log
-        WHERE start_time >= :weekStartMs
+        WHERE end_time >= :weekStartMs
+          AND end_time <= (strftime('%s', 'now') * 1000)
     """)
     fun currentWeekPointsFlow(weekStartMs: Long): Flow<Int>
 
@@ -112,7 +113,7 @@ interface SessionLogDao {
         SELECT COALESCE(SUM(
             CASE
                 WHEN total_volume_kg IS NULL OR total_volume_kg <= 0 THEN 0
-                ELSE CAST((total_volume_kg * (0.50 + COALESCE(avg_quality_score, 50) / 200.0) / 10.0) + 0.5 AS INTEGER)
+                ELSE CAST((total_volume_kg * (0.50 + MIN(100, MAX(0, COALESCE(avg_quality_score, 50))) / 200.0) / 10.0) + 0.5 AS INTEGER)
             END
         ), 0)
         FROM session_log

@@ -2,6 +2,7 @@ package com.example.vitruvianredux.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import com.example.vitruvianredux.util.InstallationId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +51,7 @@ object ProgramStore {
     /** Add [program] to the in-memory flow and persist. */
     fun addProgram(program: SavedProgram) {
         _programs.value = repo.add(program)
+        ImmediateCloudSyncTrigger.requestDataSync()
     }
 
     /**
@@ -60,6 +62,7 @@ object ProgramStore {
      */
     fun deleteProgram(id: String) {
         _programs.value = repo.delete(id)
+        ImmediateCloudSyncTrigger.requestDataSync()
     }
 
     /**
@@ -69,11 +72,13 @@ object ProgramStore {
      */
     fun reorderPrograms(orderedIds: List<String>) {
         _programs.value = repo.reorder(orderedIds)
+        ImmediateCloudSyncTrigger.requestDataSync()
     }
 
     /** Toggle the starred/favorite flag for the program with [id]. */
     fun toggleFavorite(id: String) {
         _programs.value = repo.toggleFavorite(id)
+        ImmediateCloudSyncTrigger.requestDataSync()
     }
 
     /** Re-read from disk and refresh the UI flow. Called after cloud sync merges. */

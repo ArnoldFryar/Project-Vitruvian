@@ -41,6 +41,22 @@ data class SetHistoryEntity(
     @ColumnInfo(name = "weight_lb")
     val weightLb: Int,
 
+    /** Number of active cables used by this set. Required to reconstruct total load. */
+    @ColumnInfo(name = "num_cables")
+    val numCables: Int = 2,
+
+    /** Cable count prescribed before telemetry-based execution correction. */
+    @ColumnInfo(name = "planned_num_cables")
+    val plannedNumCables: Int = numCables,
+
+    /** SINGLE_LEFT, SINGLE_RIGHT, DUAL_SYNCHRONOUS, DUAL_ALTERNATING, or UNKNOWN. */
+    @ColumnInfo(name = "cable_execution_mode")
+    val cableExecutionMode: String = "UNKNOWN",
+
+    /** Confidence in the observed cable execution classification (0–100). */
+    @ColumnInfo(name = "cable_detection_confidence")
+    val cableDetectionConfidence: Int = 0,
+
     /** Volume for this set in kg (canonical). */
     @ColumnInfo(name = "volume_kg")
     val volumeKg: Float,
@@ -76,6 +92,22 @@ data class SetHistoryEntity(
     /** Peak concentric force derived from machine heuristics (kg). */
     @ColumnInfo(name = "peak_force")
     val peakForce: Float = 0f,
+
+    /** Persisted bilateral telemetry summary; raw high-frequency samples remain transient. */
+    @ColumnInfo(name = "telemetry_avg_left_force")
+    val telemetryAvgLeftForce: Float = 0f,
+
+    @ColumnInfo(name = "telemetry_avg_right_force")
+    val telemetryAvgRightForce: Float = 0f,
+
+    @ColumnInfo(name = "telemetry_balance_pct")
+    val telemetryBalancePct: Int = 0,
+
+    @ColumnInfo(name = "telemetry_finish_force_pct")
+    val telemetryFinishForcePct: Int = 100,
+
+    @ColumnInfo(name = "telemetry_sample_count")
+    val telemetrySampleCount: Int = 0,
 
     /** Echo level used for this set, or null when not in Echo mode. */
     @ColumnInfo(name = "echo_level")

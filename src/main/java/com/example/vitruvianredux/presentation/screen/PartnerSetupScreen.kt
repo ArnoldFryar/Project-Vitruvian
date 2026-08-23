@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.presentation.screen
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.asImageBitmap
+import com.example.vitruvianredux.ble.BleConnectionState
+import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.PartnerProfileStore
@@ -25,12 +29,22 @@ import com.example.vitruvianredux.partner.PartnerRotationScheduler
 import com.example.vitruvianredux.partner.PartnerWorkoutParticipant
 import com.example.vitruvianredux.partner.PartnerWorkoutPlan
 import com.example.vitruvianredux.presentation.ui.AppIcons
+import com.example.vitruvianredux.presentation.components.QrScannerView
+import com.example.vitruvianredux.sync.LanSyncManager
+import com.example.vitruvianredux.sync.LanSyncState
+import com.example.vitruvianredux.sync.QrHelper
+import com.example.vitruvianredux.sync.SyncServiceLocator
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PartnerSetupScreen(
     innerPadding: PaddingValues,
     workoutVM: WorkoutSessionViewModel?,
+    bleVM: BleViewModel? = null,
+    lanSyncManager: LanSyncManager? = null,
     onBack: () -> Unit,
     onStartWorkout: (
         List<PartnerWorkoutParticipant>,
@@ -40,6 +54,10 @@ fun PartnerSetupScreen(
         workoutVM?.startPartnerWorkout(athletes, plans, mode) ?: false
     },
 ) {
+    if (workoutVM != null && bleVM != null && lanSyncManager != null) {
+        MultiDevicePartnerSetupScreen(innerPadding, workoutVM, bleVM, lanSyncManager, onBack)
+        return
+    }
     val savedProfiles by PartnerProfileStore.profiles.collectAsState()
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
     var selectedIds by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
@@ -249,6 +267,181 @@ fun PartnerSetupScreen(
                         Text("Start partner workout")
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MultiDevicePartnerSetupScreen(
+    innerPadding: PaddingValues,
+    workoutVM: WorkoutSessionViewModel,
+    bleVM: BleViewModel,
+    lanSyncManager: LanSyncManager,
+    onBack: () -> Unit,
+) {
+    val programs by ProgramStore.savedProgramsFlow.collectAsState()
+    val activePrograms = programs.filter { it.deletedAt == null }
+    val bleState by bleVM.state.collectAsState()
+    val lanState by lanSyncManager.state.collectAsState()
+    val inviteJson by workoutVM.partnerInviteJson.collectAsState()
+    val snapshot by workoutVM.partnerLiveSnapshot.collectAsState()
+    val linkError by workoutVM.partnerLiveError.collectAsState()
+    val scope = rememberCoroutineScope()
+    val participant = remember { PartnerProfileStore.ensurePrimaryProfile(ProfileStore.displayNameFlow.value) }
+    var selectedProgramId by rememberSaveable { mutableStateOf<String?>(null) }
+    var hostMode by rememberSaveable { mutableStateOf(true) }
+    var hostRequested by rememberSaveable { mutableStateOf(false) }
+    var showScanner by rememberSaveable { mutableStateOf(false) }
+    var joining by remember { mutableStateOf(false) }
+    var qrBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    val plan = remember(participant, selectedProgramId, activePrograms) {
+        participantPlan(participant, activePrograms.firstOrNull { it.id == selectedProgramId }, 0)
+    }
+    val trainerAddress = (bleState as? BleConnectionState.Connected)?.device?.address
+
+    LaunchedEffect(hostRequested, lanState, inviteJson) {
+        val registered = lanState as? LanSyncState.HubRegistered ?: return@LaunchedEffect
+        if (!hostRequested || inviteJson != null || trainerAddress == null) return@LaunchedEffect
+        workoutVM.hostPartnerWorkoutAcrossDevices(
+            hostUrl = "http://${registered.address}:${registered.port}",
+            trainerAddress = trainerAddress,
+            participant = participant,
+            plan = plan,
+        )
+    }
+    LaunchedEffect(inviteJson) {
+        qrBitmap = inviteJson?.let { payload -> withContext(Dispatchers.Default) { QrHelper.generate(payload) } }
+    }
+
+    if (showScanner) {
+        QrScannerView(
+            onQrScanned = { payload ->
+                showScanner = false
+                joining = true
+                scope.launch {
+                    workoutVM.joinPartnerWorkoutAcrossDevices(payload, participant, plan)
+                    joining = false
+                }
+            },
+            onDismiss = { showScanner = false },
+        )
+        return
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Partner workout") },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(AppIcons.ArrowBack, "Back") } },
+            )
+        },
+    ) { setupPadding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding()),
+            contentPadding = PaddingValues(16.dp, setupPadding.calculateTopPadding() + 8.dp, 16.dp, 40.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                Text(
+                    "Everyone uses their own device. The trainer transfers automatically when the next athlete is up.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            item {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = hostMode,
+                        onClick = { hostMode = true },
+                        label = { Text("Host workout") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilterChip(
+                        selected = !hostMode,
+                        onClick = { hostMode = false },
+                        label = { Text("Join workout") },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            item {
+                SetupSection("Your workout", "${participant.displayName} · your targets stay private") {
+                    ProgramPicker(
+                        label = "Your program",
+                        programs = activePrograms,
+                        selectedId = selectedProgramId,
+                        onSelected = { selectedProgramId = it },
+                    )
+                }
+            }
+
+            if (hostMode) {
+                item {
+                    SetupSection("Trainer", "Keep this device connected until the first handoff") {
+                        Text(
+                            if (trainerAddress != null) "Trainer connected · ready to host"
+                            else "Connect to the trainer before creating the workout",
+                            color = if (trainerAddress != null) MaterialTheme.colorScheme.secondary
+                                else MaterialTheme.colorScheme.error,
+                        )
+                        if (inviteJson == null) {
+                            Button(
+                                onClick = {
+                                    SyncServiceLocator.startHub()
+                                    lanSyncManager.startHub()
+                                    hostRequested = true
+                                },
+                                enabled = trainerAddress != null && !hostRequested,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+                            ) { Text(if (hostRequested) "Creating secure lobby…" else "Create partner lobby") }
+                        }
+                    }
+                }
+                if (inviteJson != null) {
+                    item {
+                        SetupSection("Invite partners", "Scan this code from Partner Workout on each device") {
+                            qrBitmap?.let {
+                                Image(it.asImageBitmap(), "Partner workout QR code", Modifier.size(230.dp).align(Alignment.CenterHorizontally))
+                            } ?: CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
+                            snapshot?.members?.forEach { member ->
+                                Text("✓ ${member.participant.displayName}", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    item {
+                        Button(
+                            onClick = { workoutVM.startHostedPartnerWorkoutAcrossDevices(PartnerRotationMode.ROUND_ROBIN_SETS) },
+                            enabled = (snapshot?.members?.size ?: 0) >= 2,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        ) { Text("Start with ${snapshot?.members?.size ?: 1} athletes") }
+                    }
+                }
+            } else {
+                item {
+                    SetupSection("Join securely", "Scan the host's workout QR") {
+                        Button(
+                            onClick = { showScanner = true },
+                            enabled = !joining && snapshot == null,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        ) { Text(if (joining) "Joining…" else "Scan partner QR") }
+                        if (snapshot != null) {
+                            Text("Joined · waiting for the host to start", color = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
+                }
+            }
+            linkError?.let { error ->
+                item { Text(error, color = MaterialTheme.colorScheme.error) }
+            }
+            item {
+                Text(
+                    "At every handoff, resistance stops first. The previous device disconnects automatically before the next device is allowed to connect.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

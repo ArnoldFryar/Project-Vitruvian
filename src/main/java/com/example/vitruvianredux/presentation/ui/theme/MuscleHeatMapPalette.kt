@@ -18,17 +18,17 @@ data class MuscleHeatMapPalette(
 fun muscleHeatMapPalette(darkTheme: Boolean): MuscleHeatMapPalette = if (darkTheme) {
     MuscleHeatMapPalette(
         neutral = Graphite,
-        low = Color(0xFF98410F),
-        medium = PrimaryOrange,
-        high = BrightActiveOrange,
+        low = Color(0xFF315B5D),
+        medium = PerformanceTeal,
+        high = DarkPerformanceTeal,
         outline = MediumGray,
     )
 } else {
     MuscleHeatMapPalette(
         neutral = LightGray,
-        low = Color(0xFFC45A18),
-        medium = PrimaryOrange,
-        high = BrightActiveOrange,
+        low = Color(0xFF315B5D),
+        medium = PerformanceTeal,
+        high = DarkPerformanceTeal,
         outline = Gray600,
     )
 }

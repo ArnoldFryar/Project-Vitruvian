@@ -189,12 +189,12 @@ object AdaptiveProgramRecommendationEngine {
                     return@forEachIndexed
                 }
 
-                val qualityScores = exerciseSessions
+                val qualitySets = exerciseSessions
                     .flatten()
                     .filterNot { it.skipped }
-                    .mapNotNull { it.avgQualityScore }
-                if (qualityScores.size >= 2) {
-                    val averageQuality = qualityScores.average().roundToInt()
+                val scoredSetCount = qualitySets.count { it.avgQualityScore != null && it.reps > 0 }
+                if (scoredSetCount >= 2) {
+                    val averageQuality = AnalyticsStore.qualityScoreForSets(qualitySets) ?: return@forEachIndexed
                     if (averageQuality < 65 && item.targetWeightLb > 5) {
                         val proposed = ((item.targetWeightLb * 0.9) / 5.0)
                             .roundToInt()
@@ -208,13 +208,13 @@ object AdaptiveProgramRecommendationEngine {
                                     currentWeightLb = item.targetWeightLb,
                                     proposedWeightLb = proposed,
                                     reason = "Rep quality is below the threshold for productive load progression.",
-                                    evidence = "Average quality $averageQuality / 100 across ${qualityScores.size} scored sets",
-                                    confidence = if (qualityScores.size >= 4) {
+                                    evidence = "Average quality $averageQuality / 100 across $scoredSetCount scored sets",
+                                    confidence = if (scoredSetCount >= 4) {
                                         RecommendationConfidence.HIGH
                                     } else {
                                         RecommendationConfidence.MODERATE
                                     },
-                                    dataSufficiency = "${qualityScores.size} scored working sets",
+                                    dataSufficiency = "$scoredSetCount scored working sets",
                                 ),
                             )
                             return@forEachIndexed
@@ -228,13 +228,13 @@ object AdaptiveProgramRecommendationEngine {
                                 currentSets = item.sets,
                                 proposedSets = item.sets - 1,
                                 reason = "Quality is serviceable but fades under the current amount of work.",
-                                evidence = "Average quality $averageQuality / 100 across ${qualityScores.size} scored sets",
-                                confidence = if (qualityScores.size >= 4) {
+                                evidence = "Average quality $averageQuality / 100 across $scoredSetCount scored sets",
+                                confidence = if (scoredSetCount >= 4) {
                                     RecommendationConfidence.HIGH
                                 } else {
                                     RecommendationConfidence.MODERATE
                                 },
-                                dataSufficiency = "${qualityScores.size} scored working sets",
+                                dataSufficiency = "$scoredSetCount scored working sets",
                             ),
                         )
                     }

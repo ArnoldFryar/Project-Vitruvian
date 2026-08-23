@@ -41,8 +41,11 @@ object ExerciseHistoryRecorder {
         setStrengthTestsBySetIndex: Map<Int, StrengthTestSetMetadata> = emptyMap(),
         updatedAtMs: Long = System.currentTimeMillis(),
     ): Rows {
+        // Room history represents completed working sets and has no skipped
+        // marker column. Persisting skipped placeholders would inflate set counts.
+        val completedWorkingStats = completedStats.filterNot { it.skipped }
         val statsForHistory = if (taggedExercise != null) {
-            completedStats.map { stat ->
+            completedWorkingStats.map { stat ->
                 stat.copy(
                     exerciseId = taggedExercise.id,
                     exerciseName = taggedExercise.name,
@@ -51,7 +54,7 @@ object ExerciseHistoryRecorder {
                 )
             }
         } else {
-            completedStats
+            completedWorkingStats
         }
 
         val exerciseEntities = statsForHistory.groupBy { it.exerciseName }.map { (name, stats) ->
@@ -62,11 +65,10 @@ object ExerciseHistoryRecorder {
                 setCount = stats.size,
                 totalReps = stats.sumOf { it.repsCompleted },
                 totalVolumeKg = stats.sumOf { it.volumeKg.toDouble() }.toFloat(),
-                heaviestWeightLb = stats.maxOfOrNull { it.weightPerCableLb } ?: 0,
-                avgQualityScore = stats.mapNotNull { it.avgQualityScore }
-                    .takeIf { it.isNotEmpty() }
-                    ?.average()
-                    ?.toInt(),
+                heaviestWeightLb = stats.maxOfOrNull { it.weightPerCableLb * it.numCables } ?: 0,
+                avgQualityScore = AnalyticsMath.repWeightedQuality(
+                    stats.filterNot { it.skipped }.map { it.avgQualityScore to it.repsCompleted },
+                ),
                 originMode = originMode,
                 completedAt = completedAtMs,
                 updatedAt = updatedAtMs,
@@ -77,6 +79,10 @@ object ExerciseHistoryRecorder {
         val setEntities = statsForHistory.map { stat ->
             val exerciseId = deterministicId(sessionId, stat.exerciseName)
             val strengthTest = setStrengthTestsBySetIndex[stat.setIndex]
+            val telemetry = TelemetryInsights.summarizeSamples(
+                stat.cableSamplesLeft,
+                stat.cableSamplesRight,
+            )
             SetHistoryEntity(
                 id = deterministicId(sessionId, stat.exerciseName, stat.setIndex),
                 exerciseHistoryId = exerciseId,
@@ -85,6 +91,10 @@ object ExerciseHistoryRecorder {
                 setIndex = stat.setIndex,
                 reps = stat.repsCompleted,
                 weightLb = stat.weightPerCableLb,
+                numCables = stat.numCables,
+                plannedNumCables = stat.plannedNumCables,
+                cableExecutionMode = stat.cableExecutionMode.name,
+                cableDetectionConfidence = stat.cableDetectionConfidence,
                 volumeKg = stat.volumeKg,
                 durationSec = stat.durationSec,
                 avgQualityScore = stat.avgQualityScore,
@@ -94,6 +104,11 @@ object ExerciseHistoryRecorder {
                 avgSmoothness = stat.avgSmoothness,
                 avgForce = stat.avgForce,
                 peakForce = stat.peakForce,
+                telemetryAvgLeftForce = telemetry?.avgLeftForceKg?.toFloat() ?: 0f,
+                telemetryAvgRightForce = telemetry?.avgRightForceKg?.toFloat() ?: 0f,
+                telemetryBalancePct = telemetry?.balancePct ?: 0,
+                telemetryFinishForcePct = telemetry?.finishForcePct ?: 100,
+                telemetrySampleCount = telemetry?.sampleCount ?: 0,
                 echoLevel = stat.echoLevel,
                 eccentricLoadPct = stat.eccentricLoadPct,
                 protocolType = strengthTest?.protocolType,

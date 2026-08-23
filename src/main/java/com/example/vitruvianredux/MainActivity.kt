@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.vitruvianredux.cloud.AuthRepository
+import com.example.vitruvianredux.cloud.AppForegroundCloudSync
 import com.example.vitruvianredux.cloud.CloudSyncRepository
 import com.example.vitruvianredux.cloud.CloudSyncWorker
 import com.example.vitruvianredux.cloud.SupabaseProvider
@@ -33,10 +34,16 @@ import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.presentation.AppScaffold
 import com.example.vitruvianredux.presentation.util.loadAllExercises
 import com.example.vitruvianredux.sync.SyncServiceLocator
+import com.example.vitruvianredux.ble.SessionPhase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private val workoutViewModel: com.example.vitruvianredux.ble.WorkoutSessionViewModel
+        get() = (application as VitruvianApp).workoutViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -59,6 +66,16 @@ class MainActivity : ComponentActivity() {
         // Render immediately — all stores expose StateFlow with safe empty/
         // default initial values so the UI hydrates progressively.
         setContent { AppScaffold() }
+
+        // Keep cloud I/O away from an active or recovering workout. If a
+        // foreground refresh was deferred, it is dispatched as soon as the
+        // workout returns to a safe phase.
+        lifecycleScope.launch {
+            workoutViewModel.state
+                .map { isWorkoutActiveForCloudSync(it.sessionPhase) }
+                .distinctUntilChanged()
+                .collect(AppForegroundCloudSync::onWorkoutActivityChanged)
+        }
 
         // ── Heavy I/O inits — background thread ───────────────────────────
         // SharedPreferences JSON parsing, Room DB open, and sync
@@ -133,6 +150,9 @@ class MainActivity : ComponentActivity() {
             if (SupabaseProvider.isInitialized && AuthRepository.isSignedIn) {
                 CloudSyncWorker.enqueue(applicationContext)
             }
+            AppForegroundCloudSync.onDataReady(
+                workoutActive = isWorkoutActiveForCloudSync(workoutViewModel.state.value.sessionPhase),
+            )
 
             // ── On-open retry: push any sessions not yet synced to Hevy or Health Connect ──
             // Covers the case where the network was down at workout completion,
@@ -187,4 +207,23 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        AppForegroundCloudSync.onAppForeground(
+            workoutActive = isWorkoutActiveForCloudSync(workoutViewModel.state.value.sessionPhase),
+        )
+    }
+
+    override fun onStop() {
+        AppForegroundCloudSync.onAppBackground()
+        super.onStop()
+    }
+}
+
+internal fun isWorkoutActiveForCloudSync(phase: SessionPhase): Boolean = when (phase) {
+    SessionPhase.Idle,
+    SessionPhase.Ready,
+    SessionPhase.Stopped -> false
+    else -> true
 }

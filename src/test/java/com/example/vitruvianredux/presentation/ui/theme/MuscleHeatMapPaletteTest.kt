@@ -9,14 +9,17 @@ import org.junit.Test
 
 class MuscleHeatMapPaletteTest {
     @Test fun corePaletteMatchesVersion4Specification() {
-        assertEquals(Color(0xFF0D0F10), NearBlack)
-        assertEquals(Color(0xFF191C1E), Charcoal)
-        assertEquals(Color(0xFF2A2E31), Graphite)
-        assertEquals(Color(0xFF858A8E), MediumGray)
-        assertEquals(Color(0xFFD9DCDE), LightGray)
-        assertEquals(Color(0xFFF6F7F5), OffWhite)
-        assertEquals(Color(0xFFF47721), PrimaryOrange)
-        assertEquals(Color(0xFFFF8A2B), BrightActiveOrange)
+        assertEquals(Color(0xFF0D100F), NearBlack)
+        assertEquals(Color(0xFF171B19), Charcoal)
+        assertEquals(Color(0xFF202522), Graphite)
+        assertEquals(Color(0xFF7C837C), MediumGray)
+        assertEquals(Color(0xFFDADCD5), LightGray)
+        assertEquals(Color(0xFFF3F1EB), OffWhite)
+        assertEquals(Color(0xFFE84312), PrimaryOrange)
+        assertEquals(Color(0xFFFF3503), ElectricOrange)
+        assertEquals(Color(0xFFFF5328), BrightActiveOrange)
+        assertEquals(Color(0xFF147D82), PerformanceTeal)
+        assertEquals(Color(0xFF63C9C7), DarkPerformanceTeal)
         assertEquals(Color(0xFFA84300), DarkAccessibleOrange)
     }
 
@@ -65,9 +68,12 @@ class MuscleHeatMapPaletteTest {
 
         assertTrue(contrast(NearBlack, OffWhite) >= 4.5f)
         assertTrue(contrast(OffWhite, NearBlack) >= 4.5f)
-        assertTrue(contrast(DarkAccessibleOrange, Color.White) >= 4.5f)
+        assertTrue(contrast(DarkAccessibleOrange, LightSurface) >= 4.5f)
         assertTrue(contrast(NearBlack, PrimaryOrange) >= 4.5f)
+        assertTrue(contrast(NearBlack, ElectricOrange) >= 4.5f)
         assertTrue(contrast(NearBlack, BrightActiveOrange) >= 4.5f)
+        assertTrue(contrast(Color.White, PerformanceTeal) >= 4.5f)
+        assertTrue(contrast(NearBlack, DarkPerformanceTeal) >= 4.5f)
         assertTrue(contrast(accessibleBrandContentColor(PrimaryOrange, false), Color.White) >= 4.5f)
         assertTrue(contrast(accessibleBrandContentColor(DarkAccessibleOrange, true), Charcoal) >= 4.5f)
     }

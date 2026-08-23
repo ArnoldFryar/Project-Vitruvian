@@ -87,6 +87,73 @@ class V3ToV4MigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun versionTenAddsCableAndTelemetryEvidenceWithoutLosingSets() {
+        val name = "$databaseName-analytics"
+        helper.createDatabase(name, 10).apply {
+            execSQL(
+                "INSERT INTO set_history(" +
+                    "id, exercise_history_id, session_id, exercise_name, set_index, reps, weight_lb, " +
+                    "volume_kg, duration_sec, avg_force, peak_force, eccentric_load_pct, completed_at, " +
+                    "updated_at, sync_pending) VALUES " +
+                    "('set-1', 'exercise-1', 'session-1', 'Row', 0, 10, 40, 180.0, 30, 12, 18, 100, 2000, 2000, 1)",
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            name,
+            11,
+            true,
+            SessionLogDatabase.MIGRATION_10_11,
+        )
+        migrated.query(
+            "SELECT reps, num_cables, telemetry_sample_count, telemetry_finish_force_pct " +
+                "FROM set_history WHERE id='set-1'",
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals(10, it.getInt(0))
+            assertEquals(2, it.getInt(1))
+            assertEquals(0, it.getInt(2))
+            assertEquals(100, it.getInt(3))
+        }
+        migrated.close()
+    }
+
+    @Test
+    fun versionElevenAddsObservedCableEvidenceWithoutRewritingHistory() {
+        val name = "$databaseName-observed-cables"
+        helper.createDatabase(name, 11).apply {
+            execSQL(
+                "INSERT INTO set_history(" +
+                    "id, exercise_history_id, session_id, exercise_name, set_index, reps, weight_lb, num_cables, " +
+                    "volume_kg, duration_sec, eccentric_load_pct, telemetry_finish_force_pct, completed_at, " +
+                    "updated_at, sync_pending) VALUES " +
+                    "('set-1', 'exercise-1', 'session-1', 'Curl', 0, 10, 40, 1, 180.0, 30, 100, 100, 2000, 2000, 1)",
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            name,
+            12,
+            true,
+            SessionLogDatabase.MIGRATION_11_12,
+        )
+        migrated.query(
+            "SELECT num_cables, planned_num_cables, cable_execution_mode, cable_detection_confidence " +
+                "FROM set_history WHERE id='set-1'",
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals(1, it.getInt(0))
+            // In schema 11 num_cables was the prescription, so preserve it.
+            assertEquals(1, it.getInt(1))
+            assertEquals("UNKNOWN", it.getString(2))
+            assertEquals(0, it.getInt(3))
+        }
+        migrated.close()
+    }
+
     private fun SupportSQLiteDatabase.hasTable(name: String): Boolean =
         query(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",

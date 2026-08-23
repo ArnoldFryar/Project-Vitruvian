@@ -338,9 +338,11 @@ private fun SummaryStatsRow(logs: List<AnalyticsStore.SessionLog>, unitSystem: U
     val totalSessions = logs.size
     val totalVolume = logs.sumOf { it.totalVolumeKg }
     val totalReps = logs.sumOf { it.totalReps }
-    // Only average sessions ≥ 15 minutes so short test/warmup sessions don't skew the stat.
-    val realWorkouts = logs.filter { it.durationSec >= 900 }
-    val avgDuration = if (realWorkouts.isNotEmpty()) realWorkouts.sumOf { it.durationSec } / realWorkouts.size else 0
+    // Every completed session belongs in the average. Duration is not a reliable
+    // way to identify tests or warmups, and silently dropped valid short workouts.
+    val measuredDurations = logs.map { it.durationSec }.filter { it >= 0 }
+    val avgDuration = measuredDurations.takeIf { it.isNotEmpty() }
+        ?.average()?.roundToInt() ?: 0
     val heaviestLift = logs.maxOfOrNull { it.heaviestLiftLb } ?: 0
 
     val cs = MaterialTheme.colorScheme
@@ -968,6 +970,7 @@ private data class ForceSessionPoint(
     val endTimeMs: Long,
     val avgForceKg: Double,
     val peakForceKg: Double,
+    val sampleWeight: Int,
 )
 
 private data class TelemetrySessionPoint(
@@ -1014,14 +1017,26 @@ private fun ForceTrendSection(logs: List<AnalyticsStore.SessionLog>, unitSystem:
         logs.sortedByDescending { it.endTimeMs }
             .mapNotNull { session ->
                 val sets = session.exerciseSets.filter { !it.skipped }
-                val avgValues = sets.mapNotNull { it.avgForce.takeIf { force -> force > 0f }?.toDouble() }
+                val avgValues = sets.mapNotNull { set ->
+                    set.avgForce.takeIf { it > 0f }?.toDouble()?.let { force ->
+                        force to (set.telemetrySampleCount.takeIf { it > 0 }
+                            ?: set.reps.takeIf { it > 0 }
+                            ?: 1)
+                    }
+                }
                 val peakValues = sets.mapNotNull { it.peakForce.takeIf { force -> force > 0f }?.toDouble() }
                 val peak = peakValues.maxOrNull() ?: return@mapNotNull null
-                val avg = avgValues.takeIf { it.isNotEmpty() }?.average() ?: peak
+                val totalWeight = avgValues.sumOf { it.second }
+                val avg = if (totalWeight > 0) {
+                    avgValues.sumOf { (force, weight) -> force * weight } / totalWeight
+                } else {
+                    peak
+                }
                 ForceSessionPoint(
                     endTimeMs = session.endTimeMs,
                     avgForceKg = avg,
                     peakForceKg = peak,
+                    sampleWeight = totalWeight.coerceAtLeast(1),
                 )
             }
             .take(12)
@@ -1034,7 +1049,8 @@ private fun ForceTrendSection(logs: List<AnalyticsStore.SessionLog>, unitSystem:
     val zone = ZoneId.systemDefault()
     val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
     val maxPeak = recent.maxOf { it.peakForceKg }.coerceAtLeast(1.0)
-    val avgForce = recent.map { it.avgForceKg }.average()
+    val totalForceWeight = recent.sumOf { it.sampleWeight }
+    val avgForce = recent.sumOf { it.avgForceKg * it.sampleWeight } / totalForceWeight
     val highlightColor = Success
     val barColor = cs.primary
     val bgColor = ext.surface3.copy(alpha = 0.72f)

@@ -213,13 +213,12 @@ object VitruvianWorkoutImporter {
 
     private fun summarizeParsedWorkout(exerciseSets: List<AnalyticsStore.ExerciseSetLog>): ParsedWorkoutData {
         val completedSets = exerciseSets.filter { !it.skipped }
-        val qualityScores = completedSets.mapNotNull { it.avgQualityScore }
         return ParsedWorkoutData(
             totalSets = completedSets.size,
             totalReps = completedSets.sumOf { it.reps },
             totalVolumeKg = completedSets.sumOf { it.volumeKg.toDouble() },
             heaviestLiftLb = completedSets.maxOfOrNull { it.weightLb } ?: 0,
-            avgQualityScore = qualityScores.takeIf { it.isNotEmpty() }?.average()?.toInt(),
+            avgQualityScore = AnalyticsStore.qualityScoreForSets(completedSets),
             exerciseSets = exerciseSets,
         )
     }
@@ -247,6 +246,8 @@ object VitruvianWorkoutImporter {
             val reps = firstInt(objects, "reps", "repCount", "rep_count") ?: 0
             val weightLb = parseWeightLb(objects)
             val volumeKg = parseVolumeKg(objects, reps, weightLb)
+            val numCables = firstInt(objects, "numCables", "num_cables", "cableCount", "cable_count")
+                ?.coerceIn(1, 2) ?: 2
             val avgForce = firstDouble(objects, "avgForce", "avg_force", "averageForce", "average_force")?.toFloat() ?: 0f
             val peakForce = firstDouble(objects, "peakForce", "peak_force", "maxForce", "max_force")?.toFloat() ?: 0f
             val echoLevel = firstString(objects, "echoLevel", "echo_level")
@@ -309,6 +310,7 @@ object VitruvianWorkoutImporter {
                 avgTempo = firstInt(objects, "avgTempo", "avg_tempo", "tempo"),
                 avgSymmetry = firstInt(objects, "avgSymmetry", "avg_symmetry", "symmetry"),
                 avgSmoothness = firstInt(objects, "avgSmoothness", "avg_smoothness", "smoothness"),
+                numCables = numCables,
                 skipped = reps <= 0 && weightLb <= 0 && volumeKg <= 0f,
                 avgForce = avgForce,
                 peakForce = peakForce,

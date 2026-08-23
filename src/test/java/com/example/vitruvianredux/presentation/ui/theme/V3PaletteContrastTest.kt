@@ -8,22 +8,22 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class V3PaletteContrastTest {
+class V4PaletteContrastTest {
 
     @Test
     fun semanticSeeds_matchApprovedV4Palette() {
-        assertEquals(Color(0xFFF6F7F5), LightCanvas)
-        assertEquals(Color.White, LightSurface)
-        assertEquals(Color(0xFF0D0F10), PrimaryText)
-        assertEquals(Color(0xFFF47721), PrimaryCopper)
-        assertEquals(Color(0xFFF47721), PerformanceTeal)
-        assertEquals(Color(0xFF3F7652), SemanticSuccess)
-        assertEquals(Color(0xFFC18400), SemanticWarning)
-        assertEquals(Color(0xFFB5483F), SemanticError)
-        assertEquals(Color(0xFF0D0F10), DarkCanvas)
-        assertEquals(Color(0xFF191C1E), DarkSurface)
-        assertEquals(Color(0xFFFF8A2B), DarkCopper)
-        assertEquals(Color(0xFFFF8A2B), DarkPerformanceTeal)
+        assertEquals(Color(0xFFF3F1EB), LightCanvas)
+        assertEquals(Color(0xFFFCFBF8), LightSurface)
+        assertEquals(Color(0xFF151714), PrimaryText)
+        assertEquals(Color(0xFFE84312), PrimaryCopper)
+        assertEquals(Color(0xFF147D82), PerformanceTeal)
+        assertEquals(Color(0xFF477052), SemanticSuccess)
+        assertEquals(Color(0xFF9A5B12), SemanticWarning)
+        assertEquals(Color(0xFFA9473F), SemanticError)
+        assertEquals(Color(0xFF0D100F), DarkCanvas)
+        assertEquals(Color(0xFF171B19), DarkSurface)
+        assertEquals(Color(0xFFFF5328), DarkCopper)
+        assertEquals(Color(0xFF63C9C7), DarkPerformanceTeal)
     }
 
     @Test
@@ -31,9 +31,9 @@ class V3PaletteContrastTest {
         assertContrast(PrimaryText, LightCanvas)
         assertContrast(PrimaryText, LightSurface)
         assertContrast(NearBlack, PrimaryCopper)
-        assertContrast(NearBlack, PerformanceTeal)
+        assertContrast(Color.White, PerformanceTeal)
         assertContrast(Color.White, SemanticSuccess)
-        assertContrast(PrimaryText, SemanticWarning)
+        assertContrast(Color.White, SemanticWarning)
         assertContrast(Color.White, SemanticError)
     }
 

@@ -14,6 +14,11 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.json.Json
 import timber.log.Timber
+import com.example.vitruvianredux.partner.PartnerCompleteSetRequest
+import com.example.vitruvianredux.partner.PartnerJoinRequest
+import com.example.vitruvianredux.partner.PartnerLiveSessionHost
+import com.example.vitruvianredux.partner.PartnerSessionRequest
+import com.example.vitruvianredux.partner.PartnerStartRequest
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SyncHub — lightweight Ktor-CIO server running on the "hub" device.
@@ -33,6 +38,7 @@ class SyncHub(
     private val programRepo: ProgramRepository,
     private val sessionRepo: SessionRepository,
     private val pairingManager: PairingManager,
+    private val partnerHost: PartnerLiveSessionHost,
     private val port: Int = 8099,
 ) {
     private val TAG = "SyncHub"
@@ -74,6 +80,7 @@ class SyncHub(
                     getManifest()       // HMAC-protected
                     postPull()          // HMAC-protected
                     postPush()          // HMAC-protected
+                    partnerRoutes()     // invite-token protected, workout scoped
                 }
             }.also { it.start(wait = false) }
 
@@ -81,6 +88,31 @@ class SyncHub(
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Hub failed to start on port $port")
             server = null
+        }
+    }
+
+    private fun Routing.partnerRoutes() {
+        post("/partner/join") {
+            call.respond(partnerHost.join(call.receive<PartnerJoinRequest>()))
+        }
+        post("/partner/state") {
+            call.respond(partnerHost.snapshot(call.receive<PartnerSessionRequest>()))
+        }
+        post("/partner/start") {
+            val request = call.receive<PartnerStartRequest>()
+            call.respond(partnerHost.start(request.groupId, request.inviteToken, request.rotationMode))
+        }
+        post("/partner/claim") {
+            call.respond(partnerHost.claimBle(call.receive<PartnerSessionRequest>()))
+        }
+        post("/partner/heartbeat") {
+            call.respond(partnerHost.heartbeat(call.receive<PartnerSessionRequest>()))
+        }
+        post("/partner/release") {
+            call.respond(partnerHost.releaseBle(call.receive<PartnerSessionRequest>()))
+        }
+        post("/partner/complete") {
+            call.respond(partnerHost.completeSet(call.receive<PartnerCompleteSetRequest>()))
         }
     }
 

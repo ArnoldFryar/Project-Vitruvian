@@ -35,7 +35,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PartnerPersonalSessionEntity::class,
         PartnerGroupFinalizationEntity::class,
     ],
-    version   = 10,
+    version   = 12,
     exportSchema = true,
 )
 abstract class SessionLogDatabase : RoomDatabase() {
@@ -216,6 +216,26 @@ abstract class SessionLogDatabase : RoomDatabase() {
             }
         }
 
+        internal val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE set_history ADD COLUMN num_cables INTEGER NOT NULL DEFAULT 2")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN telemetry_avg_left_force REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN telemetry_avg_right_force REAL NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN telemetry_balance_pct INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN telemetry_finish_force_pct INTEGER NOT NULL DEFAULT 100")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN telemetry_sample_count INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        internal val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE set_history ADD COLUMN planned_num_cables INTEGER NOT NULL DEFAULT 2")
+                db.execSQL("UPDATE set_history SET planned_num_cables = num_cables")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN cable_execution_mode TEXT NOT NULL DEFAULT 'UNKNOWN'")
+                db.execSQL("ALTER TABLE set_history ADD COLUMN cable_detection_confidence INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         /** Return the process-wide singleton, creating it on first call. */
         fun getInstance(context: Context): SessionLogDatabase =
             INSTANCE ?: synchronized(this) {
@@ -234,6 +254,8 @@ abstract class SessionLogDatabase : RoomDatabase() {
                         MIGRATION_7_8,
                         MIGRATION_8_9,
                         MIGRATION_9_10,
+                        MIGRATION_10_11,
+                        MIGRATION_11_12,
                     )
                     .build().also { INSTANCE = it }
             }

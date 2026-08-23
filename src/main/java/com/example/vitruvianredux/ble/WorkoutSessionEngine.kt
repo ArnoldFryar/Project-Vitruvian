@@ -27,6 +27,7 @@ import com.example.vitruvianredux.ble.session.SessionReducer
 import com.example.vitruvianredux.ble.session.SetPhase
 import com.example.vitruvianredux.ble.session.WorkoutStats
 import com.example.vitruvianredux.data.OneRepMaxProtocol
+import com.example.vitruvianredux.data.AnalyticsMath
 import com.example.vitruvianredux.data.StrengthTestAttemptOutcome
 import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.StrengthTestSessionMetadata
@@ -301,6 +302,8 @@ data class SessionState(
     val currentWeightKg: Double = 0.0,
     val repsCount: Int = 0,
     val lastTelemetryTimestamp: Long = 0L,
+    /** Device sample counter used to distinguish new telemetry from unrelated state emissions. */
+    val telemetryTick: Int = 0,
     /**
      * Reducer's canonical set phase — single source of truth for warmup/working UI split.
      * Synced from [EngineState.phase] after every [SessionReducer.reduce] call.
@@ -642,6 +645,8 @@ class WorkoutSessionEngine(
     /** Per-set raw cable telemetry accumulated during WORKING phase (cleared after each set). */
     private val samplesLeft  = ArrayList<CableSample>(512)
     private val samplesRight = ArrayList<CableSample>(512)
+    /** Observes warm-up and working telemetry to correct catalog cable-count mistakes. */
+    private val cableUsageDetector = com.example.vitruvianredux.ble.session.CableUsageDetector()
 
     companion object {
         /** Duration handles must stay released before auto-stopping (spec: >5 s). */
@@ -658,6 +663,9 @@ class WorkoutSessionEngine(
         private const val DELOAD_OCCURRED_MASK = 0x8000
         /** Minimum average-cable delta that counts as movement for notification recovery. */
         private const val REP_NOTIFY_MOTION_DELTA = 0.03f
+        private const val PARTNER_STOP_DRAIN_MS = 650L
+        private const val PARTNER_DISCONNECT_TIMEOUT_MS = 5_000L
+        private const val PARTNER_CONNECT_TIMEOUT_MS = 12_000L
     }
     /** Timestamp when the current set became active (for auto-stop grace period). */
     private var setActiveTimestampMs: Long = 0L
@@ -735,6 +743,7 @@ class WorkoutSessionEngine(
                                 current.copy(
                                     leftCable = sample.left,
                                     rightCable = sample.right,
+                                    telemetryTick = sample.ticks,
                                     lastTelemetryTimestamp = nowMs,
                                 )
                             }
@@ -790,6 +799,21 @@ class WorkoutSessionEngine(
                             }
 
                             // ── Sample accumulation (for Vitruvian API upload) ───
+                            if (engineState.phase == SetPhase.WARMUP || engineState.phase == SetPhase.WORKING) {
+                                cableUsageDetector.observe(sample.left, sample.right)
+                                val active = _state.value.sessionPhase as? SessionPhase.ExerciseActive
+                                val planned = engineState.setDef?.numCables ?: active?.numCables ?: 2
+                                val completedReps = engineState.warmupRepsCompleted + engineState.workingRepsCompleted
+                                val usage = cableUsageDetector.resolve(completedReps)
+                                val effective = usage.effectiveCableCount(planned)
+                                if (active != null && active.numCables != effective) {
+                                    _state.update { current ->
+                                        current.copy(sessionPhase = active.copy(numCables = effective))
+                                    }
+                                    Log.i(TAG, "CABLE_USAGE ${usage.mode} confidence=${usage.confidence} " +
+                                        "planned=$planned observed=$effective")
+                                }
+                            }
                             if (engineState.phase == SetPhase.WORKING
                                 && samplesLeft.size < MAX_SET_SAMPLES) {
                                 samplesLeft.add(sample.left)
@@ -1134,6 +1158,31 @@ class WorkoutSessionEngine(
             sendPacket(BlePacketFactory.createOfficialStopPacket(), "PANIC_STOP")
         else Log.w(TAG, "panicStop: not connected - skipping write")
         clearPlayerSessionState(sessionPhase = SessionPhase.Idle)
+    }
+
+    /**
+     * Safely relinquish a shared trainer between partner devices. STOP is
+     * queued first, then GATT is closed only after the write queue has had a
+     * bounded drain window. Workout/player state is intentionally preserved.
+     */
+    suspend fun releaseTrainerForPartnerHandoff(): Boolean {
+        stopMonitorPolling()
+        if (bleClient.state.value !is BleConnectionState.Connected) return true
+        bleAdapter.execute(BleCommand.Stop, "PARTNER_HANDOFF_STOP")
+        delay(PARTNER_STOP_DRAIN_MS)
+        bleClient.disconnect()
+        return withTimeoutOrNull(PARTNER_DISCONNECT_TIMEOUT_MS) {
+            bleClient.state.first { it is BleConnectionState.Disconnected }
+        } != null
+    }
+
+    /** Acquire the shared trainer without resetting the local workout queue. */
+    suspend fun acquireTrainerForPartnerHandoff(address: String): Boolean {
+        if (bleClient.isReady.value) return true
+        if (bleClient.state.value !is BleConnectionState.Connecting) bleClient.connect(address)
+        return withTimeoutOrNull(PARTNER_CONNECT_TIMEOUT_MS) {
+            bleClient.isReady.first { it }
+        } == true
     }
 
     fun resetDevice() {
@@ -1942,6 +1991,12 @@ class WorkoutSessionEngine(
     private fun launchPlayerSet(index: Int) {
         resetSetCompletionGuard()
         val set = playerSets.getOrNull(index) ?: run { finishWorkout(); return }
+        // Per-set telemetry must never inherit samples or heuristic aggregates
+        // from a skipped/completed predecessor.
+        samplesLeft.clear()
+        samplesRight.clear()
+        cableUsageDetector.reset()
+        _machineHeuristic.value = null
         val isDurationMode = set.targetDurationSec != null && set.targetReps == null
         Log.d(TAG, "launchPlayerSet[$index] workingRes=${set.weightPerCableLb}lb " +
             "warmupReps=${set.warmupReps} isDurationMode=$isDurationMode repTarget=${set.targetReps}")
@@ -2047,6 +2102,7 @@ class WorkoutSessionEngine(
         lastRepNotifyRearmAttemptMs = 0L
         lastCableMotionTimestampMs = 0L
         previousAvgCablePosition = null
+        cableUsageDetector.reset()
         // Cancel any pending auto-start/auto-stop from the previous set
         cancelAutoStartTimer()
         handleAutoStopStartMs = null
@@ -2181,7 +2237,16 @@ class WorkoutSessionEngine(
         // Authoritative working volume comes from the per-rep accumulator — no lb recalculation.
         // Capture heuristic force data (left+right average) if available
         val heuristic = _machineHeuristic.value
-        val hAvgForce  = heuristic?.let { (it.left.concentric.kgAvg + it.right.concentric.kgAvg) / 2f } ?: 0f
+        val plannedNumCables = set.numCables.coerceIn(1, 2)
+        val cableUsage = cableUsageDetector.resolve(warmupRepsCompleted + workingRepsCompleted)
+        val observedNumCables = cableUsage.effectiveCableCount(plannedNumCables)
+        val hAvgForce = heuristic?.let {
+            if (observedNumCables > 1) {
+                (it.left.concentric.kgAvg + it.right.concentric.kgAvg) / 2f
+            } else {
+                maxOf(it.left.concentric.kgAvg, it.right.concentric.kgAvg)
+            }
+        } ?: 0f
         val hPeakForce = heuristic?.let { maxOf(it.left.concentric.kgMax, it.right.concentric.kgMax) } ?: 0f
         val isEcho = set.programMode == "Echo"
         val baseStats = ExerciseStats(
@@ -2196,8 +2261,12 @@ class WorkoutSessionEngine(
             warmupRepsCompleted  = warmupRepsCompleted,
             durationSec          = durSec,
             weightPerCableLb     = set.weightPerCableLb,
-            numCables            = set.numCables,
-            volumeKg             = setVolumeAccumulator.workingKg,
+            numCables            = observedNumCables,
+            plannedNumCables     = plannedNumCables,
+            cableExecutionMode   = cableUsage.mode,
+            cableDetectionConfidence = cableUsage.confidence,
+            volumeKg             = setVolumeAccumulator.workingKg *
+                observedNumCables.toFloat() / plannedNumCables.toFloat(),
             avgForce             = hAvgForce,
             peakForce            = hPeakForce,
             echoLevel            = if (isEcho) set.echoLevel.displayName else null,
@@ -2225,7 +2294,7 @@ class WorkoutSessionEngine(
         }
         samplesLeft.clear()
         samplesRight.clear()
-        Log.i(TAG, "completeCurrentPlayerSet: set $completedIndex done — warmup=$warmupRepsCompleted working=$workingRepsCompleted reps (state total=$stateRepsCount engine warmup=${engineState.warmupRepsCompleted} engine working=${engineState.workingRepsCompleted}), ${durSec}s, ${set.weightPerCableLb}lb")
+        Log.i(TAG, "completeCurrentPlayerSet: set $completedIndex done — warmup=$warmupRepsCompleted working=$workingRepsCompleted reps (state total=$stateRepsCount engine warmup=${engineState.warmupRepsCompleted} engine working=${engineState.workingRepsCompleted}), ${durSec}s, ${set.weightPerCableLb}lb, cables=$plannedNumCables→$observedNumCables (${cableUsage.mode}, ${cableUsage.confidence}%)")
 
         // Send STOP through the adapter (skip if not connected is handled internally)
         if (!set.isOffMachineTimer) {
@@ -2644,6 +2713,9 @@ class WorkoutSessionEngine(
             durationSec    = totalDurSec,
             totalSets      = completedStats.size,
             heaviestLiftLb = heaviest,
+            avgQualityScore = AnalyticsMath.repWeightedQuality(
+                completedStats.map { it.avgQualityScore to it.repsCompleted },
+            ),
             // The trainer does not provide metabolic energy. Do not invent a calorie metric.
             calories       = 0,
         )

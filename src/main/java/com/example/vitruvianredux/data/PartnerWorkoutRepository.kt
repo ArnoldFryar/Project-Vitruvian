@@ -112,8 +112,9 @@ object PartnerWorkoutRepository {
                     totalSets = sets.size,
                     totalReps = sets.sumOf { it.reps },
                     totalVolumeKg = sets.sumOf { it.volumeKg.toDouble() },
-                    averageQuality = sets.mapNotNull { it.avgQualityScore }
-                        .takeIf { it.isNotEmpty() }?.average()?.toInt() ?: session.avgQualityScore,
+                    averageQuality = AnalyticsMath.repWeightedQuality(
+                        sets.map { it.avgQualityScore to it.reps },
+                    ) ?: session.avgQualityScore,
                 )
             }
         }
@@ -157,7 +158,13 @@ object PartnerWorkoutRepository {
             validateCommit(commit)
             database.withTransaction {
                 val partnerDao = database.partnerWorkoutDao()
-                if (partnerDao.finalization(commit.group.groupId) != null) {
+                val incomingFingerprint = groupFingerprint(commit)
+                val existingFinalization = partnerDao.finalization(commit.group.groupId)
+                if (existingFinalization != null) {
+                    check(
+                        !existingFinalization.payloadHash.startsWith("v2:") ||
+                            existingFinalization.payloadHash == incomingFingerprint,
+                    ) { "Partner group id already finalized with different workout evidence" }
                     return@withTransaction CanonicalCommitResult.ALREADY_COMMITTED
                 }
 
@@ -202,7 +209,7 @@ object PartnerWorkoutRepository {
                     PartnerGroupFinalizationEntity(
                         groupId = commit.group.groupId,
                         finalizedAt = now,
-                        payloadHash = groupFingerprint(commit),
+                        payloadHash = incomingFingerprint,
                     ),
                 )
                 partnerDao.clearCheckpoint(commit.group.groupId)
@@ -276,6 +283,7 @@ object PartnerWorkoutRepository {
         require(actual.toSet() == expected) { "Every participant requires one personal canonical record" }
         commit.personalWorkouts.forEach { personal ->
             require(personal.workout.sets.all { it.sessionId == personal.workout.session.id })
+            validateCanonicalWorkoutCommit(personal.workout)
         }
     }
 
@@ -287,8 +295,9 @@ object PartnerWorkoutRepository {
                 append(WorkoutPayloadFingerprint.forCommit(it.workout)).append(';')
             }
         }
-        return MessageDigest.getInstance("SHA-256")
+        val hash = MessageDigest.getInstance("SHA-256")
             .digest(canonical.toByteArray())
             .joinToString("") { "%02x".format(it) }
+        return "v2:$hash"
     }
 }

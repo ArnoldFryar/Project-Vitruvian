@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
+import kotlin.math.abs
 
 data class CanonicalWorkoutCommit(
     val session: SessionLog,
@@ -41,18 +42,122 @@ internal object WorkoutPayloadFingerprint {
             append(commit.session.id).append('|')
             append(commit.session.startTime).append('|')
             append(commit.session.endTime).append('|')
+            append(commit.session.durationSeconds).append('|')
+            append(commit.session.programName).append('|')
+            append(commit.session.dayName).append('|')
             append(commit.session.totalReps).append('|')
             append(commit.session.totalVolumeKg ?: "null").append('|')
+            append(commit.session.avgQualityScore ?: "null").append('|')
+            append(commit.session.trainingMode).append('|')
+            commit.exercises.sortedBy { it.id }.forEach { exercise ->
+                append(exercise.id).append(':')
+                append(exercise.exerciseName).append(':')
+                append(exercise.setCount).append(':')
+                append(exercise.totalReps).append(':')
+                append(exercise.totalVolumeKg).append(':')
+                append(exercise.heaviestWeightLb).append(':')
+                append(exercise.avgQualityScore ?: "null").append(';')
+            }
+            append('|')
             commit.sets.sortedBy { it.id }.forEach { set ->
                 append(set.id).append(':')
                 append(set.reps).append(':')
                 append(set.weightLb).append(':')
-                append(set.volumeKg).append(';')
+                append(set.numCables).append(':')
+                append(set.plannedNumCables).append(':')
+                append(set.cableExecutionMode).append(':')
+                append(set.cableDetectionConfidence).append(':')
+                append(set.volumeKg).append(':')
+                append(set.durationSec).append(':')
+                append(set.avgQualityScore ?: "null").append(':')
+                append(set.avgRom ?: "null").append(':')
+                append(set.avgTempo ?: "null").append(':')
+                append(set.avgSymmetry ?: "null").append(':')
+                append(set.avgSmoothness ?: "null").append(':')
+                append(set.avgForce).append(':')
+                append(set.peakForce).append(':')
+                append(set.telemetryAvgLeftForce).append(':')
+                append(set.telemetryAvgRightForce).append(':')
+                append(set.telemetryBalancePct).append(':')
+                append(set.telemetryFinishForcePct).append(':')
+                append(set.telemetrySampleCount).append(':')
+                append(set.echoLevel).append(':')
+                append(set.eccentricLoadPct).append(':')
+                append(set.protocolType).append(':')
+                append(set.attemptNumber ?: "null").append(':')
+                append(set.attemptOutcome).append(';')
             }
+            append('|')
+            commit.integrationDestinations.map { it.trim().uppercase() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .sorted()
+                .forEach { append(it).append(';') }
         }
-        return MessageDigest.getInstance("SHA-256")
+        val hash = MessageDigest.getInstance("SHA-256")
             .digest(canonical.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
+        return "v2:$hash"
+    }
+}
+
+internal fun validateCanonicalWorkoutCommit(commit: CanonicalWorkoutCommit) {
+    val session = commit.session
+    require(session.id.isNotBlank()) { "Session id is required" }
+    require(session.startTime in 1..session.endTime) { "Session timestamps are invalid" }
+    require(session.durationSeconds >= 0) { "Session duration cannot be negative" }
+    require(session.totalReps >= 0) { "Session reps cannot be negative" }
+    require(session.totalVolumeKg == null || session.totalVolumeKg.isFinite() && session.totalVolumeKg >= 0.0) {
+        "Session volume must be finite and non-negative"
+    }
+    require(session.avgQualityScore == null || session.avgQualityScore in 0..100) {
+        "Session quality must be within 0..100"
+    }
+    require(commit.sets.map { it.id }.distinct().size == commit.sets.size) { "Set ids must be unique" }
+    require(commit.exercises.map { it.id }.distinct().size == commit.exercises.size) { "Exercise ids must be unique" }
+
+    commit.sets.forEach { set ->
+        require(set.sessionId == session.id) { "Set belongs to a different session" }
+        require(set.reps >= 0 && set.weightLb >= 0 && set.durationSec >= 0) { "Set totals cannot be negative" }
+        require(set.numCables in 1..2) { "Set cable count must be 1 or 2" }
+        require(set.plannedNumCables in 1..2) { "Planned set cable count must be 1 or 2" }
+        require(set.cableExecutionMode in setOf(
+            "UNKNOWN", "SINGLE_LEFT", "SINGLE_RIGHT", "DUAL_SYNCHRONOUS", "DUAL_ALTERNATING",
+        )) { "Set cable execution mode is invalid" }
+        require(set.cableDetectionConfidence in 0..100) { "Cable detection confidence must be within 0..100" }
+        require(set.volumeKg.isFinite() && set.volumeKg >= 0f) { "Set volume must be finite and non-negative" }
+        listOf(set.avgQualityScore, set.avgRom, set.avgTempo, set.avgSymmetry, set.avgSmoothness)
+            .filterNotNull()
+            .forEach { require(it in 0..100) { "Set quality metrics must be within 0..100" } }
+        require(set.telemetrySampleCount >= 0) { "Telemetry sample count cannot be negative" }
+        require(set.telemetryBalancePct in 0..100) { "Telemetry balance must be within 0..100" }
+        require(set.telemetryFinishForcePct in 0..200) { "Telemetry finish force must be within 0..200" }
+    }
+
+    commit.exercises.forEach { exercise ->
+        require(exercise.sessionId == session.id) { "Exercise belongs to a different session" }
+        require(exercise.setCount >= 0 && exercise.totalReps >= 0) { "Exercise totals cannot be negative" }
+        require(exercise.totalVolumeKg.isFinite() && exercise.totalVolumeKg >= 0f) {
+            "Exercise volume must be finite and non-negative"
+        }
+        require(exercise.avgQualityScore == null || exercise.avgQualityScore in 0..100) {
+            "Exercise quality must be within 0..100"
+        }
+        val exerciseSets = commit.sets.filter { it.exerciseHistoryId == exercise.id }
+        require(exercise.setCount == exerciseSets.size) { "Exercise set count disagrees with set evidence" }
+        require(exercise.totalReps == exerciseSets.sumOf { it.reps }) { "Exercise reps disagree with set evidence" }
+    }
+    val exerciseIds = commit.exercises.map { it.id }.toSet()
+    require(commit.sets.all { it.exerciseHistoryId in exerciseIds }) {
+        "Every set requires matching exercise evidence"
+    }
+
+    if (commit.sets.isNotEmpty()) {
+        require(session.totalReps == commit.sets.sumOf { it.reps }) { "Session reps disagree with set evidence" }
+        val setVolume = commit.sets.sumOf { it.volumeKg.toDouble() }
+        val sessionVolume = session.totalVolumeKg ?: 0.0
+        val tolerance = maxOf(0.05, setVolume * 0.001)
+        require(abs(sessionVolume - setVolume) <= tolerance) { "Session volume disagrees with set evidence" }
     }
 }
 
@@ -101,11 +206,18 @@ object SessionLogRepository {
      * The stable session UUID is the idempotency key. A repeated call returns
      * [CanonicalCommitResult.ALREADY_COMMITTED] and performs no writes.
      */
-    suspend fun finalizeWorkout(commit: CanonicalWorkoutCommit): CanonicalCommitResult =
-        withContext(Dispatchers.IO) {
+    suspend fun finalizeWorkout(commit: CanonicalWorkoutCommit): CanonicalCommitResult {
+        val result = withContext(Dispatchers.IO) {
+            validateCanonicalWorkoutCommit(commit)
             database.withTransaction {
                 val reliabilityDao = database.v4ReliabilityDao()
-                if (reliabilityDao.getFinalization(commit.session.id) != null) {
+                val incomingFingerprint = WorkoutPayloadFingerprint.forCommit(commit)
+                val existingFinalization = reliabilityDao.getFinalization(commit.session.id)
+                if (existingFinalization != null) {
+                    check(
+                        !existingFinalization.payloadHash.startsWith("v2:") ||
+                            existingFinalization.payloadHash == incomingFingerprint,
+                    ) { "Session id already finalized with different workout evidence" }
                     return@withTransaction CanonicalCommitResult.ALREADY_COMMITTED
                 }
 
@@ -132,13 +244,18 @@ object SessionLogRepository {
                     WorkoutFinalizationEntity(
                         sessionId = commit.session.id,
                         finalizedAt = now,
-                        payloadHash = WorkoutPayloadFingerprint.forCommit(commit),
+                        payloadHash = incomingFingerprint,
                     ),
                 )
                 reliabilityDao.clearCheckpoint()
                 CanonicalCommitResult.COMMITTED
             }
         }
+        if (result == CanonicalCommitResult.COMMITTED) {
+            com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger.requestDataSync()
+        }
+        return result
+    }
 
     suspend fun saveActiveCheckpoint(checkpoint: ActiveWorkoutCheckpointEntity) =
         withContext(Dispatchers.IO) {
@@ -226,7 +343,7 @@ object SessionLogRepository {
         }
 
     /**
-     * Return all sessions whose [SessionLog.startTime] falls within the
+     * Return all sessions whose [SessionLog.endTime] falls within the
      * closed interval [[start], [end]] (epoch millis), ordered chronologically.
      *
      * Runs on [Dispatchers.IO].

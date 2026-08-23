@@ -43,6 +43,7 @@ class RepQualityTrackerTest {
         setPhase = setPhase,
         warmupRepsCompleted = warmupRepsCompleted,
         workingRepsCompleted = reps,
+        telemetryTick = tick,
         leftCable = sample(leftPosition),
         rightCable = sample(rightPosition),
     )
@@ -61,6 +62,7 @@ class RepQualityTrackerTest {
         ),
         setPhase = SetPhase.REST,
         workingRepsCompleted = reps,
+        telemetryTick = tick,
         leftCable = sample(leftPosition),
         rightCable = sample(rightPosition),
     )
@@ -88,6 +90,24 @@ class RepQualityTrackerTest {
         assertEquals(70, aggregate?.avgQualityScore)
         assertEquals(80, aggregate?.avgRom)
         assertNull(tracker.consumeCurrentSetAggregate())
+    }
+
+    @Test
+    fun `unrelated state emissions do not duplicate a telemetry sample`() {
+        var scoredFrameCount = 0
+        val tracker = RepQualityTracker { frames, _, _, _, _ ->
+            scoredFrameCount = frames.size
+            RepQuality(80, "Great", 80, 80, 80, 80)
+        }
+
+        assertNull(tracker.onSessionState(activeState(0, 1)))
+        assertNull(tracker.onSessionState(activeState(0, 1)))
+        assertNull(tracker.onSessionState(activeState(0, 2)))
+        assertNull(tracker.onSessionState(activeState(0, 2)))
+        assertNull(tracker.onSessionState(activeState(0, 3)))
+        assertNotNull(tracker.onSessionState(activeState(1, 4)))
+
+        assertEquals(4, scoredFrameCount)
     }
 
     @Test
@@ -174,6 +194,43 @@ class RepQualityTrackerTest {
         assertNotNull(tracker.onSessionState(activeState(reps = 1, tick = 8, setPhase = SetPhase.WORKING, warmupRepsCompleted = 1, leftPosition = 200f, rightPosition = 220f)))
 
         assertEquals(60f, recordedReference)
+    }
+
+    @Test
+    fun `single cable warmup uses active cable swing as rom reference`() {
+        var recordedReference: Float? = null
+        val tracker = RepQualityTracker { _, _, calibratedRom, _, _ ->
+            recordedReference = calibratedRom
+            RepQuality(88, "Great", 92, 70, 100, 50)
+        }
+
+        assertNull(tracker.onSessionState(activeState(0, 1, setPhase = SetPhase.WARMUP, numCables = 1, leftPosition = 0f, rightPosition = 100f), symmetryApplicable = false))
+        assertNull(tracker.onSessionState(activeState(0, 2, setPhase = SetPhase.WARMUP, numCables = 1, leftPosition = 0f, rightPosition = 130f), symmetryApplicable = false))
+        assertNull(tracker.onSessionState(activeState(0, 3, setPhase = SetPhase.WARMUP, numCables = 1, leftPosition = 0f, rightPosition = 160f), symmetryApplicable = false))
+        assertNull(tracker.onSessionState(activeState(0, 4, setPhase = SetPhase.WARMUP, warmupRepsCompleted = 1, numCables = 1, leftPosition = 0f, rightPosition = 100f), symmetryApplicable = false))
+
+        assertNull(tracker.onSessionState(activeState(0, 5, numCables = 1, leftPosition = 0f, rightPosition = 200f), symmetryApplicable = false))
+        assertNull(tracker.onSessionState(activeState(0, 6, numCables = 1, leftPosition = 0f, rightPosition = 230f), symmetryApplicable = false))
+        assertNull(tracker.onSessionState(activeState(0, 7, numCables = 1, leftPosition = 0f, rightPosition = 260f), symmetryApplicable = false))
+        assertNotNull(tracker.onSessionState(activeState(1, 8, numCables = 1, leftPosition = 0f, rightPosition = 200f), symmetryApplicable = false))
+
+        assertEquals(60f, recordedReference)
+    }
+
+    @Test
+    fun `set aggregate rounds half scores to nearest integer`() {
+        var score = 79
+        val tracker = RepQualityTracker { _, _, _, _, _ ->
+            score += 1
+            RepQuality(score, "Great", score, score, score, score)
+        }
+
+        repeat(3) { tick -> assertNull(tracker.onSessionState(activeState(0, tick + 1))) }
+        assertNotNull(tracker.onSessionState(activeState(1, 4)))
+        repeat(3) { tick -> assertNull(tracker.onSessionState(activeState(1, tick + 5))) }
+        assertNotNull(tracker.onSessionState(activeState(2, 8)))
+
+        assertEquals(81, tracker.consumeCurrentSetAggregate()?.avgQualityScore)
     }
 
     @Test

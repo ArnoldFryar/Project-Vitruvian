@@ -44,6 +44,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import com.example.vitruvianredux.ble.SessionPhase
 import com.example.vitruvianredux.data.AnalyticsRecorder
+import com.example.vitruvianredux.data.AnalyticsMath
 import com.example.vitruvianredux.data.ExerciseHistoryRecorder
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.HealthConnectManager
@@ -283,6 +284,7 @@ fun AppScaffold() {
                     val strengthTestSetMetadata = workoutVM.strengthTestSetMetadataBySetIndex
                     val trainingMode = when {
                         workoutVM.isJustLiftSession -> "JUST_LIFT"
+                        workoutVM.isMultiDevicePartnerSession -> "PARTNER"
                         strengthTest?.protocolType == StrengthTestProtocolType.ONE_REP_MAX -> "ONE_REP_MAX"
                         else -> null
                     }
@@ -311,6 +313,9 @@ fun AppScaffold() {
                             avgSymmetry     = es.avgSymmetry,
                             avgSmoothness   = es.avgSmoothness,
                             numCables       = es.numCables,
+                            plannedNumCables = es.plannedNumCables,
+                            cableExecutionMode = es.cableExecutionMode.name,
+                            cableDetectionConfidence = es.cableDetectionConfidence,
                             skipped         = es.skipped,
                             avgForce        = es.avgForce,
                             peakForce       = es.peakForce,
@@ -352,11 +357,10 @@ fun AppScaffold() {
                         programName = workoutVM.activeProgramName,
                         dayName = workoutVM.activeDayName,
                         startTimeMs = startMs,
-                        avgQualityScore = completedStats
-                            .mapNotNull { it.avgQualityScore }
-                            .takeIf { it.isNotEmpty() }
-                            ?.average()
-                            ?.toInt(),
+                        avgQualityScore = AnalyticsMath.repWeightedQuality(
+                            completedStats.filterNot { it.skipped }
+                                .map { it.avgQualityScore to it.repsCompleted },
+                        ),
                         trainingMode = trainingMode,
                         taggedExercise = taggedExercise,
                         strengthTest = strengthTest,
@@ -369,7 +373,7 @@ fun AppScaffold() {
                         if (SyncServiceLocator.isInitialized) add("LAN_SYNC")
                     }
                     val partnerGroup = workoutVM.partnerGroup.value
-                    if (partnerGroup != null) {
+                    if (partnerGroup != null && !workoutVM.isMultiDevicePartnerSession) {
                         val attributedStats = PartnerSetAttribution.partition(partnerGroup, completedStats)
                         val personalCommits = partnerGroup.participants.map { participant ->
                             val personalStats = attributedStats.getValue(participant.participantId)
@@ -380,13 +384,17 @@ fun AppScaffold() {
                             val personalWorkoutStats = WorkoutStats(
                                 totalReps = personalStats.sumOf { it.repsCompleted },
                                 totalVolumeKg = personalStats.sumOf { it.volumeKg.toDouble() }.toFloat(),
-                                durationSec = personalStats.sumOf { it.durationSec },
+                                // Session duration is elapsed workout time. Summed set-active
+                                // time is a different metric and made partner data incomparable.
+                                durationSec = stats.durationSec,
                                 totalSets = personalStats.count { !it.skipped },
                                 heaviestLiftLb = personalStats.maxOfOrNull {
                                     it.weightPerCableLb * it.numCables
                                 } ?: 0,
-                                avgQualityScore = personalStats.mapNotNull { it.avgQualityScore }
-                                    .takeIf { it.isNotEmpty() }?.average()?.toInt(),
+                                avgQualityScore = AnalyticsMath.repWeightedQuality(
+                                    personalStats.filterNot { it.skipped }
+                                        .map { it.avgQualityScore to it.repsCompleted },
+                                ),
                             )
                             val personalHistory = ExerciseHistoryRecorder.buildRows(
                                 sessionId = personalSessionId,

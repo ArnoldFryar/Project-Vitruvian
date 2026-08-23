@@ -2,7 +2,43 @@
 
 **Date:** 2026-03-18 (initial) · 2026-03-19 (updated with fixes)  
 **Branch:** `ui-consistency-pass`  
-**Scope:** Analytics audit + targeted hardening fixes — no BLE/engine/control changes
+**Scope:** Analytics provenance, aggregation, persistence, recovery, and rep-quality hardening. Resistance commands and rep-detection thresholds are unchanged.
+
+## 2026-08-17 correctness pass
+
+The current implementation now enforces these metric guarantees:
+
+- Workout and set volume are canonical kilograms, derived from machine-counted working reps and configured total cable load; warmup and skipped sets are excluded.
+- `AnalyticsStore.ExerciseSetLog.weightLb` is total load. Room `SetHistoryEntity.weightLb` is per-cable load and now persists `numCables`, so recovery reconstructs total load correctly.
+- Set, exercise, session, home, partner, sync, import, recommendation, and completion quality use one rep-weighted calculation. Zero-rep and skipped sets provide no quality evidence.
+- Rep quality consumes unique device telemetry ticks. Unrelated state emissions no longer duplicate frames, and the final rep is captured before its set aggregate is consumed.
+- True single-cable work uses the active cable for ROM, speed, smoothness, and warmup calibration; symmetry is not scored. A stationary side in configured bilateral work remains a symmetry fault.
+- “Tempo” measures velocity-profile control through a rep. It is not a clocked cadence or seconds-per-rep metric because persisted cable samples do not contain per-frame wall-clock timestamps.
+- Bilateral balance analytics exclude intentional single-cable sets. Force and balance summaries, cable count, and quality evidence persist in Room schema 11.
+- Calendar analytics attribute a workout to its completion time, consistently exclude future-dated evidence, and use the same bounded points formula in Kotlin and SQL.
+- Skipped placeholders remain available in the rich analytics log but are not inserted into Room completed-set history, so canonical set counts cannot be inflated.
+- Calories remain `0` when there is no measured energy source; the app does not manufacture a calorie estimate.
+- Load is still user-configured rather than read back from the trainer. Any load-, volume-, PR-, or e1RM-based metric inherits that source limitation.
+- Rows created before schema 11 default to two cables because historic Room evidence did not store cable count. Existing rich analytics projections retain their original cable count; only recovery from old Room-only evidence has this ambiguity.
+
+## 2026-08-22 cable execution attribution
+
+- The prescription is retained as `plannedNumCables`; analytics use the
+  evidence-backed observed cable count when detection is confident.
+- Warm-up and working telemetry are evaluated across the set, never from one
+  instantaneous frame.
+- Completed sets are classified as single-left, single-right,
+  dual-synchronous, dual-alternating, or unknown.
+- A planned dual set is changed to single-cable only when one side shows
+  meaningful loaded ROM and the other remains clearly parked. Ambiguous
+  windows retain the planned count.
+- Observed count drives total load, volume, force aggregation, symmetry
+  applicability, PRs, and progression. Alternating movements remain dual.
+- Room schema 12 persists planned count, observed count, execution mode, and
+  confidence. Schema 11 rows retain their former count as the prescription and
+  have unknown execution mode.
+
+The March inventory below is retained as implementation history. Where it conflicts with the guarantees above, the August correctness pass is authoritative.
 
 ### Changes Applied This Pass
 - **GAP-1 FIXED:** Triple-layer dedup (ViewModel structural equality + AppScaffold `distinctBy`/`rememberSaveable` flag + AnalyticsStore fingerprint guard + WorkoutSessionRecorder timestamp guard)

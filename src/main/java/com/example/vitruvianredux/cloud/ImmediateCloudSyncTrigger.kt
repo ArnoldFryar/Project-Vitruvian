@@ -8,15 +8,14 @@ import android.content.Context
  */
 object ImmediateCloudSyncTrigger {
 
-    private lateinit var appContext: Context
-
     fun init(context: Context) {
-        appContext = context.applicationContext
+        AppForegroundCloudSync.init(context)
     }
 
     fun requestSettingsSync() {
-        if (!::appContext.isInitialized) return
-        if (!SupabaseProvider.isInitialized || !AuthRepository.isSignedIn) return
-        CloudSyncWorker.syncNow(appContext)
+        AppForegroundCloudSync.requestSync()
     }
+
+    /** Alias for non-settings mutations such as programs and custom exercises. */
+    fun requestDataSync() = requestSettingsSync()
 }

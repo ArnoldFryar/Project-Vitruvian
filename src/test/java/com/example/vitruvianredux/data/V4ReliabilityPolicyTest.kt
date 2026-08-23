@@ -1,10 +1,12 @@
 package com.example.vitruvianredux.data
 
 import com.example.vitruvianredux.data.db.IntegrationOutboxEntity
+import com.example.vitruvianredux.data.db.ExerciseHistoryEntity
 import com.example.vitruvianredux.data.db.SessionLog
 import com.example.vitruvianredux.data.db.SetHistoryEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.fail
 import org.junit.Test
 
 class V4ReliabilityPolicyTest {
@@ -36,6 +38,46 @@ class V4ReliabilityPolicyTest {
         )
     }
 
+    @Test
+    fun `canonical payload fingerprint changes when quality evidence changes`() {
+        val baseline = commit(listOf(set("a", 10).copy(avgQualityScore = 80, avgRom = 75)))
+        val changed = commit(listOf(set("a", 10).copy(avgQualityScore = 81, avgRom = 75)))
+
+        assertNotEquals(
+            WorkoutPayloadFingerprint.forCommit(baseline),
+            WorkoutPayloadFingerprint.forCommit(changed),
+        )
+    }
+
+    @Test
+    fun `canonical payload fingerprint normalizes integration destination order`() {
+        val baseline = commit(listOf(set("a", 10))).copy(
+            integrationDestinations = linkedSetOf("hevy", " health_connect "),
+        )
+        val reordered = baseline.copy(
+            integrationDestinations = linkedSetOf("HEALTH_CONNECT", "HEVY"),
+        )
+
+        assertEquals(
+            WorkoutPayloadFingerprint.forCommit(baseline),
+            WorkoutPayloadFingerprint.forCommit(reordered),
+        )
+    }
+
+    @Test
+    fun `canonical validation rejects session totals that disagree with set evidence`() {
+        val invalid = commit(listOf(set("a", 10))).copy(
+            session = commit(listOf(set("a", 10))).session.copy(totalReps = 9),
+        )
+
+        try {
+            validateCanonicalWorkoutCommit(invalid)
+            fail("Expected mismatched totals to be rejected")
+        } catch (_: IllegalArgumentException) {
+            // Expected.
+        }
+    }
+
     private fun commit(sets: List<SetHistoryEntity>) = CanonicalWorkoutCommit(
         session = SessionLog(
             id = "session-1",
@@ -47,7 +89,18 @@ class V4ReliabilityPolicyTest {
             totalReps = sets.sumOf { it.reps },
             totalVolumeKg = sets.sumOf { it.volumeKg.toDouble() },
         ),
-        exercises = emptyList(),
+        exercises = listOf(
+            ExerciseHistoryEntity(
+                id = "exercise",
+                sessionId = "session-1",
+                exerciseName = "Squat",
+                setCount = sets.size,
+                totalReps = sets.sumOf { it.reps },
+                totalVolumeKg = sets.sumOf { it.volumeKg.toDouble() }.toFloat(),
+                heaviestWeightLb = sets.maxOfOrNull { it.weightLb } ?: 0,
+                completedAt = 61_000L,
+            ),
+        ),
         sets = sets,
     )
 

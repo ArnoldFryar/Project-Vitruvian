@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Kept in sync with NearBlack in presentation/ui/theme/Color.kt. -->
-    <color name="vitruvian_launch_background">#0D0F10</color>
+    <color name="vitruvian_launch_background">#0D100F</color>
 </resources>

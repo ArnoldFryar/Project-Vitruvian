@@ -109,6 +109,8 @@ fun AppNavHost(
             PartnerSetupScreen(
                 innerPadding = innerPadding,
                 workoutVM = workoutVM,
+                bleVM = bleVM,
+                lanSyncManager = lanSyncManager,
                 onBack = { nav.popBackStack() },
             )
         }

@@ -35,6 +35,18 @@ import com.example.vitruvianredux.partner.PartnerWorkoutGroup
 import com.example.vitruvianredux.partner.PartnerWorkoutParticipant
 import com.example.vitruvianredux.partner.PartnerWorkoutPlan
 import com.example.vitruvianredux.partner.PartnerWorkoutStatus
+import com.example.vitruvianredux.partner.PartnerApiResponse
+import com.example.vitruvianredux.partner.PartnerCompleteSetRequest
+import com.example.vitruvianredux.partner.PartnerDeviceMember
+import com.example.vitruvianredux.partner.PartnerJoinRequest
+import com.example.vitruvianredux.partner.PartnerLiveSnapshot
+import com.example.vitruvianredux.partner.PartnerLiveStatus
+import com.example.vitruvianredux.partner.PartnerSessionInvite
+import com.example.vitruvianredux.partner.PartnerSessionRequest
+import com.example.vitruvianredux.partner.PartnerSetResult
+import com.example.vitruvianredux.partner.PartnerStartRequest
+import com.example.vitruvianredux.sync.SyncServiceLocator
+import com.example.vitruvianredux.util.InstallationId
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.coaching.CoachingCueEngine
 import com.example.vitruvianredux.presentation.coaching.ModeProfile
@@ -42,10 +54,14 @@ import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.repquality.RepQuality
 import com.example.vitruvianredux.presentation.repquality.RepQualityTracker
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlin.math.roundToInt
 import java.util.UUID
 
@@ -79,6 +95,7 @@ class WorkoutSessionViewModel(
 
     companion object {
         private const val VOICE_TAG = "WorkoutVoice"
+        private const val PARTNER_POLL_MS = 500L
     }
 
     private val engine = WorkoutSessionEngine(bleClient, viewModelScope)
@@ -170,9 +187,38 @@ class WorkoutSessionViewModel(
 
     private val _partnerGroup = MutableStateFlow<PartnerWorkoutGroup?>(null)
     val partnerGroup: StateFlow<PartnerWorkoutGroup?> = _partnerGroup.asStateFlow()
-    val isPartnerSession: Boolean get() = _partnerGroup.value != null
+    private val _partnerLiveSnapshot = MutableStateFlow<PartnerLiveSnapshot?>(null)
+    val partnerLiveSnapshot: StateFlow<PartnerLiveSnapshot?> = _partnerLiveSnapshot.asStateFlow()
+    private val _partnerInviteJson = MutableStateFlow<String?>(null)
+    val partnerInviteJson: StateFlow<String?> = _partnerInviteJson.asStateFlow()
+    private val _partnerLiveError = MutableStateFlow<String?>(null)
+    val partnerLiveError: StateFlow<String?> = _partnerLiveError.asStateFlow()
+    private val partnerJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private var partnerInvite: PartnerSessionInvite? = null
+    private var localPartnerParticipantId: String? = null
+    private var localPartnerDeviceId: String? = null
+    private var partnerIsHost = false
+    private var partnerPollJob: Job? = null
+    private var partnerHandoffJob: Job? = null
+    private var remotePartnerEngineStarted = false
+    private var lastReportedPartnerAssignmentId: String? = null
+
+    val isMultiDevicePartnerSession: Boolean get() = partnerInvite != null
+    val isPartnerSession: Boolean get() = _partnerGroup.value != null || isMultiDevicePartnerSession
+    val isLocalPartnerTurnReady: Boolean
+        get() {
+            val snapshot = _partnerLiveSnapshot.value ?: return !isMultiDevicePartnerSession
+            val participantId = localPartnerParticipantId ?: return false
+            val assignment = snapshot.group?.assignments?.firstOrNull { it.assignmentId == snapshot.currentAssignmentId }
+            return assignment?.participantId == participantId &&
+                snapshot.bleOwnerParticipantId == participantId &&
+                bleIsReady.value
+        }
     val currentPartnerAssignment: ParticipantSetAssignment?
-        get() = upcomingSets.firstOrNull()?.assignmentId?.let { id ->
+        get() = if (isMultiDevicePartnerSession) {
+            val snapshot = _partnerLiveSnapshot.value
+            snapshot?.group?.assignments?.firstOrNull { it.assignmentId == snapshot.currentAssignmentId }
+        } else upcomingSets.firstOrNull()?.assignmentId?.let { id ->
             _partnerGroup.value?.assignments?.firstOrNull { it.assignmentId == id }
         }
     val currentPartner: PartnerWorkoutParticipant?
@@ -182,7 +228,14 @@ class WorkoutSessionViewModel(
     val nextPartner: PartnerWorkoutParticipant?
         get() {
             val group = _partnerGroup.value ?: return null
-            val nextParticipantId = upcomingSets.drop(1).firstOrNull()?.participantId ?: return null
+            val nextParticipantId = if (isMultiDevicePartnerSession) {
+                val currentId = _partnerLiveSnapshot.value?.currentAssignmentId
+                val currentIndex = group.rotation.orderedAssignmentIds.indexOf(currentId)
+                group.rotation.orderedAssignmentIds.drop(currentIndex + 1).firstNotNullOfOrNull { id ->
+                    group.assignments.firstOrNull { it.assignmentId == id }?.participantId
+                }
+            } else upcomingSets.drop(1).firstOrNull()?.participantId
+            if (nextParticipantId == null) return null
             return group.participants.firstOrNull { it.participantId == nextParticipantId }
         }
 
@@ -338,11 +391,8 @@ class WorkoutSessionViewModel(
                     scoredQuality = repQualityTracker.flushCompletedWorkingRep(currentState)
                 }
                 if (scoredQuality != null) {
-                    _lastRepQuality.value = scoredQuality
-                    FatigueTrendAnalyzer.recordRep(scoredQuality)
                     val currentMode = (sessionPhase as? SessionPhase.ExerciseActive)?.programMode ?: "Old School"
-                    recordRepQuality(scoredQuality, currentMode)
-                    CoachingCueEngine.evaluate(scoredQuality, ModeProfile.forMode(currentMode))
+                    publishRepQuality(scoredQuality, currentMode)
                 }
 
                 // Reset spoken counter when transitioning INTO working phase
@@ -387,6 +437,9 @@ class WorkoutSessionViewModel(
                 if (sessionPhase is SessionPhase.ExerciseComplete &&
                     _completedExerciseStats.none { it.setIndex == sessionPhase.stats.setIndex }) {
                     _completedExerciseStats.add(enrichCompletedSetStats(sessionPhase.stats))
+                }
+                if (sessionPhase is SessionPhase.ExerciseComplete) {
+                    reportCompletedPartnerSet(sessionPhase.stats)
                 }
 
                 // ── Rest countdown — speak final 10 seconds ──────────────
@@ -582,6 +635,26 @@ class WorkoutSessionViewModel(
     }
 
     private fun enrichCompletedSetStats(stats: ExerciseStats): ExerciseStats {
+        // The engine requests enrichment before it emits ExerciseComplete. Capture
+        // the final rep synchronously here so its quality stays in this set's
+        // aggregate instead of being consumed separately by the state collector.
+        val currentState = state.value
+        val active = currentState.sessionPhase as? SessionPhase.ExerciseActive
+        val finalQuality = if (active != null) {
+            repQualityTracker.onSessionState(
+                currentState,
+                symmetryForceBiasOverride = if (active.numCables > 1) {
+                    machineHeuristic.value?.concentricForceBiasRatio()
+                } else {
+                    null
+                },
+                symmetryApplicable = active.numCables > 1,
+            ) ?: repQualityTracker.flushCompletedWorkingRep(currentState)
+        } else {
+            repQualityTracker.flushCompletedWorkingRep(currentState)
+        }
+        finalQuality?.let { publishRepQuality(it, active?.programMode ?: "Old School") }
+
         val aggregate = repQualityTracker.consumeCurrentSetAggregate() ?: return stats
         return stats.copy(
             avgQualityScore = aggregate.avgQualityScore,
@@ -673,6 +746,244 @@ class WorkoutSessionViewModel(
     }
 
     /** Launch a fully attributed alternating-set workout through the validated player engine. */
+    fun hostPartnerWorkoutAcrossDevices(
+        hostUrl: String,
+        trainerAddress: String,
+        participant: PartnerWorkoutParticipant,
+        plan: PartnerWorkoutPlan,
+    ): String? {
+        if (!SyncServiceLocator.isInitialized || trainerAddress.isBlank()) return null
+        val now = System.currentTimeMillis()
+        val deviceId = InstallationId.get(getApplication())
+        val member = PartnerDeviceMember(participant, plan, deviceId, now, now)
+        val invite = runCatching {
+            SyncServiceLocator.partnerHost.create(hostUrl, trainerAddress, member)
+        }.onFailure { _partnerLiveError.value = it.message }.getOrNull() ?: return null
+        attachPartnerDeviceSession(invite, participant.participantId, deviceId, isHost = true)
+        return partnerJson.encodeToString(invite).also { _partnerInviteJson.value = it }
+    }
+
+    suspend fun joinPartnerWorkoutAcrossDevices(
+        inviteJson: String,
+        participant: PartnerWorkoutParticipant,
+        plan: PartnerWorkoutPlan,
+    ): Boolean {
+        if (!SyncServiceLocator.isInitialized) return false
+        val invite = runCatching { partnerJson.decodeFromString<PartnerSessionInvite>(inviteJson) }
+            .onFailure { _partnerLiveError.value = "Invalid partner QR code" }
+            .getOrNull() ?: return false
+        if (invite.expiresAt < System.currentTimeMillis()) {
+            _partnerLiveError.value = "Partner invite has expired"
+            return false
+        }
+        val now = System.currentTimeMillis()
+        val deviceId = InstallationId.get(getApplication())
+        val response = runCatching {
+            SyncServiceLocator.partnerClient.join(
+                invite,
+                PartnerJoinRequest(invite.groupId, invite.inviteToken, PartnerDeviceMember(participant, plan, deviceId, now, now)),
+            )
+        }.onFailure { _partnerLiveError.value = it.message }.getOrNull() ?: return false
+        if (!response.success) {
+            _partnerLiveError.value = response.message
+            return false
+        }
+        attachPartnerDeviceSession(invite, participant.participantId, deviceId, isHost = false)
+        response.snapshot?.let { applyPartnerLiveSnapshot(it) }
+        return true
+    }
+
+    fun startHostedPartnerWorkoutAcrossDevices(mode: PartnerRotationMode) {
+        val invite = partnerInvite ?: return
+        if (!partnerIsHost) return
+        viewModelScope.launch {
+            val response = SyncServiceLocator.partnerHost.start(invite.groupId, invite.inviteToken, mode)
+            if (response.success) response.snapshot?.let(::applyPartnerLiveSnapshot)
+            else _partnerLiveError.value = response.message
+        }
+    }
+
+    private fun attachPartnerDeviceSession(
+        invite: PartnerSessionInvite,
+        participantId: String,
+        deviceId: String,
+        isHost: Boolean,
+        engineAlreadyStarted: Boolean = false,
+    ) {
+        partnerInvite = invite
+        localPartnerParticipantId = participantId
+        localPartnerDeviceId = deviceId
+        partnerIsHost = isHost
+        remotePartnerEngineStarted = engineAlreadyStarted
+        lastReportedPartnerAssignmentId = null
+        _partnerLiveError.value = null
+        if (!isHost && bleIsReady.value) {
+            viewModelScope.launch { engine.releaseTrainerForPartnerHandoff() }
+        }
+        partnerPollJob?.cancel()
+        partnerPollJob = viewModelScope.launch {
+            while (true) {
+                val request = PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId)
+                val response = try {
+                    if (isHost) SyncServiceLocator.partnerHost.snapshot(request)
+                    else SyncServiceLocator.partnerClient.snapshot(invite, request)
+                } catch (_: Exception) {
+                    _partnerLiveError.value = "Partner link interrupted—reconnecting"
+                    delay(750L)
+                    continue
+                }
+                if (response.success) {
+                    _partnerLiveError.value = null
+                    response.snapshot?.let(::applyPartnerLiveSnapshot)
+                } else {
+                    _partnerLiveError.value = response.message
+                }
+                delay(PARTNER_POLL_MS)
+            }
+        }
+    }
+
+    private fun applyPartnerLiveSnapshot(snapshot: PartnerLiveSnapshot) {
+        if ((_partnerLiveSnapshot.value?.revision ?: -1L) > snapshot.revision) return
+        _partnerLiveSnapshot.value = snapshot
+        snapshot.group?.let { _partnerGroup.value = it }
+        if (snapshot.status == PartnerLiveStatus.ACTIVE && !remotePartnerEngineStarted) {
+            startLocalPartnerQueue(snapshot)
+        }
+        reconcilePartnerTrainerOwnership(snapshot)
+    }
+
+    private fun startLocalPartnerQueue(snapshot: PartnerLiveSnapshot) {
+        val participantId = localPartnerParticipantId ?: return
+        val group = snapshot.group ?: return
+        val localAssignments = group.assignments.filter { it.participantId == participantId }
+        if (localAssignments.isEmpty()) {
+            _partnerLiveError.value = "This workout has no sets assigned to you"
+            return
+        }
+        beginNewRecoverySession()
+        isJustLiftSession = false
+        activeStrengthTestProtocolType = null
+        activeProgramId = group.plans.firstOrNull { it.participantId == participantId }?.programId
+        activeProgramName = group.plans.firstOrNull { it.participantId == participantId }?.programName ?: "Partner Workout"
+        activeDayName = null
+        sessionStartMs = System.currentTimeMillis()
+        _completedExerciseStats.clear()
+        repQualityTracker.discardCurrentSet()
+        _lastRepQuality.value = null
+        currentSetVoiceQualities.clear()
+        currentSetVoiceRepSignals.clear()
+        resetVoiceCueMetricsForSet()
+        resetAudioStateForNewWorkout()
+        autoPlay = false
+        remotePartnerEngineStarted = engine.startPlayerWorkout(localAssignments.map(::partnerSetParams), "Partner Workout")
+    }
+
+    private fun reconcilePartnerTrainerOwnership(snapshot: PartnerLiveSnapshot) {
+        if (snapshot.status != PartnerLiveStatus.ACTIVE || partnerHandoffJob?.isActive == true) return
+        val participantId = localPartnerParticipantId ?: return
+        val assignment = snapshot.group?.assignments?.firstOrNull { it.assignmentId == snapshot.currentAssignmentId }
+            ?: return
+        val localTurn = assignment.participantId == participantId
+        val localLease = snapshot.bleOwnerParticipantId == participantId
+        val invite = partnerInvite ?: return
+
+        partnerHandoffJob = viewModelScope.launch {
+            try {
+                when {
+                    localTurn && !localLease && snapshot.bleOwnerParticipantId == null -> {
+                        val response = partnerTransportClaim(
+                            PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId, snapshot.revision),
+                        )
+                        if (response.success) {
+                            response.snapshot?.let { _partnerLiveSnapshot.value = it }
+                            if (!engine.acquireTrainerForPartnerHandoff(invite.trainerAddress)) {
+                                _partnerLiveError.value = "Trainer handoff timed out—retrying"
+                                partnerTransportRelease(PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId))
+                            }
+                        }
+                    }
+                    localTurn && localLease -> {
+                        if (!bleIsReady.value && !engine.acquireTrainerForPartnerHandoff(invite.trainerAddress)) {
+                            _partnerLiveError.value = "Unable to connect to the shared trainer"
+                        } else {
+                            partnerTransportHeartbeat(PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId))
+                        }
+                    }
+                    !localTurn && localLease -> {
+                        if (engine.releaseTrainerForPartnerHandoff()) {
+                            partnerTransportRelease(PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId))
+                        } else {
+                            _partnerLiveError.value = "Trainer did not release safely"
+                        }
+                    }
+                }
+            } finally {
+                partnerHandoffJob = null
+            }
+        }
+    }
+
+    private fun reportCompletedPartnerSet(stats: ExerciseStats) {
+        if (!isMultiDevicePartnerSession || stats.assignmentId == null ||
+            lastReportedPartnerAssignmentId == stats.assignmentId || partnerHandoffJob?.isActive == true
+        ) return
+        val snapshot = _partnerLiveSnapshot.value ?: return
+        val participantId = localPartnerParticipantId ?: return
+        if (snapshot.currentAssignmentId != stats.assignmentId || snapshot.bleOwnerParticipantId != participantId) return
+        val invite = partnerInvite ?: return
+        val deviceId = localPartnerDeviceId ?: return
+        lastReportedPartnerAssignmentId = stats.assignmentId
+        partnerHandoffJob = viewModelScope.launch {
+            try {
+                if (!engine.releaseTrainerForPartnerHandoff()) {
+                    _partnerLiveError.value = "Trainer did not disconnect; set remains safely pending"
+                    lastReportedPartnerAssignmentId = null
+                    return@launch
+                }
+                val response = partnerTransportComplete(
+                    PartnerCompleteSetRequest(
+                        groupId = invite.groupId,
+                        inviteToken = invite.inviteToken,
+                        deviceId = deviceId,
+                        result = PartnerSetResult(
+                            assignmentId = stats.assignmentId,
+                            participantId = participantId,
+                            reps = stats.repsCompleted,
+                            volumeKg = stats.volumeKg,
+                            averageQuality = stats.avgQualityScore,
+                            completedAt = System.currentTimeMillis(),
+                        ),
+                        expectedRevision = snapshot.revision,
+                    ),
+                )
+                if (response.success) response.snapshot?.let(::applyPartnerLiveSnapshot)
+                else {
+                    _partnerLiveError.value = response.message
+                    lastReportedPartnerAssignmentId = null
+                }
+            } finally {
+                partnerHandoffJob = null
+            }
+        }
+    }
+
+    private suspend fun partnerTransportClaim(request: PartnerSessionRequest): PartnerApiResponse =
+        if (partnerIsHost) SyncServiceLocator.partnerHost.claimBle(request)
+        else SyncServiceLocator.partnerClient.claimBle(requireNotNull(partnerInvite), request)
+
+    private suspend fun partnerTransportHeartbeat(request: PartnerSessionRequest): PartnerApiResponse =
+        if (partnerIsHost) SyncServiceLocator.partnerHost.heartbeat(request)
+        else SyncServiceLocator.partnerClient.heartbeat(requireNotNull(partnerInvite), request)
+
+    private suspend fun partnerTransportRelease(request: PartnerSessionRequest): PartnerApiResponse =
+        if (partnerIsHost) SyncServiceLocator.partnerHost.releaseBle(request)
+        else SyncServiceLocator.partnerClient.releaseBle(requireNotNull(partnerInvite), request)
+
+    private suspend fun partnerTransportComplete(request: PartnerCompleteSetRequest): PartnerApiResponse =
+        if (partnerIsHost) SyncServiceLocator.partnerHost.completeSet(request)
+        else SyncServiceLocator.partnerClient.completeSet(requireNotNull(partnerInvite), request)
+
     fun startPartnerWorkout(
         participants: List<PartnerWorkoutParticipant>,
         plans: List<PartnerWorkoutPlan>,
@@ -744,7 +1055,9 @@ class WorkoutSessionViewModel(
         _partnerGroup.value = group.copy(
             rotation = PartnerRotationScheduler.skipAssignment(group.rotation, id),
         )
-        engine.skipSet()
+        // Use the same cleanup path as solo skipping so partial rep-quality
+        // frames cannot bleed into the next athlete's set.
+        skipSet()
     }
 
     fun partnerLeaves(participantId: String): Boolean {
@@ -1127,6 +1440,10 @@ class WorkoutSessionViewModel(
         echoLevelOverride: com.example.vitruvianredux.ble.protocol.EchoLevel? = null,
         eccentricLoadPctOverride: Int? = null,
     ) {
+        if (isMultiDevicePartnerSession && !isLocalPartnerTurnReady) {
+            _partnerLiveError.value = "Waiting for trainer handoff"
+            return
+        }
         val group = _partnerGroup.value
         val assignmentId = currentPartnerAssignment?.assignmentId
         if (group != null && assignmentId != null) {
@@ -1152,6 +1469,13 @@ class WorkoutSessionViewModel(
             echoLevelOverride = echoLevelOverride,
             eccentricLoadPctOverride = eccentricLoadPctOverride,
         )
+    }
+
+    private fun publishRepQuality(quality: RepQuality, mode: String) {
+        _lastRepQuality.value = quality
+        FatigueTrendAnalyzer.recordRep(quality)
+        recordRepQuality(quality, mode)
+        CoachingCueEngine.evaluate(quality, ModeProfile.forMode(mode))
     }
 
     /** Skip the current exercise entirely and advance to the next different exercise. */
@@ -1237,6 +1561,19 @@ class WorkoutSessionViewModel(
         _completedExerciseStats.addAll(payload.engine.completedStats)
         _recoveryCheckpoint.value = null
         lastCheckpointSignature = null
+        val restoredInvite = payload.partnerInviteJson?.let {
+            runCatching { partnerJson.decodeFromString<PartnerSessionInvite>(it) }.getOrNull()
+        }
+        if (restoredInvite != null && payload.localPartnerParticipantId != null && payload.localPartnerDeviceId != null) {
+            _partnerInviteJson.value = payload.partnerInviteJson
+            attachPartnerDeviceSession(
+                invite = restoredInvite,
+                participantId = payload.localPartnerParticipantId,
+                deviceId = payload.localPartnerDeviceId,
+                isHost = payload.partnerIsHost,
+                engineAlreadyStarted = true,
+            )
+        }
         return true
     }
 
@@ -1254,6 +1591,19 @@ class WorkoutSessionViewModel(
     fun resetAfterWorkout() {
         val partnerGroupId = _partnerGroup.value?.groupId
         _partnerGroup.value = null
+        partnerPollJob?.cancel()
+        partnerPollJob = null
+        partnerHandoffJob?.cancel()
+        partnerHandoffJob = null
+        partnerInvite = null
+        localPartnerParticipantId = null
+        localPartnerDeviceId = null
+        partnerIsHost = false
+        remotePartnerEngineStarted = false
+        lastReportedPartnerAssignmentId = null
+        _partnerLiveSnapshot.value = null
+        _partnerInviteJson.value = null
+        _partnerLiveError.value = null
         isJustLiftSession = false
         activeStrengthTestProtocolType = null
         activeProgramId   = null
@@ -1311,6 +1661,10 @@ class WorkoutSessionViewModel(
             dayName = activeDayName,
             isJustLift = isJustLiftSession,
             partnerGroup = _partnerGroup.value,
+            partnerInviteJson = partnerInvite?.let(partnerJson::encodeToString),
+            localPartnerParticipantId = localPartnerParticipantId,
+            localPartnerDeviceId = localPartnerDeviceId,
+            partnerIsHost = partnerIsHost,
             engine = snapshot,
         )
         viewModelScope.launch {
@@ -1343,6 +1697,7 @@ class WorkoutSessionViewModel(
     }
 
     private fun synchronizePartnerPhase(phase: SessionPhase) {
+        if (isMultiDevicePartnerSession) return
         val group = _partnerGroup.value ?: return
         val upcoming = engine.upcomingSets.firstOrNull()
         val assignmentId = upcoming?.assignmentId

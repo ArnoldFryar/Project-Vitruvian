@@ -19,11 +19,15 @@ internal data class WorkoutRecoveryPayload(
     val dayName: String?,
     val isJustLift: Boolean,
     val partnerGroup: PartnerWorkoutGroup? = null,
+    val partnerInviteJson: String? = null,
+    val localPartnerParticipantId: String? = null,
+    val localPartnerDeviceId: String? = null,
+    val partnerIsHost: Boolean = false,
     val engine: WorkoutEngineRecoverySnapshot,
 )
 
 internal object WorkoutRecoveryCodec {
-    private const val VERSION = 2
+    private const val VERSION = 3
 
     fun encode(payload: WorkoutRecoveryPayload): String = JSONObject().apply {
         put("version", VERSION)
@@ -34,6 +38,10 @@ internal object WorkoutRecoveryCodec {
         putNullable("dayName", payload.dayName)
         put("isJustLift", payload.isJustLift)
         putNullable("partnerGroup", payload.partnerGroup?.let(PartnerPersistenceCodec::encodeGroup))
+        putNullable("partnerInviteJson", payload.partnerInviteJson)
+        putNullable("localPartnerParticipantId", payload.localPartnerParticipantId)
+        putNullable("localPartnerDeviceId", payload.localPartnerDeviceId)
+        put("partnerIsHost", payload.partnerIsHost)
         put("engine", encodeEngine(payload.engine))
     }.toString()
 
@@ -48,6 +56,10 @@ internal object WorkoutRecoveryCodec {
             dayName = root.optNullableString("dayName"),
             isJustLift = root.optBoolean("isJustLift", false),
             partnerGroup = root.optNullableString("partnerGroup")?.let(PartnerPersistenceCodec::decodeGroup),
+            partnerInviteJson = root.optNullableString("partnerInviteJson"),
+            localPartnerParticipantId = root.optNullableString("localPartnerParticipantId"),
+            localPartnerDeviceId = root.optNullableString("localPartnerDeviceId"),
+            partnerIsHost = root.optBoolean("partnerIsHost", false),
             engine = decodeEngine(root.getJSONObject("engine")),
         )
     }
@@ -173,6 +185,9 @@ internal object WorkoutRecoveryCodec {
         put("volumeKg", stats.volumeKg.toDouble())
         put("weightPerCableLb", stats.weightPerCableLb)
         put("numCables", stats.numCables)
+        put("plannedNumCables", stats.plannedNumCables)
+        put("cableExecutionMode", stats.cableExecutionMode.name)
+        put("cableDetectionConfidence", stats.cableDetectionConfidence)
         putNullable("avgQualityScore", stats.avgQualityScore)
         putNullable("avgRom", stats.avgRom)
         putNullable("avgTempo", stats.avgTempo)
@@ -202,6 +217,13 @@ internal object WorkoutRecoveryCodec {
         volumeKg = json.getDouble("volumeKg").toFloat(),
         weightPerCableLb = json.getInt("weightPerCableLb"),
         numCables = json.getInt("numCables"),
+        plannedNumCables = json.optInt("plannedNumCables", json.getInt("numCables")),
+        cableExecutionMode = runCatching {
+            com.example.vitruvianredux.ble.session.CableExecutionMode.valueOf(
+                json.optString("cableExecutionMode", "UNKNOWN"),
+            )
+        }.getOrDefault(com.example.vitruvianredux.ble.session.CableExecutionMode.UNKNOWN),
+        cableDetectionConfidence = json.optInt("cableDetectionConfidence", 0).coerceIn(0, 100),
         avgQualityScore = json.optNullableInt("avgQualityScore"),
         avgRom = json.optNullableInt("avgRom"),
         avgTempo = json.optNullableInt("avgTempo"),

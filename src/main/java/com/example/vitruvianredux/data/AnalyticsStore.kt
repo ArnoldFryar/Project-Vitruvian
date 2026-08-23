@@ -55,6 +55,9 @@ object AnalyticsStore {
         val avgSymmetry: Int? = null,
         val avgSmoothness: Int? = null,
         val numCables: Int = 2,
+        val plannedNumCables: Int = numCables,
+        val cableExecutionMode: String = "UNKNOWN",
+        val cableDetectionConfidence: Int = 0,
         val skipped: Boolean = false,
         val avgForce: Float = 0f,
         val peakForce: Float = 0f,
@@ -108,20 +111,18 @@ object AnalyticsStore {
      * qualityMultiplier = 0.50 + (quality ?: 50) / 200.0
      *   → 0.50 at quality=0,  0.75 with no quality data,  1.00 at quality=100.
      */
-    fun sessionPoints(totalVolumeKg: Double, avgQualityScore: Int?): Int =
-        ((totalVolumeKg * (0.50 + (avgQualityScore ?: 50) / 200.0) / 10.0) + 0.5)
+    fun sessionPoints(totalVolumeKg: Double, avgQualityScore: Int?): Int {
+        if (!totalVolumeKg.isFinite() || totalVolumeKg <= 0.0) return 0
+        val quality = (avgQualityScore ?: 50).coerceIn(0, 100)
+        return ((totalVolumeKg * (0.50 + quality / 200.0) / 10.0) + 0.5)
             .toInt().coerceAtLeast(0)
+    }
 
     /** Rep-weighted quality for completed sets; skipped sets never affect the result. */
-    fun qualityScoreForSets(sets: List<ExerciseSetLog>): Int? {
-        val scored = sets.filter { !it.skipped && it.avgQualityScore != null }
-        if (scored.isEmpty()) return null
-        val totalWeight = scored.sumOf { it.reps.coerceAtLeast(1) }
-        val weightedTotal = scored.sumOf {
-            it.avgQualityScore!!.coerceIn(0, 100) * it.reps.coerceAtLeast(1)
-        }
-        return (weightedTotal.toDouble() / totalWeight).roundToInt().coerceIn(0, 100)
-    }
+    fun qualityScoreForSets(sets: List<ExerciseSetLog>): Int? =
+        AnalyticsMath.repWeightedQuality(
+            sets.filterNot { it.skipped }.map { it.avgQualityScore to it.reps },
+        )
 
     /** Per-exercise points breakdown for a session's exercise sets. */
     fun exercisePointsBreakdown(sets: List<ExerciseSetLog>): Map<String, Int> {
@@ -246,7 +247,7 @@ object AnalyticsStore {
         val recent = _logs.value.filter { log ->
             Instant.ofEpochMilli(log.endTimeMs).atZone(zone).toLocalDate() in cutoff..today
         }
-        return if (recent.isEmpty()) 0 else recent.sumOf { it.durationSec } / recent.size
+        return if (recent.isEmpty()) 0 else recent.map { it.durationSec }.average().roundToInt()
     }
 
     /** Total volume (kg) over a rolling [days]-day window ending today. */
@@ -277,7 +278,7 @@ object AnalyticsStore {
         val monday = today.with(java.time.DayOfWeek.MONDAY)
         return (0 until weeks).map { w ->
             val weekStart = monday.minusWeeks(w.toLong())
-            val weekEnd = weekStart.plusDays(6)
+            val weekEnd = minOf(weekStart.plusDays(6), today)
             val vol = _logs.value
                 .filter { log ->
                     val d = Instant.ofEpochMilli(log.endTimeMs).atZone(zone).toLocalDate()
@@ -295,7 +296,7 @@ object AnalyticsStore {
         val monday = today.with(java.time.DayOfWeek.MONDAY)
         return (0 until weeks).map { w ->
             val weekStart = monday.minusWeeks(w.toLong())
-            val weekEnd = weekStart.plusDays(6)
+            val weekEnd = minOf(weekStart.plusDays(6), today)
             val count = _logs.value.count { log ->
                 val d = Instant.ofEpochMilli(log.endTimeMs).atZone(zone).toLocalDate()
                 d in weekStart..weekEnd
@@ -309,7 +310,11 @@ object AnalyticsStore {
     /** Distinct dates with at least one session, as LocalDate. */
     private fun trainingDays(): Set<LocalDate> {
         val zone = ZoneId.systemDefault()
-        return _logs.value.map { Instant.ofEpochMilli(it.endTimeMs).atZone(zone).toLocalDate() }.toSet()
+        val today = LocalDate.now()
+        return _logs.value
+            .map { Instant.ofEpochMilli(it.endTimeMs).atZone(zone).toLocalDate() }
+            .filterNot { it.isAfter(today) }
+            .toSet()
     }
 
     /** Current consecutive-day streak ending today or yesterday. */
@@ -435,6 +440,9 @@ object AnalyticsStore {
                                 put("reps", s.reps)
                                 put("weightLb", s.weightLb)
                                 put("numCables", s.numCables)
+                                put("plannedNumCables", s.plannedNumCables)
+                                put("cableExecutionMode", s.cableExecutionMode)
+                                put("cableDetectionConfidence", s.cableDetectionConfidence)
                                 put("volumeKg", s.volumeKg.toDouble())
                                 if (s.avgQualityScore != null) put("avgQualityScore", s.avgQualityScore)
                                 if (s.avgRom        != null) put("avgRom",        s.avgRom)
@@ -528,6 +536,9 @@ object AnalyticsStore {
                                 avgSymmetry     = if (so.has("avgSymmetry"))   so.getInt("avgSymmetry")   else null,
                                 avgSmoothness   = if (so.has("avgSmoothness")) so.getInt("avgSmoothness") else null,
                                 numCables       = so.optInt("numCables", 2),
+                                plannedNumCables = so.optInt("plannedNumCables", so.optInt("numCables", 2)),
+                                cableExecutionMode = so.optString("cableExecutionMode", "UNKNOWN"),
+                                cableDetectionConfidence = so.optInt("cableDetectionConfidence", 0).coerceIn(0, 100),
                                 skipped         = so.optBoolean("skipped", false),
                                 avgForce        = so.optDouble("avgForce", 0.0).toFloat(),
                                 peakForce       = so.optDouble("peakForce", 0.0).toFloat(),

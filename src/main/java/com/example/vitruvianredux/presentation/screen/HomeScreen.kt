@@ -28,6 +28,7 @@ import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.AnalyticsMath
 import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.ProgramStore
@@ -127,12 +128,12 @@ fun HomeScreen(
         }
     }
     val recentQualityScore = remember(allLogs) {
-        allLogs.sortedByDescending { it.endTimeMs }
-            .mapNotNull { it.avgQualityScore }
-            .take(3)
-            .takeIf { it.isNotEmpty() }
-            ?.average()
-            ?.toInt()
+        AnalyticsMath.repWeightedQuality(
+            allLogs.sortedByDescending { it.endTimeMs }
+                .filter { it.avgQualityScore != null && it.totalReps > 0 }
+                .take(3)
+                .map { it.avgQualityScore to it.totalReps },
+        )
     }
     val commandModel = remember(
         nextProgram,

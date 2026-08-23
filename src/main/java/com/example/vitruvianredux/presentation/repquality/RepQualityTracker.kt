@@ -4,6 +4,7 @@ import com.example.vitruvianredux.ble.SessionPhase
 import com.example.vitruvianredux.ble.SessionState
 import com.example.vitruvianredux.ble.session.SetPhase
 import com.example.vitruvianredux.presentation.coaching.ModeProfile
+import kotlin.math.roundToInt
 
 data class RepQualityAggregate(
     val avgQualityScore: Int,
@@ -29,6 +30,8 @@ class RepQualityTracker(
     private var lastModeProfile: ModeProfile? = null
     private var lastSymmetryForceBiasOverride: Float? = null
     private var lastSymmetryApplicable: Boolean = true
+    private var lastTelemetryTick: Int? = null
+    private var lastTelemetryFrame: TelemetryFrame? = null
 
     fun onSessionState(
         state: SessionState,
@@ -51,11 +54,11 @@ class RepQualityTracker(
             lastSetPhase = state.setPhase
         }
 
-        inFlightFrames.add(TelemetryFrame(left, right))
+        appendTelemetryFrame(state, TelemetryFrame(left, right))
 
         if (state.setPhase == SetPhase.WARMUP) {
             if (state.warmupRepsCompleted > lastWarmupRep && inFlightFrames.size >= 4) {
-                warmupRepSwings += averageSwing(inFlightFrames)
+                warmupRepSwings += averageSwing(inFlightFrames, symmetryApplicable)
                 lastWarmupRep = state.warmupRepsCompleted
                 inFlightFrames.clear()
             }
@@ -81,7 +84,7 @@ class RepQualityTracker(
 
         val left = state.leftCable ?: return null
         val right = state.rightCable ?: return null
-        inFlightFrames.add(TelemetryFrame(left, right))
+        appendTelemetryFrame(state, TelemetryFrame(left, right))
 
         return scoreWorkingRep(
             workingReps = workingReps,
@@ -133,11 +136,11 @@ class RepQualityTracker(
         if (currentSetQualities.isEmpty()) return null
 
         val aggregate = RepQualityAggregate(
-            avgQualityScore = currentSetQualities.map { it.score }.average().toInt(),
-            avgRom = currentSetQualities.map { it.rom }.average().toInt(),
-            avgTempo = currentSetQualities.map { it.tempo }.average().toInt(),
-            avgSymmetry = currentSetQualities.map { it.symmetry }.average().toInt(),
-            avgSmoothness = currentSetQualities.map { it.smoothness }.average().toInt(),
+            avgQualityScore = currentSetQualities.map { it.score }.average().roundToInt(),
+            avgRom = currentSetQualities.map { it.rom }.average().roundToInt(),
+            avgTempo = currentSetQualities.map { it.tempo }.average().roundToInt(),
+            avgSymmetry = currentSetQualities.map { it.symmetry }.average().roundToInt(),
+            avgSmoothness = currentSetQualities.map { it.smoothness }.average().roundToInt(),
         )
 
         discardCurrentSet()
@@ -155,11 +158,22 @@ class RepQualityTracker(
         }
     }
 
-    private fun averageSwing(frames: List<TelemetryFrame>): Float {
+    private fun averageSwing(frames: List<TelemetryFrame>, bothCablesActive: Boolean): Float {
         fun swing(selector: (TelemetryFrame) -> com.example.vitruvianredux.ble.protocol.CableSample): Float {
             val positions = frames.map { selector(it).position }
             return (positions.max() - positions.min())
         }
-        return (swing { it.left } + swing { it.right }) / 2f
+        val leftSwing = swing { it.left }
+        val rightSwing = swing { it.right }
+        return if (bothCablesActive) (leftSwing + rightSwing) / 2f else maxOf(leftSwing, rightSwing)
+    }
+
+    private fun appendTelemetryFrame(state: SessionState, frame: TelemetryFrame) {
+        val hasNewTick = state.telemetryTick != 0 && state.telemetryTick != lastTelemetryTick
+        val hasChangedSample = frame != lastTelemetryFrame
+        if (!hasNewTick && !hasChangedSample) return
+        inFlightFrames.add(frame)
+        lastTelemetryTick = state.telemetryTick
+        lastTelemetryFrame = frame
     }
 }

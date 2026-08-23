@@ -59,6 +59,8 @@ object TelemetryInsights {
     }
 
     fun summarizeSet(set: AnalyticsStore.ExerciseSetLog): PersistedTelemetrySummary? {
+        // Left/right balance has no meaning for an intentional single-cable set.
+        if (set.numCables <= 1) return null
         if (set.telemetrySampleCount > 0) {
             return PersistedTelemetrySummary(
                 avgLeftForceKg = set.telemetryAvgLeftForce.toDouble(),

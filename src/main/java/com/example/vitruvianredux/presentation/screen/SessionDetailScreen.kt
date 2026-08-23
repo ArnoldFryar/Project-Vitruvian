@@ -127,10 +127,17 @@ fun SessionDetailScreen(
         val timeFmt = DateTimeFormatter.ofPattern("h:mm a")
         val cs = MaterialTheme.colorScheme
         val completedSets = session.exerciseSets.filter { !it.skipped }
-        val avgForceKg = completedSets
-            .mapNotNull { it.avgForce.takeIf { force -> force > 0f }?.toDouble() }
-            .takeIf { it.isNotEmpty() }
-            ?.average()
+        val forceEvidence = completedSets.mapNotNull { set ->
+            set.avgForce.takeIf { it > 0f }?.toDouble()?.let { force ->
+                force to (set.telemetrySampleCount.takeIf { it > 0 }
+                    ?: set.reps.takeIf { it > 0 }
+                    ?: 1)
+            }
+        }
+        val forceEvidenceWeight = forceEvidence.sumOf { it.second }
+        val avgForceKg = forceEvidenceWeight.takeIf { it > 0 }?.let { totalWeight ->
+            forceEvidence.sumOf { (force, weight) -> force * weight } / totalWeight
+        }
         val peakForceKg = completedSets
             .mapNotNull { it.peakForce.takeIf { force -> force > 0f }?.toDouble() }
             .maxOrNull()

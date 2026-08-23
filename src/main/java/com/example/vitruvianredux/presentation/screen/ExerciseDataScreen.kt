@@ -36,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.protocol.CableSample
 import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.AnalyticsMath
 import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.PrTracker
@@ -363,7 +364,7 @@ fun ExerciseDataScreen(
     }
     val sets = remember(session, exerciseName) {
         session?.exerciseSets
-            ?.filter { it.exerciseName.equals(exerciseName, ignoreCase = true) }
+            ?.filter { !it.skipped && it.exerciseName.equals(exerciseName, ignoreCase = true) }
             ?.sortedBy { it.setIndex }
             ?: emptyList()
     }
@@ -386,11 +387,13 @@ fun ExerciseDataScreen(
     val totalReps   = sets.sumOf { it.reps }
     val setCount    = sets.size
     val topWeightLb = sets.maxOfOrNull { it.weightLb } ?: 0
-    val avgWeightLb = if (sets.isNotEmpty())
-        (sets.sumOf { it.weightLb }.toDouble() / sets.size).roundToInt() else 0
+    val avgWeightLb = totalReps.takeIf { it > 0 }?.let { reps ->
+        (sets.sumOf { it.weightLb.toLong() * it.reps }.toDouble() / reps).roundToInt()
+    } ?: 0
     val totalVolKg  = sets.sumOf { it.volumeKg.toDouble() }
-    val avgQuality  = sets.mapNotNull { it.avgQualityScore }
-        .takeIf { it.isNotEmpty() }?.average()?.roundToInt()
+    val avgQuality = AnalyticsMath.repWeightedQuality(
+        sets.map { it.avgQualityScore to it.reps },
+    )
 
     val sessionEndMs = session?.endTimeMs ?: 0L
 

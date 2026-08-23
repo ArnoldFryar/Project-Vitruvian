@@ -27,6 +27,12 @@ data class ExerciseStats(
     val weightPerCableLb: Int = 0,
     /** Number of cables used (1 or 2). Determines total load = weightPerCableLb × numCables. */
     val numCables: Int = 2,
+    /** Cable count prescribed by the exercise/program before telemetry correction. */
+    val plannedNumCables: Int = numCables,
+    /** Evidence-backed execution mode observed across warm-up/working telemetry. */
+    val cableExecutionMode: CableExecutionMode = CableExecutionMode.UNKNOWN,
+    /** Confidence in [cableExecutionMode], from 0 to 100. */
+    val cableDetectionConfidence: Int = 0,
     /** Average rep quality score for this set (0–100), or null if unavailable. */
     val avgQualityScore: Int? = null,
     /** Average ROM sub-score for this set (0–100). */
