@@ -1,6 +1,9 @@
 package com.example.vitruvianredux.ble
 
+import com.example.vitruvianredux.ble.session.ExerciseStats
+import com.example.vitruvianredux.ble.session.CableExecutionMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class WorkoutSessionEngineCompletionCountsTest {
@@ -42,5 +45,47 @@ class WorkoutSessionEngineCompletionCountsTest {
         )
 
         assertEquals(0 to 12, counts)
+    }
+
+    @Test
+    fun `single cable stats never retain a synthetic symmetry score`() {
+        val stats = ExerciseStats(
+            exerciseId = "curl",
+            exerciseName = "Single-arm curl",
+            avgQualityScore = 88,
+            avgSymmetry = 100,
+        )
+
+        val normalized = clearSingleCableSymmetry(stats, effectiveCableCount = 1)
+
+        assertEquals(88, normalized.avgQualityScore)
+        assertNull(normalized.avgSymmetry)
+        assertEquals(100, clearSingleCableSymmetry(stats, effectiveCableCount = 2).avgSymmetry)
+    }
+
+    @Test
+    fun `single cable force uses the side that actually moved`() {
+        assertEquals(
+            24f to 41f,
+            cableAwareForceSummary(
+                mode = CableExecutionMode.SINGLE_LEFT,
+                effectiveCableCount = 1,
+                leftAverageKg = 24f,
+                rightAverageKg = 90f,
+                leftPeakKg = 41f,
+                rightPeakKg = 120f,
+            ),
+        )
+        assertEquals(
+            18f to 36f,
+            cableAwareForceSummary(
+                mode = CableExecutionMode.SINGLE_RIGHT,
+                effectiveCableCount = 1,
+                leftAverageKg = 80f,
+                rightAverageKg = 18f,
+                leftPeakKg = 100f,
+                rightPeakKg = 36f,
+            ),
+        )
     }
 }

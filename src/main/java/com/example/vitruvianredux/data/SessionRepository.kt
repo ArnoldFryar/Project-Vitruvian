@@ -100,13 +100,24 @@ class SessionRepository(
         return sessions.filter { it.deletedAt == null }
     }
 
+    /** Merge a cloud row without turning sync time into modification time. */
+    fun importSynced(session: WorkoutSessionRecord) {
+        val existing = parseSessions()
+        val sessions = if (existing.any { it.id == session.id }) {
+            existing.map { if (it.id == session.id) session else it }
+        } else {
+            existing + session
+        }
+        writeSessions(sessions)
+    }
+
     // ── Serialization ─────────────────────────────────────────────────────────
 
     internal fun parseSessions(): List<WorkoutSessionRecord> {
         val json = backing.readPrograms() ?: return emptyList()   // reuses the same key slot
         return try {
             val array = JSONArray(json)
-            (0 until array.length()).map { array.getJSONObject(it) }.mapNotNull { obj ->
+            (0 until array.length()).mapNotNull { array.optJSONObject(it) }.mapNotNull { obj ->
                 val id = obj.optString("id").takeIf { it.isNotBlank() } ?: return@mapNotNull null
                 WorkoutSessionRecord(
                     id            = id,
@@ -129,7 +140,7 @@ class SessionRepository(
                 )
             }
         } catch (_: Exception) {
-            backing.writePrograms("[]")
+            // A failed read must not erase the only persisted workout history.
             emptyList()
         }
     }

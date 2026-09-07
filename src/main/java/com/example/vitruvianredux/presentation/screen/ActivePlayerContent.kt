@@ -442,8 +442,8 @@ internal fun ActivePlayerContent(
                                 LinearProgressIndicator(
                                     progress = progress,
                                     modifier = Modifier
-                                        .fillMaxWidth(0.7f)
-                                        .height(4.dp)
+                                        .fillMaxWidth(0.85f)
+                                        .height(8.dp)
                                         .clip(RoundedCornerShape(AppDimens.Corner.micro)),
                                     color = hudColor,
                                     trackColor = hudColor.copy(alpha = 0.12f),
@@ -455,14 +455,9 @@ internal fun ActivePlayerContent(
                                     animationSpec = spring(stiffness = Spring.StiffnessLow),
                                     label = "setProgress",
                                 )
-                                LinearProgressIndicator(
-                                    progress = progress,
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.7f)
-                                        .height(4.dp)
-                                        .clip(RoundedCornerShape(AppDimens.Corner.micro)),
-                                    color = hudColor,
-                                    trackColor = hudColor.copy(alpha = 0.12f),
+                                com.example.vitruvianredux.presentation.components.RepMilestones(
+                                    progress = progress, targetReps = displayTarget, color = hudColor,
+                                    modifier = Modifier.fillMaxWidth(0.85f),
                                 )
                             }
                         }

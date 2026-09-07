@@ -13,6 +13,13 @@ import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
+import kotlin.math.max
+
+data class CustomExerciseSyncRecord(
+    val exercise: Exercise,
+    val updatedAt: Long,
+    val deletedAt: Long? = null,
+)
 
 /**
  * Local persistence for user-created custom exercises.
@@ -33,6 +40,7 @@ object CustomExerciseStore {
     private const val KEY_EXERCISES = "exercises_json"
 
     private val _exercises = MutableStateFlow<List<Exercise>>(emptyList())
+    private var records: List<CustomExerciseSyncRecord> = emptyList()
 
     /** Observable list of all custom exercises, sorted by name. */
     val exercises: StateFlow<List<Exercise>> = _exercises.asStateFlow()
@@ -43,7 +51,8 @@ object CustomExerciseStore {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        _exercises.value = readAll()
+        records = readAll()
+        publishActive()
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -55,14 +64,20 @@ object CustomExerciseStore {
      * Save a new custom exercise.  If [exercise.id] is blank a UUID is
      * assigned automatically.  Notifies [exercises] flow on success.
      */
+    @Synchronized
     fun add(exercise: Exercise, requestSync: Boolean = true): Exercise {
         val withId = if (exercise.id.isBlank())
             exercise.copy(id = "custom_${UUID.randomUUID()}", source = ExerciseSource.CUSTOM)
         else
             exercise.copy(source = ExerciseSource.CUSTOM)
-        val updated = (_exercises.value + withId).sortedBy { it.name.lowercase() }
-        persist(updated)
-        _exercises.update { updated }
+        val previous = records.firstOrNull { it.exercise.id == withId.id }
+        val record = CustomExerciseSyncRecord(
+            exercise = withId,
+            updatedAt = nextTimestamp(previous?.updatedAt),
+        )
+        records = records.filterNot { it.exercise.id == withId.id } + record
+        persist(records)
+        publishActive()
         if (requestSync) ImmediateCloudSyncTrigger.requestDataSync()
         return withId
     }
@@ -71,11 +86,16 @@ object CustomExerciseStore {
      * Replace an existing custom exercise (matched by id).
      * No-op if the id is not found.
      */
+    @Synchronized
     fun update(exercise: Exercise, requestSync: Boolean = true) {
-        val updated = _exercises.value.map { if (it.id == exercise.id) exercise else it }
-            .sortedBy { it.name.lowercase() }
-        persist(updated)
-        _exercises.update { updated }
+        val previous = records.firstOrNull { it.exercise.id == exercise.id && it.deletedAt == null } ?: return
+        val record = CustomExerciseSyncRecord(
+            exercise = exercise.copy(source = ExerciseSource.CUSTOM),
+            updatedAt = nextTimestamp(previous.updatedAt),
+        )
+        records = records.map { if (it.exercise.id == exercise.id) record else it }
+        persist(records)
+        publishActive()
         if (requestSync) ImmediateCloudSyncTrigger.requestDataSync()
     }
 
@@ -83,32 +103,85 @@ object CustomExerciseStore {
      * Remove a custom exercise by id.
      * No-op if the id is not found.
      */
+    @Synchronized
     fun delete(id: String, requestSync: Boolean = true) {
-        val updated = _exercises.value.filter { it.id != id }
-        persist(updated)
-        _exercises.update { updated }
+        val previous = records.firstOrNull { it.exercise.id == id && it.deletedAt == null } ?: return
+        val deletedAt = nextTimestamp(previous.updatedAt)
+        records = records.map {
+            if (it.exercise.id == id) it.copy(updatedAt = deletedAt, deletedAt = deletedAt) else it
+        }
+        persist(records)
+        publishActive()
         if (requestSync) ImmediateCloudSyncTrigger.requestDataSync()
+    }
+
+    /** Includes tombstones and preserves the real local modification clock. */
+    @Synchronized
+    fun syncRecords(): List<CustomExerciseSyncRecord> = records.toList()
+
+    /** Applies a server record only when it wins the last-write-wins comparison. */
+    @Synchronized
+    fun applyRemote(
+        exercise: Exercise,
+        updatedAt: Long,
+        deletedAt: Long?,
+    ): Boolean {
+        val normalized = exercise.copy(source = ExerciseSource.CUSTOM)
+        val local = records.firstOrNull { it.exercise.id == normalized.id }
+        if (local != null && updatedAt <= local.updatedAt) return false
+        val incoming = CustomExerciseSyncRecord(normalized, updatedAt, deletedAt)
+        records = records.filterNot { it.exercise.id == normalized.id } + incoming
+        persist(records)
+        publishActive()
+        return true
     }
 
     // ── Serialization ─────────────────────────────────────────────────────────
 
-    private fun readAll(): List<Exercise> {
+    private fun readAll(): List<CustomExerciseSyncRecord> {
         if (!::prefs.isInitialized) return emptyList()
         val json = prefs.getString(KEY_EXERCISES, null) ?: return emptyList()
         return try {
             val arr = JSONArray(json)
-            (0 until arr.length()).mapNotNull { exerciseFromJson(arr.optJSONObject(it)) }
+            (0 until arr.length()).mapNotNull { index ->
+                val obj = arr.optJSONObject(index) ?: return@mapNotNull null
+                val exercise = exerciseFromJson(obj) ?: return@mapNotNull null
+                CustomExerciseSyncRecord(
+                    exercise = exercise,
+                    updatedAt = obj.optLong("updatedAt", 0L),
+                    deletedAt = if (obj.has("deletedAt") && !obj.isNull("deletedAt")) {
+                        obj.optLong("deletedAt")
+                    } else null,
+                )
+            }
         } catch (_: Exception) {
             emptyList()
         }
     }
 
-    private fun persist(list: List<Exercise>) {
+    private fun persist(list: List<CustomExerciseSyncRecord>) {
         if (!::prefs.isInitialized) return
         val arr = JSONArray()
-        list.forEach { arr.put(exerciseToJson(it)) }
+        list.forEach { record ->
+            arr.put(exerciseToJson(record.exercise).apply {
+                put("updatedAt", record.updatedAt)
+                record.deletedAt?.let { put("deletedAt", it) }
+            })
+        }
         prefs.edit().putString(KEY_EXERCISES, arr.toString()).apply()
     }
+
+    private fun publishActive() {
+        val active = records.asSequence()
+            .filter { it.deletedAt == null }
+            .map { it.exercise }
+            .sortedBy { it.name.lowercase() }
+            .toList()
+        _exercises.update { active }
+    }
+
+    private fun nextTimestamp(previous: Long?): Long =
+        max(System.currentTimeMillis(), (previous ?: 0L) + 1L)
 
     private fun exerciseToJson(ex: Exercise): JSONObject = JSONObject().apply {
         put("id", ex.id)

@@ -150,6 +150,7 @@ class WorkoutAudioOutputRouter {
     private fun repClip(value: Int, countStyle: RecordedCountStyle): String? = when (countStyle) {
         RecordedCountStyle.BASE -> baseRepClip(value)
         RecordedCountStyle.STEADY -> steadyRepClip(value)
+        RecordedCountStyle.CONTROLLED -> controlledRepClip(value)
         // Legacy Focus selections are normalized to the complete Base voice.
         // The old pack only contained milestone recordings, which made emphasis
         // change unpredictably across a single count sequence.
@@ -159,6 +160,8 @@ class WorkoutAudioOutputRouter {
     private fun baseRepClip(value: Int): String? = numberedClipName("voice_count", value)
 
     private fun steadyRepClip(value: Int): String? = numberedClipName("voice_count_steady", value)
+
+    private fun controlledRepClip(value: Int): String? = numberedClipName("voice_count_controlled", value)
 
     private fun numberedClipName(prefix: String, value: Int): String? {
         if (value !in 1..MAX_RECORDED_COUNT) return null
@@ -191,10 +194,12 @@ class WorkoutAudioOutputRouter {
         val stylePrefix = when (settings.coachingStyle) {
             com.example.vitruvianredux.data.VoiceCoachingStyle.COACH -> "voice_coach"
             com.example.vitruvianredux.data.VoiceCoachingStyle.TRAINER -> "voice_trainer"
+            com.example.vitruvianredux.data.VoiceCoachingStyle.CONTROLLED -> "voice_controlled"
         }
         val suffix = when (settings.coachingStyle) {
             com.example.vitruvianredux.data.VoiceCoachingStyle.COACH -> coachSuffix
             com.example.vitruvianredux.data.VoiceCoachingStyle.TRAINER -> trainerSuffix
+            com.example.vitruvianredux.data.VoiceCoachingStyle.CONTROLLED -> coachSuffix
         }
         return "${stylePrefix}_${suffix}"
     }

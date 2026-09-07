@@ -56,6 +56,7 @@ object SyncServiceLocator {
     var isInitialized = false
         private set
 
+    @Synchronized
     fun init(context: Context) {
         if (isInitialized) return
 
@@ -104,6 +105,12 @@ object SyncServiceLocator {
         )
 
         isInitialized = true
+        if (partnerHost.hasRecoverableSession()) {
+            // A process-restarted host becomes reachable as soon as the app opens;
+            // participants do not need to create a new lobby or rescan a code.
+            runCatching { _syncHub?.start() }
+                .onFailure { Timber.tag(TAG).e(it, "Unable to restore partner coordinator") }
+        }
         Timber.tag(TAG).i("SyncServiceLocator initialized (deviceId=$deviceId)")
     }
 

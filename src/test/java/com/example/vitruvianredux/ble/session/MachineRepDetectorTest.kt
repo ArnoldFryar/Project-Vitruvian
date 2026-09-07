@@ -148,6 +148,54 @@ class MachineRepDetectorTest {
     }
 
     @Test
+    fun `legacy - skipped notifications preserve every bounded rep delta`() {
+        detector.configure(warmupTarget = 2, workingTarget = 4)
+
+        val events = detector.process(legacy(up = 5, down = 4))
+
+        assertEquals(2, detector.warmupRepsCompleted)
+        assertEquals(3, detector.workingRepsCompleted)
+        assertEquals(5, detector.totalConfirmedReps)
+        assertEquals(2, events.filterIsInstance<RepDetectorEvent.WarmupRepCompleted>().size)
+        assertEquals(3, events.filterIsInstance<RepDetectorEvent.WorkingRepCompleted>().size)
+    }
+
+    @Test
+    fun `legacy - ordinary counter reset rebases without a phantom rep`() {
+        detector.configure(warmupTarget = 0, workingTarget = 10)
+        detector.process(legacy(up = 4, down = 4))
+        assertEquals(4, detector.workingRepsCompleted)
+
+        val resetEvents = detector.process(legacy(up = 0, down = 0))
+
+        assertTrue(resetEvents.isEmpty())
+        assertEquals(4, detector.workingRepsCompleted)
+        detector.process(legacy(up = 1, down = 0))
+        assertEquals(5, detector.workingRepsCompleted)
+    }
+
+    @Test
+    fun `modern 20-byte - down floor reconciliation updates count policy`() {
+        detector.configure(warmupTarget = 3, workingTarget = 5)
+        val policy = RepCountPolicy(com.example.vitruvianredux.ble.protocol.RepCountTiming.BOTTOM)
+
+        detector.process(modern20(up = 3, down = 3, romCount = 3)).also(policy::processEvents)
+        detector.process(modern20(up = 4, down = 3, romCount = 3)).also(policy::processEvents)
+        assertEquals(1, policy.displayWorkingReps)
+
+        // The confirmed down counter shows a second working rep even though an
+        // up notification was missed. Reconciliation must be observable.
+        val recovered = detector.process(modern20(up = 4, down = 5, romCount = 3))
+        policy.processEvents(recovered)
+
+        assertTrue(recovered.any {
+            it is RepDetectorEvent.WorkingRepCompleted && it.workingReps == 2
+        })
+        assertEquals(2, policy.displayWorkingReps)
+        assertEquals(2, policy.announcedWorkingReps)
+    }
+
+    @Test
     fun `legacy - no pending events in legacy mode`() {
         detector.configure(warmupTarget = 3, workingTarget = 5)
 

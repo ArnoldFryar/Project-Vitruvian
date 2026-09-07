@@ -1,6 +1,7 @@
 package com.example.vitruvianredux.presentation.coaching
 
 import com.example.vitruvianredux.presentation.repquality.RepQuality
+import com.example.vitruvianredux.data.PersonalMovementBaseline
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,15 +33,28 @@ object CoachingCueEngine {
      *
      * Call this immediately after scoring a rep.
      */
-    fun evaluate(quality: RepQuality, profile: ModeProfile) {
+    fun evaluate(
+        quality: RepQuality,
+        profile: ModeProfile,
+        baseline: PersonalMovementBaseline? = null,
+        symmetryApplicable: Boolean = true,
+    ) {
         val candidates = buildList {
+            baseline?.averageRom?.let { expected ->
+                val gap = expected - quality.rom
+                if (gap >= 10) add(CoachingCue("Range is $gap points below your baseline", priority = 0))
+            }
+            baseline?.averageSmoothness?.let { expected ->
+                val gap = expected - quality.smoothness
+                if (gap >= 12) add(CoachingCue("Movement is less controlled than your baseline", priority = 0))
+            }
             if (quality.smoothness < profile.smoothnessWarnThreshold)
                 add(CoachingCue("Control the movement", priority = 1))
             if (quality.rom < profile.romWarnThreshold)
                 add(CoachingCue("Full range of motion", priority = 2))
             if (quality.tempo < profile.tempoWarnThreshold)
                 add(CoachingCue("Steady your tempo", priority = 3))
-            if (quality.symmetry < profile.symmetryWarnThreshold)
+            if (symmetryApplicable && quality.symmetry < profile.symmetryWarnThreshold)
                 add(CoachingCue("Even out both sides", priority = 4))
         }
 

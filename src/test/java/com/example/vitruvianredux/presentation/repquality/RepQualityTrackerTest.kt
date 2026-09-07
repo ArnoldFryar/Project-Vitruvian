@@ -319,4 +319,28 @@ class RepQualityTrackerTest {
 
         assertEquals(false, recordedSymmetryApplicable)
     }
+
+    @Test
+    fun `new set accepts first sample when trainer tick and cables repeat`() {
+        var scoredFrameCount = 0
+        val tracker = RepQualityTracker { frames, _, _, _, _ ->
+            scoredFrameCount = frames.size
+            RepQuality(80, "Great", 80, 80, 80, 80)
+        }
+        val repeatedFirstFrame = activeState(
+            reps = 0,
+            tick = 1,
+            leftPosition = 101f,
+            rightPosition = 121f,
+        )
+
+        assertNull(tracker.onSessionState(repeatedFirstFrame))
+        tracker.clearInFlightRep()
+
+        assertNull(tracker.onSessionState(repeatedFirstFrame))
+        assertNull(tracker.onSessionState(activeState(0, 2)))
+        assertNull(tracker.onSessionState(activeState(0, 3)))
+        assertNotNull(tracker.onSessionState(activeState(1, 4)))
+        assertEquals(4, scoredFrameCount)
+    }
 }

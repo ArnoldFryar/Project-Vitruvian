@@ -16,6 +16,10 @@ import com.example.vitruvianredux.ble.session.HandleState
 import com.example.vitruvianredux.ble.session.NextStep
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.OneRepMaxProtocol
+import com.example.vitruvianredux.data.PersonalMovementBaseline
+import com.example.vitruvianredux.data.PersonalMovementModelEngine
+import com.example.vitruvianredux.data.MachineCalibrationProfile
+import com.example.vitruvianredux.data.MachineCalibrationStore
 import com.example.vitruvianredux.data.ProgramDeloadState
 import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.StrengthTestProtocolType
@@ -37,6 +41,8 @@ import com.example.vitruvianredux.partner.PartnerWorkoutPlan
 import com.example.vitruvianredux.partner.PartnerWorkoutStatus
 import com.example.vitruvianredux.partner.PartnerApiResponse
 import com.example.vitruvianredux.partner.PartnerCompleteSetRequest
+import com.example.vitruvianredux.partner.PartnerCompletionBacking
+import com.example.vitruvianredux.partner.PartnerCompletionOutbox
 import com.example.vitruvianredux.partner.PartnerDeviceMember
 import com.example.vitruvianredux.partner.PartnerJoinRequest
 import com.example.vitruvianredux.partner.PartnerLiveSnapshot
@@ -46,6 +52,7 @@ import com.example.vitruvianredux.partner.PartnerSessionRequest
 import com.example.vitruvianredux.partner.PartnerSetResult
 import com.example.vitruvianredux.partner.PartnerStartRequest
 import com.example.vitruvianredux.sync.SyncServiceLocator
+import com.example.vitruvianredux.sync.PartnerCoordinatorService
 import com.example.vitruvianredux.util.InstallationId
 import com.example.vitruvianredux.model.Exercise
 import com.example.vitruvianredux.presentation.coaching.CoachingCueEngine
@@ -99,6 +106,18 @@ class WorkoutSessionViewModel(
     }
 
     private val engine = WorkoutSessionEngine(bleClient, viewModelScope)
+
+    init {
+        MachineCalibrationStore.profile.value?.let(::applyMachineCalibration)
+    }
+
+    fun applyMachineCalibration(profile: MachineCalibrationProfile) {
+        engine.configureCableUsageDetection(
+            activeRangeMm = profile.activeRangeMm,
+            inactiveRangeMm = profile.inactiveRangeMm,
+            movingVelocityMmS = profile.movingVelocityMmS,
+        )
+    }
 
     /** Live session state — observe in Compose with [collectAsState]. */
     val state: StateFlow<SessionState> = engine.state
@@ -194,6 +213,19 @@ class WorkoutSessionViewModel(
     private val _partnerLiveError = MutableStateFlow<String?>(null)
     val partnerLiveError: StateFlow<String?> = _partnerLiveError.asStateFlow()
     private val partnerJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val partnerCompletionOutbox = PartnerCompletionOutbox(
+        backing = object : PartnerCompletionBacking {
+            private val prefs = app.getSharedPreferences(
+                "partner_completion_outbox_v1",
+                android.content.Context.MODE_PRIVATE,
+            )
+            override fun read(): String? = prefs.getString("pending", null)
+            override fun write(value: String) {
+                // This write is the durability boundary before BLE ownership is released.
+                prefs.edit().putString("pending", value).commit()
+            }
+        },
+    )
     private var partnerInvite: PartnerSessionInvite? = null
     private var localPartnerParticipantId: String? = null
     private var localPartnerDeviceId: String? = null
@@ -201,7 +233,6 @@ class WorkoutSessionViewModel(
     private var partnerPollJob: Job? = null
     private var partnerHandoffJob: Job? = null
     private var remotePartnerEngineStarted = false
-    private var lastReportedPartnerAssignmentId: String? = null
 
     val isMultiDevicePartnerSession: Boolean get() = partnerInvite != null
     val isPartnerSession: Boolean get() = _partnerGroup.value != null || isMultiDevicePartnerSession
@@ -308,6 +339,7 @@ class WorkoutSessionViewModel(
 
     /** ViewModel-owned rep-quality tracker so scoring does not depend on Compose visibility. */
     private val repQualityTracker = RepQualityTracker()
+    private var activeMovementBaseline: PersonalMovementBaseline? = null
 
     private val warmupToneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
     private var lastSpokenWorkingRep = 0
@@ -614,12 +646,18 @@ class WorkoutSessionViewModel(
                 _lastRepQuality.value = null
                 FatigueTrendAnalyzer.clearSet()
                 CoachingCueEngine.dismiss()
+                activeMovementBaseline = null
             }
             current is SessionPhase.ExerciseActive && previous !is SessionPhase.ExerciseActive -> {
                 repQualityTracker.clearInFlightRep()
                 _lastRepQuality.value = null
                 FatigueTrendAnalyzer.clearSet()
                 CoachingCueEngine.dismiss()
+                activeMovementBaseline = PersonalMovementModelEngine.build(
+                    exerciseName = current.exerciseName,
+                    numCables = current.numCables,
+                    logs = AnalyticsStore.logsFlow.value,
+                )
             }
 
             current is SessionPhase.WorkoutComplete ||
@@ -630,6 +668,7 @@ class WorkoutSessionViewModel(
                 _lastRepQuality.value = null
                 FatigueTrendAnalyzer.clearSet()
                 CoachingCueEngine.dismiss()
+                activeMovementBaseline = null
             }
         }
     }
@@ -796,8 +835,18 @@ class WorkoutSessionViewModel(
     fun startHostedPartnerWorkoutAcrossDevices(mode: PartnerRotationMode) {
         val invite = partnerInvite ?: return
         if (!partnerIsHost) return
+        val participantId = localPartnerParticipantId ?: return
+        val deviceId = localPartnerDeviceId ?: return
         viewModelScope.launch {
-            val response = SyncServiceLocator.partnerHost.start(invite.groupId, invite.inviteToken, mode)
+            val response = SyncServiceLocator.partnerHost.start(
+                PartnerStartRequest(
+                    groupId = invite.groupId,
+                    inviteToken = invite.inviteToken,
+                    rotationMode = mode,
+                    participantId = participantId,
+                    deviceId = deviceId,
+                ),
+            )
             if (response.success) response.snapshot?.let(::applyPartnerLiveSnapshot)
             else _partnerLiveError.value = response.message
         }
@@ -814,8 +863,14 @@ class WorkoutSessionViewModel(
         localPartnerParticipantId = participantId
         localPartnerDeviceId = deviceId
         partnerIsHost = isHost
+        if (isHost && SyncServiceLocator.isInitialized) {
+            // Restored hosts immediately become reachable again when the app opens.
+            runCatching { SyncServiceLocator.startHub() }
+                .onFailure { _partnerLiveError.value = "Unable to restore the partner coordinator" }
+            runCatching { PartnerCoordinatorService.start(getApplication()) }
+                .onFailure { _partnerLiveError.value = "Unable to keep the partner coordinator active" }
+        }
         remotePartnerEngineStarted = engineAlreadyStarted
-        lastReportedPartnerAssignmentId = null
         _partnerLiveError.value = null
         if (!isHost && bleIsReady.value) {
             viewModelScope.launch { engine.releaseTrainerForPartnerHandoff() }
@@ -823,7 +878,12 @@ class WorkoutSessionViewModel(
         partnerPollJob?.cancel()
         partnerPollJob = viewModelScope.launch {
             while (true) {
-                val request = PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId)
+                val request = PartnerSessionRequest(
+                    invite.groupId,
+                    invite.inviteToken,
+                    participantId,
+                    deviceId = deviceId,
+                )
                 val response = try {
                     if (isHost) SyncServiceLocator.partnerHost.snapshot(request)
                     else SyncServiceLocator.partnerClient.snapshot(invite, request)
@@ -833,7 +893,9 @@ class WorkoutSessionViewModel(
                     continue
                 }
                 if (response.success) {
-                    _partnerLiveError.value = null
+                    if (_partnerLiveError.value?.startsWith("Partner link interrupted") == true) {
+                        _partnerLiveError.value = null
+                    }
                     response.snapshot?.let(::applyPartnerLiveSnapshot)
                 } else {
                     _partnerLiveError.value = response.message
@@ -847,10 +909,20 @@ class WorkoutSessionViewModel(
         if ((_partnerLiveSnapshot.value?.revision ?: -1L) > snapshot.revision) return
         _partnerLiveSnapshot.value = snapshot
         snapshot.group?.let { _partnerGroup.value = it }
+        snapshot.completedResults.forEach { completed ->
+            partnerCompletionOutbox.acknowledge(snapshot.groupId, completed.assignmentId)
+        }
+        if (partnerIsHost && snapshot.status in setOf(PartnerLiveStatus.COMPLETED, PartnerLiveStatus.ABANDONED)) {
+            PartnerCoordinatorService.stop(getApplication())
+        }
         if (snapshot.status == PartnerLiveStatus.ACTIVE && !remotePartnerEngineStarted) {
             startLocalPartnerQueue(snapshot)
         }
-        reconcilePartnerTrainerOwnership(snapshot)
+        if (partnerCompletionOutbox.pendingFor(snapshot.groupId).isNotEmpty()) {
+            drainPartnerCompletionOutbox(snapshot)
+        } else {
+            reconcilePartnerTrainerOwnership(snapshot)
+        }
     }
 
     private fun startLocalPartnerQueue(snapshot: PartnerLiveSnapshot) {
@@ -893,13 +965,19 @@ class WorkoutSessionViewModel(
                 when {
                     localTurn && !localLease && snapshot.bleOwnerParticipantId == null -> {
                         val response = partnerTransportClaim(
-                            PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId, snapshot.revision),
+                            PartnerSessionRequest(
+                                invite.groupId,
+                                invite.inviteToken,
+                                participantId,
+                                snapshot.revision,
+                                localPartnerDeviceId,
+                            ),
                         )
                         if (response.success) {
                             response.snapshot?.let { _partnerLiveSnapshot.value = it }
                             if (!engine.acquireTrainerForPartnerHandoff(invite.trainerAddress)) {
                                 _partnerLiveError.value = "Trainer handoff timed out—retrying"
-                                partnerTransportRelease(PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId))
+                                partnerTransportRelease(partnerSessionRequest(snapshot.revision))
                             }
                         }
                     }
@@ -907,12 +985,12 @@ class WorkoutSessionViewModel(
                         if (!bleIsReady.value && !engine.acquireTrainerForPartnerHandoff(invite.trainerAddress)) {
                             _partnerLiveError.value = "Unable to connect to the shared trainer"
                         } else {
-                            partnerTransportHeartbeat(PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId))
+                            partnerTransportHeartbeat(partnerSessionRequest(snapshot.revision))
                         }
                     }
                     !localTurn && localLease -> {
                         if (engine.releaseTrainerForPartnerHandoff()) {
-                            partnerTransportRelease(PartnerSessionRequest(invite.groupId, invite.inviteToken, participantId))
+                            partnerTransportRelease(partnerSessionRequest(snapshot.revision))
                         } else {
                             _partnerLiveError.value = "Trainer did not release safely"
                         }
@@ -925,47 +1003,100 @@ class WorkoutSessionViewModel(
     }
 
     private fun reportCompletedPartnerSet(stats: ExerciseStats) {
-        if (!isMultiDevicePartnerSession || stats.assignmentId == null ||
-            lastReportedPartnerAssignmentId == stats.assignmentId || partnerHandoffJob?.isActive == true
-        ) return
+        if (!isMultiDevicePartnerSession || stats.assignmentId == null) return
         val snapshot = _partnerLiveSnapshot.value ?: return
         val participantId = localPartnerParticipantId ?: return
         if (snapshot.currentAssignmentId != stats.assignmentId || snapshot.bleOwnerParticipantId != participantId) return
-        val invite = partnerInvite ?: return
         val deviceId = localPartnerDeviceId ?: return
-        lastReportedPartnerAssignmentId = stats.assignmentId
+        partnerCompletionOutbox.enqueue(
+            groupId = snapshot.groupId,
+            deviceId = deviceId,
+            result = PartnerSetResult(
+                assignmentId = stats.assignmentId,
+                participantId = participantId,
+                reps = stats.repsCompleted,
+                volumeKg = stats.volumeKg,
+                averageQuality = stats.avgQualityScore,
+                completedAt = System.currentTimeMillis(),
+            ),
+        )
+        drainPartnerCompletionOutbox(snapshot)
+    }
+
+    private fun drainPartnerCompletionOutbox(snapshot: PartnerLiveSnapshot) {
+        if (partnerHandoffJob?.isActive == true) return
+        val pending = partnerCompletionOutbox.pendingFor(snapshot.groupId).firstOrNull() ?: return
+        if (snapshot.completedResults.any { it.assignmentId == pending.result.assignmentId }) {
+            partnerCompletionOutbox.acknowledge(snapshot.groupId, pending.result.assignmentId)
+            return
+        }
+        val participantId = localPartnerParticipantId ?: return
+        if (pending.result.participantId != participantId ||
+            snapshot.currentAssignmentId != pending.result.assignmentId
+        ) return
+        if (snapshot.bleOwnerParticipantId != null &&
+            (snapshot.bleOwnerParticipantId != participantId || snapshot.bleOwnerDeviceId != pending.deviceId)
+        ) return
+        val invite = partnerInvite ?: return
         partnerHandoffJob = viewModelScope.launch {
             try {
+                partnerCompletionOutbox.markAttempt(snapshot.groupId, pending.result.assignmentId)
+                var completionSnapshot = snapshot
+                if (completionSnapshot.bleOwnerParticipantId == null) {
+                    val claim = partnerTransportClaim(
+                        PartnerSessionRequest(
+                            invite.groupId,
+                            invite.inviteToken,
+                            participantId,
+                            completionSnapshot.revision,
+                            pending.deviceId,
+                        ),
+                    )
+                    if (!claim.success || claim.snapshot == null) {
+                        _partnerLiveError.value = claim.message ?: "Set saved—waiting to reclaim trainer handoff"
+                        return@launch
+                    }
+                    completionSnapshot = claim.snapshot
+                }
                 if (!engine.releaseTrainerForPartnerHandoff()) {
-                    _partnerLiveError.value = "Trainer did not disconnect; set remains safely pending"
-                    lastReportedPartnerAssignmentId = null
+                    _partnerLiveError.value = "Cables are still moving—set saved and handoff will retry"
                     return@launch
                 }
                 val response = partnerTransportComplete(
                     PartnerCompleteSetRequest(
                         groupId = invite.groupId,
                         inviteToken = invite.inviteToken,
-                        deviceId = deviceId,
-                        result = PartnerSetResult(
-                            assignmentId = stats.assignmentId,
-                            participantId = participantId,
-                            reps = stats.repsCompleted,
-                            volumeKg = stats.volumeKg,
-                            averageQuality = stats.avgQualityScore,
-                            completedAt = System.currentTimeMillis(),
-                        ),
-                        expectedRevision = snapshot.revision,
+                        deviceId = pending.deviceId,
+                        result = pending.result,
+                        expectedRevision = completionSnapshot.revision,
                     ),
                 )
-                if (response.success) response.snapshot?.let(::applyPartnerLiveSnapshot)
+                if (response.success) {
+                    partnerCompletionOutbox.acknowledge(snapshot.groupId, pending.result.assignmentId)
+                    _partnerLiveError.value = null
+                    response.snapshot?.let(::applyPartnerLiveSnapshot)
+                }
                 else {
                     _partnerLiveError.value = response.message
-                    lastReportedPartnerAssignmentId = null
                 }
+            } catch (error: Exception) {
+                // The durable outbox remains intact and the next successful poll retries it.
+                _partnerLiveError.value = "Set saved—partner link interrupted, retrying"
             } finally {
                 partnerHandoffJob = null
             }
         }
+    }
+
+    private fun partnerSessionRequest(expectedRevision: Long? = null): PartnerSessionRequest {
+        val invite = requireNotNull(partnerInvite)
+        return PartnerSessionRequest(
+            groupId = invite.groupId,
+            inviteToken = invite.inviteToken,
+            participantId = requireNotNull(localPartnerParticipantId),
+            expectedRevision = expectedRevision,
+            deviceId = requireNotNull(localPartnerDeviceId),
+        )
     }
 
     private suspend fun partnerTransportClaim(request: PartnerSessionRequest): PartnerApiResponse =
@@ -1404,6 +1535,12 @@ class WorkoutSessionViewModel(
      */
     fun pausePlayerWorkout() = engine.pausePlayerWorkout()
 
+    fun beginFinishConfirmation(): Boolean = engine.beginFinishConfirmation()
+
+    fun cancelFinishConfirmation() = engine.cancelFinishConfirmation()
+
+    fun confirmFinishWorkout() = engine.confirmFinishWorkout()
+
     /** Resume a paused player workout, re-launching SetReady for the paused set. */
     fun resumePlayerWorkout() = engine.resumePlayerWorkout()
 
@@ -1436,6 +1573,7 @@ class WorkoutSessionViewModel(
         targetDurationOverride: Int? = null,
         weightOverride: Int? = null,
         warmupOverride: Int? = null,
+        restAfterSecOverride: Int? = null,
         programModeOverride: String? = null,
         echoLevelOverride: com.example.vitruvianredux.ble.protocol.EchoLevel? = null,
         eccentricLoadPctOverride: Int? = null,
@@ -1454,6 +1592,7 @@ class WorkoutSessionViewModel(
                         targetDurationSec = targetDurationOverride ?: assignment.targetDurationSec,
                         loadPerCableLb = weightOverride ?: assignment.loadPerCableLb,
                         warmupReps = warmupOverride ?: assignment.warmupReps,
+                        restAfterSec = restAfterSecOverride ?: assignment.restAfterSec,
                         programMode = programModeOverride ?: assignment.programMode,
                     ) else assignment
                 },
@@ -1465,6 +1604,7 @@ class WorkoutSessionViewModel(
             targetDurationOverride = targetDurationOverride,
             weightOverride = weightOverride,
             warmupOverride = warmupOverride,
+            restAfterSecOverride = restAfterSecOverride,
             programModeOverride = programModeOverride,
             echoLevelOverride = echoLevelOverride,
             eccentricLoadPctOverride = eccentricLoadPctOverride,
@@ -1475,7 +1615,13 @@ class WorkoutSessionViewModel(
         _lastRepQuality.value = quality
         FatigueTrendAnalyzer.recordRep(quality)
         recordRepQuality(quality, mode)
-        CoachingCueEngine.evaluate(quality, ModeProfile.forMode(mode))
+        val active = state.value.sessionPhase as? SessionPhase.ExerciseActive
+        CoachingCueEngine.evaluate(
+            quality = quality,
+            profile = ModeProfile.forMode(mode),
+            baseline = activeMovementBaseline,
+            symmetryApplicable = active?.numCables?.let { it > 1 } ?: true,
+        )
     }
 
     /** Skip the current exercise entirely and advance to the next different exercise. */
@@ -1600,7 +1746,6 @@ class WorkoutSessionViewModel(
         localPartnerDeviceId = null
         partnerIsHost = false
         remotePartnerEngineStarted = false
-        lastReportedPartnerAssignmentId = null
         _partnerLiveSnapshot.value = null
         _partnerInviteJson.value = null
         _partnerLiveError.value = null
@@ -1630,7 +1775,7 @@ class WorkoutSessionViewModel(
         viewModelScope.launch {
             runCatching { SessionLogRepository.clearActiveCheckpoint() }
                 .onFailure { Log.e("WorkoutRecovery", "Unable to clear checkpoint", it) }
-            partnerGroupId?.let { runCatching { PartnerWorkoutRepository.clearCheckpoint(it) } }
+        partnerGroupId?.let { runCatching { PartnerWorkoutRepository.clearCheckpoint(it) } }
         }
     }
 

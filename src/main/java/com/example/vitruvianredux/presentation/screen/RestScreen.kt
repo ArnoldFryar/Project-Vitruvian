@@ -56,7 +56,7 @@ fun RestScreenContent(
     val progress = (secondsRemaining.toFloat() / totalSeconds).coerceIn(0f, 1f)
     val ext = LocalExtendedColors.current
 
-    val ringColor     = ext.restColor
+    val ringColor     = ext.accentCyan
     val trackColor    = MaterialTheme.colorScheme.surfaceVariant
     val surfaceColor  = MaterialTheme.colorScheme.background
 
@@ -79,7 +79,7 @@ fun RestScreenContent(
             verticalArrangement = Arrangement.spacedBy(sectionSpacing),
         ) {
             // â”€â”€ Title â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-            Text(text = "Recover",
+            Text(text = "Breathe. Reset.",
                 style      = if (isCompactHeight) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
                 letterSpacing = AppDimens.LetterSpacing.display,

@@ -39,7 +39,9 @@ class PartnerLiveSessionHost(
                     sessions[hosted.snapshot.groupId] = hosted.copy(
                         snapshot = hosted.snapshot.copy(
                             bleOwnerParticipantId = null,
+                            bleOwnerDeviceId = null,
                             bleLeaseExpiresAt = 0L,
+                            bleLeaseEpoch = hosted.snapshot.bleLeaseEpoch + 1,
                         ),
                     )
                 }
@@ -65,7 +67,9 @@ class PartnerLiveSessionHost(
                 status = PartnerLiveStatus.LOBBY,
                 members = listOf(host.copy(lastSeenAt = now)),
                 bleOwnerParticipantId = host.participant.participantId,
+                bleOwnerDeviceId = host.deviceId,
                 bleLeaseExpiresAt = now + BLE_LEASE_MS,
+                bleLeaseEpoch = 1L,
                 updatedAt = now,
             ),
         )
@@ -74,12 +78,26 @@ class PartnerLiveSessionHost(
     }
 
     @Synchronized
+    fun hasRecoverableSession(): Boolean = sessions.values.any {
+        it.snapshot.status == PartnerLiveStatus.LOBBY || it.snapshot.status == PartnerLiveStatus.ACTIVE
+    }
+
+    @Synchronized
     fun join(request: PartnerJoinRequest): PartnerApiResponse = withSession(request.groupId, request.inviteToken) { hosted ->
         if (hosted.snapshot.status != PartnerLiveStatus.LOBBY) return@withSession fail("Workout already started")
-        val existing = hosted.snapshot.members.any {
-            it.participant.participantId == request.member.participant.participantId || it.deviceId == request.member.deviceId
+        val existingParticipant = hosted.snapshot.members.firstOrNull {
+            it.participant.participantId == request.member.participant.participantId
         }
-        if (!existing && hosted.snapshot.members.size >= MAX_MEMBERS) return@withSession fail("Partner workout is full")
+        val existingDevice = hosted.snapshot.members.firstOrNull { it.deviceId == request.member.deviceId }
+        if (existingParticipant != null && existingParticipant.deviceId != request.member.deviceId) {
+            return@withSession fail("This athlete is already joined from another device")
+        }
+        if (existingDevice != null && existingDevice.participant.participantId != request.member.participant.participantId) {
+            return@withSession fail("This device is already assigned to another athlete")
+        }
+        if (existingParticipant == null && existingDevice == null && hosted.snapshot.members.size >= MAX_MEMBERS) {
+            return@withSession fail("Partner workout is full")
+        }
         val now = clock()
         val members = hosted.snapshot.members.filterNot {
             it.participant.participantId == request.member.participant.participantId || it.deviceId == request.member.deviceId
@@ -93,26 +111,39 @@ class PartnerLiveSessionHost(
     }
 
     @Synchronized
-    fun start(groupId: String, token: String, mode: PartnerRotationMode): PartnerApiResponse =
-        withSession(groupId, token) { hosted ->
+    fun start(request: PartnerStartRequest): PartnerApiResponse =
+        withSession(request.groupId, request.inviteToken) { hosted ->
             val snapshot = hosted.snapshot
+            val host = snapshot.members.firstOrNull()
+                ?: return@withSession fail("Partner host is unavailable")
+            if (host.participant.participantId != request.participantId || host.deviceId != request.deviceId) {
+                return@withSession fail("Only the host can start this workout")
+            }
             if (snapshot.status == PartnerLiveStatus.ACTIVE) return@withSession ok(snapshot)
             if (snapshot.status != PartnerLiveStatus.LOBBY) return@withSession fail("Workout cannot be started")
             if (snapshot.members.size < 2) return@withSession fail("At least two devices must join")
+            val now = clock()
+            if (snapshot.members.any { now - it.lastSeenAt > MEMBER_ONLINE_TTL_MS || !it.ready }) {
+                return@withSession fail("Every athlete must be online and ready before starting")
+            }
             val participants = snapshot.members.map { it.participant }
             val plans = snapshot.members.map { it.plan }
-            val assignments = PartnerRotationScheduler.buildAssignments(groupId, participants, plans, mode)
+            val assignments = PartnerRotationScheduler.buildAssignments(
+                request.groupId,
+                participants,
+                plans,
+                request.rotationMode,
+            )
             if (assignments.isEmpty()) return@withSession fail("No sets were scheduled")
             val group = PartnerWorkoutGroup(
-                groupId = groupId,
+                groupId = request.groupId,
                 createdAt = clock(),
                 participants = participants,
                 plans = plans,
                 assignments = assignments,
-                rotation = PartnerRotationScheduler.initialState(mode, assignments),
+                rotation = PartnerRotationScheduler.initialState(request.rotationMode, assignments),
                 status = PartnerWorkoutStatus.ACTIVE,
             )
-            val now = clock()
             hosted.snapshot = snapshot.copy(
                 status = PartnerLiveStatus.ACTIVE,
                 group = group,
@@ -125,13 +156,12 @@ class PartnerLiveSessionHost(
 
     @Synchronized
     fun snapshot(request: PartnerSessionRequest): PartnerApiResponse = withSession(request.groupId, request.inviteToken) { hosted ->
-        if (hosted.snapshot.members.none { it.participant.participantId == request.participantId }) {
-            return@withSession fail("Participant is not in this workout")
-        }
+        val requester = memberForRequest(hosted.snapshot, request)
+            ?: return@withSession fail("Unknown workout device")
         val now = clock()
         hosted.snapshot = hosted.snapshot.copy(
             members = hosted.snapshot.members.map {
-                if (it.participant.participantId == request.participantId) it.copy(lastSeenAt = now) else it
+                if (it.deviceId == requester.deviceId) it.copy(lastSeenAt = now) else it
             },
             updatedAt = now,
         )
@@ -141,6 +171,7 @@ class PartnerLiveSessionHost(
     @Synchronized
     fun claimBle(request: PartnerSessionRequest): PartnerApiResponse = withSession(request.groupId, request.inviteToken) { hosted ->
         val snapshot = hosted.snapshot
+        val member = memberForRequest(snapshot, request) ?: return@withSession fail("Unknown workout device")
         val assignment = snapshot.group?.assignments?.firstOrNull { it.assignmentId == snapshot.currentAssignmentId }
             ?: return@withSession fail("No active set")
         if (assignment.participantId != request.participantId) return@withSession fail("Waiting for another athlete")
@@ -148,13 +179,17 @@ class PartnerLiveSessionHost(
             return@withSession fail("Workout state changed; refresh before claiming the trainer")
         }
         val now = clock()
-        if (snapshot.bleOwnerParticipantId != null && snapshot.bleOwnerParticipantId != request.participantId) {
+        if (snapshot.bleOwnerParticipantId != null &&
+            (snapshot.bleOwnerParticipantId != request.participantId || snapshot.bleOwnerDeviceId != member.deviceId)
+        ) {
             return@withSession fail("Trainer is transferring from the previous athlete")
         }
 
         hosted.snapshot = snapshot.copy(
             bleOwnerParticipantId = request.participantId,
+            bleOwnerDeviceId = member.deviceId,
             bleLeaseExpiresAt = now + BLE_LEASE_MS,
+            bleLeaseEpoch = snapshot.bleLeaseEpoch + 1,
             revision = snapshot.revision + 1,
             updatedAt = now,
         )
@@ -163,13 +198,18 @@ class PartnerLiveSessionHost(
 
     @Synchronized
     fun releaseBle(request: PartnerSessionRequest): PartnerApiResponse = withSession(request.groupId, request.inviteToken) { hosted ->
-        if (hosted.snapshot.bleOwnerParticipantId != request.participantId) {
+        val member = memberForRequest(hosted.snapshot, request) ?: return@withSession fail("Unknown workout device")
+        if (hosted.snapshot.bleOwnerParticipantId != request.participantId ||
+            hosted.snapshot.bleOwnerDeviceId != member.deviceId
+        ) {
             return@withSession ok(hosted.snapshot)
         }
         val now = clock()
         hosted.snapshot = hosted.snapshot.copy(
             bleOwnerParticipantId = null,
+            bleOwnerDeviceId = null,
             bleLeaseExpiresAt = 0L,
+            bleLeaseEpoch = hosted.snapshot.bleLeaseEpoch + 1,
             revision = hosted.snapshot.revision + 1,
             updatedAt = now,
         )
@@ -178,7 +218,10 @@ class PartnerLiveSessionHost(
 
     @Synchronized
     fun heartbeat(request: PartnerSessionRequest): PartnerApiResponse = withSession(request.groupId, request.inviteToken) { hosted ->
-        if (hosted.snapshot.bleOwnerParticipantId != request.participantId) {
+        val member = memberForRequest(hosted.snapshot, request) ?: return@withSession fail("Unknown workout device")
+        if (hosted.snapshot.bleOwnerParticipantId != request.participantId ||
+            hosted.snapshot.bleOwnerDeviceId != member.deviceId
+        ) {
             return@withSession fail("BLE lease is not owned by this athlete")
         }
         val now = clock()
@@ -196,6 +239,7 @@ class PartnerLiveSessionHost(
             }
             if (request.expectedRevision != snapshot.revision) return@withSession fail("Workout state changed")
             if (snapshot.bleOwnerParticipantId != request.result.participantId) return@withSession fail("Athlete does not own the trainer")
+            if (snapshot.bleOwnerDeviceId != request.deviceId) return@withSession fail("Device does not own the trainer")
             val member = snapshot.members.firstOrNull { it.deviceId == request.deviceId }
                 ?: return@withSession fail("Unknown workout device")
             if (member.participant.participantId != request.result.participantId) {
@@ -226,7 +270,9 @@ class PartnerLiveSessionHost(
                 ),
                 currentAssignmentId = nextId,
                 bleOwnerParticipantId = null,
+                bleOwnerDeviceId = null,
                 bleLeaseExpiresAt = 0L,
+                bleLeaseEpoch = snapshot.bleLeaseEpoch + 1,
                 completedResults = snapshot.completedResults + request.result,
                 revision = snapshot.revision + 1,
                 updatedAt = now,
@@ -243,8 +289,9 @@ class PartnerLiveSessionHost(
         if (!MessageDigest.isEqual(hosted.token.toByteArray(), token.toByteArray())) return fail("Invalid partner invite")
         if (clock() > hosted.expiresAt && hosted.snapshot.status == PartnerLiveStatus.LOBBY) return fail("Partner invite expired")
         val revisionBefore = hosted.snapshot.revision
+        expireBleLeaseIfNeeded(hosted)
         val result = action(hosted)
-        if (result.success && hosted.snapshot.revision != revisionBefore) persist()
+        if (hosted.snapshot.revision != revisionBefore) persist()
         return result
     }
 
@@ -255,9 +302,34 @@ class PartnerLiveSessionHost(
     private fun ok(snapshot: PartnerLiveSnapshot) = PartnerApiResponse(true, snapshot)
     private fun fail(message: String) = PartnerApiResponse(false, message = message)
 
+    private fun memberForRequest(
+        snapshot: PartnerLiveSnapshot,
+        request: PartnerSessionRequest,
+    ): PartnerDeviceMember? {
+        val deviceId = request.deviceId ?: return null
+        return snapshot.members.firstOrNull {
+        it.participant.participantId == request.participantId &&
+            it.deviceId == deviceId
+        }
+    }
+
+    private fun expireBleLeaseIfNeeded(hosted: HostedSession) {
+        val snapshot = hosted.snapshot
+        if (snapshot.bleOwnerParticipantId == null || snapshot.bleLeaseExpiresAt > clock()) return
+        hosted.snapshot = snapshot.copy(
+            bleOwnerParticipantId = null,
+            bleOwnerDeviceId = null,
+            bleLeaseExpiresAt = 0L,
+            bleLeaseEpoch = snapshot.bleLeaseEpoch + 1,
+            revision = snapshot.revision + 1,
+            updatedAt = clock(),
+        )
+    }
+
     companion object {
         private const val MAX_MEMBERS = 4
         private const val INVITE_TTL_MS = 30 * 60 * 1_000L
         private const val BLE_LEASE_MS = 12_000L
+        private const val MEMBER_ONLINE_TTL_MS = 5_000L
     }
 }

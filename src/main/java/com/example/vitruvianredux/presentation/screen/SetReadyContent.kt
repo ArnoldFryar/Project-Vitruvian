@@ -51,6 +51,8 @@ import com.example.vitruvianredux.presentation.components.ValueStepper
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.TrainingInsight
+import com.example.vitruvianredux.data.AdaptiveSessionAction
+import com.example.vitruvianredux.data.AdaptiveSessionRecommendation
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.util.UnitConversions
@@ -108,6 +110,11 @@ internal fun SetReadyContent(
     progressionDeloadLb: Int? = null,
     progressionInsight: TrainingInsight? = null,
     onAcceptProgression: (Int) -> Unit = {},
+    adaptiveRecommendation: AdaptiveSessionRecommendation? = null,
+    adaptiveChoiceApplied: Boolean = false,
+    adaptivePlanKept: Boolean = false,
+    onAcceptAdaptive: () -> Unit = {},
+    onKeepAdaptive: () -> Unit = {},
     /** When non-null, the current workout was launched in deload mode. */
     deloadPercentOff: Int? = null,
     /** Bodyweight exercise — hide resistance, warmup, and mode controls. */
@@ -160,8 +167,19 @@ internal fun SetReadyContent(
     ) {
         Spacer(Modifier.height(AppDimens.Spacing.sm))
 
+        adaptiveRecommendation?.let { recommendation ->
+            AdaptiveSessionRecommendationCard(
+                recommendation = recommendation,
+                applied = adaptiveChoiceApplied,
+                keptPlan = adaptivePlanKept,
+                onAccept = onAcceptAdaptive,
+                onKeep = onKeepAdaptive,
+            )
+            Spacer(Modifier.height(AppDimens.Spacing.sm))
+        }
+
         // â”€â”€ Progression suggestion banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        if (progressionSuggestionLb != null) {
+        if (adaptiveRecommendation == null && progressionSuggestionLb != null) {
             Surface(
                 shape = RoundedCornerShape(AppDimens.Corner.sm),
                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -235,7 +253,7 @@ internal fun SetReadyContent(
             }
         }
 
-        if (progressionDeloadLb != null) {
+        if (adaptiveRecommendation == null && progressionDeloadLb != null) {
             Surface(
                 shape = RoundedCornerShape(AppDimens.Corner.sm),
                 color = MaterialTheme.colorScheme.errorContainer,
@@ -917,6 +935,84 @@ internal fun SetReadyContent(
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.md))
+    }
+}
+
+@Composable
+private fun AdaptiveSessionRecommendationCard(
+    recommendation: AdaptiveSessionRecommendation,
+    applied: Boolean,
+    keptPlan: Boolean,
+    onAccept: () -> Unit,
+    onKeep: () -> Unit,
+) {
+    val cs = MaterialTheme.colorScheme
+    val actionTitle = when (recommendation.action) {
+        AdaptiveSessionAction.PROGRESS -> "Progress is supported"
+        AdaptiveSessionAction.RECOVER -> "Protect rep quality"
+        AdaptiveSessionAction.EXTEND_REST -> "Take more recovery"
+        AdaptiveSessionAction.HOLD -> "Current plan verified"
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = cs.secondaryContainer.copy(alpha = 0.62f),
+        border = androidx.compose.foundation.BorderStroke(
+            AppDimens.Stroke.thin,
+            cs.secondary.copy(alpha = 0.32f),
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(AppDimens.Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(AppIcons.AutoFixHigh, contentDescription = null, tint = cs.secondary)
+                Spacer(Modifier.width(AppDimens.Spacing.sm))
+                Column(Modifier.weight(1f)) {
+                    Text("V6 PERSONAL PLAN · ${recommendation.confidence.label.uppercase()}", style = MaterialTheme.typography.labelSmall, color = cs.secondary)
+                    Text(actionTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(recommendation.reason, style = MaterialTheme.typography.bodyMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+            ) {
+                ReadyInfoPill("LOAD", "${recommendation.recommendedWeightPerCableLb} lb")
+                ReadyInfoPill("TARGET", "${recommendation.recommendedReps} reps")
+                ReadyInfoPill("REST", formatRestDuration(recommendation.recommendedRestSeconds))
+            }
+            Text(
+                recommendation.evidence,
+                style = MaterialTheme.typography.bodySmall,
+                color = cs.onSurfaceVariant,
+            )
+            Text(
+                "Baseline: ${recommendation.baseline.eligibleSetCount} verified ${if (recommendation.baseline.numCables == 1) "single-cable" else "dual-cable"} sets. Nothing changes without your choice.",
+                style = MaterialTheme.typography.labelSmall,
+                color = cs.onSurfaceVariant,
+            )
+            if (recommendation.changesPlan) {
+                if (applied || keptPlan) {
+                    Surface(shape = RoundedCornerShape(AppDimens.Corner.pill), color = cs.surface.copy(alpha = 0.78f)) {
+                        Text(
+                            if (applied) "Recommendation applied · controls remain editable" else "Original plan kept · controls remain editable",
+                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                ) {
+                    OutlinedButton(onClick = onKeep, modifier = Modifier.weight(1f)) { Text("Keep plan") }
+                    Button(onClick = onAccept, modifier = Modifier.weight(1f)) { Text("Use recommendation") }
+                }
+            }
+        }
     }
 }
 

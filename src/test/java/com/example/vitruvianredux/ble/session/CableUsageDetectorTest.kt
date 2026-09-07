@@ -70,4 +70,21 @@ class CableUsageDetectorTest {
         assertNull(result.observedCableCount)
         assertEquals(2, result.effectiveCableCount(2))
     }
+
+    @Test
+    fun `calibrated thresholds recognize a shorter usable range`() {
+        val detector = CableUsageDetector().apply {
+            configure(activeRangeMm = 25f, inactiveRangeMm = 8f, movingVelocityMmS = 30f)
+        }
+        repeat(2) {
+            listOf(0f, 10f, 28f, 36f, 18f, 0f).forEachIndexed { index, position ->
+                detector.observe(
+                    sample(position, if (index < 3) 55f else -55f),
+                    sample(1f, 0f, 0.1f),
+                )
+            }
+        }
+
+        assertEquals(CableExecutionMode.SINGLE_LEFT, detector.resolve(2).mode)
+    }
 }

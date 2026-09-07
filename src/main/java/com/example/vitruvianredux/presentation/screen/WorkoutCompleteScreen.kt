@@ -129,24 +129,19 @@ fun WorkoutCompleteContent(
         Spacer(Modifier.height(AppDimens.Spacing.xl))
 
         // â”€â”€ Trophy + headline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        Icon(
-            imageVector        = AppIcons.EmojiEvents,
-            contentDescription = stringResource(R.string.cd_trophy),
-            modifier           = Modifier.size(AppDimens.Icon.hero),
-            tint               = MaterialTheme.colorScheme.primary,
-        )
+        com.example.vitruvianredux.presentation.components.SessionCelebration(completed = !partialSession)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text       = if (partialSession) "Session ended" else "Session complete",
+                text       = if (partialSession) "Session ended" else "Strong finish.",
                 style      = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Black,
             )
             Spacer(Modifier.height(AppDimens.Spacing.xs))
             Text(
                 text  = when {
-                    stats.totalSets <= 0 -> "No completed working sets will count as progression evidence."
+                    stats.totalSets <= 0 -> "No working sets completed. Come back when you’re ready."
                     skippedSetCount > 0 -> "$skippedSetCount skipped set${if (skippedSetCount == 1) "" else "s"} noted honestly."
-                    else -> "Result, limitation, and next action are ready."
+                    else -> "You put in the work. Take a moment to own it."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -443,34 +438,34 @@ private fun CompletionResultHero(
     val ext = LocalExtendedColors.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-        color = ext.surface2.copy(alpha = 0.90f),
+        shape = RoundedCornerShape(28.dp),
+        color = Color(0xFFD8EFDE),
         border = BorderStroke(AppDimens.Stroke.thin, ext.gold.copy(alpha = 0.20f)),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
+            modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
         ) {
             Text(
                 text = label.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFF375141),
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Black,
-                color = ext.gold,
-                maxLines = 1,
+                color = NearBlack,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = detail,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                color = Color(0xFF375141),
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }

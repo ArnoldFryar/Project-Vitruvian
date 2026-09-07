@@ -9,19 +9,18 @@ import com.example.vitruvianredux.data.CustomExerciseStore
 import com.example.vitruvianredux.data.ExerciseFavoritesStore
 import com.example.vitruvianredux.data.ProfileStore
 import com.example.vitruvianredux.data.PartnerWorkoutRepository
+import com.example.vitruvianredux.data.MachineCalibrationStore
+import com.example.vitruvianredux.data.AdaptiveDecisionStore
 import com.example.vitruvianredux.data.PartnerProfileStore
 import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.data.VoiceCoachingStore
-import com.example.vitruvianredux.data.VitruvianFavoritesStore
-import com.example.vitruvianredux.data.VitruvianLibrary
+import com.example.vitruvianredux.data.VoiceControlStore
 import com.example.vitruvianredux.data.UxTelemetryStore
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import com.example.vitruvianredux.cloud.SupabaseProvider
 import com.example.vitruvianredux.workers.WorkoutReminderWorker
+import com.example.vitruvianredux.sync.PartnerCoordinatorService
 import timber.log.Timber
 
 /**
@@ -60,8 +59,11 @@ class VitruvianApp : Application() {
         // Open the Room singleton before the application-scoped workout VM can
         // load or persist a process-death recovery checkpoint.
         SessionLogRepository.init(this)
+        MachineCalibrationStore.init(this)
+        AdaptiveDecisionStore.init(this)
         // Register the BLE notification channel once at process start.
         BleForegroundService.createNotificationChannel(this)
+        PartnerCoordinatorService.createNotificationChannel(this)
         // Register the workout reminder notification channel.
         val nm = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         WorkoutReminderWorker.createChannel(nm)
@@ -81,15 +83,13 @@ class VitruvianApp : Application() {
         BodyWeightStore.init(this)
         // Load persisted voice coaching preferences.
         VoiceCoachingStore.init(this)
+        // Voice-control preferences stay local because microphone permission is device-specific.
+        VoiceControlStore.init(this)
         // Keep a local, identifier-free record of workout-flow friction and recovery outcomes.
         UxTelemetryStore.init(this)
         // Initialise Supabase client for cloud sync (reads config from resources).
         SupabaseProvider.init(this)
         // Enable store-level preference writes to request an immediate cloud sync.
         ImmediateCloudSyncTrigger.init(this)
-        // Load hearted Vitruvian Library programs.
-        VitruvianFavoritesStore.init(this)
-        // Load official Vitruvian program library from bundled assets.
-        CoroutineScope(Dispatchers.IO).launch { VitruvianLibrary.load(this@VitruvianApp) }
     }
 }

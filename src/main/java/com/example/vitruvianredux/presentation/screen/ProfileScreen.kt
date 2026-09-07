@@ -66,7 +66,6 @@ import androidx.compose.ui.focus.focusRequester
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.BodyWeightStore
 import com.example.vitruvianredux.data.HealthConnectManager
-import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.data.RecordedCountStyle
 import com.example.vitruvianredux.data.HealthConnectStore
 import com.example.vitruvianredux.data.HevyClient
@@ -77,9 +76,9 @@ import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.data.VoiceCoachingLevel
 import com.example.vitruvianredux.data.VoiceCoachingStore
 import com.example.vitruvianredux.data.VoiceCoachingStyle
+import com.example.vitruvianredux.data.VoiceControlStore
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.data.db.SessionLogDatabase
-import com.example.vitruvianredux.workers.VideoDownloadWorker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.example.vitruvianredux.presentation.audit.*
@@ -146,9 +145,9 @@ fun ProfileScreen(
     bleVM: BleViewModel? = null,
     workoutVM: WorkoutSessionViewModel? = null,
     onNavigateToDevice: () -> Unit = {},
-    onNavigateToDebug: () -> Unit = {},
     onNavigateToAccount: () -> Unit = {},
     onNavigateToAnalytics: () -> Unit = {},
+    showTrainingInsights: Boolean = false,
 ) {
     val bleState by (bleVM?.state?.collectAsState() ?: remember { mutableStateOf(BleConnectionState.Disconnected) })
     var showDevicePicker by remember { mutableStateOf(false) }
@@ -369,7 +368,7 @@ fun ProfileScreen(
     val cs = MaterialTheme.colorScheme
 
     ScreenScaffold(
-        title = stringResource(R.string.nav_profile),
+        title = stringResource(R.string.nav_settings),
         innerPadding = innerPadding,
         fillWidth = false,
         maxContentWidth = 960.dp,
@@ -506,7 +505,9 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
+        Spacer(Modifier.height(AppDimens.Spacing.md))
+
+        if (showTrainingInsights) {
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  This Week stats row
@@ -1583,6 +1584,8 @@ fun ProfileScreen(
         Spacer(Modifier.height(AppDimens.Spacing.lg))
 
         // ══════════════════════════════════════════════════════════════════════════════════════════════
+        }
+
         //  Settings
         Text(
             "PREFERENCES",
@@ -1653,6 +1656,7 @@ fun ProfileScreen(
         // -- TTS Voice ----------------------------------------------------
         if (workoutVM != null) {
             val voiceCoachingSettings by VoiceCoachingStore.settingsFlow.collectAsState()
+            val voiceControlSettings by VoiceControlStore.settingsFlow.collectAsState()
             Spacer(Modifier.height(AppDimens.Spacing.sm))
             var showCoachingDialog by remember { mutableStateOf(false) }
             PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = { showCoachingDialog = true }) {
@@ -1705,6 +1709,29 @@ fun ProfileScreen(
                                 )
 
                                 Text(
+                                    stringResource(R.string.settings_voice_controls_label),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    stringResource(R.string.settings_voice_controls_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                VoiceToggleRow(
+                                    title = stringResource(R.string.settings_voice_controls_enabled),
+                                    checked = voiceControlSettings.enabled,
+                                    onCheckedChange = { VoiceControlStore.setEnabled(appContext, it) },
+                                )
+                                VoiceToggleRow(
+                                    title = stringResource(R.string.settings_voice_controls_hands_free),
+                                    checked = voiceControlSettings.handsFreeEnabled,
+                                    enabled = voiceControlSettings.enabled,
+                                    onCheckedChange = { VoiceControlStore.setHandsFreeEnabled(appContext, it) },
+                                )
+                                Divider()
+
+                                Text(
                                     stringResource(R.string.settings_voice_level_label),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.SemiBold,
@@ -1744,7 +1771,11 @@ fun ProfileScreen(
                                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                                 ) {
-                                    VoiceCoachingStyle.entries.forEach { style ->
+                                    VoiceCoachingStyle.entries
+                                        .filterNot {
+                                            it == VoiceCoachingStyle.CONTROLLED && !VoiceCoachingStore.isControlledVoiceAvailable()
+                                        }
+                                        .forEach { style ->
                                         FilterChip(
                                             selected = voiceCoachingSettings.coachingStyle == style,
                                             onClick = { VoiceCoachingStore.setCoachingStyle(appContext, style) },
@@ -1753,6 +1784,7 @@ fun ProfileScreen(
                                                     when (style) {
                                                         VoiceCoachingStyle.COACH -> stringResource(R.string.settings_voice_style_coach)
                                                         VoiceCoachingStyle.TRAINER -> stringResource(R.string.settings_voice_style_trainer)
+                                                        VoiceCoachingStyle.CONTROLLED -> stringResource(R.string.settings_voice_style_controlled)
                                                     }
                                                 )
                                             },
@@ -1792,6 +1824,9 @@ fun ProfileScreen(
                                     ) {
                                         RecordedCountStyle.entries
                                             .filterNot { it == RecordedCountStyle.FOCUS }
+                                            .filterNot {
+                                                it == RecordedCountStyle.CONTROLLED && !VoiceCoachingStore.isControlledVoiceAvailable()
+                                            }
                                             .forEach { countStyle ->
                                             FilterChip(
                                                 selected = voiceCoachingSettings.recordedCountStyle == countStyle,
@@ -1802,6 +1837,7 @@ fun ProfileScreen(
                                                             RecordedCountStyle.BASE -> stringResource(R.string.settings_voice_count_style_base)
                                                             RecordedCountStyle.STEADY -> stringResource(R.string.settings_voice_count_style_steady)
                                                             RecordedCountStyle.FOCUS -> stringResource(R.string.settings_voice_count_style_focus)
+                                                            RecordedCountStyle.CONTROLLED -> stringResource(R.string.settings_voice_count_style_controlled)
                                                         }
                                                     )
                                                 },
@@ -1849,6 +1885,9 @@ fun ProfileScreen(
                                             ) {
                                                 RecordedCountStyle.entries
                                                     .filterNot { it == RecordedCountStyle.FOCUS }
+                                                    .filterNot {
+                                                        it == RecordedCountStyle.CONTROLLED && !VoiceCoachingStore.isControlledVoiceAvailable()
+                                                    }
                                                     .forEach { style ->
                                                     OutlinedButton(
                                                         onClick = { workoutVM.previewCountStyle(style) },
@@ -1864,6 +1903,7 @@ fun ProfileScreen(
                                                                 RecordedCountStyle.BASE -> "Base"
                                                                 RecordedCountStyle.STEADY -> "Steady"
                                                                 RecordedCountStyle.FOCUS -> "Focus"
+                                                                RecordedCountStyle.CONTROLLED -> "Controlled"
                                                             }
                                                         )
                                                     }
@@ -2267,88 +2307,6 @@ fun ProfileScreen(
         // -- Device Management --------------------------------------------
         Spacer(Modifier.height(AppDimens.Spacing.md))
         Text(
-            "OFFLINE STORAGE",
-            style = MaterialTheme.typography.labelSmall,
-            letterSpacing = 1.2.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.xs_sm),
-        )
-        run {
-            val ctx = androidx.compose.ui.platform.LocalContext.current
-            val scope = rememberCoroutineScope()
-            val workInfos by VideoDownloadWorker.getWorkInfoFlow(ctx)
-                .collectAsState(initial = emptyList())
-            val cachedCount by remember {
-                com.example.vitruvianredux.data.VideoCache.let { vc ->
-                    kotlinx.coroutines.flow.flow {
-                        while (true) {
-                            emit(vc.cachedCount)
-                            kotlinx.coroutines.delay(2_000L)
-                        }
-                    }
-                }
-            }.collectAsState(initial = com.example.vitruvianredux.data.VideoCache.cachedCount)
-
-            val activeInfo = workInfos.firstOrNull()
-            val isRunning = activeInfo?.state == androidx.work.WorkInfo.State.RUNNING ||
-                            activeInfo?.state == androidx.work.WorkInfo.State.ENQUEUED
-            val progress = activeInfo?.progress?.getInt(VideoDownloadWorker.PROGRESS_KEY, 0) ?: 0
-
-            PressScaleCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            AppIcons.Download,
-                            contentDescription = "Offline videos",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(AppDimens.Icon.lg),
-                        )
-                        Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                "Exercise Videos",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                            Text(
-                                when {
-                                    isRunning -> "Downloading… $progress%"
-                                    cachedCount > 0 -> "$cachedCount video${if (cachedCount != 1) "s" else ""} saved offline"
-                                    else -> "Download all demo videos for offline use"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    if (isRunning && progress > 0) {
-                        Spacer(Modifier.height(AppDimens.Spacing.sm))
-                        LinearProgressIndicator(
-                            progress = progress / 100f,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    if (!isRunning) {
-                        Spacer(Modifier.height(AppDimens.Spacing.sm))
-                        Button(
-                            onClick = {
-                                VideoDownloadWorker.enqueue(ctx)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(AppIcons.Download, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.md))
-                            Spacer(Modifier.width(AppDimens.Spacing.sm))
-                            Text(if (cachedCount > 0) "Update cache" else "Download videos")
-                        }
-                    }
-                }
-            }
-        }
-
-        // -- Device Management --------------------------------------------
-        Spacer(Modifier.height(AppDimens.Spacing.md))
-        Text(
             "DEVICE",
             style = MaterialTheme.typography.labelSmall,
             letterSpacing = 1.2.sp,
@@ -2371,24 +2329,6 @@ fun ProfileScreen(
             }
         }
 
-        if (BuildConfig.IS_DEBUG_BUILD) {
-            Spacer(Modifier.height(AppDimens.Spacing.sm))
-            PressScaleCard(modifier = Modifier.fillMaxWidth(), onClick = onNavigateToDebug) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(AppIcons.BugReport, contentDescription = stringResource(R.string.cd_bug_report), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(AppDimens.Icon.lg))
-                    Spacer(Modifier.width(AppDimens.Spacing.md_sm))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.settings_debug_label), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                        Text(stringResource(R.string.settings_debug_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Icon(AppIcons.KeyboardArrowRight, contentDescription = stringResource(R.string.cd_chevron_right), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
     }
 
     //  Detail bottom sheets â€“ triggered by tapping stat tiles
@@ -2697,6 +2637,7 @@ private fun createCroppedAvatarDataUri(
 private fun VoiceToggleRow(
     title: String,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
@@ -2707,9 +2648,11 @@ private fun VoiceToggleRow(
             title,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyMedium,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
         )
         Spacer(Modifier.width(AppDimens.Spacing.sm))
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
     }
 }
 
@@ -2722,6 +2665,7 @@ private fun coachingSummary(settings: com.example.vitruvianredux.data.VoiceCoach
     val styleLabel = when (settings.coachingStyle) {
         VoiceCoachingStyle.COACH -> "Coach"
         VoiceCoachingStyle.TRAINER -> "Trainer"
+        VoiceCoachingStyle.CONTROLLED -> "Controlled"
     }
     val detailLabel = when (settings.coachingLevel) {
         VoiceCoachingLevel.OFF -> "critical alerts only"
@@ -2732,6 +2676,7 @@ private fun coachingSummary(settings: com.example.vitruvianredux.data.VoiceCoach
         RecordedCountStyle.BASE -> "Base"
         RecordedCountStyle.STEADY -> "Steady"
         RecordedCountStyle.FOCUS -> "Base"
+        RecordedCountStyle.CONTROLLED -> "Controlled"
     }
     return "$levelLabel · $styleLabel · Recorded/$countStyleLabel · $detailLabel"
 }
@@ -2745,6 +2690,7 @@ private fun coachingLevelDetail(settings: com.example.vitruvianredux.data.VoiceC
 private fun coachingStyleDetail(settings: com.example.vitruvianredux.data.VoiceCoachingSettings): String = when (settings.coachingStyle) {
     VoiceCoachingStyle.COACH -> "Competitive, pressure-up phrasing with a steadier delivery."
     VoiceCoachingStyle.TRAINER -> "Shorter, more direct phrasing with faster callouts."
+    VoiceCoachingStyle.CONTROLLED -> "Calm female coaching with crisp timing and composed authority."
 }
 
 private fun coachingOutputModeDetail(): String =
@@ -2754,4 +2700,5 @@ private fun recordedCountStyleDetail(settings: com.example.vitruvianredux.data.V
     RecordedCountStyle.BASE -> "Uses the default recorded cadence for every count from 1 through 50."
     RecordedCountStyle.STEADY -> "Uses a slower recorded cadence for every count from 1 through 50."
     RecordedCountStyle.FOCUS -> "Legacy Focus settings use the complete Base cadence for consistent emphasis from 1 through 50."
+    RecordedCountStyle.CONTROLLED -> "Uses the controlled female coach with consistent emphasis for every count from 1 through 50."
 }

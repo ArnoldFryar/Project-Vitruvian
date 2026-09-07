@@ -51,6 +51,9 @@ interface SessionLogDao {
     @Query("DELETE FROM session_log WHERE id = :sessionId")
     suspend fun deleteById(sessionId: String)
 
+    @Query("UPDATE session_log SET total_volume_kg = :totalVolumeKg, avg_quality_score = :avgQualityScore WHERE id = :sessionId")
+    suspend fun updateDerivedAnalytics(sessionId: String, totalVolumeKg: Double, avgQualityScore: Int?)
+
     /**
      * Return all sessions whose [SessionLog.endTime] falls within the
      * closed interval [[start], [end]] (epoch millis), ordered chronologically.

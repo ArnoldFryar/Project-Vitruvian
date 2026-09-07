@@ -127,8 +127,25 @@ class SessionRepositoryTest {
     }
 
     @Test fun `corrupted JSON falls back to empty list`() {
-        backing.store["programs"] = "NOT_VALID{{{"
+        val corrupted = "NOT_VALID{{{"
+        backing.store["programs"] = corrupted
         assertTrue(repo.loadAll().isEmpty())
+        assertEquals(corrupted, backing.store["programs"])
+    }
+
+    @Test fun `malformed row does not hide a valid session`() {
+        backing.store["programs"] = """["bad",{"id":"s1","name":"Push"}]"""
+        assertEquals(listOf("s1"), repo.loadAll().map { it.id })
+    }
+
+    @Test fun `synced import preserves remote timestamp`() {
+        repo.importSynced(
+            WorkoutSessionRecord(id = "remote", name = "Remote", updatedAt = 1234L, deviceId = "tablet"),
+        )
+
+        val imported = repo.loadAll().single { it.id == "remote" }
+        assertEquals(1234L, imported.updatedAt)
+        assertEquals("tablet", imported.deviceId)
     }
 
     // ── Edge cases ────────────────────────────────────────────────────────────

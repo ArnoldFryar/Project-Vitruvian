@@ -31,8 +31,11 @@ import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.data.WorkoutHistoryStore
 import com.example.vitruvianredux.sync.SyncServiceLocator
 import com.example.vitruvianredux.data.TelemetryInsights
+import com.example.vitruvianredux.data.TrainingInsightEngine
+import com.example.vitruvianredux.ble.session.CableExecutionMode
 import com.example.vitruvianredux.data.UnitsStore
 import com.example.vitruvianredux.presentation.components.AppErrorState
+import com.example.vitruvianredux.presentation.components.TrainingInsightCard
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
 import com.example.vitruvianredux.presentation.ui.theme.Success
@@ -61,6 +64,39 @@ fun SessionDetailScreen(
     val zone = ZoneId.systemDefault()
     val scope = rememberCoroutineScope()
     var showDeleteConfirmation by rememberSaveable { mutableStateOf(false) }
+    var correctingSet by remember { mutableStateOf<AnalyticsStore.ExerciseSetLog?>(null) }
+
+    correctingSet?.let { set ->
+        CableCorrectionDialog(
+            set = set,
+            onDismiss = { correctingSet = null },
+            onSelect = { mode ->
+                correctingSet = null
+                scope.launch {
+                    SessionLogRepository.correctCableUsage(sessionId, set.exerciseName, set.setIndex, mode)
+                    val correctedSession = AnalyticsStore.correctCableUsage(
+                        sessionId = sessionId,
+                        exerciseName = set.exerciseName,
+                        setIndex = set.setIndex,
+                        mode = mode,
+                    )
+                    if (correctedSession != null) {
+                        WorkoutHistoryStore.historyFlow.value.firstOrNull { it.id == sessionId }?.let { record ->
+                            WorkoutHistoryStore.record(record.copy(totalVolumeKg = correctedSession.totalVolumeKg))
+                        }
+                        if (SyncServiceLocator.isInitialized) {
+                            SyncServiceLocator.sessionRepo.loadAll().firstOrNull { it.id == sessionId }?.let { record ->
+                                SyncServiceLocator.sessionRepo.save(
+                                    record.copy(totalVolumeKg = correctedSession.totalVolumeKg.toFloat()),
+                                )
+                            }
+                        }
+                        ActivityStatsStore.seedFromAnalytics()
+                    }
+                }
+            },
+        )
+    }
 
     if (showDeleteConfirmation && session != null) {
         AlertDialog(
@@ -153,6 +189,7 @@ fun SessionDetailScreen(
             ?.average()
             ?.roundToInt()
         val telemetrySummary = TelemetryInsights.summarizeSets(completedSets)
+        val cableInsight = remember(completedSets) { TrainingInsightEngine.cableEvidenceInsight(completedSets) }
         val machineTiles = buildList {
             if (avgForceKg != null) {
                 add(
@@ -414,6 +451,19 @@ fun SessionDetailScreen(
             }
 
             // â”€â”€ Exercises breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            if (completedSets.isNotEmpty()) {
+                SdSectionHeader("Cable evidence")
+                cableInsight?.let { TrainingInsightCard(it) }
+                Text(
+                    "The app classifies how each set was performed. Confirm or correct a set to recalculate volume and applicable quality metrics.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = cs.onSurfaceVariant,
+                )
+                completedSets.forEach { set ->
+                    CableEvidenceRow(set = set, onCorrect = { correctingSet = set })
+                }
+            }
+
             if (session.exerciseNames.isNotEmpty()) {
                 SdSectionHeader("Exercises")
 
@@ -669,6 +719,92 @@ private fun SdStatTile(
             )
         }
     }
+}
+
+@Composable
+private fun CableEvidenceRow(
+    set: AnalyticsStore.ExerciseSetLog,
+    onCorrect: () -> Unit,
+) {
+    val confidence = set.cableDetectionConfidence.coerceIn(0, 100)
+    val needsReview = set.cableExecutionMode == CableExecutionMode.UNKNOWN.name || confidence < 75
+    SdCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+        ) {
+            Icon(
+                if (needsReview) AppIcons.Warning else AppIcons.CheckCircle,
+                contentDescription = null,
+                tint = if (needsReview) Warning else Success,
+            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "${set.exerciseName} · Set ${set.setIndex + 1}",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    cableModeLabel(set.cableExecutionMode),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    when {
+                        confidence == 100 -> "Athlete confirmed"
+                        needsReview -> "Low confidence · using planned ${set.plannedNumCables}-cable value"
+                        else -> "$confidence% detection confidence"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (needsReview) Warning else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onCorrect) { Text(if (confidence == 100) "Change" else "Confirm") }
+        }
+    }
+}
+
+@Composable
+private fun CableCorrectionDialog(
+    set: AnalyticsStore.ExerciseSetLog,
+    onDismiss: () -> Unit,
+    onSelect: (CableExecutionMode) -> Unit,
+) {
+    val options = listOf(
+        CableExecutionMode.SINGLE_LEFT to "Single cable · left",
+        CableExecutionMode.SINGLE_RIGHT to "Single cable · right",
+        CableExecutionMode.DUAL_SYNCHRONOUS to "Two cables · together",
+        CableExecutionMode.DUAL_ALTERNATING to "Two cables · alternating",
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("How was this set performed?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm)) {
+                Text(
+                    "${set.exerciseName}, set ${set.setIndex + 1}. This correction updates volume and removes symmetry scoring when only one cable was used.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                options.forEach { (mode, label) ->
+                    OutlinedButton(
+                        onClick = { onSelect(mode) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(label) }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+private fun cableModeLabel(mode: String): String = when (mode) {
+    CableExecutionMode.SINGLE_LEFT.name -> "Single cable · left"
+    CableExecutionMode.SINGLE_RIGHT.name -> "Single cable · right"
+    CableExecutionMode.DUAL_SYNCHRONOUS.name -> "Two cables · together"
+    CableExecutionMode.DUAL_ALTERNATING.name -> "Two cables · alternating"
+    else -> "Cable use not confidently detected"
 }
 
 private data class SessionMetricTile(

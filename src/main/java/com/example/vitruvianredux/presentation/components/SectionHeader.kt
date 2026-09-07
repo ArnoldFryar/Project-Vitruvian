@@ -42,7 +42,7 @@ fun SectionHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment     = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(Modifier.weight(1f)) {
             Text(
                 text       = title,
                 style = if (expanded) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,

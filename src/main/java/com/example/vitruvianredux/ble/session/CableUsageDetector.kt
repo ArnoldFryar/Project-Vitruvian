@@ -36,7 +36,28 @@ data class CableUsageResult(
  * than a single frame. This is important for alternating exercises, where only
  * one cable may move at any instant even though both are used by the set.
  */
-class CableUsageDetector {
+data class CableUsageThresholds(
+    val activeRangeMm: Float = CableUsageDetector.DEFAULT_ACTIVE_RANGE_MM,
+    val inactiveRangeMm: Float = CableUsageDetector.DEFAULT_INACTIVE_RANGE_MM,
+    val movingVelocityMmS: Float = CableUsageDetector.DEFAULT_MOVING_VELOCITY_MM_S,
+    val inactivePeakVelocityMmS: Float = CableUsageDetector.DEFAULT_INACTIVE_PEAK_VELOCITY_MM_S,
+)
+
+class CableUsageDetector(initialThresholds: CableUsageThresholds = CableUsageThresholds()) {
+    @Volatile
+    private var thresholds = initialThresholds
+
+    fun configure(activeRangeMm: Float, inactiveRangeMm: Float, movingVelocityMmS: Float) {
+        val active = activeRangeMm.coerceIn(20f, 70f)
+        val inactive = inactiveRangeMm.coerceIn(6f, active * 0.5f)
+        val moving = movingVelocityMmS.coerceIn(25f, 100f)
+        thresholds = CableUsageThresholds(
+            activeRangeMm = active,
+            inactiveRangeMm = inactive,
+            movingVelocityMmS = moving,
+            inactivePeakVelocityMmS = (moving * 0.6f).coerceIn(15f, moving - 1f),
+        )
+    }
     private data class SideEvidence(
         var minPosition: Float = Float.POSITIVE_INFINITY,
         var maxPosition: Float = Float.NEGATIVE_INFINITY,
@@ -102,7 +123,7 @@ class CableUsageDetector {
                 } else {
                     CableExecutionMode.DUAL_ALTERNATING
                 }
-                val weakestRangeRatio = minOf(left.rangeMm, right.rangeMm) / ACTIVE_RANGE_MM
+                val weakestRangeRatio = minOf(left.rangeMm, right.rangeMm) / thresholds.activeRangeMm
                 CableUsageResult(
                     mode = mode,
                     observedCableCount = 2,
@@ -125,7 +146,7 @@ class CableUsageDetector {
         }
         val speed = abs(sample.velocity.takeIf { it.isFinite() } ?: 0f)
         evidence.peakVelocity = maxOf(evidence.peakVelocity, speed)
-        val moving = speed >= MOVING_VELOCITY_MM_S
+        val moving = speed >= thresholds.movingVelocityMmS
         if (moving) {
             evidence.movingSamples++
             if (sample.force.isFinite() && sample.force >= LOADED_FORCE_KG) {
@@ -136,19 +157,19 @@ class CableUsageDetector {
     }
 
     private fun isActive(side: SideEvidence): Boolean =
-        side.rangeMm >= ACTIVE_RANGE_MM &&
+        side.rangeMm >= thresholds.activeRangeMm &&
             (side.movingSamples >= MIN_MOVING_SAMPLES || side.loadedMovingSamples >= MIN_LOADED_MOVING_SAMPLES)
 
     private fun isClearlyInactive(side: SideEvidence): Boolean =
-        side.rangeMm <= INACTIVE_RANGE_MM &&
-            side.peakVelocity < INACTIVE_PEAK_VELOCITY_MM_S &&
+        side.rangeMm <= thresholds.inactiveRangeMm &&
+            side.peakVelocity < thresholds.inactivePeakVelocityMmS &&
             side.loadedMovingSamples == 0
 
     private fun single(mode: CableExecutionMode): CableUsageResult {
         val active = if (mode == CableExecutionMode.SINGLE_LEFT) left else right
         val inactive = if (mode == CableExecutionMode.SINGLE_LEFT) right else left
         val separation = (active.rangeMm - inactive.rangeMm).coerceAtLeast(0f)
-        val confidence = (80f + (separation / ACTIVE_RANGE_MM).coerceIn(0f, 1f) * 18f)
+        val confidence = (80f + (separation / thresholds.activeRangeMm).coerceIn(0f, 1f) * 18f)
             .roundToInt()
             .coerceAtMost(99)
         return CableUsageResult(mode, 1, confidence, left.rangeMm, right.rangeMm)
@@ -164,10 +185,10 @@ class CableUsageDetector {
 
     companion object {
         const val MIN_CONFIDENCE = 75
-        internal const val ACTIVE_RANGE_MM = 40f
-        internal const val INACTIVE_RANGE_MM = 12f
-        private const val MOVING_VELOCITY_MM_S = 60f
-        private const val INACTIVE_PEAK_VELOCITY_MM_S = 35f
+        internal const val DEFAULT_ACTIVE_RANGE_MM = 40f
+        internal const val DEFAULT_INACTIVE_RANGE_MM = 12f
+        internal const val DEFAULT_MOVING_VELOCITY_MM_S = 60f
+        internal const val DEFAULT_INACTIVE_PEAK_VELOCITY_MM_S = 35f
         private const val LOADED_FORCE_KG = 1.5f
         private const val MIN_MOVING_SAMPLES = 3
         private const val MIN_LOADED_MOVING_SAMPLES = 2

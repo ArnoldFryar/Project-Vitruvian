@@ -124,6 +124,11 @@ class RepQualityTracker(
         lastScoredWorkingRep = -1
         lastWarmupRep = 0
         lastSetPhase = SetPhase.IDLE
+        // A new set is a new telemetry stream.  Retaining the previous set's
+        // de-duplication identity can discard the first sample when the trainer
+        // reuses a tick value or the cables have not moved yet.
+        lastTelemetryTick = null
+        lastTelemetryFrame = null
     }
 
     fun discardCurrentSet() {

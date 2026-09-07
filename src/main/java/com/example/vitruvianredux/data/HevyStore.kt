@@ -14,10 +14,12 @@ import kotlinx.coroutines.flow.asStateFlow
 object HevyStore {
 
     private const val PREFS_NAME  = "vitruvian_hevy"
+    private const val SECURE_PREFS_NAME = "vitruvian_hevy_secure"
     private const val KEY_API_KEY = "api_key"
     private const val KEY_ENABLED = "enabled"
 
     private lateinit var prefs: SharedPreferences
+    private lateinit var securePrefs: SecurePreferenceStore
 
     private val _apiKey  = MutableStateFlow<String>("")
     val apiKeyFlow: StateFlow<String> = _apiKey.asStateFlow()
@@ -29,15 +31,18 @@ object HevyStore {
     val enabled: Boolean get() = _enabled.value && _apiKey.value.isNotBlank()
 
     fun init(context: Context) {
-        prefs    = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        _apiKey.value  = (prefs.getString(KEY_API_KEY, "") ?: "").trim()
+        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        securePrefs = SecurePreferenceStore.create(context, SECURE_PREFS_NAME).also {
+            it.migratePlaintext(prefs, KEY_API_KEY)
+        }
+        _apiKey.value = (securePrefs.getString(KEY_API_KEY, "") ?: "").trim()
         _enabled.value = prefs.getBoolean(KEY_ENABLED, false)
     }
 
     fun setApiKey(key: String) {
-        if (!::prefs.isInitialized) return
+        if (!::securePrefs.isInitialized) return
         _apiKey.value = key.trim()
-        prefs.edit().putString(KEY_API_KEY, key.trim()).apply()
+        securePrefs.putString(KEY_API_KEY, key.trim())
     }
 
     fun setEnabled(enabled: Boolean) {

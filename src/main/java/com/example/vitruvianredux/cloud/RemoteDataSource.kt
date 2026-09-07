@@ -29,13 +29,10 @@ object RemoteDataSource {
     }
 
     suspend fun getProfile(userId: String): RemoteProfile? {
-        return try {
+        return remoteRead("getProfile") {
             db.from("profiles")
                 .select { filter { eq("user_id", userId) } }
                 .decodeSingleOrNull<RemoteProfile>()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "getProfile failed")
-            null
         }
     }
 
@@ -81,13 +78,10 @@ object RemoteDataSource {
     }
 
     suspend fun getPrograms(): List<RemoteProgram> {
-        return try {
+        return remoteRead("getPrograms") {
             db.from("programs")
                 .select()
                 .decodeList<RemoteProgram>()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "getPrograms failed")
-            emptyList()
         }
     }
 
@@ -113,13 +107,10 @@ object RemoteDataSource {
     }
 
     suspend fun getSessions(): List<RemoteSession> {
-        return try {
+        return remoteRead("getSessions") {
             db.from("sessions")
                 .select()
                 .decodeList<RemoteSession>()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "getSessions failed")
-            emptyList()
         }
     }
 
@@ -145,13 +136,10 @@ object RemoteDataSource {
     }
 
     suspend fun getAnalyticsLogs(): List<RemoteAnalyticsLog> {
-        return try {
+        return remoteRead("getAnalyticsLogs") {
             db.from("analytics_logs")
                 .select()
                 .decodeList<RemoteAnalyticsLog>()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "getAnalyticsLogs failed")
-            emptyList()
         }
     }
 
@@ -177,13 +165,10 @@ object RemoteDataSource {
     }
 
     suspend fun getCustomExercises(): List<RemoteCustomExercise> {
-        return try {
+        return remoteRead("getCustomExercises") {
             db.from("custom_exercises")
                 .select()
                 .decodeList<RemoteCustomExercise>()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "getCustomExercises failed")
-            emptyList()
         }
     }
 
@@ -208,13 +193,10 @@ object RemoteDataSource {
     }
 
     suspend fun getSettings(userId: String): RemoteUserSettings? {
-        return try {
+        return remoteRead("getSettings") {
             db.from("user_settings")
                 .select { filter { eq("user_id", userId) } }
                 .decodeSingleOrNull<RemoteUserSettings>()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "getSettings failed")
-            null
         }
     }
 
@@ -229,13 +211,10 @@ object RemoteDataSource {
     }
 
     suspend fun getExerciseHistory(): List<RemoteExerciseHistory> {
-        return try {
+        return remoteRead("getExerciseHistory") {
             db.from("exercise_history")
                 .select()
                 .decodeList<RemoteExerciseHistory>()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "getExerciseHistory failed")
-            emptyList()
         }
     }
 
@@ -279,13 +258,23 @@ object RemoteDataSource {
     )
 
     suspend fun getSetHistory(): List<RemoteSetHistory> {
-        return try {
+        return remoteRead("getSetHistory") {
             db.from("set_history")
                 .select()
                 .decodeList<RemoteSetHistory>()
-        } catch (e: Exception) {
-            Timber.tag(TAG).e(e, "getSetHistory failed")
-            emptyList()
         }
     }
+
+    /**
+     * A failed read is not an empty table. CloudSyncRepository pulls before it
+     * pushes, so propagating the failure prevents stale local rows from
+     * overwriting newer remote data after a timeout, auth error, or schema error.
+     */
+    private suspend inline fun <T> remoteRead(label: String, block: () -> T): T =
+        try {
+            block()
+        } catch (error: Exception) {
+            Timber.tag(TAG).e(error, "$label failed")
+            throw error
+        }
 }

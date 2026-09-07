@@ -53,6 +53,9 @@ interface ExerciseHistoryDao {
     @Query("SELECT * FROM set_history WHERE session_id = :sessionId ORDER BY exercise_name, set_index ASC")
     suspend fun getSetsBySessionId(sessionId: String): List<SetHistoryEntity>
 
+    @Query("SELECT * FROM set_history WHERE session_id = :sessionId AND exercise_name = :exerciseName AND set_index = :setIndex LIMIT 1")
+    suspend fun getSet(sessionId: String, exerciseName: String, setIndex: Int): SetHistoryEntity?
+
     @Query("DELETE FROM set_history WHERE session_id = :sessionId")
     suspend fun deleteSetsBySessionId(sessionId: String)
 

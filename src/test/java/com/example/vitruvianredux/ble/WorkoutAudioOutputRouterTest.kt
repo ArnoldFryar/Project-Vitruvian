@@ -120,6 +120,7 @@ class WorkoutAudioOutputRouterTest {
             )
             val expectedClip = when (style) {
                 RecordedCountStyle.STEADY -> "voice_count_steady_04"
+                RecordedCountStyle.CONTROLLED -> "voice_count_controlled_04"
                 RecordedCountStyle.BASE,
                 RecordedCountStyle.FOCUS -> "voice_count_04"
             }

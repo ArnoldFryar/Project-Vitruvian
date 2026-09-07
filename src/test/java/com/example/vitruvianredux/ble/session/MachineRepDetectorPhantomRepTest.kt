@@ -11,10 +11,8 @@ import org.junit.Test
  *   - `current >= last` → `current - last` (normal delta)
  *   - `current < last`  → `0xFFFF - last + current + 1` (u16 wrap-around)
  *
- * Phoenix does NOT have "non-wrap decrease guards". The simple calculateDelta
- * treats ALL `current < last` cases as 16-bit wrap-around. This means a
- * counter reset (e.g., machine mode switch) would produce a large delta and
- * count 1 extra rep. This is accepted as an extremely rare edge case.
+ * Counter decreases away from the true wrap boundary are machine resets and
+ * must rebase without producing a phantom rep.
  *
  * The important property is that true 16-bit wraps work correctly:
  * `lastDown=65534, currentDown=1` → delta = 3 (not rejected as reset).
@@ -76,7 +74,7 @@ class MachineRepDetectorPhantomRepTest {
     }
 
     @Test
-    fun `legacy - up counter decrease treated as wrap (Phoenix calculateDelta)`() {
+    fun `legacy - up counter decrease away from boundary is treated as reset`() {
         detector.configure(warmupTarget = 3, workingTarget = 5)
 
         // Complete warmup (3 reps via up counter)
@@ -90,16 +88,14 @@ class MachineRepDetectorPhantomRepTest {
         assertEquals(1, detector.workingRepsCompleted)
         val repsBefore = detector.totalConfirmedReps
 
-        // Up decreases from 4 → 1 — Phoenix calculateDelta treats as wrap
-        // delta = 0xFFFF - 4 + 1 + 1 = 65533, which is >0, counts 1 rep
-        // This matches Phoenix behavior (no non-wrap guards)
+        // Up decreases from 4 → 1 away from the numeric boundary: reset/rebase.
         detector.process(legacy(up = 1, down = 3))
-        assertEquals("Phoenix-style wrap: counts 1 rep on counter decrease",
-            repsBefore + 1, detector.totalConfirmedReps)
+        assertEquals("Counter reset must not add a phantom rep",
+            repsBefore, detector.totalConfirmedReps)
     }
 
     @Test
-    fun `legacy - counter reset mid-set counts 1 extra rep (Phoenix behavior)`() {
+    fun `legacy - counter reset mid-set does not add a rep`() {
         detector.configure(warmupTarget = 0, workingTarget = 10) // no warmup
 
         // 4 real reps
@@ -108,11 +104,10 @@ class MachineRepDetectorPhantomRepTest {
         }
         assertEquals("Should be exactly 4 reps", 4, detector.totalConfirmedReps)
 
-        // Machine resets counters — Phoenix calculateDelta produces wrap delta, counts 1 rep
-        // This is accepted behavior: counter resets are extremely rare in practice
+        // Machine resets counters — rebase, do not count.
         detector.process(legacy(up = 0, down = 0))
-        assertEquals("Counter reset adds 1 rep (Phoenix wrap-around delta)",
-            5, detector.totalConfirmedReps)
+        assertEquals("Counter reset does not add a rep",
+            4, detector.totalConfirmedReps)
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

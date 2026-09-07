@@ -228,6 +228,7 @@ object TrainingInsightEngine {
                 evidence = "Based on a completed certified 1RM protocol",
             )
         }
+        cableEvidenceInsight(exerciseSets)?.let { return it }
         if (prCount > 0) {
             return TrainingInsight(
                 title = if (prCount == 1) "One record moved" else "$prCount records moved",
@@ -271,6 +272,35 @@ object TrainingInsightEngine {
                 detail = "No major recovery, form, or progression flags stood out.",
                 tone = TrainingInsightTone.Positive,
                 priority = 10,
+            )
+        } else null
+    }
+
+    fun cableEvidenceInsight(sets: List<AnalyticsStore.ExerciseSetLog>): TrainingInsight? {
+        val completed = sets.filter { !it.skipped }
+        if (completed.isEmpty()) return null
+        val uncertain = completed.filter {
+            it.cableExecutionMode == "UNKNOWN" || it.cableDetectionConfidence < 75
+        }
+        if (uncertain.isNotEmpty()) {
+            return TrainingInsight(
+                title = "Confirm cable use",
+                detail = "${uncertain.size} set${if (uncertain.size == 1) " has" else "s have"} uncertain single- or dual-cable evidence.",
+                tone = TrainingInsightTone.Caution,
+                priority = 98,
+                nextStep = "Open Cable evidence and confirm those sets before using volume or quality trends.",
+                evidence = "${completed.size - uncertain.size} of ${completed.size} completed sets have high-confidence cable evidence",
+            )
+        }
+        val confirmed = completed.count { it.cableDetectionConfidence == 100 }
+        return if (confirmed > 0) {
+            TrainingInsight(
+                title = "Cable analytics verified",
+                detail = "$confirmed set${if (confirmed == 1) " was" else "s were"} athlete-confirmed and recalculated.",
+                tone = TrainingInsightTone.Positive,
+                priority = 45,
+                nextStep = "Use the corrected volume and quality trends for your next load decision.",
+                evidence = "Based on explicit cable-use confirmation",
             )
         } else null
     }
@@ -402,6 +432,8 @@ object TrainingInsightEngine {
                 detail = "${summary.dominantSide} with a ${summary.sideGapPct}% side gap.",
                 tone = TrainingInsightTone.Caution,
                 priority = 85,
+                nextStep = "Hold load and match the weaker side's range and tempo on the next set.",
+                evidence = "Based on ${summary.sampledSetCount} telemetry-scored sets",
             )
         }
         if (summary.finishTrend == "Fades late" && summary.avgFinishForcePct <= 90) {
@@ -410,6 +442,8 @@ object TrainingInsightEngine {
                 detail = "End-of-set force averaged ${summary.avgFinishForcePct}% of the start.",
                 tone = TrainingInsightTone.Caution,
                 priority = 82,
+                nextStep = "Keep the same load and stop one rep earlier until late-set force stabilizes.",
+                evidence = "Based on ${summary.sampledSetCount} telemetry-scored sets",
             )
         }
         return null

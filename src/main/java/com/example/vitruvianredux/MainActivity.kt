@@ -23,7 +23,6 @@ import com.example.vitruvianredux.data.HealthConnectSyncStore
 import com.example.vitruvianredux.data.JustLiftStore
 import com.example.vitruvianredux.data.LedColorStore
 import com.example.vitruvianredux.data.ProgramStore
-import com.example.vitruvianredux.data.VitRoutine
 import com.example.vitruvianredux.data.SessionLogRepository
 import com.example.vitruvianredux.data.TemplateRepository
 import com.example.vitruvianredux.data.VideoCache
@@ -114,28 +113,6 @@ class MainActivity : ComponentActivity() {
             VideoCache.reload()
             TemplateRepository.init(applicationContext)
             ProgramStore.init(applicationContext)
-            // One-time migration: remove programs previously imported via "Add to My Programs"
-            // (Vitruvian Library programs are now managed via the heart/favorites mechanism).
-            val migPrefs = getSharedPreferences("vit_migrations", android.content.Context.MODE_PRIVATE)
-            if (!migPrefs.getBoolean("vit_import_cleanup_v1", false)) {
-                try {
-                    val raw = assets.open("programs.json").bufferedReader().readText()
-                    val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
-                    val routines = json.decodeFromString<List<VitRoutine>>(raw)
-                    val vitNames = mutableSetOf<String>()
-                    for (r in routines) {
-                        if (r.circuits.size <= 1) {
-                            vitNames.add(r.name)
-                        } else {
-                            for (i in 1..r.circuits.size) vitNames.add("${r.name} \u2013 Day $i")
-                        }
-                    }
-                    ProgramStore.savedProgramsFlow.value
-                        .filter { it.name in vitNames }
-                        .forEach { ProgramStore.deleteProgram(it.id) }
-                } catch (_: Exception) {}
-                migPrefs.edit().putBoolean("vit_import_cleanup_v1", true).apply()
-            }
             SyncServiceLocator.init(applicationContext)
             // Vitruvian machine account (Auth0 device-flow token store)
             com.example.vitruvianredux.cloud.VitruvianAuthManager.init(applicationContext)

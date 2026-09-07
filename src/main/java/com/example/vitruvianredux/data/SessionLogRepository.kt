@@ -5,6 +5,7 @@ import timber.log.Timber
 import com.example.vitruvianredux.data.db.ExerciseHistoryDao
 import com.example.vitruvianredux.data.db.SessionLog
 import com.example.vitruvianredux.data.db.SessionLogDatabase
+import com.example.vitruvianredux.ble.session.CableExecutionMode
 import com.example.vitruvianredux.data.db.ActiveWorkoutCheckpointEntity
 import com.example.vitruvianredux.data.db.ExerciseHistoryEntity
 import com.example.vitruvianredux.data.db.IntegrationOutboxEntity
@@ -283,6 +284,56 @@ object SessionLogRepository {
             database.sessionLogDao().deleteById(sessionId)
             database.v4ReliabilityDao().deleteOutboxForSession(sessionId)
         }
+    }
+
+    /** Persist an athlete-confirmed cable mode and refresh canonical aggregates. */
+    suspend fun correctCableUsage(
+        sessionId: String,
+        exerciseName: String,
+        setIndex: Int,
+        mode: CableExecutionMode,
+    ): SetHistoryEntity? {
+        val corrected = withContext(Dispatchers.IO) {
+            database.withTransaction {
+                val historyDao = database.exerciseHistoryDao()
+                val existing = historyDao.getSet(sessionId, exerciseName, setIndex)
+                    ?: return@withTransaction null
+                val correction = CableAnalyticsCorrection.apply(
+                    mode = mode,
+                    previousCableCount = existing.numCables,
+                    previousVolumeKg = existing.volumeKg,
+                    previousQualityScore = existing.avgQualityScore,
+                    rom = existing.avgRom,
+                    tempo = existing.avgTempo,
+                    symmetry = existing.avgSymmetry,
+                    smoothness = existing.avgSmoothness,
+                )
+                val updated = existing.copy(
+                    numCables = correction.cableCount,
+                    cableExecutionMode = correction.mode.name,
+                    cableDetectionConfidence = correction.confidence,
+                    volumeKg = correction.volumeKg,
+                    avgQualityScore = correction.qualityScore,
+                    avgSymmetry = correction.symmetryScore,
+                    updatedAt = System.currentTimeMillis(),
+                    syncPending = true,
+                )
+                historyDao.insertSets(listOf(updated))
+                val allSets = historyDao.getSetsBySessionId(sessionId)
+                database.sessionLogDao().updateDerivedAnalytics(
+                    sessionId = sessionId,
+                    totalVolumeKg = allSets.sumOf { it.volumeKg.toDouble() },
+                    avgQualityScore = AnalyticsMath.repWeightedQuality(
+                        allSets.map { it.avgQualityScore to it.reps },
+                    ),
+                )
+                updated
+            }
+        }
+        if (corrected != null) {
+            com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger.requestDataSync()
+        }
+        return corrected
     }
 
     suspend fun pendingIntegrations(limit: Int = 50): List<IntegrationOutboxEntity> =

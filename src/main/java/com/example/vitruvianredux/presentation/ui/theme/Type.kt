@@ -5,24 +5,17 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
 import androidx.compose.ui.unit.sp
 import com.vitruvian.trainer.R
 import com.example.vitruvianredux.presentation.ui.AppDimens
 
-private val fontProvider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage   = "com.google.android.gms",
-    certificates      = R.array.com_google_android_gms_fonts_certs,
-)
-
+// Bundled fonts keep the training display consistent without Play Services or a network.
 private val SpaceGrotesk = FontFamily(
-    Font(GoogleFont("Space Grotesk"), fontProvider, weight = FontWeight.Normal),
-    Font(GoogleFont("Space Grotesk"), fontProvider, weight = FontWeight.Medium),
-    Font(GoogleFont("Space Grotesk"), fontProvider, weight = FontWeight.SemiBold),
-    Font(GoogleFont("Space Grotesk"), fontProvider, weight = FontWeight.Bold),
-    Font(GoogleFont("Space Grotesk"), fontProvider, weight = FontWeight.Black),
+    Font(R.font.space_grotesk_regular, weight = FontWeight.Normal),
+    Font(R.font.space_grotesk_medium, weight = FontWeight.Medium),
+    Font(R.font.space_grotesk_semibold, weight = FontWeight.SemiBold),
+    Font(R.font.space_grotesk_bold, weight = FontWeight.Bold),
+    Font(R.font.space_grotesk_bold, weight = FontWeight.Black),
 )
 
 private val BodyFont = FontFamily.SansSerif

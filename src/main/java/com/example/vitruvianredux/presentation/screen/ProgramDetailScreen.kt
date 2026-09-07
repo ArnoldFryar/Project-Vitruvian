@@ -38,7 +38,6 @@ import com.example.vitruvianredux.ble.session.PlayerSetParams
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.AdaptiveProgramRecommendation
 import com.example.vitruvianredux.data.AdaptiveProgramRecommendationEngine
-import com.example.vitruvianredux.data.AdaptiveProgramReview
 import com.example.vitruvianredux.data.CircuitSetBuilder
 import com.example.vitruvianredux.data.ExerciseMode
 import com.example.vitruvianredux.data.PrTracker
@@ -101,6 +100,37 @@ fun ProgramDetailScreen(
         return
     }
 
+    val adaptiveReview = remember(program, allLogs) {
+        AdaptiveProgramRecommendationEngine.review(program, allLogs)
+    }
+    val adaptiveReviewPreferences = remember(context) {
+        context.getSharedPreferences("adaptive_program_review", android.content.Context.MODE_PRIVATE)
+    }
+    val adaptiveReviewPreferenceKey = remember(programId) { "dismissed:$programId" }
+    var dismissedAdaptiveKeys by remember(programId) {
+        mutableStateOf(
+            adaptiveReviewPreferences
+                .getStringSet(adaptiveReviewPreferenceKey, emptySet())
+                ?.toSet()
+                .orEmpty(),
+        )
+    }
+    val outstandingAdaptiveRecommendations = adaptiveReview.recommendations.filterNot {
+        it.key in dismissedAdaptiveKeys
+    }
+
+    fun saveDismissedAdaptiveKeys(keys: Set<String>) {
+        dismissedAdaptiveKeys = keys
+        adaptiveReviewPreferences.edit()
+            .putStringSet(adaptiveReviewPreferenceKey, keys)
+            .apply()
+    }
+
+    fun advanceAdaptiveReview(after: AdaptiveProgramRecommendation) {
+        pendingAdaptiveRecommendation = outstandingAdaptiveRecommendations
+            .firstOrNull { it.key != after.key }
+    }
+
     pendingAdaptiveRecommendation?.let { recommendation ->
         AlertDialog(
             onDismissRequest = { pendingAdaptiveRecommendation = null },
@@ -147,13 +177,14 @@ fun ProgramDetailScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        pendingAdaptiveRecommendation = null
                         if (recommendation is AdaptiveProgramRecommendation.SubstitutionReview) {
+                            pendingAdaptiveRecommendation = null
                             onEditProgram()
                         } else {
                             ProgramStore.addProgram(
                                 AdaptiveProgramRecommendationEngine.apply(program, recommendation),
                             )
+                            advanceAdaptiveReview(recommendation)
                         }
                     },
                 ) {
@@ -167,8 +198,13 @@ fun ProgramDetailScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingAdaptiveRecommendation = null }) {
-                    Text("Keep current plan")
+                TextButton(
+                    onClick = {
+                        saveDismissedAdaptiveKeys(dismissedAdaptiveKeys + recommendation.key)
+                        advanceAdaptiveReview(recommendation)
+                    },
+                ) {
+                    Text("Keep this setting")
                 }
             },
         )
@@ -211,9 +247,6 @@ onClick = { showDeleteDialog = false }) {
     val activeDeload = program.deloadState
     val deloadRecommendation = remember(program, allLogs) { buildProgramDeloadRecommendation(program, allLogs) }
     val programInsight = remember(program, allLogs) { TrainingInsightEngine.programQuality(program, allLogs) }
-    val adaptiveReview = remember(program, allLogs) {
-        AdaptiveProgramRecommendationEngine.review(program, allLogs)
-    }
     val bottomBarPadding = 112.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val heroColor = MaterialTheme.colorScheme.primary
 
@@ -305,13 +338,27 @@ onClick = { showDeleteDialog = false }) {
             }
 
             // ── Exercise cards ────────────────────────────────────────────
-            item(key = "adaptive_review") {
-                AdaptiveProgramReviewCard(
-                    review = adaptiveReview,
-                    onReview = { pendingAdaptiveRecommendation = it },
-                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm),
-                )
-                Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+            if (adaptiveReview.recommendations.isNotEmpty()) {
+                item(key = "adaptive_review") {
+                    AdaptiveProgramReviewCard(
+                        recommendations = outstandingAdaptiveRecommendations,
+                        resolved = outstandingAdaptiveRecommendations.isEmpty(),
+                        onReview = {
+                            pendingAdaptiveRecommendation = outstandingAdaptiveRecommendations.firstOrNull()
+                        },
+                        onKeepCurrentPlan = {
+                            saveDismissedAdaptiveKeys(
+                                dismissedAdaptiveKeys + adaptiveReview.recommendations.map { it.key },
+                            )
+                            pendingAdaptiveRecommendation = null
+                        },
+                        onReviewAgain = {
+                            saveDismissedAdaptiveKeys(emptySet())
+                        },
+                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.md_sm),
+                    )
+                    Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+                }
             }
 
             itemsIndexed(program.items, key = { _, item -> item.exerciseId + item.exerciseName }) { index, item ->
@@ -503,8 +550,11 @@ onClick = { showDeleteDialog = false }) {
 
 @Composable
 private fun AdaptiveProgramReviewCard(
-    review: AdaptiveProgramReview,
-    onReview: (AdaptiveProgramRecommendation) -> Unit,
+    recommendations: List<AdaptiveProgramRecommendation>,
+    resolved: Boolean,
+    onReview: () -> Unit,
+    onKeepCurrentPlan: () -> Unit,
+    onReviewAgain: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -522,72 +572,69 @@ private fun AdaptiveProgramReviewCard(
                 horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
             ) {
                 Icon(
-                    imageVector = AppIcons.Tune,
+                    imageVector = if (resolved) AppIcons.CheckCircle else AppIcons.Tune,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(AppDimens.Icon.md),
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "ADAPTIVE REVIEW",
+                        text = if (resolved) "REVIEW COMPLETE" else "ADAPTIVE REVIEW",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = AppDimens.LetterSpacing.wide,
                     )
                     Text(
-                        text = "Deterministic local history rules",
+                        text = if (resolved) "Current plan kept" else "Based on your recent sessions",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            Text(
-                text = review.status,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            review.recommendations.forEach { recommendation ->
-                Divider(color = MaterialTheme.colorScheme.outlineVariant)
-                Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs)) {
-                    Text(
-                        text = recommendation.eyebrow,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = AppDimens.LetterSpacing.wide,
-                    )
-                    Text(
-                        text = recommendation.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = recommendation.reason,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = recommendation.evidence,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "${recommendation.confidence.label} • ${recommendation.dataSufficiency}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    TextButton(
-                        onClick = { onReview(recommendation) },
-                        modifier = Modifier.align(Alignment.End),
+            if (resolved) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onReviewAgain) {
+                        Text("Review again")
+                    }
+                }
+            } else {
+                val changeCount = recommendations.size
+                val preview = recommendations
+                    .take(2)
+                    .joinToString(separator = " • ") { it.title.substringBefore(":") }
+                Text(
+                    text = "$changeCount suggested change${if (changeCount == 1) "" else "s"}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = buildString {
+                        append(preview)
+                        if (changeCount > 2) append(" • +${changeCount - 2} more")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                ) {
+                    Spacer(modifier = Modifier.weight(1f))
+                    Button(
+                        onClick = onReview,
+                        modifier = Modifier.widthIn(min = 160.dp, max = 280.dp),
                     ) {
-                        Text(
-                            if (recommendation is AdaptiveProgramRecommendation.SubstitutionReview) {
-                                "Review substitution"
-                            } else {
-                                "Review change"
-                            },
-                        )
+                        Text(if (changeCount == 1) "Review change" else "Review $changeCount changes")
+                    }
+                    TextButton(onClick = onKeepCurrentPlan) {
+                        Text("Keep current plan")
                     }
                 }
             }

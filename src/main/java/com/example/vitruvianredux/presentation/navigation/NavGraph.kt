@@ -45,8 +45,6 @@ enum class Route(val path: String) {
     ExerciseDataDetail("exercise_data"),
     AnalyticsDashboard("analytics_dashboard"),
     TelemetryDetail("telemetry_detail"),
-    OfficialPrograms("official_programs"),
-    OfficialProgramDetail("official_program_detail"),
     PartnerSetup("partner_setup"),
 }
 
@@ -124,10 +122,6 @@ fun AppNavHost(
                 onNavigateToTemplates       = { nav.navigate(Route.Templates.path) },
                 onNavigateToImport          = { nav.navigate(Route.ImportProgram.path) },
                 onNavigateToHevyImport      = { nav.navigate(Route.HevyImport.path) },
-                onNavigateToOfficialPrograms = { nav.navigate(Route.OfficialPrograms.path) },
-                onNavigateToOfficialProgramDetail = { id ->
-                    nav.navigate("${Route.OfficialProgramDetail.path}/${Uri.encode(id)}")
-                },
             )
         }
         composable(Route.Device.path)    {
@@ -144,7 +138,6 @@ fun AppNavHost(
                 bleVM = bleVM,
                 workoutVM = workoutVM,
                 onNavigateToDevice  = { nav.navigate(Route.Device.path) },
-                onNavigateToDebug   = { if (BuildConfig.IS_DEBUG_BUILD) nav.navigate(Route.Debug.path) },
                 onNavigateToAccount = { nav.navigate(Route.Account.path) },
                 onNavigateToAnalytics = { nav.navigate(Route.AnalyticsDashboard.path) },
             )
@@ -199,21 +192,6 @@ fun AppNavHost(
                 onBack    = { nav.popBackStack() },
             )
         }
-        composable(Route.OfficialPrograms.path) {
-            OfficialProgramsScreen(
-                onBack          = { nav.popBackStack() },
-                onRoutineClick  = { id ->
-                    nav.navigate("${Route.OfficialProgramDetail.path}/${Uri.encode(id)}")
-                },
-            )
-        }
-        composable(route = "${Route.OfficialProgramDetail.path}/{routineId}") { backStackEntry ->
-            val routineId = backStackEntry.arguments?.getString("routineId") ?: ""
-            OfficialProgramDetailScreen(
-                routineId = routineId,
-                onBack    = { nav.popBackStack() },
-            )
-        }
         composable(Route.Templates.path) {
             TemplateLibraryScreen(
                 onBack = { nav.popBackStack() },
@@ -238,6 +216,7 @@ fun AppNavHost(
         composable(Route.ActivityHistory.path) {
             AnalyticsDashboardScreen(
                 primaryDestination = true,
+                outerPadding = innerPadding,
                 onNavigateToHistory = { nav.navigate(Route.History.path) },
                 onNavigateToTelemetry = { nav.navigate(Route.TelemetryDetail.path) },
                 onStartWorkout = { nav.navigate(Route.Workout.path) },

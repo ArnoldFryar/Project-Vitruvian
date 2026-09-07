@@ -292,6 +292,7 @@ private fun MultiDevicePartnerSetupScreen(
     val participant = remember { PartnerProfileStore.ensurePrimaryProfile(ProfileStore.displayNameFlow.value) }
     var selectedProgramId by rememberSaveable { mutableStateOf<String?>(null) }
     var hostMode by rememberSaveable { mutableStateOf(true) }
+    var rotationMode by rememberSaveable { mutableStateOf(PartnerRotationMode.ROUND_ROBIN_SETS) }
     var hostRequested by rememberSaveable { mutableStateOf(false) }
     var showScanner by rememberSaveable { mutableStateOf(false) }
     var joining by remember { mutableStateOf(false) }
@@ -368,13 +369,31 @@ private fun MultiDevicePartnerSetupScreen(
                 }
             }
             item {
-                SetupSection("Your workout", "${participant.displayName} · your targets stay private") {
+                SetupSection("Your workout", "${participant.displayName} · your plan follows you on this device") {
                     ProgramPicker(
                         label = "Your program",
                         programs = activePrograms,
                         selectedId = selectedProgramId,
                         onSelected = { selectedProgramId = it },
                     )
+                }
+            }
+            item {
+                SetupSection("Rotation", "Choose how turns move between athletes") {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = rotationMode == PartnerRotationMode.ROUND_ROBIN_SETS,
+                            onClick = { rotationMode = PartnerRotationMode.ROUND_ROBIN_SETS },
+                            label = { Text("Alternate sets") },
+                            modifier = Modifier.weight(1f),
+                        )
+                        FilterChip(
+                            selected = rotationMode == PartnerRotationMode.EXERCISE_BY_EXERCISE,
+                            onClick = { rotationMode = PartnerRotationMode.EXERCISE_BY_EXERCISE },
+                            label = { Text("Finish exercise") },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
 
@@ -407,14 +426,25 @@ private fun MultiDevicePartnerSetupScreen(
                                 Image(it.asImageBitmap(), "Partner workout QR code", Modifier.size(230.dp).align(Alignment.CenterHorizontally))
                             } ?: CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
                             snapshot?.members?.forEach { member ->
-                                Text("✓ ${member.participant.displayName}", fontWeight = FontWeight.SemiBold)
+                                val online = System.currentTimeMillis() - member.lastSeenAt <= 5_000L
+                                Text(
+                                    if (online && member.ready) "✓ ${member.participant.displayName} · Ready"
+                                    else "• ${member.participant.displayName} · Reconnecting",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (online && member.ready) MaterialTheme.colorScheme.secondary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
                     }
                     item {
                         Button(
-                            onClick = { workoutVM.startHostedPartnerWorkoutAcrossDevices(PartnerRotationMode.ROUND_ROBIN_SETS) },
-                            enabled = (snapshot?.members?.size ?: 0) >= 2,
+                            onClick = { workoutVM.startHostedPartnerWorkoutAcrossDevices(rotationMode) },
+                            enabled = snapshot?.members?.let { members ->
+                                members.size >= 2 && members.all {
+                                    it.ready && System.currentTimeMillis() - it.lastSeenAt <= 5_000L
+                                }
+                            } == true,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                         ) { Text("Start with ${snapshot?.members?.size ?: 1} athletes") }
                     }

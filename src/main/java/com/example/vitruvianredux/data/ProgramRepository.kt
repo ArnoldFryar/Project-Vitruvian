@@ -267,7 +267,7 @@ class ProgramRepository(
         return try {
             val array = JSONArray(json)
             (0 until array.length())
-                .map { array.getJSONObject(it) }
+                .mapNotNull { array.optJSONObject(it) }
                 .mapNotNull { obj ->
                     val id   = obj.optString("id").takeIf   { it.isNotBlank() } ?: return@mapNotNull null
                     val name = obj.optString("name").takeIf { it.isNotBlank() } ?: return@mapNotNull null
@@ -337,7 +337,8 @@ class ProgramRepository(
                     SavedProgram(id, name, cnt, items, updatedAt, deletedAt, devId, sortOrder, days, isFavorite, deloadState)
                 }
         } catch (_: Exception) {
-            backing.writePrograms("[]")
+            // Never destroy the only persisted copy during a read.  Returning an
+            // empty view is recoverable; overwriting malformed data with [] is not.
             emptyList()
         }
     }

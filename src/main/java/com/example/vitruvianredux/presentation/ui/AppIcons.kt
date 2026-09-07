@@ -478,6 +478,25 @@ object AppIcons {
         }
     }
 
+    /** lucide:share-2 */
+    val Share: ImageVector by lazy {
+        lucide("Share") {
+            path(stroke = S, strokeLineWidth = W, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) {
+                moveTo(18f, 8f)
+                arcToRelative(3f, 3f, 0f, true, true, 0f, -6f)
+                arcToRelative(3f, 3f, 0f, true, true, 0f, 6f)
+                moveTo(6f, 15f)
+                arcToRelative(3f, 3f, 0f, true, true, 0f, -6f)
+                arcToRelative(3f, 3f, 0f, true, true, 0f, 6f)
+                moveTo(18f, 22f)
+                arcToRelative(3f, 3f, 0f, true, true, 0f, -6f)
+                arcToRelative(3f, 3f, 0f, true, true, 0f, 6f)
+                moveTo(8.59f, 13.51f); lineTo(15.42f, 17.49f)
+                moveTo(15.41f, 6.51f); lineTo(8.59f, 10.49f)
+            }
+        }
+    }
+
     /** lucide:copy */
     val ContentCopy: ImageVector by lazy {
         lucide("ContentCopy") {

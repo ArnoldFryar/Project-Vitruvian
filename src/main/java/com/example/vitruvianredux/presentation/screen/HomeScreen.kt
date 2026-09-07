@@ -62,6 +62,8 @@ import java.time.format.TextStyle
 import java.util.Locale
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import androidx.compose.ui.graphics.Color
+import com.example.vitruvianredux.presentation.components.TrainingTracks
+import com.example.vitruvianredux.presentation.components.TrainingWeekStrip
 import com.example.vitruvianredux.presentation.components.TrainingMomentumCard
 import java.time.temporal.ChronoUnit
 
@@ -116,6 +118,10 @@ fun HomeScreen(
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate() == today
         }
+    }
+    val repeatProgram = remember(programs, allLogs) {
+        val lastProgramName = allLogs.maxByOrNull { it.endTimeMs }?.programName
+        programs.firstOrNull { it.name.equals(lastProgramName, ignoreCase = true) }
     }
     val daysSinceLastSession = remember(allLogs, today) {
         allLogs.maxByOrNull { it.endTimeMs }?.let {
@@ -177,7 +183,7 @@ fun HomeScreen(
     val progressContent: @Composable ColumnScope.() -> Unit = {
         SectionHeader(
             title = stringResource(R.string.home_last_7_days),
-            subtitle = "Recent training load.",
+            subtitle = "Every session adds up.",
             actionLabel = stringResource(R.string.home_action_history),
             onAction = openHistory,
         )
@@ -206,7 +212,7 @@ fun HomeScreen(
     val latestContent: @Composable ColumnScope.() -> Unit = {
         SectionHeader(
             title = "Latest session",
-            subtitle = "Your most recent work.",
+            subtitle = "Look how far you’ve come.",
             actionLabel = stringResource(R.string.home_action_history),
             onAction = openHistory,
         )
@@ -220,7 +226,7 @@ fun HomeScreen(
     ScreenScaffold(
         title = stringResource(R.string.screen_title_home),
         innerPadding = innerPadding,
-        showTopBar = !isLandscapeDashboard,
+        showTopBar = false,
         fillWidth = true,
     ) {
         BoxWithConstraints(
@@ -239,6 +245,7 @@ fun HomeScreen(
             ) {
                 HomeCommandCenter(
                     program = nextProgram,
+                    repeatProgram = repeatProgram,
                     commandModel = commandModel,
                     exerciseCatalog = exerciseCatalog,
                     workoutVM = workoutVM,
@@ -246,6 +253,7 @@ fun HomeScreen(
                     onNavigateToPrograms = onNavigateToPrograms,
                     onReviewToday = openHistory,
                 )
+                TrainingWeekStrip(workoutDays = workoutDays, today = today)
                 if (activeDeloadPrograms.isNotEmpty()) {
                     HomeDeloadStatusCard(
                         programs = activeDeloadPrograms,
@@ -296,6 +304,7 @@ fun HomeScreen(
 @Composable
 private fun HomeCommandCenter(
     program: SavedProgram?,
+    repeatProgram: SavedProgram?,
     commandModel: TodayCommandCenterModel,
     exerciseCatalog: Map<String, Exercise>,
     workoutVM: WorkoutSessionViewModel?,
@@ -303,26 +312,29 @@ private fun HomeCommandCenter(
     onNavigateToPrograms: () -> Unit,
     onReviewToday: () -> Unit,
 ) {
-    val cs = MaterialTheme.colorScheme
-    val ext = LocalExtendedColors.current
+    val cs = MaterialTheme.colorScheme.copy(
+        onSurface = NearBlack, onSurfaceVariant = Color(0xFF544B42),
+        primary = DarkAccessibleOrange, outlineVariant = NearBlack.copy(alpha = .12f),
+    )
     val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
     val today = remember {
-        LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault()))
+        LocalDate.now().format(DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault()))
     }
-    val shape = RoundedCornerShape(AppDimens.Corner.md)
+    val shape = RoundedCornerShape(28.dp)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = if (expanded) 184.dp else 0.dp),
         shape = shape,
-        color = ext.surface1,
+        color = Color(0xFFFFD7BD),
         border = androidx.compose.foundation.BorderStroke(
             AppDimens.Stroke.thin,
-            cs.primary.copy(alpha = 0.24f),
+            Color.Transparent,
         ),
     ) {
         Box {
+            TrainingTracks(Modifier.matchParentSize())
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -347,13 +359,20 @@ private fun HomeCommandCenter(
                         )
                     }
                     Text(
-                        text = commandModel.headline,
-                        style = if (expanded) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineMedium,
+                        text = when (commandModel.primaryAction) {
+                            TodayPrimaryAction.START_WORKOUT -> "Your next strong move."
+                            TodayPrimaryAction.CHOOSE_PROGRAM -> "Find your flow."
+                            TodayPrimaryAction.REVIEW_TODAY -> "You showed up."
+                        },
+                        style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Black,
                         color = cs.onSurface,
                     )
                     Text(
-                        text = commandModel.detail,
+                        text = when {
+                            commandModel.statusLabel == "TRAINER OFFLINE" -> "Your plan is ready. Connect your trainer when you’re ready to lift."
+                            else -> commandModel.detail
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = cs.onSurfaceVariant,
                     )
@@ -362,7 +381,7 @@ private fun HomeCommandCenter(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-                        color = ext.surface2,
+                        color = Color.White.copy(alpha = .72f),
                     ) {
                         Column(
                             modifier = Modifier.padding(
@@ -373,7 +392,7 @@ private fun HomeCommandCenter(
                             Text(
                                 text = when (commandModel.primaryAction) {
                                     TodayPrimaryAction.START_WORKOUT -> "TODAY'S PROGRAM"
-                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "TRAINING OPTIONS"
+                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "MAKE IT YOUR SESSION"
                                     TodayPrimaryAction.REVIEW_TODAY -> "TODAY'S RESULT"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
@@ -384,20 +403,20 @@ private fun HomeCommandCenter(
                             Text(
                                 text = when (commandModel.primaryAction) {
                                     TodayPrimaryAction.START_WORKOUT -> program?.name ?: "Planned workout"
-                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "Programs and freeform training"
+                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "A workout that fits today"
                                     TodayPrimaryAction.REVIEW_TODAY -> "Your completed session"
                                 },
-                                style = if (expanded) MaterialTheme.typography.titleLarge else MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = cs.onSurface,
-                                maxLines = 1,
+                                maxLines = 2,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             )
                             Text(
                                 text = when (commandModel.primaryAction) {
-                                    TodayPrimaryAction.START_WORKOUT -> "${program?.exerciseCount ?: 0} exercises prepared"
-                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "Select the right session without changing your saved plan."
-                                    TodayPrimaryAction.REVIEW_TODAY -> "See output, quality, and the next recommended action."
+                                    TodayPrimaryAction.START_WORKOUT -> "${program?.exerciseCount ?: 0} exercise${if (program?.exerciseCount == 1) "" else "s"} prepared"
+                                    TodayPrimaryAction.CHOOSE_PROGRAM -> "Choose a program and make time for yourself."
+                                    TodayPrimaryAction.REVIEW_TODAY -> "Celebrate the work. See what comes next."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = cs.onSurfaceVariant,
@@ -422,10 +441,25 @@ private fun HomeCommandCenter(
                                 },
                             )
                             if (
+                                commandModel.primaryAction == TodayPrimaryAction.CHOOSE_PROGRAM &&
+                                repeatProgram != null
+                            ) {
+                                OutlinedButton(
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = cs.primary),
+                                    onClick = { startProgramFromHome(repeatProgram, exerciseCatalog, workoutVM) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Icon(AppIcons.Repeat, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
+                                    Spacer(Modifier.width(AppDimens.Spacing.sm))
+                                    Text("Repeat ${repeatProgram.name}", maxLines = 1)
+                                }
+                            }
+                            if (
                                 program != null &&
                                 commandModel.primaryAction == TodayPrimaryAction.START_WORKOUT
                             ) {
                                 TextButton(
+                                    colors = ButtonDefaults.textButtonColors(contentColor = cs.primary),
                                     onClick = { onNavigateToProgramDetail(program.id) },
                                     modifier = Modifier.align(Alignment.End),
                                 ) {
@@ -456,7 +490,7 @@ private fun HomeCommandCenter(
                         }
                     }
                     Divider(color = cs.outlineVariant)
-                    TodayContextStrip(commandModel)
+                    MaterialTheme(colorScheme = cs) { TodayContextStrip(commandModel) }
                 }
             }
         }
@@ -469,9 +503,9 @@ private fun TodayContextStrip(model: TodayCommandCenterModel) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
     ) {
-        TodayContextMetric("RECOVERY", model.recoveryLabel, Modifier.weight(1f))
+        TodayContextMetric("LAST SESSION", model.recoveryLabel, Modifier.weight(1f))
         TodayContextMetric("7-DAY LOAD", model.loadLabel, Modifier.weight(1f))
-        TodayContextMetric("REP QUALITY", model.qualityLabel, Modifier.weight(1f))
+        TodayContextMetric("QUALITY", if (model.qualityLabel == "Unavailable") "No data" else model.qualityLabel, Modifier.weight(1f))
     }
 }
 
@@ -490,7 +524,7 @@ private fun TodayContextMetric(label: String, value: String, modifier: Modifier 
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Bold,
         )
@@ -506,35 +540,23 @@ private fun HomeWeeklySummaryCard(
     onMetricClick: (String) -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    val expanded = LocalConfiguration.current.smallestScreenWidthDp >= 600
-    AppCard(modifier = Modifier.fillMaxWidth(), containerColor = cs.surfaceVariant.copy(alpha = 0.62f)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = if (expanded) 104.dp else 72.dp)
-                .padding(vertical = if (expanded) AppDimens.Spacing.lg else AppDimens.Spacing.md_sm),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            HomeSummaryMetric(
-                value = volume,
-                label = volumeLabel,
-                modifier = Modifier.weight(1f),
-                onClick = { onMetricClick("volume") },
-            )
-            Box(Modifier.width(AppDimens.Stroke.thin).height(if (expanded) 56.dp else 40.dp).background(cs.outlineVariant))
-            HomeSummaryMetric(
-                value = sessions.toString(),
-                label = "Sessions",
-                modifier = Modifier.weight(1f),
-                onClick = { onMetricClick("sessions") },
-            )
-            Box(Modifier.width(AppDimens.Stroke.thin).height(if (expanded) 56.dp else 40.dp).background(cs.outlineVariant))
-            HomeSummaryMetric(
-                value = streak.toString(),
-                label = "Day streak",
-                modifier = Modifier.weight(1f),
-                onClick = { onMetricClick("streak") },
-            )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(
+            Triple(volume, volumeLabel, "volume"),
+            Triple(sessions.toString(), "Sessions", "sessions"),
+            Triple(streak.toString(), "Day streak", "streak"),
+        ).forEachIndexed { index, (value, label, metric) ->
+            val accent = if (index == 1) cs.secondary else cs.primary
+            AppCard(modifier = Modifier.weight(1f), containerColor = cs.surface) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        when (index) { 0 -> AppIcons.FitnessCenter; 1 -> AppIcons.CheckCircle; else -> AppIcons.LocalFireDepartment },
+                        contentDescription = null, tint = accent, modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    HomeSummaryMetric(value, label, onClick = { onMetricClick(metric) })
+                }
+            }
         }
     }
 }

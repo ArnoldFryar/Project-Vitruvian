@@ -16,12 +16,14 @@ enum class VoiceCoachingLevel {
 enum class VoiceCoachingStyle {
     COACH,
     TRAINER,
+    CONTROLLED,
 }
 
 enum class RecordedCountStyle {
     BASE,
     STEADY,
     FOCUS,
+    CONTROLLED,
 }
 
 data class VoiceCoachingSettings(
@@ -43,6 +45,7 @@ object VoiceCoachingStore {
     private const val KEY_UPDATED_AT = "voice_coaching_updated_at"
 
     private lateinit var prefs: SharedPreferences
+    private var controlledVoiceAvailable = false
 
     private val _settingsFlow = MutableStateFlow(VoiceCoachingSettings())
     val settingsFlow: StateFlow<VoiceCoachingSettings> = _settingsFlow.asStateFlow()
@@ -52,6 +55,15 @@ object VoiceCoachingStore {
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        controlledVoiceAvailable = context.resources.getIdentifier(
+            "voice_count_controlled_01",
+            "raw",
+            context.packageName,
+        ) != 0 && context.resources.getIdentifier(
+            "voice_controlled_ready",
+            "raw",
+            context.packageName,
+        ) != 0
         _settingsFlow.value = VoiceCoachingSettings(
             coachingLevel = prefs.getString(KEY_LEVEL, VoiceCoachingLevel.STANDARD.name)
                 ?.let(::parseLevel)
@@ -65,7 +77,19 @@ object VoiceCoachingStore {
             repAnnouncementsEnabled = prefs.getBoolean(KEY_REP_ANNOUNCEMENTS, true),
             restCountdownEnabled = prefs.getBoolean(KEY_REST_COUNTDOWN, true),
         )
+        if (!controlledVoiceAvailable) {
+            _settingsFlow.value = _settingsFlow.value.copy(
+                coachingStyle = _settingsFlow.value.coachingStyle.takeUnless {
+                    it == VoiceCoachingStyle.CONTROLLED
+                } ?: VoiceCoachingStyle.COACH,
+                recordedCountStyle = _settingsFlow.value.recordedCountStyle.takeUnless {
+                    it == RecordedCountStyle.CONTROLLED
+                } ?: RecordedCountStyle.BASE,
+            )
+        }
     }
+
+    fun isControlledVoiceAvailable(): Boolean = controlledVoiceAvailable
 
     fun setCoachingLevel(context: Context, level: VoiceCoachingLevel) {
         update(context) { it.copy(coachingLevel = level) }
@@ -120,9 +144,19 @@ object VoiceCoachingStore {
         writtenAt: Long,
         targetPrefs: SharedPreferences,
     ) {
-        val normalized = settings.takeUnless {
+        var normalized = settings.takeUnless {
             it.recordedCountStyle == RecordedCountStyle.FOCUS
         } ?: settings.copy(recordedCountStyle = RecordedCountStyle.BASE)
+        if (!controlledVoiceAvailable) {
+            normalized = normalized.copy(
+                coachingStyle = normalized.coachingStyle.takeUnless {
+                    it == VoiceCoachingStyle.CONTROLLED
+                } ?: VoiceCoachingStyle.COACH,
+                recordedCountStyle = normalized.recordedCountStyle.takeUnless {
+                    it == RecordedCountStyle.CONTROLLED
+                } ?: RecordedCountStyle.BASE,
+            )
+        }
         _settingsFlow.value = normalized
         targetPrefs.edit()
             .putString(KEY_LEVEL, normalized.coachingLevel.name)

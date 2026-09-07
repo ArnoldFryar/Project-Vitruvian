@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import com.example.vitruvianredux.ble.protocol.CableSample
+import com.example.vitruvianredux.ble.session.CableExecutionMode
+import com.example.vitruvianredux.cloud.ImmediateCloudSyncTrigger
 import com.example.vitruvianredux.model.Exercise
 import org.json.JSONObject
 import java.time.Instant
@@ -89,6 +91,8 @@ object AnalyticsStore {
         val heaviestLiftLb: Int,
         val calories: Int,
         val createdAt: Long,
+        /** LWW clock; advances when a historical set is corrected. */
+        val updatedAt: Long = createdAt,
         val exerciseSets: List<ExerciseSetLog> = emptyList(),
         val avgQualityScore: Int? = null,
         val notes: String = "",
@@ -143,6 +147,7 @@ object AnalyticsStore {
         Timber.tag("analytics").i("init: loaded ${_logs.value.size} session log(s)")
     }
 
+    @Synchronized
     fun backfillExerciseSetSnapshots(exercises: List<Exercise>): Int {
         if (exercises.isEmpty() || _logs.value.isEmpty()) return 0
         val catalog = MuscleHeatmap.buildCatalogLookup(exercises)
@@ -162,6 +167,7 @@ object AnalyticsStore {
 
     // ── Write API ────────────────────────────────────────────────────────────
 
+    @Synchronized
     fun record(log: SessionLog) {
         val normalizedExercises = log.exerciseNames.map { it.trim().lowercase(Locale.ROOT) }.toSet()
         // Prefer stable identifiers, with a conservative content fingerprint as a
@@ -184,6 +190,7 @@ object AnalyticsStore {
         Timber.tag("analytics").d("recorded session ${log.id} (${log.durationSec}s, ${log.totalReps} reps)")
     }
 
+    @Synchronized
     fun upsert(log: SessionLog) {
         val existingById = _logs.value.any { it.id == log.id }
         if (existingById) {
@@ -196,6 +203,7 @@ object AnalyticsStore {
     }
 
     /** Remove a session and immediately recalculate every derived flow from the remainder. */
+    @Synchronized
     fun deleteSession(sessionId: String): Boolean {
         val updated = _logs.value.filterNot { it.id == sessionId }
         if (updated.size == _logs.value.size) return false
@@ -203,6 +211,64 @@ object AnalyticsStore {
         persist()
         Timber.tag("analytics").i("deleted session $sessionId and recalculated local analytics")
         return true
+    }
+
+    /**
+     * Applies an athlete-confirmed cable classification and recalculates every
+     * dependent local aggregate. Returns the updated session when the set exists.
+     */
+    @Synchronized
+    fun correctCableUsage(
+        sessionId: String,
+        exerciseName: String,
+        setIndex: Int,
+        mode: CableExecutionMode,
+        nowMs: Long = System.currentTimeMillis(),
+    ): SessionLog? {
+        var correctedSession: SessionLog? = null
+        _logs.value = _logs.value.map sessionLoop@{ session ->
+            if (session.id != sessionId) return@sessionLoop session
+            var found = false
+            val correctedSets = session.exerciseSets.map setLoop@{ set ->
+                if (!set.exerciseName.equals(exerciseName, ignoreCase = true) || set.setIndex != setIndex) {
+                    return@setLoop set
+                }
+                found = true
+                val correction = CableAnalyticsCorrection.apply(
+                    mode = mode,
+                    previousCableCount = set.numCables,
+                    previousVolumeKg = set.volumeKg,
+                    previousQualityScore = set.avgQualityScore,
+                    rom = set.avgRom,
+                    tempo = set.avgTempo,
+                    symmetry = set.avgSymmetry,
+                    smoothness = set.avgSmoothness,
+                )
+                set.copy(
+                    numCables = correction.cableCount,
+                    cableExecutionMode = correction.mode.name,
+                    cableDetectionConfidence = correction.confidence,
+                    volumeKg = correction.volumeKg,
+                    avgQualityScore = correction.qualityScore,
+                    avgSymmetry = correction.symmetryScore,
+                )
+            }
+            if (!found) return@sessionLoop session
+            val completed = correctedSets.filterNot { it.skipped }
+            session.copy(
+                exerciseSets = correctedSets,
+                totalVolumeKg = completed.sumOf { it.volumeKg.toDouble() },
+                volumeAvailable = completed.any { it.volumeKg > 0f },
+                avgQualityScore = qualityScoreForSets(completed),
+                updatedAt = nowMs,
+            ).also { correctedSession = it }
+        }
+        if (correctedSession != null) {
+            persist()
+            ImmediateCloudSyncTrigger.requestDataSync()
+            Timber.tag(TAG).i("confirmed cable use for $sessionId/$exerciseName/$setIndex as ${mode.name}")
+        }
+        return correctedSession
     }
 
     fun clear() {
@@ -429,6 +495,7 @@ object AnalyticsStore {
                     put("heaviestLiftLb", log.heaviestLiftLb)
                     put("calories", log.calories)
                     put("createdAt", log.createdAt)
+                    put("updatedAt", log.updatedAt)
                     put("exerciseSets", JSONArray().also { setsArr ->
                         for (s in log.exerciseSets) {
                             setsArr.put(JSONObject().apply {
@@ -514,6 +581,7 @@ object AnalyticsStore {
                     heaviestLiftLb  = o.optInt("heaviestLiftLb", 0),
                     calories        = o.optInt("calories", 0),
                     createdAt       = o.getLong("createdAt"),
+                    updatedAt       = o.optLong("updatedAt", o.getLong("createdAt")),
                     exerciseSets    = o.optJSONArray("exerciseSets")?.let { setsArr ->
                         (0 until setsArr.length()).map { si ->
                             val so = setsArr.getJSONObject(si)

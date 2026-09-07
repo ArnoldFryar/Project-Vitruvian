@@ -169,6 +169,18 @@ class TrainingInsightEngineTest {
     }
 
     @Test
+    fun `cable evidence asks athlete to verify uncertain sets`() {
+        val uncertain = set().copy(cableExecutionMode = "UNKNOWN", cableDetectionConfidence = 0)
+        val observed = set().copy(cableExecutionMode = "DUAL_SYNCHRONOUS", cableDetectionConfidence = 92)
+
+        val insight = TrainingInsightEngine.cableEvidenceInsight(listOf(uncertain, observed))
+
+        assertEquals("Confirm cable use", insight?.title)
+        assertNotNull(insight?.nextStep)
+        assertEquals("1 of 2 completed sets have high-confidence cable evidence", insight?.evidence)
+    }
+
+    @Test
     fun `telemetry form flag requires repeated pattern`() {
         val logs = listOf(
             session(set(left = 50f, right = 40f, balancePct = 80, samples = 10), endMs = 3_000L),

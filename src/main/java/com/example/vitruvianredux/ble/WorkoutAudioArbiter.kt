@@ -784,6 +784,7 @@ class WorkoutAudioArbiter {
     ): String = when (style) {
         VoiceCoachingStyle.COACH -> coachText
         VoiceCoachingStyle.TRAINER -> trainerText
+        VoiceCoachingStyle.CONTROLLED -> coachText
     }
 
     private fun deliveryForEvent(
@@ -915,6 +916,13 @@ class WorkoutAudioArbiter {
             cueCooldownMultiplier = 1.0f,
             minRepGap = 2,
             criticalSpeechGapMs = 1_350L,
+        )
+        VoiceCoachingStyle.CONTROLLED -> VoiceCoachingStyleProfile(
+            speechRate = 0.95f,
+            pitch = 1.02f,
+            cueCooldownMultiplier = 1.45f,
+            minRepGap = 3,
+            criticalSpeechGapMs = 1_800L,
         )
     }
 }

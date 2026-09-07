@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +40,10 @@ import com.example.vitruvianredux.ble.protocol.BlePacketFactory
 import com.example.vitruvianredux.cloud.VitruvianApiClient
 import com.example.vitruvianredux.cloud.VitruvianAuthManager
 import com.example.vitruvianredux.data.LedColorStore
+import com.example.vitruvianredux.data.CalibrationFrame
+import com.example.vitruvianredux.data.MachineCalibrationAnalyzer
+import com.example.vitruvianredux.data.MachineCalibrationProfile
+import com.example.vitruvianredux.data.MachineCalibrationStore
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.DevicePickerSheet
 import com.example.vitruvianredux.presentation.components.LedColorPickerDialog
@@ -61,8 +66,20 @@ fun TrainerScreen(
 ) {
     val cs = MaterialTheme.colorScheme
     val bleState by (bleVM?.state?.collectAsState() ?: remember { mutableStateOf(BleConnectionState.Disconnected) })
+    val state = bleState
+    val isConnected = state is BleConnectionState.Connected
+    val isConnecting = state is BleConnectionState.Connecting
+    val isScanning = state is BleConnectionState.Scanning
     var showDevicePicker by remember { mutableStateOf(false) }
     var showColorPicker  by remember { mutableStateOf(false) }
+    var showAdvanced by rememberSaveable { mutableStateOf(false) }
+    var calibrationPhase by remember { mutableStateOf<CalibrationPhase?>(null) }
+    val calibrationProfile by MachineCalibrationStore.profile.collectAsState()
+    val sessionState by (workoutVM?.state?.collectAsState() ?: remember { mutableStateOf(com.example.vitruvianredux.ble.SessionState()) })
+    val restFrames = remember { mutableStateListOf<CalibrationFrame>() }
+    val movementFrames = remember { mutableStateListOf<CalibrationFrame>() }
+    var restStartedAt by remember { mutableLongStateOf(0L) }
+    var calibrationResult by remember { mutableStateOf<MachineCalibrationProfile?>(null) }
 
     // â”€â”€ LED colour store â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     val context = LocalContext.current
@@ -93,10 +110,57 @@ fun TrainerScreen(
         )
     }
 
-    val state        = bleState
-    val isConnected  = state is BleConnectionState.Connected
-    val isConnecting = state is BleConnectionState.Connecting
-    val isScanning   = state is BleConnectionState.Scanning
+    LaunchedEffect(sessionState.telemetryTick, calibrationPhase) {
+        val left = sessionState.leftCable ?: return@LaunchedEffect
+        val right = sessionState.rightCable ?: return@LaunchedEffect
+        val frame = CalibrationFrame(
+            timestampMs = System.currentTimeMillis(),
+            leftPositionMm = left.position,
+            rightPositionMm = right.position,
+            leftVelocityMmS = left.velocity,
+            rightVelocityMmS = right.velocity,
+        )
+        when (calibrationPhase) {
+            CalibrationPhase.REST -> {
+                restFrames += frame
+                if (restStartedAt > 0L && frame.timestampMs - restStartedAt >= 3_000L && restFrames.size >= 8) {
+                    calibrationPhase = CalibrationPhase.MOVEMENT
+                }
+            }
+            CalibrationPhase.MOVEMENT -> movementFrames += frame
+            else -> Unit
+        }
+    }
+
+    if (calibrationPhase != null) {
+        MachineCalibrationDialog(
+            phase = calibrationPhase!!,
+            isConnected = isConnected,
+            restSampleCount = restFrames.size,
+            movementSampleCount = movementFrames.size,
+            result = calibrationResult,
+            onStart = {
+                restFrames.clear()
+                movementFrames.clear()
+                calibrationResult = null
+                restStartedAt = System.currentTimeMillis()
+                calibrationPhase = CalibrationPhase.REST
+            },
+            onAnalyze = {
+                calibrationResult = MachineCalibrationAnalyzer.analyze(restFrames, movementFrames)
+                calibrationPhase = CalibrationPhase.RESULT
+            },
+            onSave = {
+                calibrationResult?.let { profile ->
+                    MachineCalibrationStore.save(profile)
+                    workoutVM?.applyMachineCalibration(profile)
+                }
+                calibrationPhase = null
+            },
+            onDismiss = { calibrationPhase = null },
+        )
+    }
+
     val machineVersion by (workoutVM?.machineVersion?.collectAsState() ?: remember { mutableStateOf<MachineVersion?>(null) })
     val machineMode by (workoutVM?.machineMode?.collectAsState() ?: remember { mutableStateOf<MachineMode?>(null) })
     val machineUpdateState by (workoutVM?.machineUpdateState?.collectAsState() ?: remember { mutableStateOf<MachineUpdateState?>(null) })
@@ -323,6 +387,17 @@ fun TrainerScreen(
                 )
                 Divider(color = cs.outlineVariant)
 
+                TrainerInfoRow(
+                    label = "Movement calibration",
+                    value = calibrationProfile?.let { "Ready • ${it.typicalRomMm.toInt()} mm range" }
+                        ?: if (isConnected) "Set up" else "Connect to calibrate",
+                    modifier = Modifier.clickable(enabled = isConnected) {
+                        calibrationPhase = CalibrationPhase.INTRO
+                    },
+                    multilineValue = true,
+                )
+                Divider(color = cs.outlineVariant)
+
                 // Colour indicator — opens LED colour picker
                 TrainerInfoRow(
                     label = stringResource(R.string.trainer_colour),
@@ -358,7 +433,21 @@ fun TrainerScreen(
             }
         }
 
-        Spacer(Modifier.height(AppDimens.Spacing.lg))
+        TextButton(
+            onClick = { showAdvanced = !showAdvanced },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(if (showAdvanced) "Hide advanced details" else "Advanced trainer details")
+            Spacer(Modifier.width(AppDimens.Spacing.xs))
+            Icon(
+                if (showAdvanced) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                contentDescription = null,
+            )
+        }
+
+        AnimatedVisibility(visible = showAdvanced) {
+        Column {
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
 
         // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
         //  VERSIONS section
@@ -412,6 +501,25 @@ fun TrainerScreen(
                     },
                 )
             }
+        }
+
+        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
+
+        OutlinedButton(
+            onClick  = { WiringRegistry.hit(A_DEVICE_REPAIR); WiringRegistry.recordOutcome(A_DEVICE_REPAIR, ActualOutcome.Navigated("repair")); onNavigateToRepair() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(AppDimens.Component.buttonHeight),
+            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = cs.primary,
+            ),
+        ) {
+            Icon(AppIcons.Build, contentDescription = stringResource(R.string.cd_device_repair), modifier = Modifier.size(AppDimens.Icon.md))
+            Spacer(Modifier.width(AppDimens.Spacing.sm))
+            Text("Check & Repair", fontWeight = FontWeight.SemiBold)
+        }
+        }
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.xl))
@@ -476,24 +584,6 @@ fun TrainerScreen(
                     Text("Connect", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 }
             }
-        }
-
-        Spacer(Modifier.height(AppDimens.Spacing.md_sm))
-
-        // â”€â”€ Check & Repair button
-        OutlinedButton(
-            onClick  = { WiringRegistry.hit(A_DEVICE_REPAIR); WiringRegistry.recordOutcome(A_DEVICE_REPAIR, ActualOutcome.Navigated("repair")); onNavigateToRepair() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(AppDimens.Component.buttonHeight),
-            shape = RoundedCornerShape(AppDimens.Corner.md_sm),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = cs.primary,
-            ),
-        ) {
-            Icon(AppIcons.Build, contentDescription = stringResource(R.string.cd_device_repair), modifier = Modifier.size(AppDimens.Icon.md))
-            Spacer(Modifier.width(AppDimens.Spacing.sm))
-            Text("Check & Repair", fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(Modifier.height(AppDimens.Spacing.xl))
@@ -566,4 +656,63 @@ private fun ByteArray.chunkForBleOffset(offset: Int): ByteArray? {
 private fun ByteArray.md5Hex(): String {
     val digest = MessageDigest.getInstance("MD5").digest(this)
     return digest.joinToString(separator = "") { "%02x".format(it) }
+}
+
+private enum class CalibrationPhase { INTRO, REST, MOVEMENT, RESULT }
+
+@Composable
+private fun MachineCalibrationDialog(
+    phase: CalibrationPhase,
+    isConnected: Boolean,
+    restSampleCount: Int,
+    movementSampleCount: Int,
+    result: MachineCalibrationProfile?,
+    onStart: () -> Unit,
+    onAnalyze: () -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val title = when (phase) {
+        CalibrationPhase.INTRO -> "Calibrate your trainer"
+        CalibrationPhase.REST -> "Leave both handles still"
+        CalibrationPhase.MOVEMENT -> "Move each cable"
+        CalibrationPhase.RESULT -> if (result != null) "Calibration ready" else "Try that again"
+    }
+    val body = when (phase) {
+        CalibrationPhase.INTRO -> "A short device-only calibration learns this machine's resting noise and your usable cable range. It improves single- versus dual-cable detection."
+        CalibrationPhase.REST -> "Do not touch the handles for three seconds. Capturing resting signal…"
+        CalibrationPhase.MOVEMENT -> "Pull each handle through a comfortable full range twice, one at a time and then together."
+        CalibrationPhase.RESULT -> result?.let {
+            "Typical range ${it.typicalRomMm.toInt()} mm • resting noise ${it.restNoiseMm.toInt()} mm • ${it.sampleRateHz} Hz. Raw samples are discarded."
+        } ?: "The trainer did not receive enough clean movement data. Keep it connected and repeat the calibration."
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md)) {
+                Text(body, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (phase == CalibrationPhase.REST) {
+                    LinearProgressIndicator(
+                        progress = (restSampleCount / 30f).coerceIn(0f, 1f),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (phase == CalibrationPhase.MOVEMENT) {
+                    Text("$movementSampleCount clean samples", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        },
+        confirmButton = {
+            when (phase) {
+                CalibrationPhase.INTRO -> Button(onClick = onStart, enabled = isConnected) { Text("Start") }
+                CalibrationPhase.REST -> TextButton(onClick = {}, enabled = false) { Text("Listening…") }
+                CalibrationPhase.MOVEMENT -> Button(onClick = onAnalyze, enabled = movementSampleCount >= 12) { Text("Finish") }
+                CalibrationPhase.RESULT -> Button(onClick = if (result != null) onSave else onStart) {
+                    Text(if (result != null) "Use calibration" else "Retry")
+                }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

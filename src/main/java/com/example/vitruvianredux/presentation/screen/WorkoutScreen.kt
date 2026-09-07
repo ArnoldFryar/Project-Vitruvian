@@ -264,71 +264,48 @@ fun WorkoutScreen(
                     modifier = Modifier.padding(horizontal = contentHorizontalPadding),
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
-                    if (wideLayout) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.lg),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                    com.example.vitruvianredux.presentation.components.TrainingBanner(
+                        eyebrow = "Train your way",
+                        title = "Let’s get moving.",
+                        subtitle = "Freestyle a session or find your next favorite exercise.",
+                    ) {
+                        val bannerInk = com.example.vitruvianredux.presentation.ui.theme.NearBlack
+                        val start: @Composable (Modifier) -> Unit = { buttonModifier ->
+                            Button(
+                                onClick = openJustLift, modifier = buttonModifier.heightIn(min = 54.dp),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = bannerInk, contentColor = Color.White),
                             ) {
-                                Text(
-                                    text = "Workout",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = textPrimary,
-                                )
-                                Text(
-                                    text = "Start freeform or choose a guided exercise.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = textMuted,
-                                )
+                                Icon(AppIcons.PlayArrow, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Just Lift", fontWeight = FontWeight.Bold)
                             }
-                            GradientButton(
-                                text = "Start Just Lift",
-                                icon = AppIcons.PlayArrow,
-                                onClick = openJustLift,
-                                modifier = Modifier.width(240.dp),
-                            )
-                            AppTonalButton(
-                                text = "Start Partner Workout",
-                                icon = AppIcons.Assignment,
-                                onClick = onStartPartnerWorkout,
-                                modifier = Modifier.width(240.dp),
-                            )
                         }
-                    } else {
-                        Text(
-                            text = "Workout",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = textPrimary,
-                        )
-                        Text(
-                            text = "Start freeform or choose a guided exercise.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = textMuted,
-                        )
-                        GradientButton(
-                            text = "Start Just Lift",
-                            icon = AppIcons.PlayArrow,
-                            onClick = openJustLift,
-                        )
-                        AppTonalButton(
-                            text = "Start Partner Workout",
-                            icon = AppIcons.Assignment,
-                            onClick = onStartPartnerWorkout,
-                        )
+                        val partner: @Composable (Modifier) -> Unit = { buttonModifier ->
+                            OutlinedButton(
+                                onClick = onStartPartnerWorkout, modifier = buttonModifier.heightIn(min = 54.dp),
+                                shape = RoundedCornerShape(18.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, bannerInk.copy(alpha = .24f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = bannerInk),
+                            ) { Text("Train with a partner") }
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        if (wideLayout) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                start(Modifier.weight(1f)); partner(Modifier.weight(1f))
+                            }
+                        } else {
+                            start(Modifier.fillMaxWidth()); partner(Modifier.fillMaxWidth())
+                        }
                     }
+                    Spacer(Modifier.height(8.dp))
 
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { WiringRegistry.hit(A_WORKOUT_SEARCH_CHANGE); WiringRegistry.recordOutcome(A_WORKOUT_SEARCH_CHANGE, ActualOutcome.StateChanged("searchQuery")); searchQuery = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp),
+                            .heightIn(min = 56.dp),
                         placeholder = {
                             Text(
                                 "Search exercises...",
@@ -361,13 +338,27 @@ fun WorkoutScreen(
                         .padding(top = AppDimens.Spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
                 ) {
-                    Text(
-                        text = "Exercise library",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = textPrimary,
-                        modifier = Modifier.padding(horizontal = contentHorizontalPadding),
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = contentHorizontalPadding),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "Exercise library",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { showCreateSheet = true }) {
+                            Icon(
+                                AppIcons.Add,
+                                contentDescription = "Create custom exercise",
+                                tint = textMuted,
+                            )
+                        }
+                    }
                     LazyRow(
                         contentPadding = PaddingValues(start = contentHorizontalPadding, end = contentHorizontalPadding + railGutter),
                         horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
@@ -416,32 +407,6 @@ fun WorkoutScreen(
                                     },
                                 )
                             }
-                        }
-                    }
-                    Surface(
-                        modifier = Modifier
-                            .padding(start = contentHorizontalPadding, end = contentHorizontalPadding + railGutter)
-                            .fillMaxWidth()
-                            .height(46.dp)
-                            .clip(RoundedCornerShape(AppDimens.Corner.md))
-                            .clickable { showCreateSheet = true },
-                        shape = RoundedCornerShape(AppDimens.Corner.md),
-                        color = panel,
-                        border = androidx.compose.foundation.BorderStroke(AppDimens.Stroke.thin, line),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = AppDimens.Spacing.md),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            Icon(AppIcons.Add, contentDescription = null, tint = accent, modifier = Modifier.size(AppDimens.Icon.sm))
-                            Spacer(Modifier.width(AppDimens.Spacing.sm))
-                            Text(
-                                text = "Create Custom Exercise",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = textMuted,
-                            )
                         }
                     }
                 }
@@ -567,7 +532,8 @@ private fun ExerciseCard(
         modifier = Modifier
             .then(modifier)
             .fillMaxWidth()
-            .height(94.dp)
+            .height((94 * maxOf(1f, density.fontScale / 1.2f)).dp)
+            .clip(RoundedCornerShape(24.dp))
             .onSizeChanged { size -> cardWidthPx = size.width.toFloat() }
             .background(
                 brush = Brush.horizontalGradient(
@@ -627,6 +593,7 @@ private fun ExerciseCard(
                     onClick     = onClick,
                     onLongClick = onLongPress,
                 ),
+            shape = RoundedCornerShape(24.dp),
             color = rowBackground,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
@@ -636,7 +603,7 @@ private fun ExerciseCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(start = AppDimens.Spacing.md, end = 52.dp),
+                        .padding(start = AppDimens.Spacing.md, end = AppDimens.Spacing.sm),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.md),
                 ) {
@@ -694,7 +661,7 @@ private fun ExerciseCard(
                     IconButton(
                         onClick = onFavoriteToggle,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(
                                 if (exercise.isFavorite) colors.primary.copy(alpha = 0.12f) else Color.Transparent
@@ -710,19 +677,19 @@ private fun ExerciseCard(
                     IconButton(
                         onClick = onStart,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
                             .background(colors.primary),
                     ) {
                         Icon(
                             imageVector = AppIcons.PlayArrow,
-                            contentDescription = "Start",
+                            contentDescription = "Start ${exercise.name}",
                             tint = colors.onPrimary,
                             modifier = Modifier.size(AppDimens.Icon.md),
                         )
                     }
                 }
-                Divider(color = rowBorder.copy(alpha = 0.82f))
+
             }
         }
     }

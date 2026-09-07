@@ -52,6 +52,11 @@ object AuthRepository {
                 this.email = email
                 this.password = password
             }
+            val signedInUserId = userId
+            if (signedInUserId != null && !CloudSyncRepository.claimAccountScope(signedInUserId)) {
+                SupabaseProvider.auth.signOut()
+                return ACCOUNT_SCOPE_ERROR
+            }
             Timber.tag(TAG).i("Signed in as $email")
             null
         } catch (e: Exception) {
@@ -69,6 +74,11 @@ object AuthRepository {
             SupabaseProvider.auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
+            }
+            val signedInUserId = userId
+            if (signedInUserId != null && !CloudSyncRepository.claimAccountScope(signedInUserId)) {
+                SupabaseProvider.auth.signOut()
+                return ACCOUNT_SCOPE_ERROR
             }
             Timber.tag(TAG).i("Signed up as $email")
             null

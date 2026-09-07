@@ -1,15 +1,19 @@
 package com.example.vitruvianredux.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -63,7 +67,7 @@ fun BottomBar(nav: NavController) {
     val backStack = nav.currentBackStackEntryAsState()
     val separatorColor = MaterialTheme.colorScheme.outline
     NavigationBar(
-        modifier = Modifier.drawBehind {
+        modifier = Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).drawBehind {
             drawLine(
                 color = separatorColor,
                 start = Offset(0f, 0f),
@@ -93,9 +97,9 @@ fun BottomBar(nav: NavController) {
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedIconColor = MaterialTheme.colorScheme.onPrimary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    indicatorColor = MaterialTheme.colorScheme.primary,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
@@ -113,7 +117,7 @@ fun AppNavigationRail(
     val dividerColor = MaterialTheme.colorScheme.outlineVariant
     NavigationRail(
         modifier = modifier
-            .width(96.dp)
+            .width(216.dp)
             .fillMaxHeight()
             .drawBehind {
                 drawLine(
@@ -125,86 +129,114 @@ fun AppNavigationRail(
             },
         containerColor = MaterialTheme.colorScheme.surface,
         header = {
-            Box(
+            Row(
                 modifier = Modifier
-                    .padding(vertical = AppDimens.Spacing.md_lg)
-                    .size(AppDimens.Component.buttonHeight)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = AppDimens.Spacing.md_lg),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    "V",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontWeight = FontWeight.Bold,
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "V",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(
+                        "VITRUVIAN",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        "TRAINING",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         },
     ) {
-        Spacer(Modifier.height(AppDimens.Spacing.md))
+        Spacer(Modifier.height(AppDimens.Spacing.sm))
         primaryNavItems.forEach { item ->
             val selected = backStack.value?.destination?.route == item.route.path
-            NavigationRailItem(
-                modifier = Modifier.height(84.dp),
+            TabletNavigationItem(
+                item = item,
                 selected = selected,
                 onClick = { navigateToPrimary(nav, item) },
-                icon = {
-                    Icon(
-                        if (selected) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.label,
-                        modifier = Modifier.size(30.dp),
-                    )
-                },
-                label = {
-                    Text(
-                        item.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    )
-                },
-                colors = NavigationRailItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                ),
             )
+            Spacer(Modifier.height(8.dp))
         }
         Spacer(Modifier.weight(1f))
         Divider(
             modifier = Modifier
-                .width(48.dp)
-                .padding(vertical = AppDimens.Spacing.sm),
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = AppDimens.Spacing.sm),
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
         )
         val profileSelected = backStack.value?.destination?.route == profileNavItem.route.path
-        NavigationRailItem(
-            modifier = Modifier.height(84.dp),
+        TabletNavigationItem(
+            item = profileNavItem,
             selected = profileSelected,
             onClick = { navigateToPrimary(nav, profileNavItem) },
-            icon = {
-                Icon(
-                    if (profileSelected) profileNavItem.selectedIcon else profileNavItem.unselectedIcon,
-                    contentDescription = profileNavItem.label,
-                    modifier = Modifier.size(30.dp),
-                )
-            },
-            label = {
-                Text(
-                    profileNavItem.label,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (profileSelected) FontWeight.SemiBold else FontWeight.Normal,
-                )
-            },
-            colors = NavigationRailItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.primary,
-                selectedTextColor = MaterialTheme.colorScheme.primary,
-                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-            ),
         )
         Spacer(Modifier.height(AppDimens.Spacing.md))
+    }
+}
+
+@Composable
+private fun TabletNavigationItem(
+    item: NavItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val shape = RoundedCornerShape(16.dp)
+
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth()
+            .height(60.dp)
+            .clip(shape)
+            .background(containerColor)
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.Tab,
+            )
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Icon(
+            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+            contentDescription = item.label,
+            modifier = Modifier.size(26.dp),
+            tint = contentColor,
+        )
+        Text(
+            text = item.label,
+            style = MaterialTheme.typography.labelLarge,
+            color = contentColor,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+        )
     }
 }

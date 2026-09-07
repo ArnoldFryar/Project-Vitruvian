@@ -4,21 +4,33 @@ package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.vitruvian.trainer.BuildConfig
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.example.vitruvianredux.ble.SessionPhase
@@ -36,14 +48,32 @@ import com.example.vitruvianredux.presentation.repquality.FatigueTrendAnalyzer
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.data.AnalyticsStore
 import com.example.vitruvianredux.data.AnalyticsMath
+import com.example.vitruvianredux.data.AdaptiveDecisionEvent
+import com.example.vitruvianredux.data.AdaptiveDecisionStore
+import com.example.vitruvianredux.data.AdaptiveSessionEngine
+import com.example.vitruvianredux.data.AdaptiveSessionRequest
+import com.example.vitruvianredux.data.AdaptiveSetObservation
 import com.example.vitruvianredux.data.PersonalBestStore
 import com.example.vitruvianredux.data.ProgressionEngine
 import com.example.vitruvianredux.data.ProgressionResult
 import com.example.vitruvianredux.data.StrengthTestProtocolType
 import com.example.vitruvianredux.data.TrainingInsightEngine
+import com.example.vitruvianredux.data.TelemetryInsights
 import com.example.vitruvianredux.data.UxTelemetryStore
+import com.example.vitruvianredux.data.UnitsStore
+import com.example.vitruvianredux.data.VoiceControlStore
+import com.example.vitruvianredux.presentation.voice.VoiceRecognizerState
+import com.example.vitruvianredux.presentation.voice.WorkoutVoiceCommand
+import com.example.vitruvianredux.presentation.voice.WorkoutVoiceCommandParser
+import com.example.vitruvianredux.presentation.voice.WorkoutVoiceRecognizer
+import com.example.vitruvianredux.presentation.voice.applyToResistanceLb
+import com.example.vitruvianredux.presentation.voice.requiresWakeWordInHandsFreeMode
 import com.example.vitruvianredux.util.ResistanceLimits
 import com.example.vitruvianredux.util.UnitConversions
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.example.vitruvianredux.presentation.ui.AppIcons
@@ -71,7 +101,19 @@ fun ExercisePlayerScreen(
     val machineBleUpdateRequest by workoutVM.machineBleUpdateRequest.collectAsState()
     val lastRepQuality     by workoutVM.lastRepQuality.collectAsState()
     val partnerGroup       by workoutVM.partnerGroup.collectAsState()
+    val partnerLiveSnapshot by workoutVM.partnerLiveSnapshot.collectAsState()
+    val partnerLiveError by workoutVM.partnerLiveError.collectAsState()
     val phase = sessionState.sessionPhase
+    val voiceListeningAllowed = phase !is SessionPhase.WorkoutComplete &&
+        phase !is SessionPhase.Error && phase !is SessionPhase.Reconnecting
+    val haptics = LocalHapticFeedback.current
+    val localPartnerReady = workoutVM.isLocalPartnerTurnReady
+    LaunchedEffect(workoutVM.isMultiDevicePartnerSession, localPartnerReady) {
+        if (workoutVM.isMultiDevicePartnerSession && localPartnerReady) {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            UxTelemetryStore.record("partner_trainer_ready")
+        }
+    }
     val phaseVideoUrl = when (phase) {
         is SessionPhase.SetReady -> phase.videoUrl
         is SessionPhase.ExerciseActive -> phase.videoUrl
@@ -117,15 +159,86 @@ fun ExercisePlayerScreen(
     var eccentricPct   by rememberSaveable { mutableIntStateOf(75) }
     var stopAtTop      by rememberSaveable { mutableStateOf(false) }
     var autoPlay       by rememberSaveable { mutableStateOf(workoutVM.autoPlay) }
+    var adaptiveAppliedKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var adaptiveKeptKey by rememberSaveable { mutableStateOf<String?>(null) }
 
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val voiceControlSettings by VoiceControlStore.settingsFlow.collectAsState()
+    val unitSystem by UnitsStore.unitSystemFlow.collectAsState()
+    val allSessions by AnalyticsStore.logsFlow.collectAsState()
+    var hasMicrophonePermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(appContext, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var voiceRecognizerState by remember { mutableStateOf(VoiceRecognizerState.IDLE) }
+    var voiceResultEvent by remember { mutableStateOf<Pair<Long, List<String>>?>(null) }
+    var showVoiceHelp by remember { mutableStateOf(false) }
+    var showVoiceFinishConfirmation by remember { mutableStateOf(false) }
+    val voiceRecognizer = remember(appContext) { WorkoutVoiceRecognizer(appContext) }
 
     fun showConfirmation(message: String) {
         scope.launch {
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+        }
+    }
+
+    SideEffect {
+        voiceRecognizer.onStateChanged = { voiceRecognizerState = it }
+        voiceRecognizer.onResults = { candidates ->
+            voiceResultEvent = System.nanoTime() to candidates
+        }
+        voiceRecognizer.onErrorMessage = ::showConfirmation
+    }
+
+    val microphonePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasMicrophonePermission = granted
+        if (!granted) {
+            showConfirmation(appContext.getString(R.string.voice_control_permission_denied))
+        }
+    }
+
+    fun beginVoiceListening() {
+        when {
+            !voiceControlSettings.enabled ->
+                showConfirmation(appContext.getString(R.string.voice_control_disabled))
+            !voiceListeningAllowed -> showConfirmation("Voice control is unavailable in this workout state")
+            !hasMicrophonePermission -> microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            else -> voiceRecognizer.start(voiceControlSettings.handsFreeEnabled)
+        }
+    }
+
+    DisposableEffect(voiceRecognizer) {
+        onDispose { voiceRecognizer.destroy() }
+    }
+
+    LaunchedEffect(
+        lifecycleOwner,
+        voiceRecognizer,
+        voiceControlSettings.enabled,
+        voiceControlSettings.handsFreeEnabled,
+        hasMicrophonePermission,
+        voiceListeningAllowed,
+    ) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            val shouldListenContinuously = voiceControlSettings.enabled &&
+                voiceControlSettings.handsFreeEnabled &&
+                hasMicrophonePermission &&
+                voiceListeningAllowed
+            if (shouldListenContinuously) voiceRecognizer.start(continuousMode = true)
+            try {
+                awaitCancellation()
+            } finally {
+                voiceRecognizer.stop()
+            }
         }
     }
 
@@ -222,7 +335,7 @@ fun ExercisePlayerScreen(
     LaunchedEffect(phaseTelemetryKey) {
         when (phase) {
             is SessionPhase.SetReady -> {
-                val ready = phase as SessionPhase.SetReady
+                val ready = phase
                 if (ready.setIndex == 0 && workoutVM.completedExerciseStats.isEmpty()) {
                     UxTelemetryStore.record("workout_started")
                 }
@@ -240,6 +353,151 @@ fun ExercisePlayerScreen(
     val effectiveResistanceLb = if (isBodyweight) 0f else resistanceLb
     val effectiveSelectedMode = if (isBodyweight) "Old School" else selectedMode
     val effectiveProgramMode = if (isBodyweight) "Old School" else if (selectedMode == "TUT" && isBeastMode) "TUT Beast" else selectedMode
+    val readyForActions = phase as? SessionPhase.SetReady
+    val readyIsOpenEnded = readyForActions?.isJustLift == true
+    val readyIsStrengthTest = readyForActions?.strengthTestProtocolType == StrengthTestProtocolType.ONE_REP_MAX
+    val readyCanEditExerciseMenuPlan = readyForActions?.let { ready ->
+        partnerGroup == null && !ready.isJustLift && workoutVM.activeProgramId == null &&
+            !readyIsStrengthTest && ready.setIndex == 0
+    } == true
+    val readyActiveDeloadPercent = workoutVM.activeProgramDeloadPercent
+    val readyPrescribedSet = workoutVM.upcomingSets.firstOrNull()
+    val readyPrescribedWeight = readyForActions?.weightPerCableLb ?: resistanceLb.roundToInt()
+    val readyPrescribedReps = readyForActions?.targetReps ?: targetReps
+    val readyPrescribedRest = readyPrescribedSet?.restAfterSec ?: restAfterSec
+    val readyPrescribedCables = readyPrescribedSet?.numCables ?: exercise?.numCables ?: 2
+    val currentAdaptiveObservations = remember(
+        workoutVM.completedExerciseStats.size,
+        readyForActions?.exerciseName,
+    ) {
+        val readyName = readyForActions?.exerciseName
+        if (readyName == null) emptyList() else workoutVM.completedExerciseStats
+            .filter { it.exerciseName.equals(readyName, ignoreCase = true) && !it.skipped }
+            .map { stats ->
+                AdaptiveSetObservation(
+                    reps = stats.repsCompleted,
+                    quality = stats.avgQualityScore,
+                    rom = stats.avgRom,
+                    tempo = stats.avgTempo,
+                    smoothness = stats.avgSmoothness,
+                    finishForcePct = TelemetryInsights.summarizeSamples(
+                        stats.cableSamplesLeft,
+                        stats.cableSamplesRight,
+                    )?.finishForcePct,
+                    numCables = stats.numCables,
+                    cableConfidence = stats.cableDetectionConfidence,
+                )
+            }
+    }
+    val adaptiveRecommendationForReady = remember(
+        readyForActions?.exerciseName,
+        readyForActions?.setIndex,
+        readyPrescribedWeight,
+        readyPrescribedReps,
+        readyPrescribedRest,
+        readyPrescribedCables,
+        allSessions,
+        currentAdaptiveObservations,
+        readyActiveDeloadPercent,
+        effectiveSelectedMode,
+        localPartnerReady,
+    ) {
+        val ready = readyForActions
+        if (
+            ready == null || ready.isJustLift || readyActiveDeloadPercent != null ||
+            (workoutVM.isMultiDevicePartnerSession && !localPartnerReady)
+        ) null else AdaptiveSessionEngine.recommend(
+            request = AdaptiveSessionRequest(
+                exerciseName = ready.exerciseName,
+                prescribedWeightPerCableLb = readyPrescribedWeight,
+                targetReps = readyPrescribedReps,
+                restSeconds = readyPrescribedRest,
+                numCables = readyPrescribedCables,
+                progressionStepLb = readyPrescribedSet?.progressionRegressionLb?.takeIf { it > 0 } ?: 5,
+                repRangeMin = ready.repRangeMin,
+                isBodyweight = isBodyweight,
+                isStrengthTest = readyIsStrengthTest,
+                isAdaptiveResistanceMode = effectiveSelectedMode == "Echo",
+            ),
+            logs = allSessions,
+            currentWorkoutSets = currentAdaptiveObservations,
+        )
+    }
+
+    fun recordAdaptiveDecisionForStart(ready: SessionPhase.SetReady) {
+        val recommendation = adaptiveRecommendationForReady ?: return
+        val actualWeight = effectiveResistanceLb.roundToInt()
+        val outcome = AdaptiveDecisionStore.outcomeFor(
+            prescribedWeight = readyPrescribedWeight,
+            prescribedReps = readyPrescribedReps,
+            prescribedRest = readyPrescribedRest,
+            recommendation = recommendation,
+            actualWeight = actualWeight,
+            actualReps = targetReps,
+            actualRest = restAfterSec,
+        )
+        val anonymousDecisionId = (
+            "${workoutVM.sessionStartMs}|${ready.exerciseName}|${ready.setIndex}|${workoutVM.completedExerciseStats.size}"
+        ).hashCode().toUInt().toString(16)
+        AdaptiveDecisionStore.record(
+            AdaptiveDecisionEvent(
+                id = anonymousDecisionId,
+                timestampMs = System.currentTimeMillis(),
+                action = recommendation.action,
+                outcome = outcome,
+                prescribedWeightLb = readyPrescribedWeight,
+                recommendedWeightLb = recommendation.recommendedWeightPerCableLb,
+                actualWeightLb = actualWeight,
+                prescribedReps = readyPrescribedReps,
+                recommendedReps = recommendation.recommendedReps,
+                actualReps = targetReps,
+                prescribedRestSec = readyPrescribedRest,
+                recommendedRestSec = recommendation.recommendedRestSeconds,
+                actualRestSec = restAfterSec,
+                confidence = recommendation.confidence,
+            )
+        )
+    }
+
+    fun startReadySet(ready: SessionPhase.SetReady) {
+        recordAdaptiveDecisionForStart(ready)
+        when {
+            readyIsStrengthTest -> workoutVM.confirmReady()
+            readyCanEditExerciseMenuPlan -> {
+                workoutVM.startPlayerWorkout(
+                    List(targetSets) {
+                        PlayerSetParams(
+                            exerciseId = exercise?.stableKey.orEmpty(),
+                            exerciseName = ready.exerciseName,
+                            thumbnailUrl = ready.thumbnailUrl,
+                            videoUrl = ready.videoUrl,
+                            targetReps = if (isBodyweight) null else if (isRepsMode) targetReps else null,
+                            targetDurationSec = if (isBodyweight) targetDuration else if (!isRepsMode) targetDuration else null,
+                            isOffMachineTimer = isBodyweight,
+                            weightPerCableLb = if (isBodyweight) 0 else effectiveResistanceLb.roundToInt(),
+                            restAfterSec = restAfterSec,
+                            warmupReps = if (isBodyweight) 0 else warmupReps,
+                            programMode = effectiveProgramMode,
+                            muscleGroups = exercise?.muscleGroups ?: emptyList(),
+                            muscles = exercise?.muscles ?: emptyList(),
+                            numCables = exercise?.numCables ?: 2,
+                        )
+                    }
+                )
+                workoutVM.confirmReady()
+            }
+            else -> workoutVM.confirmReady(
+                targetRepsOverride = if (!readyIsOpenEnded && isRepsMode) targetReps else null,
+                targetDurationOverride = if (!readyIsOpenEnded && !isRepsMode) targetDuration else null,
+                weightOverride = effectiveResistanceLb.roundToInt(),
+                warmupOverride = warmupReps,
+                restAfterSecOverride = restAfterSec,
+                programModeOverride = effectiveProgramMode,
+                echoLevelOverride = echoLevel,
+                eccentricLoadPctOverride = eccentricPct,
+            )
+        }
+    }
     val canRepeatPreviousSet = partnerGroup == null && when (phase) {
         is SessionPhase.SetReady -> phase.setIndex > 0
         is SessionPhase.Resting -> workoutVM.completedExerciseStats.isNotEmpty()
@@ -257,6 +515,162 @@ fun ExercisePlayerScreen(
             resistanceLb = 0f
             selectedMode = "Old School"
         }
+    }
+
+    LaunchedEffect(voiceResultEvent?.first) {
+        val candidates = voiceResultEvent?.second ?: return@LaunchedEffect
+        val parsed = WorkoutVoiceCommandParser.parseCandidates(candidates)
+        if (parsed == null) {
+            UxTelemetryStore.record("voice_command_rejected", "unrecognized")
+            showConfirmation("Command not recognized. Say ‘Coach, help’ for examples.")
+            return@LaunchedEffect
+        }
+        if (
+            voiceControlSettings.handsFreeEnabled &&
+            !parsed.hadWakeWord &&
+            parsed.command.requiresWakeWordInHandsFreeMode()
+        ) {
+            UxTelemetryStore.record("voice_command_rejected", "wake_word_required")
+            showConfirmation("Say ‘Coach’ before that command")
+            return@LaunchedEffect
+        }
+
+        var accepted = true
+        var confirmation: String? = null
+        when (val command = parsed.command) {
+            WorkoutVoiceCommand.StartSet -> {
+                val ready = phase as? SessionPhase.SetReady
+                val canStart = ready != null && when {
+                    workoutVM.isMultiDevicePartnerSession -> workoutVM.isLocalPartnerTurnReady
+                    partnerGroup != null -> isReady || isBodyweight
+                    else -> true
+                }
+                if (ready == null || !canStart) {
+                    accepted = false
+                    confirmation = if (ready == null) "A set is not ready to start"
+                        else "Connect the trainer or wait for the handoff"
+                } else {
+                    startReadySet(ready)
+                    confirmation = "Starting set"
+                }
+            }
+            WorkoutVoiceCommand.Pause -> {
+                if (phase is SessionPhase.ExerciseActive) {
+                    workoutVM.pausePlayerWorkout()
+                    confirmation = "Trainer paused"
+                } else {
+                    accepted = false
+                    confirmation = "There is no active set to pause"
+                }
+            }
+            WorkoutVoiceCommand.Resume -> {
+                if (phase is SessionPhase.Paused) {
+                    workoutVM.resumePlayerWorkout()
+                    confirmation = "Workout ready to resume"
+                } else {
+                    accepted = false
+                    confirmation = "The workout is not paused"
+                }
+            }
+            WorkoutVoiceCommand.SkipRest -> {
+                if (phase is SessionPhase.Resting) {
+                    workoutVM.skipRest()
+                    confirmation = "Rest skipped"
+                } else {
+                    accepted = false
+                    confirmation = "No rest timer is active"
+                }
+            }
+            WorkoutVoiceCommand.SkipSet -> {
+                if (phase is SessionPhase.SetReady || phase is SessionPhase.Resting || phase is SessionPhase.ExerciseActive) {
+                    if (partnerGroup != null) workoutVM.skipCurrentPartnerSet() else workoutVM.skipSet()
+                    confirmation = "Set skipped"
+                } else {
+                    accepted = false
+                    confirmation = "This set cannot be skipped right now"
+                }
+            }
+            WorkoutVoiceCommand.SkipExercise -> {
+                if (partnerGroup != null) {
+                    accepted = false
+                    confirmation = "Skip the set to preserve partner rotation"
+                } else if (phase is SessionPhase.SetReady || phase is SessionPhase.Resting || phase is SessionPhase.ExerciseActive) {
+                    workoutVM.skipExercise()
+                    confirmation = "Exercise skipped"
+                } else {
+                    accepted = false
+                    confirmation = "This exercise cannot be skipped right now"
+                }
+            }
+            WorkoutVoiceCommand.RepeatLastSet -> {
+                if (canRepeatPreviousSet) {
+                    repeatLastSetWithFeedback()
+                    confirmation = null
+                } else {
+                    accepted = false
+                    confirmation = "There is no completed set to repeat here"
+                }
+            }
+            WorkoutVoiceCommand.FinishWorkout -> {
+                if (!workoutVM.beginFinishConfirmation()) {
+                    accepted = false
+                    confirmation = "The workout cannot be finished from this screen"
+                } else {
+                    showVoiceFinishConfirmation = true
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    confirmation = "Confirm before ending the workout"
+                }
+            }
+            WorkoutVoiceCommand.ConfirmFinish -> {
+                if (showVoiceFinishConfirmation) {
+                    showVoiceFinishConfirmation = false
+                    workoutVM.confirmFinishWorkout()
+                    confirmation = "Workout finished"
+                } else {
+                    accepted = false
+                    confirmation = "There is no finish request to confirm"
+                }
+            }
+            WorkoutVoiceCommand.CancelFinish -> {
+                if (showVoiceFinishConfirmation) {
+                    showVoiceFinishConfirmation = false
+                    workoutVM.cancelFinishConfirmation()
+                    confirmation = "Keep training"
+                } else {
+                    accepted = false
+                    confirmation = "There is no finish request to cancel"
+                }
+            }
+            WorkoutVoiceCommand.MuteCoach -> {
+                isMuted = true
+                workoutVM.soundEnabled.value = false
+                confirmation = "Coach muted"
+            }
+            WorkoutVoiceCommand.UnmuteCoach -> {
+                isMuted = false
+                workoutVM.soundEnabled.value = true
+                confirmation = "Coach unmuted"
+            }
+            WorkoutVoiceCommand.Help -> {
+                showVoiceHelp = true
+                confirmation = null
+            }
+            is WorkoutVoiceCommand.AdjustWeight -> {
+                if (phase !is SessionPhase.SetReady || isBodyweight) {
+                    accepted = false
+                    confirmation = "Weight can only change while a machine set is ready"
+                } else {
+                    resistanceLb = command.applyToResistanceLb(resistanceLb.toDouble(), unitSystem).toFloat()
+                    val newWeightKg = UnitConversions.lbToKg(resistanceLb.toDouble())
+                    confirmation = "Weight set to ${UnitConversions.formatWeightFromKg(newWeightKg, unitSystem)} per cable"
+                }
+            }
+        }
+        UxTelemetryStore.record(
+            if (accepted) "voice_command_accepted" else "voice_command_rejected",
+            parsed.command::class.simpleName.orEmpty(),
+        )
+        confirmation?.let(::showConfirmation)
     }
 
     if (showDebugPanel) {
@@ -307,6 +721,50 @@ fun ExercisePlayerScreen(
         )
     }
 
+    if (showVoiceHelp) {
+        AlertDialog(
+            onDismissRequest = { showVoiceHelp = false },
+            title = { Text(stringResource(R.string.voice_control_help_title)) },
+            text = { Text(stringResource(R.string.voice_control_help_body)) },
+            confirmButton = {
+                TextButton(onClick = { showVoiceHelp = false }) {
+                    Text(stringResource(R.string.complete_done))
+                }
+            },
+        )
+    }
+
+    if (showVoiceFinishConfirmation) {
+        AlertDialog(
+            onDismissRequest = {
+                showVoiceFinishConfirmation = false
+                workoutVM.cancelFinishConfirmation()
+            },
+            title = { Text(stringResource(R.string.voice_control_finish_title)) },
+            text = { Text(stringResource(R.string.voice_control_finish_message)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showVoiceFinishConfirmation = false
+                        workoutVM.confirmFinishWorkout()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                ) { Text(stringResource(R.string.voice_control_confirm_finish)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showVoiceFinishConfirmation = false
+                    workoutVM.cancelFinishConfirmation()
+                }) {
+                    Text(stringResource(R.string.voice_control_cancel))
+                }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -353,6 +811,25 @@ fun ExercisePlayerScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            if (voiceRecognizer.isListening) voiceRecognizer.stop()
+                            else beginVoiceListening()
+                        },
+                    ) {
+                        Icon(
+                            AppIcons.RecordVoiceOver,
+                            contentDescription = when (voiceRecognizerState) {
+                                VoiceRecognizerState.LISTENING -> appContext.getString(R.string.voice_control_listening)
+                                VoiceRecognizerState.PROCESSING -> appContext.getString(R.string.voice_control_processing)
+                                else -> "Start voice control"
+                            },
+                            tint = if (
+                                voiceRecognizerState == VoiceRecognizerState.LISTENING ||
+                                voiceRecognizerState == VoiceRecognizerState.PROCESSING
+                            ) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     IconButton(onClick = { isMuted = !isMuted; workoutVM.soundEnabled.value = !isMuted; WiringRegistry.hit(A_PLAYER_MUTE); WiringRegistry.recordOutcome(A_PLAYER_MUTE, ActualOutcome.StateChanged(if (isMuted) "muted" else "unmuted")) }) {
                         Icon(if (isMuted) AppIcons.VolumeOff else AppIcons.VolumeUp, contentDescription = if (isMuted) "Unmute" else "Mute")
                     }
@@ -430,6 +907,15 @@ fun ExercisePlayerScreen(
                                 group = completedPartnerGroup,
                                 completedStats = workoutVM.completedExerciseStats,
                                 onFinish = { scope.launch { finalizeAndExit(saveProgramChanges = false) } },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else if (
+                            workoutVM.isMultiDevicePartnerSession &&
+                            partnerLiveSnapshot?.status != com.example.vitruvianredux.partner.PartnerLiveStatus.COMPLETED
+                        ) {
+                            PartnerWaitingForGroupContent(
+                                group = completedPartnerGroup,
+                                snapshot = partnerLiveSnapshot,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         } else {
@@ -520,7 +1006,6 @@ fun ExercisePlayerScreen(
                         val activeDeloadPercent = workoutVM.activeProgramDeloadPercent
 
                         // Compute progression suggestion only on the first set of a program workout
-                        val allSessions by AnalyticsStore.logsFlow.collectAsState()
                         val progressionSuggestion = remember(readyPhase.exerciseName, targetReps, resistanceLb, allSessions, activeDeloadPercent) {
                             if (!isOpenEnded && readyPhase.setIndex == 0 && isRepsMode && activeDeloadPercent == null)
                                 ProgressionEngine.suggestProgression(
@@ -541,6 +1026,10 @@ fun ExercisePlayerScreen(
                                 repRangeMax = readyPhase.repRangeMax,
                             )
                         }
+                        val prescribedWeight = readyPrescribedWeight
+                        val prescribedReps = readyPrescribedReps
+                        val prescribedRest = readyPrescribedRest
+                        val adaptiveRecommendation = adaptiveRecommendationForReady
                         SetReadyContent(
                             exerciseName      = readyPhase.exerciseName,
                             setIndex          = readyPhase.setIndex,
@@ -585,47 +1074,7 @@ fun ExercisePlayerScreen(
                                     showConfirmation("Partner handoffs always require confirmation")
                                 }
                             },
-                            onGo = {
-                                if (isStrengthTest) {
-                                    workoutVM.confirmReady()
-                                } else if (canEditExerciseMenuPlan) {
-                                    // Re-queue the engine with the user's desired number of sets.
-                                    // All sets share the same configuration, including rest.
-                                    workoutVM.startPlayerWorkout(
-                                        List(targetSets) {
-                                            PlayerSetParams(
-                                                exerciseId        = exercise?.stableKey.orEmpty(),
-                                                exerciseName      = readyPhase.exerciseName,
-                                                thumbnailUrl      = readyPhase.thumbnailUrl,
-                                                videoUrl          = readyPhase.videoUrl,
-                                                targetReps        = if (isBodyweight) null else if (isRepsMode) targetReps else null,
-                                                targetDurationSec = if (isBodyweight) targetDuration else if (!isRepsMode) targetDuration else null,
-                                                isOffMachineTimer = isBodyweight,
-                                                weightPerCableLb  = if (isBodyweight) 0 else effectiveResistanceLb.roundToInt(),
-                                                restAfterSec      = restAfterSec,
-                                                warmupReps        = if (isBodyweight) 0 else warmupReps,
-                                                programMode       = effectiveProgramMode,
-                                                muscleGroups      = exercise?.muscleGroups ?: emptyList(),
-                                                muscles           = exercise?.muscles ?: emptyList(),
-                                                numCables         = exercise?.numCables ?: 2,
-                                            )
-                                        }
-                                    )
-                                    // Values are baked into the queue above; confirm
-                                    // with no overrides so they aren't double-applied.
-                                    workoutVM.confirmReady()
-                                } else {
-                                    workoutVM.confirmReady(
-                                        targetRepsOverride     = if (!isOpenEnded && isRepsMode) targetReps else null,
-                                        targetDurationOverride = if (!isOpenEnded && !isRepsMode) targetDuration else null,
-                                        weightOverride         = effectiveResistanceLb.roundToInt(),
-                                        warmupOverride         = warmupReps,
-                                        programModeOverride    = effectiveProgramMode,
-                                        echoLevelOverride      = echoLevel,
-                                        eccentricLoadPctOverride = eccentricPct,
-                                    )
-                                }
-                            },
+                            onGo = { startReadySet(readyPhase) },
                             onSkipSet      = {
                                 if (partnerGroup != null) workoutVM.skipCurrentPartnerSet() else workoutVM.skipSet()
                             },
@@ -665,6 +1114,29 @@ fun ExercisePlayerScreen(
                             progressionDeloadLb     = (progressionSuggestion as? ProgressionResult.Deload)?.newWeightLb,
                             progressionInsight      = progressionInsight,
                             onAcceptProgression = { suggestedLb -> resistanceLb = suggestedLb.toFloat() },
+                            adaptiveRecommendation = adaptiveRecommendation,
+                            adaptiveChoiceApplied = adaptiveAppliedKey == adaptiveRecommendation?.key,
+                            adaptivePlanKept = adaptiveKeptKey == adaptiveRecommendation?.key,
+                            onAcceptAdaptive = {
+                                adaptiveRecommendation?.let { recommendation ->
+                                    resistanceLb = recommendation.recommendedWeightPerCableLb.toFloat()
+                                    targetReps = recommendation.recommendedReps
+                                    restAfterSec = recommendation.recommendedRestSeconds
+                                    adaptiveAppliedKey = recommendation.key
+                                    adaptiveKeptKey = null
+                                    showConfirmation("Personal plan applied")
+                                }
+                            },
+                            onKeepAdaptive = {
+                                adaptiveRecommendation?.let { recommendation ->
+                                    resistanceLb = prescribedWeight.toFloat()
+                                    targetReps = prescribedReps
+                                    restAfterSec = prescribedRest
+                                    adaptiveKeptKey = recommendation.key
+                                    adaptiveAppliedKey = null
+                                    showConfirmation("Original plan kept")
+                                }
+                            },
                             deloadPercentOff    = activeDeloadPercent,
                             isEchoMode          = (effectiveSelectedMode == "Echo"),
                             selectedMode        = effectiveSelectedMode,
@@ -899,6 +1371,13 @@ fun ExercisePlayerScreen(
                 phase = phase,
                 connected = isReady,
                 distributed = workoutVM.isMultiDevicePartnerSession,
+                localTurnReady = localPartnerReady,
+                leaseExpiresAt = partnerLiveSnapshot?.bleLeaseExpiresAt ?: 0L,
+                linkError = partnerLiveError,
+                syncedCompletedSets = partnerLiveSnapshot?.completedResults?.size ?: 0,
+                connectedMemberCount = partnerLiveSnapshot?.members?.count {
+                    System.currentTimeMillis() - it.lastSeenAt <= 5_000L
+                } ?: group.participants.size,
                 onChangeAssignment = workoutVM::changePartnerAssignment,
                 onSkip = workoutVM::skipCurrentPartnerSet,
                 onParticipantLeaves = workoutVM::partnerLeaves,
@@ -911,7 +1390,95 @@ fun ExercisePlayerScreen(
                 wide = partnerWideLayout,
             )
         }
+        AnimatedVisibility(
+            visible = voiceRecognizerState == VoiceRecognizerState.LISTENING ||
+                voiceRecognizerState == VoiceRecognizerState.PROCESSING,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(AppDimens.Spacing.md),
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                shadowElevation = 6.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                ) {
+                    Icon(AppIcons.RecordVoiceOver, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(
+                        text = stringResource(
+                            if (voiceRecognizerState == VoiceRecognizerState.LISTENING)
+                                R.string.voice_control_listening
+                            else R.string.voice_control_processing
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
         }
+        }
+    }
+}
+
+@Composable
+private fun PartnerWaitingForGroupContent(
+    group: com.example.vitruvianredux.partner.PartnerWorkoutGroup?,
+    snapshot: com.example.vitruvianredux.partner.PartnerLiveSnapshot?,
+    modifier: Modifier = Modifier,
+) {
+    val total = group?.assignments?.size ?: 0
+    val completed = snapshot?.completedResults?.size ?: 0
+    val current = group?.assignments?.firstOrNull { it.assignmentId == snapshot?.currentAssignmentId }
+    val currentAthlete = group?.participants?.firstOrNull { it.participantId == current?.participantId }
+    Column(
+        modifier = modifier.padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            modifier = Modifier.size(72.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    AppIcons.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(40.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Text("Your sets are complete", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            currentAthlete?.let { "${it.displayName} is finishing ${current?.exerciseName ?: "the workout"}." }
+                ?: "The shared workout is finishing safely.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(20.dp))
+        LinearProgressIndicator(
+            progress = if (total == 0) 0f else completed.toFloat() / total.toFloat(),
+            modifier = Modifier.fillMaxWidth().height(8.dp),
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("$completed of $total sets complete", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "Stay here—the trainer will keep transferring automatically. Your personal results are already safe.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -994,6 +1561,11 @@ internal fun PartnerCockpitPanel(
     phase: SessionPhase,
     connected: Boolean,
     distributed: Boolean = false,
+    localTurnReady: Boolean = false,
+    leaseExpiresAt: Long = 0L,
+    linkError: String? = null,
+    syncedCompletedSets: Int = 0,
+    connectedMemberCount: Int = 0,
     onChangeAssignment: (String) -> Boolean,
     onSkip: () -> Unit,
     onParticipantLeaves: (String) -> Boolean,
@@ -1005,6 +1577,24 @@ internal fun PartnerCockpitPanel(
         it.participantId == currentAssignment?.participantId
     }
     var rotationOpen by remember { mutableStateOf(false) }
+    var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(distributed, leaseExpiresAt) {
+        while (distributed && leaseExpiresAt > nowMs) {
+            kotlinx.coroutines.delay(1_000L)
+            nowMs = System.currentTimeMillis()
+        }
+    }
+    val leaseSeconds = ((leaseExpiresAt - nowMs).coerceAtLeast(0L) / 1_000L).toInt()
+    val handoffLabel = when {
+        !distributed -> null
+        linkError != null -> linkError
+        localTurnReady -> "Trainer ready for you"
+        leaseSeconds > 0 -> "Trainer secured · handoff in progress"
+        else -> "Connecting trainer automatically…"
+    }
+    val sharedProgressLabel = if (distributed) {
+        "$syncedCompletedSets of ${group.assignments.size} sets · $connectedMemberCount athletes online"
+    } else null
     val pendingAssignments = group.rotation.orderedAssignmentIds.mapNotNull { id ->
         group.assignments.firstOrNull { it.assignmentId == id }
     }.filter {
@@ -1040,7 +1630,7 @@ internal fun PartnerCockpitPanel(
                 )
                 AssistChip(
                     onClick = {},
-                    label = { Text(if (connected) "Trainer ready on this device" else if (distributed) "Trainer assigned by turn" else "Trainer disconnected") },
+                    label = { Text(if (connected) "Trainer ready on this device" else if (distributed) "Waiting for your turn" else "Trainer disconnected") },
                     leadingIcon = {
                         Icon(
                             if (connected) AppIcons.CheckCircle else AppIcons.Warning,
@@ -1049,6 +1639,16 @@ internal fun PartnerCockpitPanel(
                         )
                     },
                 )
+                handoffLabel?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (linkError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    )
+                }
+                sharedProgressLabel?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Divider()
                 Text("Rotation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 pendingAssignments.forEach { assignment ->
@@ -1116,10 +1716,13 @@ internal fun PartnerCockpitPanel(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        "NEXT · ${nextParticipant?.displayName ?: "Finish"} · ${if (connected) "Connected" else "Disconnected"}",
+                        "NEXT · ${nextParticipant?.displayName ?: "Finish"} · ${handoffLabel ?: if (connected) "Connected" else "Disconnected"}",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (connected) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
                     )
+                    sharedProgressLabel?.let {
+                        Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 Box {
                     OutlinedButton(onClick = { rotationOpen = true }, enabled = phase is SessionPhase.SetReady && !distributed) {

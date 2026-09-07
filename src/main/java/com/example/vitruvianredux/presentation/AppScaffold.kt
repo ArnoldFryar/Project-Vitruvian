@@ -70,6 +70,8 @@ import androidx.compose.ui.res.stringResource
 import com.vitruvian.trainer.R
 import com.example.vitruvianredux.presentation.ui.AppIcons
 import com.example.vitruvianredux.presentation.ui.theme.LocalExtendedColors
+import com.example.vitruvianredux.cloud.CloudSyncRepository
+import com.example.vitruvianredux.cloud.CloudSyncState
 
 @Composable
 fun AppScaffold() {
@@ -132,6 +134,7 @@ fun AppScaffold() {
             onDispose { lanSyncManager.reset() }
         }
         val lanSyncState by lanSyncManager.state.collectAsState()
+        val cloudSyncState by CloudSyncRepository.state.collectAsState()
 
         val nav = rememberNavController()
         val backStack = nav.currentBackStackEntryAsState()
@@ -176,7 +179,8 @@ fun AppScaffold() {
                         title                 = contextualTitle,
                         bleState              = bleState,
                         lanSyncState          = lanSyncState,
-                        onSyncPillClick       = { nav.navigate(Route.Sync.path) },
+                        cloudSyncState        = cloudSyncState,
+                        onSyncPillClick       = { nav.navigate(Route.Account.path) },
                         onConnectClick        = {
                             WiringRegistry.hit(A_GLOBAL_CONNECT)
                             WiringRegistry.recordOutcome(A_GLOBAL_CONNECT, ActualOutcome.SheetOpened("device_picker"))
@@ -377,22 +381,23 @@ fun AppScaffold() {
                         val attributedStats = PartnerSetAttribution.partition(partnerGroup, completedStats)
                         val personalCommits = partnerGroup.participants.map { participant ->
                             val personalStats = attributedStats.getValue(participant.participantId)
+                            val completedPersonalStats = personalStats.filterNot { it.skipped }
                             val personalSessionId = PartnerWorkoutRepository.stablePersonalSessionId(
                                 partnerGroup.groupId,
                                 participant.participantId,
                             )
                             val personalWorkoutStats = WorkoutStats(
-                                totalReps = personalStats.sumOf { it.repsCompleted },
-                                totalVolumeKg = personalStats.sumOf { it.volumeKg.toDouble() }.toFloat(),
+                                totalReps = completedPersonalStats.sumOf { it.repsCompleted },
+                                totalVolumeKg = completedPersonalStats.sumOf { it.volumeKg.toDouble() }.toFloat(),
                                 // Session duration is elapsed workout time. Summed set-active
                                 // time is a different metric and made partner data incomparable.
                                 durationSec = stats.durationSec,
-                                totalSets = personalStats.count { !it.skipped },
-                                heaviestLiftLb = personalStats.maxOfOrNull {
+                                totalSets = completedPersonalStats.size,
+                                heaviestLiftLb = completedPersonalStats.maxOfOrNull {
                                     it.weightPerCableLb * it.numCables
                                 } ?: 0,
                                 avgQualityScore = AnalyticsMath.repWeightedQuality(
-                                    personalStats.filterNot { it.skipped }
+                                    completedPersonalStats
                                         .map { it.avgQualityScore to it.repsCompleted },
                                 ),
                             )
@@ -570,6 +575,7 @@ private fun AppTopBar(
     title: String? = null,
     bleState: BleConnectionState,
     lanSyncState: LanSyncState,
+    cloudSyncState: CloudSyncState,
     onSyncPillClick: () -> Unit,
     onConnectClick: () -> Unit,
     onDisconnectClick: () -> Unit,
@@ -579,19 +585,26 @@ private fun AppTopBar(
     // Hidden dev entry — long-press "Project Vitruvian" 5× to open Audit screen
     var longPressCount by remember { mutableIntStateOf(0) }
     val ext = LocalExtendedColors.current
-    val syncTint = when (lanSyncState) {
-        is LanSyncState.HubRegistered -> ext.statusReady
-        is LanSyncState.HubFound -> ext.statusConnected
-        is LanSyncState.Discovering -> ext.statusConnecting
-        is LanSyncState.Error -> ext.statusError
-        is LanSyncState.Idle -> ext.statusDisconnected
+    val syncTint = when (cloudSyncState) {
+        is CloudSyncState.Success -> ext.statusReady
+        is CloudSyncState.Syncing -> ext.statusConnecting
+        is CloudSyncState.Failed -> ext.statusError
+        is CloudSyncState.Idle -> when (lanSyncState) {
+            is LanSyncState.HubRegistered, is LanSyncState.HubFound -> ext.statusConnected
+            else -> ext.statusDisconnected
+        }
     }
-    val syncDescription = when (lanSyncState) {
-        is LanSyncState.HubRegistered -> "Sync hub ready"
-        is LanSyncState.HubFound -> "Sync hub connected"
-        is LanSyncState.Discovering -> "Searching for sync hub"
-        is LanSyncState.Error -> "Sync error"
-        is LanSyncState.Idle -> "Sync idle"
+    val syncDescription = when (cloudSyncState) {
+        is CloudSyncState.Success -> "Cloud data is up to date"
+        is CloudSyncState.Syncing -> "Updating cloud data"
+        is CloudSyncState.Failed -> "Cloud sync delayed"
+        is CloudSyncState.Idle -> "Cloud sync"
+    }
+    val syncLabel = when (cloudSyncState) {
+        is CloudSyncState.Success -> "Up to date"
+        is CloudSyncState.Syncing -> "Updating…"
+        is CloudSyncState.Failed -> "Sync delayed"
+        is CloudSyncState.Idle -> "Cloud"
     }
 
     Surface(
@@ -626,9 +639,9 @@ private fun AppTopBar(
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Box(
+                if (cloudSyncState is CloudSyncState.Syncing || cloudSyncState is CloudSyncState.Failed) Row(
                     modifier = Modifier
-                        .size(if (expanded) AppDimens.Component.buttonHeightXl else AppDimens.Component.buttonHeight)
+                        .height(if (expanded) AppDimens.Component.buttonHeightXl else AppDimens.Component.buttonHeight)
                         .combinedClickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -641,13 +654,21 @@ private fun AppTopBar(
                                 }
                             },
                         ),
-                    contentAlignment = Alignment.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
                 ) {
                     Icon(
                         AppIcons.SyncAlt,
                         contentDescription = syncDescription,
                         tint = syncTint,
                     )
+                    if (expanded) {
+                        Text(
+                            syncLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = syncTint,
+                        )
+                    }
                 }
                 Spacer(Modifier.weight(1f))
 

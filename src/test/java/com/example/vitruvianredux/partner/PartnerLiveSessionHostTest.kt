@@ -31,7 +31,7 @@ class PartnerLiveSessionHostTest {
         val invite = host.create("http://192.168.1.2:8099", "AA:BB:CC:DD:EE:FF", alice)
         assertTrue(host.join(PartnerJoinRequest(invite.groupId, invite.inviteToken, bob)).success)
 
-        val started = host.start(invite.groupId, invite.inviteToken, PartnerRotationMode.ROUND_ROBIN_SETS)
+        val started = host.start(startRequest(invite, "alice"))
         assertTrue(started.success)
         val first = requireNotNull(started.snapshot)
         val firstAssignment = first.group!!.assignments.first { it.assignmentId == first.currentAssignmentId }
@@ -39,7 +39,7 @@ class PartnerLiveSessionHostTest {
         assertEquals("alice", first.bleOwnerParticipantId)
 
         val earlyBobClaim = host.claimBle(
-            PartnerSessionRequest(invite.groupId, invite.inviteToken, "bob", first.revision),
+            PartnerSessionRequest(invite.groupId, invite.inviteToken, "bob", first.revision, "device-bob"),
         )
         assertFalse(earlyBobClaim.success)
 
@@ -59,7 +59,7 @@ class PartnerLiveSessionHostTest {
         assertEquals(1, retry.snapshot!!.completedResults.size)
 
         val bobClaim = host.claimBle(
-            PartnerSessionRequest(invite.groupId, invite.inviteToken, "bob", afterAlice.revision),
+            PartnerSessionRequest(invite.groupId, invite.inviteToken, "bob", afterAlice.revision, "device-bob"),
         )
         assertTrue(bobClaim.success)
         assertEquals("bob", bobClaim.snapshot!!.bleOwnerParticipantId)
@@ -71,7 +71,7 @@ class PartnerLiveSessionHostTest {
         val bob = member("bob")
         val invite = host.create("http://192.168.1.2:8099", "AA:BB:CC:DD:EE:FF", alice)
         host.join(PartnerJoinRequest(invite.groupId, invite.inviteToken, bob))
-        val snapshot = host.start(invite.groupId, invite.inviteToken, PartnerRotationMode.ROUND_ROBIN_SETS).snapshot!!
+        val snapshot = host.start(startRequest(invite, "alice")).snapshot!!
         val assignment = snapshot.group!!.assignments.first { it.assignmentId == snapshot.currentAssignmentId }
         val response = host.completeSet(
             PartnerCompleteSetRequest(
@@ -97,15 +97,64 @@ class PartnerLiveSessionHostTest {
         val bob = member("bob")
         val invite = original.create("http://192.168.1.2:8099", "AA:BB:CC:DD:EE:FF", alice)
         original.join(PartnerJoinRequest(invite.groupId, invite.inviteToken, bob))
-        val before = original.start(invite.groupId, invite.inviteToken, PartnerRotationMode.ROUND_ROBIN_SETS).snapshot!!
+        val before = original.start(startRequest(invite, "alice")).snapshot!!
 
         val restored = PartnerLiveSessionHost(clock = { now }, backing = backing)
         val after = restored.snapshot(
-            PartnerSessionRequest(invite.groupId, invite.inviteToken, "alice"),
+            PartnerSessionRequest(invite.groupId, invite.inviteToken, "alice", deviceId = "device-alice"),
         ).snapshot!!
 
         assertEquals(before.currentAssignmentId, after.currentAssignmentId)
         assertEquals(before.group!!.rotation.completedAssignmentIds, after.group!!.rotation.completedAssignmentIds)
         assertNull(after.bleOwnerParticipantId)
     }
+
+    @Test
+    fun `expired BLE owner is fenced out and current athlete can safely reclaim`() {
+        val alice = member("alice")
+        val bob = member("bob")
+        val invite = host.create("http://192.168.1.2:8099", "AA:BB:CC:DD:EE:FF", alice)
+        host.join(PartnerJoinRequest(invite.groupId, invite.inviteToken, bob))
+        val started = host.start(startRequest(invite, "alice")).snapshot!!
+
+        now += 13_000L
+        val refreshed = host.snapshot(
+            PartnerSessionRequest(invite.groupId, invite.inviteToken, "alice", deviceId = "device-alice"),
+        ).snapshot!!
+        assertNull(refreshed.bleOwnerParticipantId)
+        assertTrue(refreshed.bleLeaseEpoch > started.bleLeaseEpoch)
+
+        val reclaimed = host.claimBle(
+            PartnerSessionRequest(
+                invite.groupId,
+                invite.inviteToken,
+                "alice",
+                refreshed.revision,
+                "device-alice",
+            ),
+        )
+        assertTrue(reclaimed.success)
+        assertEquals("device-alice", reclaimed.snapshot!!.bleOwnerDeviceId)
+    }
+
+    @Test
+    fun `only original host device can start`() {
+        val alice = member("alice")
+        val bob = member("bob")
+        val invite = host.create("http://192.168.1.2:8099", "AA:BB:CC:DD:EE:FF", alice)
+        host.join(PartnerJoinRequest(invite.groupId, invite.inviteToken, bob))
+
+        val response = host.start(startRequest(invite, "bob"))
+
+        assertFalse(response.success)
+        assertEquals("Only the host can start this workout", response.message)
+    }
+
+    private fun startRequest(invite: PartnerSessionInvite, participantId: String) = PartnerStartRequest(
+        groupId = invite.groupId,
+        inviteToken = invite.inviteToken,
+        rotationMode = PartnerRotationMode.ROUND_ROBIN_SETS,
+        participantId = participantId,
+        deviceId = "device-$participantId",
+    )
 }

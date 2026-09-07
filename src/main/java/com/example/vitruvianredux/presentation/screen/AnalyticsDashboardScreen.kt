@@ -104,6 +104,7 @@ fun AnalyticsDashboardScreen(
     onStartWorkout: () -> Unit = {},
     primaryDestination: Boolean = false,
     onNavigateToHistory: () -> Unit = {},
+    outerPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val allLogs by AnalyticsStore.logsFlow.collectAsState()
     val programs by ProgramStore.savedProgramsFlow.collectAsState()
@@ -123,6 +124,7 @@ fun AnalyticsDashboardScreen(
 
 
     Scaffold(
+        modifier = Modifier.padding(outerPadding),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = if (primaryDestination) {
             {}
@@ -193,7 +195,6 @@ fun AnalyticsDashboardScreen(
 
                 // ── Summary stat cards (always full-width) ───────────────
                 SummaryStatsRow(allLogs, unitSystem, isTablet)
-                AnalyticsTrustNotice()
 
                 if (isTablet) {
                     // ── Tablet: two-column layout ─────────────────────────
@@ -268,35 +269,6 @@ fun AnalyticsDashboardScreen(
                 }
 
                 Spacer(Modifier.height(AppDimens.Spacing.xl))
-            }
-        }
-    }
-}
-
-@Composable
-private fun AnalyticsTrustNotice() {
-    Surface(
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(AppDimens.Spacing.md_sm),
-            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Icon(
-                AppIcons.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(AppDimens.Icon.md),
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs)) {
-                Text("How these numbers are calculated", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Volume uses configured resistance and completed device reps. Force and telemetry sections only appear when measured data is available.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }

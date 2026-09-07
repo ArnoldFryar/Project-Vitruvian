@@ -70,7 +70,7 @@ fun GradientButton(
         animationSpec = if (isPressed) MotionTokens.SnapSpring else MotionTokens.BounceSpring,
         label = "btnScale",
     )
-    val shape = RoundedCornerShape(AppDimens.Corner.md_sm)
+    val shape = RoundedCornerShape(20.dp)
 
     CompositionLocalProvider(LocalContentColor provides contentColor) {
         Box(
@@ -79,7 +79,7 @@ fun GradientButton(
                 .heightIn(min = AppDimens.Component.buttonHeightLg)
                 .graphicsLayer(scaleX = pressScale, scaleY = pressScale)
                 .clip(shape)
-                .background(fillColor)
+                .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(fillColor, fillColor.copy(alpha = .92f))))
                 .border(
                     width = AppDimens.Stroke.thin,
                     color = if (enabled) Color.Transparent else cs.outlineVariant.copy(alpha = 0.64f),

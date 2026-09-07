@@ -34,7 +34,8 @@ package com.example.vitruvianredux.ble.session
  * ### No Priming Skip (Issue #210 Fix)
  *
  * `lastTopCounter` and `lastCompleteCounter` initialize to 0 (not null).
- * First notification with up=1 → delta = 1 - 0 = 1 → counts the rep.
+ * First notification with up=1 → delta = 1 - 0 = 1 → counts the rep. Implausibly
+ * large jumps and ordinary counter resets are rebased instead of becoming phantom reps.
  */
 class MachineRepDetector : IRepDetector {
 
@@ -113,6 +114,7 @@ class MachineRepDetector : IRepDetector {
      *   - If machine reports working reps but warmup isn't complete, force warmup done
      */
     private fun processModern(n: RepNotification, events: MutableList<RepDetectorEvent>) {
+        val workingBefore = _workingReps
         // NOTE: Do NOT sync warmupTarget with machine's repsRomTotal.
         // The app's warmupTarget (from set definition) is authoritative.
         // Syncing caused a desync with the reducer's RepCounterFromMachine,
@@ -235,6 +237,38 @@ class MachineRepDetector : IRepDetector {
 
         // Monotonic: counts must never decrease within a set
         if (_warmupReps < warmupBefore) _warmupReps = warmupBefore
+
+        // Reconciliation is part of the public detector contract. Previously the
+        // internal counters could advance here without emitting an event, leaving
+        // RepCountPolicy (and therefore the displayed/spoken count) behind the
+        // reducer and persisted analytics.
+        val reportedWarmup = events.filterIsInstance<RepDetectorEvent.WarmupRepCompleted>()
+            .maxOfOrNull { it.warmupReps } ?: warmupBefore
+        if (_warmupReps > reportedWarmup) {
+            events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, totalConfirmedReps))
+        }
+        if (
+            warmupBefore < warmupTarget &&
+            _warmupReps >= warmupTarget &&
+            events.none { it is RepDetectorEvent.WarmupComplete }
+        ) {
+            events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
+        }
+
+        val reportedWorking = events.filterIsInstance<RepDetectorEvent.WorkingRepCompleted>()
+            .maxOfOrNull { it.workingReps } ?: workingBefore
+        if (_workingReps > reportedWorking) {
+            pendingWorkingReps = 0
+            events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, totalConfirmedReps))
+        }
+        if (
+            workingTarget > 0 &&
+            workingBefore < workingTarget &&
+            _workingReps >= workingTarget &&
+            events.none { it is RepDetectorEvent.TargetReached }
+        ) {
+            events.add(RepDetectorEvent.TargetReached(_workingReps))
+        }
     }
 
     // -- Legacy 16-byte processing ---------------------------------------------
@@ -252,21 +286,25 @@ class MachineRepDetector : IRepDetector {
         // First notification with up=1: delta = 1 - 0 = 1 → counts the rep.
         val upDelta = calculateDelta(lastTopCounter, n.up)
         if (upDelta > 0) {
-            // Count the rep at TOP of movement (matches Phoenix / official app)
-            val totalReps = _warmupReps + _workingReps + 1
-            if (totalReps <= warmupTarget) {
-                _warmupReps++
-                val total = _warmupReps + _workingReps
-                events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, total))
-                if (_warmupReps >= warmupTarget) {
-                    events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
-                }
-            } else {
-                _workingReps++
-                val total = _warmupReps + _workingReps
-                events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, total))
-                if (workingTarget > 0 && _workingReps >= workingTarget) {
-                    events.add(RepDetectorEvent.TargetReached(_workingReps))
+            // A BLE notification may cover more than one completed movement when
+            // Android is briefly busy. Account for the complete bounded delta;
+            // counting only one silently lost reps and under-reported volume.
+            repeat(upDelta) {
+                val totalReps = _warmupReps + _workingReps + 1
+                if (totalReps <= warmupTarget) {
+                    _warmupReps++
+                    val total = _warmupReps + _workingReps
+                    events.add(RepDetectorEvent.WarmupRepCompleted(_warmupReps, total))
+                    if (_warmupReps >= warmupTarget) {
+                        events.add(RepDetectorEvent.WarmupComplete(_warmupReps))
+                    }
+                } else {
+                    _workingReps++
+                    val total = _warmupReps + _workingReps
+                    events.add(RepDetectorEvent.WorkingRepCompleted(_workingReps, total))
+                    if (workingTarget > 0 && _workingReps >= workingTarget) {
+                        events.add(RepDetectorEvent.TargetReached(_workingReps))
+                    }
                 }
             }
         }
@@ -282,16 +320,27 @@ class MachineRepDetector : IRepDetector {
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     /**
-     * Calculate delta between two counter values, handling 16-bit wrap-around.
-     * Matches Phoenix's calculateDelta() exactly.
+     * Calculate a bounded delta between two counter values.
+     *
+     * True 16-bit wrap-around is accepted only near the numeric boundary. An
+     * ordinary decrease is a machine reset/mode switch and rebases at zero reps.
+     * Very large forward jumps are also treated as a baseline packet. Both cases
+     * prevent one bogus rep (or a whole phantom set) after reconnect/reconfigure.
      */
     private fun calculateDelta(last: Int, current: Int): Int {
-        return if (current >= last) {
-            current - last
-        } else {
-            // 16-bit wrap-around
-            0xFFFF - last + current + 1
+        val delta = when {
+            current >= last -> current - last
+            last >= WRAP_HIGH_WATER && current <= WRAP_LOW_WATER ->
+                0xFFFF - last + current + 1
+            else -> return 0
         }
+        return delta.takeIf { it <= MAX_PLAUSIBLE_REPS_PER_NOTIFICATION } ?: 0
+    }
+
+    private companion object {
+        const val MAX_PLAUSIBLE_REPS_PER_NOTIFICATION = 20
+        const val WRAP_HIGH_WATER = 0xF000
+        const val WRAP_LOW_WATER = 0x0FFF
     }
 }
 

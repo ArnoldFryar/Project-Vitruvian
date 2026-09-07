@@ -100,7 +100,7 @@ class SyncHub(
         }
         post("/partner/start") {
             val request = call.receive<PartnerStartRequest>()
-            call.respond(partnerHost.start(request.groupId, request.inviteToken, request.rotationMode))
+            call.respond(partnerHost.start(request))
         }
         post("/partner/claim") {
             call.respond(partnerHost.claimBle(call.receive<PartnerSessionRequest>()))

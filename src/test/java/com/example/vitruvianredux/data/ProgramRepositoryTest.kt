@@ -217,12 +217,22 @@ class ProgramRepositoryTest {
     }
 
     @Test fun `corrupted programs JSON falls back to empty list`() {
-        backing.store["programs"] = "NOT_VALID_JSON{{{"
+        val corrupted = "NOT_VALID_JSON{{{"
+        backing.store["programs"] = corrupted
         val programs = repo.parsePrograms()
         assertTrue("corrupted JSON must fall back to empty list", programs.isEmpty())
-        // Backing store must be cleared so subsequent writes are clean
-        val cleared = backing.store["programs"]
-        assertEquals("[]", cleared)
+        // A read failure must never erase the user's only copy.  A later app
+        // version or support tool may still be able to recover it.
+        assertEquals(corrupted, backing.store["programs"])
+    }
+
+    @Test fun `one malformed program row does not hide valid programs`() {
+        backing.store["programs"] =
+            """[{"id":"valid","name":"Valid","exerciseCount":1},"bad row"]"""
+
+        val programs = repo.parsePrograms()
+
+        assertEquals(listOf("valid"), programs.map { it.id })
     }
 
     @Test fun `missing meta returns default Meta with seedVersion 0`() {

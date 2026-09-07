@@ -1,7 +1,8 @@
 package com.example.vitruvianredux.cloud
 
 import android.content.Context
-import android.content.SharedPreferences
+import com.example.vitruvianredux.data.SecurePreferenceStore
+import com.example.vitruvianredux.data.migratePlaintext
 import io.ktor.client.*
 import io.ktor.client.engine.android.*
 import io.ktor.client.request.*
@@ -35,16 +36,12 @@ data class DeviceFlowSession(
  * ### Flow
  * 1. [startDeviceFlow] → obtain [DeviceFlowSession] (device_code + user_code)
  * 2. Show [DeviceFlowSession.userCode] to user + link to [DeviceFlowSession.verificationUri]
- * 3. [pollForToken] polls until approved; stores token in SharedPreferences on success
+ * 3. [pollForToken] polls until approved; stores tokens with Android Keystore encryption
  *
  * ### Persistence
- * The access token and display name are persisted in a private SharedPreferences
- * file so the connection survives app restarts.  Call [init] once in
+ * Credentials are persisted in an app-private, Keystore-backed encrypted store
+ * so the connection survives app restarts. Call [init] once in
  * `Application.onCreate` or `MainActivity.onCreate` to bind the prefs store.
- *
- * ### Security note
- * The access token is stored in plaintext SharedPreferences.  For a production
- * app consider using EncryptedSharedPreferences (security-crypto library).
  */
 object VitruvianAuthManager {
 
@@ -57,18 +54,24 @@ object VitruvianAuthManager {
     private const val SCOPE        = "openid profile email offline_access"
 
     private const val PREFS_NAME         = "vitruvian_auth"
+    private const val SECURE_PREFS_NAME  = "vitruvian_auth_secure"
     private const val KEY_ACCESS_TOKEN   = "access_token"
     private const val KEY_REFRESH_TOKEN  = "refresh_token"
     private const val KEY_DISPLAY_NAME   = "display_name"
 
     private val http = HttpClient(Android)
-    private var prefs: SharedPreferences? = null
+    private var prefs: SecurePreferenceStore? = null
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     /** Call once in MainActivity.onCreate (before UI renders). */
     fun init(context: Context) {
-        prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val legacy = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs = SecurePreferenceStore.create(context, SECURE_PREFS_NAME).also { secure ->
+            secure.migratePlaintext(legacy, KEY_ACCESS_TOKEN)
+            secure.migratePlaintext(legacy, KEY_REFRESH_TOKEN)
+            secure.migratePlaintext(legacy, KEY_DISPLAY_NAME)
+        }
     }
 
     // ── State accessors ───────────────────────────────────────────────────────
@@ -197,22 +200,14 @@ object VitruvianAuthManager {
 
     /** Remove all stored credentials and mark the account as disconnected. */
     fun disconnect() {
-        prefs?.edit()
-            ?.remove(KEY_ACCESS_TOKEN)
-            ?.remove(KEY_REFRESH_TOKEN)
-            ?.remove(KEY_DISPLAY_NAME)
-            ?.apply()
+        prefs?.remove(KEY_ACCESS_TOKEN, KEY_REFRESH_TOKEN, KEY_DISPLAY_NAME)
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private fun saveTokens(accessToken: String, refreshToken: String) {
-        prefs?.edit()
-            ?.putString(KEY_ACCESS_TOKEN, accessToken)
-            ?.apply {
-                if (refreshToken.isNotBlank()) putString(KEY_REFRESH_TOKEN, refreshToken)
-            }
-            ?.apply()
+        prefs?.putString(KEY_ACCESS_TOKEN, accessToken)
+        if (refreshToken.isNotBlank()) prefs?.putString(KEY_REFRESH_TOKEN, refreshToken)
     }
 
     private suspend fun fetchAndSaveProfile(token: String) {
@@ -221,7 +216,7 @@ object VitruvianAuthManager {
             .takeIf { it.isNotBlank() }
             ?: profile.optString("firstName", "")
         if (name.isNotBlank()) {
-            prefs?.edit()?.putString(KEY_DISPLAY_NAME, name)?.apply()
+            prefs?.putString(KEY_DISPLAY_NAME, name)
         }
     }
 }

@@ -3,11 +3,12 @@
 package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
+import android.content.ClipData
+import android.content.Intent
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,20 +28,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
+import androidx.core.content.FileProvider
 import com.example.vitruvianredux.ble.ActualOutcome
 import com.example.vitruvianredux.ble.WiringRegistry
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.data.HevyStore
-import com.example.vitruvianredux.data.VitruvianFavoritesStore
-import com.example.vitruvianredux.data.VitruvianLibrary
+import com.example.vitruvianredux.data.ProgramExportHelper
 import com.example.vitruvianredux.data.ProgramItemDraft
 import com.example.vitruvianredux.data.ProgramStore
 import com.example.vitruvianredux.data.SavedProgram
 import com.example.vitruvianredux.presentation.ui.rememberUiHaptics
 import com.example.vitruvianredux.presentation.audit.*
 import com.example.vitruvianredux.presentation.components.AppEmptyState
-import com.example.vitruvianredux.presentation.components.ConnectionStatusPill
 import com.example.vitruvianredux.presentation.components.DayOfWeekSelector
 import com.example.vitruvianredux.presentation.components.PremiumAlertDialog
 import com.example.vitruvianredux.presentation.components.formatScheduledDays
@@ -51,6 +52,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.style.TextAlign
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.io.File
 import com.example.vitruvianredux.presentation.ui.AppIcons
 
 data class ProgramDraft(val name: String, val items: List<ProgramItemDraft>)
@@ -67,6 +69,30 @@ private fun Set<DayOfWeek>.toggle(day: DayOfWeek): Set<DayOfWeek> =
 val savedProgramsFlow: StateFlow<List<SavedProgram>> get() = ProgramStore.savedProgramsFlow
 
 fun deleteProgram(id: String) = ProgramStore.deleteProgram(id)
+
+private fun shareProgram(context: android.content.Context, program: SavedProgram) {
+    val safeName = program.name
+        .lowercase(java.util.Locale.ROOT)
+        .replace(Regex("[^a-z0-9]+"), "-")
+        .trim('-')
+        .ifBlank { "program" }
+    val shareDirectory = File(context.cacheDir, "shared_programs").apply { mkdirs() }
+    val file = File(shareDirectory, "$safeName.vitruvian-program.json")
+    file.writeText(ProgramExportHelper.exportToJson(listOf(program)), Charsets.UTF_8)
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file,
+    )
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "application/json"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_SUBJECT, program.name)
+        clipData = ClipData.newUri(context.contentResolver, program.name, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(shareIntent, "Share ${program.name}"))
+}
 
 @Composable
 private fun ProgramActionRail(
@@ -183,16 +209,12 @@ fun ProgramsScreen(
     onNavigateToTemplates: () -> Unit = {},
     onNavigateToImport: () -> Unit = {},
     onNavigateToHevyImport: () -> Unit = {},
-    onNavigateToOfficialPrograms: () -> Unit = {},
-    onNavigateToOfficialProgramDetail: (String) -> Unit = {},
 ) {
+    val context = LocalContext.current
     val programs by savedProgramsFlow.collectAsState()
     var showBuilder by remember { mutableStateOf(false) }
     var editingScheduleId by remember { mutableStateOf<String?>(null) }
     val hevyEnabled by HevyStore.enabledFlow.collectAsState()
-    val vitRoutines by VitruvianLibrary.routinesFlow.collectAsState()
-    val vitFavorites by VitruvianFavoritesStore.favoritesFlow.collectAsState()
-    var vitExpanded by remember { mutableStateOf(false) }
     val today = LocalDate.now().dayOfWeek
 
     // Ordered list -- preserves user order across external changes
@@ -208,9 +230,6 @@ fun ProgramsScreen(
         }
     }
 
-    val sessionState = workoutVM?.state?.collectAsState()?.value
-    val isReady      = workoutVM?.bleIsReady?.collectAsState()?.value ?: false
-
     if (showBuilder) ProgramBuilderSheet(workoutVM = workoutVM, onDismiss = { showBuilder = false })
 
     // Drag-to-reorder state
@@ -219,106 +238,26 @@ fun ProgramsScreen(
     var rowHeightPx  by remember { mutableFloatStateOf(0f) }
     val haptics = rememberUiHaptics()
 
-    // Favorites-first: non-favorites collapse unless expanded
-    var showAllPrograms by remember { mutableStateOf(false) }
-    val favoritePrograms    = orderedPrograms.filter { it.isFavorite }
-    val nonFavoritePrograms = orderedPrograms.filter { !it.isFavorite }
-    val scheduledTodayIds   = orderedPrograms.filter { today in it.scheduledDays }.map { it.id }.toSet()
-    val pinnedProgramIds    = favoritePrograms.map { it.id }.toSet() + scheduledTodayIds
-    val visiblePrograms = if (showAllPrograms || favoritePrograms.isEmpty())
-        orderedPrograms
-    else
-        orderedPrograms.filter { it.id in pinnedProgramIds }
-    val hiddenProgramsCount = (orderedPrograms.size - visiblePrograms.size).coerceAtLeast(0)
-    val scheduledTodayCount = scheduledTodayIds.size
+    val visiblePrograms = orderedPrograms
 
-    // Hearted Vitruvian routines (computed here so TopAppBar can reference them)
-    val heartedVit = vitRoutines.filter { it.id in vitFavorites }
+    var pendingDeleteProgram by remember { mutableStateOf<SavedProgram?>(null) }
 
-    // Multi-select state
-    var isSelecting by remember { mutableStateOf(false) }
-    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var showBulkDeleteDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isSelecting) {
-        if (isSelecting) editingScheduleId = null
-    }
-
-    // All selectable IDs: SavedProgram IDs + "hv_<id>" for hearted Vit rows
-    val allSelectableIds = visiblePrograms.map { it.id } + heartedVit.map { "hv_${it.id}" }
-    val selectedSavedProgramCount = selectedIds.count { !it.startsWith("hv_") }
-    val selectedFavoriteCount = selectedIds.count { it.startsWith("hv_") }
-
-    if (showBulkDeleteDialog) {
-        val deleteSummary = buildString {
-            append("This will ")
-            if (selectedSavedProgramCount > 0) {
-                append("delete $selectedSavedProgramCount saved ")
-                append(if (selectedSavedProgramCount == 1) "program" else "programs")
-            }
-            if (selectedSavedProgramCount > 0 && selectedFavoriteCount > 0) {
-                append(" and ")
-            }
-            if (selectedFavoriteCount > 0) {
-                append("remove $selectedFavoriteCount favorite ")
-                append(if (selectedFavoriteCount == 1) "routine" else "routines")
-            }
-            append(". This can't be undone.")
-        }
+    pendingDeleteProgram?.let { program ->
         PremiumAlertDialog(
-            title = "Remove selected?",
-            message = deleteSummary,
+            title = "Remove program?",
+            message = "${program.name} will be removed from your programs. This can't be undone.",
             confirmLabel = "Remove",
             destructive = true,
             onConfirm = {
-                selectedIds.forEach { id ->
-                    if (id.startsWith("hv_")) VitruvianFavoritesStore.toggle(id.removePrefix("hv_"))
-                    else ProgramStore.deleteProgram(id)
-                }
-                selectedIds = emptySet()
-                isSelecting = false
-                showBulkDeleteDialog = false
+                ProgramStore.deleteProgram(program.id)
+                pendingDeleteProgram = null
             },
-            onDismiss = { showBulkDeleteDialog = false },
+            onDismiss = { pendingDeleteProgram = null },
         )
     }
 
     Scaffold(
-        modifier            = Modifier.fillMaxSize().padding(innerPadding),
-        topBar              = {
-            TopAppBar(
-                title        = {
-                    if (isSelecting)
-                        Text("${selectedIds.size} selected", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                    else
-                        Text(stringResource(R.string.nav_programs), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                },
-                navigationIcon = {
-                    if (isSelecting) {
-                        IconButton(onClick = { isSelecting = false; selectedIds = emptySet() }) {
-                            Icon(AppIcons.Close, contentDescription = "Cancel selection")
-                        }
-                    }
-                },
-                actions = {
-                    if (isSelecting) {
-                        IconButton(onClick = { selectedIds = allSelectableIds.toSet() }) {
-                            Icon(AppIcons.CheckCircle, contentDescription = "Select all")
-                        }
-                        IconButton(onClick = {
-                            if (selectedIds.isNotEmpty()) showBulkDeleteDialog = true
-                        }) {
-                            Icon(AppIcons.Delete, contentDescription = "Delete selected", tint = MaterialTheme.colorScheme.error)
-                        }
-                    } else if (allSelectableIds.isNotEmpty()) {
-                        IconButton(onClick = { isSelecting = true }) {
-                            Icon(AppIcons.CheckCircle, contentDescription = "Select programs")
-                        }
-                    }
-                },
-                windowInsets = WindowInsets(0),
-            )
-        },
+        modifier = Modifier.fillMaxSize().padding(innerPadding),
         contentWindowInsets = WindowInsets(0),
     ) { scaffoldPadding ->
         BoxWithConstraints(
@@ -339,31 +278,15 @@ fun ProgramsScreen(
                 ),
             ) {
 
-            item(key = "subtitle") {
-                val listGuidance = when {
-                    orderedPrograms.isEmpty() -> "Build or import a repeatable plan."
-                    scheduledTodayCount > 0 && hiddenProgramsCount > 0 -> "$scheduledTodayCount today · $hiddenProgramsCount hidden"
-                    hiddenProgramsCount > 0 -> "Favorites pinned · $hiddenProgramsCount hidden"
-                    scheduledTodayCount > 0 -> "$scheduledTodayCount scheduled today"
-                    else -> "Saved training plans"
-                }
-                Text(listGuidance,
-                    style    = MaterialTheme.typography.labelMedium,
-                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = AppDimens.Spacing.sm),
-                )
-            }
-
-            if (sessionState != null) {
-                item(key = "pill") {
-                    ConnectionStatusPill(
-                        bleState = sessionState.connectionState,
-                        isReady  = isReady,
-                        modifier = Modifier.padding(bottom = AppDimens.Spacing.md),
-                    )
+            item(key = "training_identity") {
+                Column(Modifier.padding(top = 12.dp, bottom = 22.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("BUILT AROUND YOU", style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                    Text("A plan. A little momentum.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                    Text("Make room for the workouts you love.", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-
             if (orderedPrograms.isNotEmpty()) {
                 item(key = "weekly_timeline") {
                     ProgramWeekTimeline(
@@ -413,61 +336,12 @@ fun ProgramsScreen(
                 )
             }
 
-            if (orderedPrograms.isNotEmpty() && (scheduledTodayCount > 0 || hiddenProgramsCount > 0)) {
-                item(key = "programs_status") {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = AppDimens.Spacing.sm),
-                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-                    ) {
-                        if (scheduledTodayCount > 0) {
-                            Surface(
-                                shape = RoundedCornerShape(999.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(
-                                        AppIcons.CalendarToday,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(AppDimens.Icon.sm),
-                                    )
-                                    Spacer(Modifier.width(AppDimens.Spacing.xs))
-                                    Text(
-                                        "$scheduledTodayCount scheduled today",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    )
-                                }
-                            }
-                        }
-                        if (hiddenProgramsCount > 0 && favoritePrograms.isNotEmpty()) {
-                            Surface(
-                                shape = RoundedCornerShape(999.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                            ) {
-                                Text(
-                                    "$hiddenProgramsCount hidden",
-                                    modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = AppDimens.Spacing.xs),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             if (orderedPrograms.isEmpty()) {
                 item(key = "empty") {
                     AppEmptyState(
                         icon = AppIcons.Assignment,
-                        headline = "No programs yet",
-                        description = "Create your first program to structure your training journey.",
+                        headline = "Your next chapter starts here",
+                        description = "Build a routine you’ll look forward to, or explore a ready-made template.",
                         actionLabel = "Create program",
                         onAction = { showBuilder = true },
                         modifier = Modifier.padding(vertical = AppDimens.Spacing.xl),
@@ -505,13 +379,8 @@ fun ProgramsScreen(
                             detectDragGesturesAfterLongPress(
                                 onDragStart = { _ ->
                                     haptics.gestureStart()
-                                    if (isSelecting) {
-                                        // In selection mode: long-press just toggles selection, no drag
-                                        selectedIds = if (p.id in selectedIds) selectedIds - p.id else selectedIds + p.id
-                                    } else {
-                                        draggingId = p.id
-                                        dragOffsetY = 0f
-                                    }
+                                    draggingId = p.id
+                                    dragOffsetY = 0f
                                 },
                                 onDrag = { change, dragAmount ->
                                     change.consume()
@@ -562,21 +431,14 @@ fun ProgramsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .then(
-                                    if (isSelecting && p.id in selectedIds)
-                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
-                                    else if (today in p.scheduledDays)
+                                    if (today in p.scheduledDays)
                                         Modifier.background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.14f))
-                                    else
-                                        Modifier
+                                    else Modifier
                                 )
                                 .clickable(enabled = !isDragging) {
-                                    if (isSelecting) {
-                                        selectedIds = if (p.id in selectedIds) selectedIds - p.id else selectedIds + p.id
-                                    } else {
-                                        WiringRegistry.hit(A_PROGRAMS_SAVED_OPEN)
-                                        WiringRegistry.recordOutcome(A_PROGRAMS_SAVED_OPEN, ActualOutcome.Navigated("program_detail"))
-                                        onNavigateToProgramDetail(p.id)
-                                    }
+                                    WiringRegistry.hit(A_PROGRAMS_SAVED_OPEN)
+                                    WiringRegistry.recordOutcome(A_PROGRAMS_SAVED_OPEN, ActualOutcome.Navigated("program_detail"))
+                                    onNavigateToProgramDetail(p.id)
                                 }
                                 .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
                             verticalAlignment = Alignment.CenterVertically,
@@ -618,55 +480,7 @@ fun ProgramsScreen(
                                     if (scheduleSummary != null) append(" · $scheduleSummary")
                                 }
                                 Text(p.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                if (isScheduledToday) {
-                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                    Surface(
-                                        shape = RoundedCornerShape(999.dp),
-                                        color = MaterialTheme.colorScheme.secondaryContainer,
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 3.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xxs),
-                                        ) {
-                                            Icon(
-                                                AppIcons.CalendarToday,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                modifier = Modifier.size(AppDimens.Icon.xs),
-                                            )
-                                            Text(
-                                                "Scheduled today",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            )
-                                        }
-                                    }
-                                }
                                 Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                var exercisePreviewExpanded by rememberSaveable(p.id, "exercisePreview") { mutableStateOf(false) }
-                                val hiddenExerciseCount = (p.items.size - 3).coerceAtLeast(0)
-                                val exercisePreview = if (p.items.isNotEmpty()) {
-                                    val previewItems = if (exercisePreviewExpanded) p.items else p.items.take(3)
-                                    previewItems.joinToString(" · ") { it.exerciseName } + when {
-                                        exercisePreviewExpanded && hiddenExerciseCount > 0 -> "  Show less"
-                                        hiddenExerciseCount > 0 -> "  +$hiddenExerciseCount more"
-                                        else -> ""
-                                    }
-                                } else ""
-                                if (exercisePreview.isNotBlank()) {
-                                    Text(
-                                        exercisePreview,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (hiddenExerciseCount > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = if (hiddenExerciseCount > 0) {
-                                            Modifier.clickable { exercisePreviewExpanded = !exercisePreviewExpanded }
-                                        } else Modifier,
-                                        maxLines = if (exercisePreviewExpanded) 3 else 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                }
                                 Text(
                                     structureSummary,
                                     style = MaterialTheme.typography.labelSmall,
@@ -674,95 +488,85 @@ fun ProgramsScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                                if (!isSelecting) {
-                                    Spacer(Modifier.height(AppDimens.Spacing.xs))
-                                    val scheduleActionActive = editingScheduleId == p.id || isScheduledToday
-                                    val scheduleActionLabel = when {
-                                        editingScheduleId == p.id -> "Hide"
-                                        scheduleSummary == null -> "Schedule"
-                                        else -> "Days"
-                                    }
-                                    Surface(
-                                        shape = RoundedCornerShape(999.dp),
-                                        color = if (scheduleActionActive) MaterialTheme.colorScheme.primaryContainer
-                                                else MaterialTheme.colorScheme.surfaceVariant,
-                                        modifier = Modifier.clickable {
-                                            editingScheduleId = if (editingScheduleId == p.id) null else p.id
-                                        },
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
-                                        ) {
-                                            Icon(
-                                                AppIcons.CalendarToday,
-                                                contentDescription = null,
-                                                tint = if (scheduleActionActive) MaterialTheme.colorScheme.onPrimaryContainer
-                                                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(AppDimens.Icon.sm),
-                                            )
-                                            Text(
-                                                scheduleActionLabel,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = if (scheduleActionActive) MaterialTheme.colorScheme.onPrimaryContainer
-                                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
+                                Spacer(Modifier.height(AppDimens.Spacing.xs))
+                                val scheduleActionActive = editingScheduleId == p.id || isScheduledToday
+                                val scheduleActionLabel = when {
+                                    editingScheduleId == p.id -> "Hide"
+                                    scheduleSummary == null -> "Schedule"
+                                    else -> "Days"
                                 }
-                                // Scheduled day dots (Monâ€“Sun, 7 circles)
-                                if (p.scheduledDays.isNotEmpty()) {
-                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        listOf(
-                                            DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-                                            DayOfWeek.THURSDAY, DayOfWeek.FRIDAY,
-                                            DayOfWeek.SATURDAY, DayOfWeek.SUNDAY,
-                                        ).forEach { day ->
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .background(
-                                                        if (day in p.scheduledDays) avatarColor
-                                                        else MaterialTheme.colorScheme.outlineVariant,
-                                                        CircleShape,
-                                                    )
-                                            )
-                                        }
+                                Surface(
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = if (scheduleActionActive) MaterialTheme.colorScheme.primaryContainer
+                                            else MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.clickable {
+                                        editingScheduleId = if (editingScheduleId == p.id) null else p.id
+                                    },
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = AppDimens.Spacing.sm, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(AppDimens.Spacing.xs),
+                                    ) {
+                                        Icon(
+                                            AppIcons.CalendarToday,
+                                            contentDescription = null,
+                                            tint = if (scheduleActionActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                                   else MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(AppDimens.Icon.sm),
+                                        )
+                                        Text(
+                                            scheduleActionLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (scheduleActionActive) MaterialTheme.colorScheme.onPrimaryContainer
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
                                     }
                                 }
                             }
-                            if (isSelecting) {
-                                Icon(
-                                    AppIcons.CheckCircle,
-                                    contentDescription = if (p.id in selectedIds) "Selected" else "Not selected",
-                                    tint = if (p.id in selectedIds) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(AppDimens.Icon.lg),
-                                )
-                            } else {
-                                IconButton(
-                                    onClick = { ProgramStore.toggleFavorite(p.id) },
-                                    modifier = Modifier.size(AppDimens.Icon.xl),
-                                ) {
-                                    Icon(
-                                        if (p.isFavorite) AppIcons.Favorite else AppIcons.FavoriteBorder,
-                                        contentDescription = if (p.isFavorite) "Remove from favorites" else "Add to favorites",
-                                        tint = if (p.isFavorite) MaterialTheme.colorScheme.primary
-                                               else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(AppDimens.Icon.md),
-                                    )
-                                }
-                                Icon(
-                                    AppIcons.DragHandle,
-                                    contentDescription = "Long press to reorder",
-                                    tint     = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDragging) 0.9f else 0.35f),
-                                    modifier = Modifier.size(AppDimens.Icon.lg),
-                                )
+                            var showProgramMenu by rememberSaveable(p.id, "programMenu") { mutableStateOf(false) }
+                            Box {
+                                    IconButton(
+                                        onClick = { showProgramMenu = true },
+                                        modifier = Modifier.size(AppDimens.Icon.xl),
+                                    ) {
+                                        Icon(
+                                            AppIcons.MoreVert,
+                                            contentDescription = "Actions for ${p.name}",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(AppDimens.Icon.md),
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = showProgramMenu,
+                                        onDismissRequest = { showProgramMenu = false },
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Share program") },
+                                            leadingIcon = { Icon(AppIcons.Share, contentDescription = null) },
+                                            onClick = {
+                                                showProgramMenu = false
+                                                shareProgram(context, p)
+                                            },
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Remove program") },
+                                            leadingIcon = {
+                                                Icon(
+                                                    AppIcons.Delete,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.error,
+                                                )
+                                            },
+                                            onClick = {
+                                                showProgramMenu = false
+                                                pendingDeleteProgram = p
+                                            },
+                                        )
+                                    }
                             }
                         }
-                        if (!isSelecting && editingScheduleId == p.id) {
+                        if (editingScheduleId == p.id) {
                             Divider(
                                 modifier = Modifier.padding(horizontal = AppDimens.Spacing.md),
                                 color = MaterialTheme.colorScheme.outlineVariant,
@@ -835,239 +639,7 @@ fun ProgramsScreen(
                 }
             }
 
-            // Show more / show less row (only when there are non-favorite programs and favorites exist)
-            if (nonFavoritePrograms.isNotEmpty() && favoritePrograms.isNotEmpty()) {
-                item(key = "show_more") {
-                    TextButton(
-                        onClick  = { showAllPrograms = !showAllPrograms },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = AppDimens.Spacing.xs),
-                    ) {
-                        Icon(
-                            imageVector = if (showAllPrograms) AppIcons.ExpandLess else AppIcons.ExpandMore,
-                            contentDescription = null,
-                            modifier = Modifier.size(AppDimens.Icon.sm),
-                        )
-                        Spacer(Modifier.width(AppDimens.Spacing.xs))
-                        Text(if (showAllPrograms) "Show less" else "${nonFavoritePrograms.size} more")
-                    }
-                }
-            }
-
-            // ── Hearted Vitruvian routines in "Your Programs" ──────────────────────
-            items(heartedVit, key = { "hv_${it.id}" }) { r ->
-                val isLastS  = heartedVit.lastOrNull()?.id == r.id
-                val hvAllCount = orderedPrograms.size + heartedVit.size
-                val hvIdx      = orderedPrograms.size + heartedVit.indexOf(r)
-                val rowShape = when {
-                    hvAllCount == 1 -> MaterialTheme.shapes.medium
-                    hvIdx == 0      -> RoundedCornerShape(topStart = AppDimens.Corner.md_sm, topEnd = AppDimens.Corner.md_sm, bottomStart = 0.dp, bottomEnd = 0.dp)
-                    isLastS         -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = AppDimens.Corner.md_sm, bottomEnd = AppDimens.Corner.md_sm)
-                    else            -> RoundedCornerShape(0.dp)
-                }
-                Surface(
-                    modifier       = Modifier.fillMaxWidth(),
-                    shape          = rowShape,
-                    border         = androidx.compose.foundation.BorderStroke(
-                        AppDimens.Stroke.thin,
-                        MaterialTheme.colorScheme.outline,
-                    ),
-                ) {
-                    Column {
-                        val hvKey = "hv_${r.id}"
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(
-                                    if (isSelecting && hvKey in selectedIds)
-                                        Modifier.background(MaterialTheme.colorScheme.primaryContainer)
-                                    else
-                                        Modifier
-                                )
-                                .clickable {
-                                    if (isSelecting) {
-                                        selectedIds = if (hvKey in selectedIds) selectedIds - hvKey else selectedIds + hvKey
-                                    } else {
-                                        onNavigateToOfficialProgramDetail(r.id)
-                                    }
-                                }
-                                .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(AppDimens.Icon.xl)
-                                    .background(MaterialTheme.colorScheme.tertiaryContainer, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text       = r.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                                    style      = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color      = MaterialTheme.colorScheme.tertiary,
-                                    textAlign  = TextAlign.Center,
-                                )
-                            }
-                            Spacer(Modifier.width(AppDimens.Spacing.md))
-                            Column(Modifier.weight(1f)) {
-                                Text(r.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                Text(
-                                    r.muscleLabels.ifBlank { "${r.totalExercises} exercises" },
-                                    style    = MaterialTheme.typography.bodySmall,
-                                    color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                            if (isSelecting) {
-                                Icon(
-                                    AppIcons.CheckCircle,
-                                    contentDescription = if (hvKey in selectedIds) "Selected" else "Not selected",
-                                    tint = if (hvKey in selectedIds) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(AppDimens.Icon.lg),
-                                )
-                            } else {
-                                IconButton(
-                                    onClick  = { VitruvianFavoritesStore.toggle(r.id) },
-                                    modifier = Modifier.size(AppDimens.Icon.xl),
-                                ) {
-                                    Icon(
-                                        AppIcons.Favorite,
-                                        contentDescription = "Remove from My Programs",
-                                        tint     = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(AppDimens.Icon.md),
-                                    )
-                                }
-                            }
-                        }
-                        if (!isLastS) {
-                            Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                }
-            }
-
             item(key = "spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
-
-            // ── Vitruvian Programs (collapsible) ─────────────────────────────────────
-            item(key = "vit_header") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
-                            vitExpanded = !vitExpanded
-                        }
-                        .padding(top = AppDimens.Spacing.xs, bottom = AppDimens.Spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        if (vitExpanded || vitRoutines.isEmpty()) "Vitruvian Library"
-                        else "Vitruvian Library (${vitRoutines.size})",
-                        style    = MaterialTheme.typography.labelLarge,
-                        color    = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (vitRoutines.isNotEmpty()) {
-                        IconButton(
-                            onClick = { vitExpanded = !vitExpanded },
-                            modifier = Modifier.size(AppDimens.Icon.xl),
-                        ) {
-                            Icon(
-                                if (vitExpanded) AppIcons.ExpandLess else AppIcons.ExpandMore,
-                                contentDescription = if (vitExpanded) "Collapse" else "Expand",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        TextButton(
-                            onClick      = onNavigateToOfficialPrograms,
-                            contentPadding = PaddingValues(horizontal = AppDimens.Spacing.sm, vertical = 0.dp),
-                        ) {
-                            Icon(AppIcons.Search, contentDescription = null, modifier = Modifier.size(AppDimens.Icon.sm))
-                            Spacer(Modifier.width(AppDimens.Spacing.xxs))
-                            Text("Browse", style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                }
-            }
-
-            if (vitExpanded) {
-                items(vitRoutines, key = { "vit_${it.id}" }) { r ->
-                    val isFirst = vitRoutines.firstOrNull()?.id == r.id
-                    val isLast  = vitRoutines.lastOrNull()?.id == r.id
-                    val rowShape = when {
-                        vitRoutines.size == 1 -> MaterialTheme.shapes.medium
-                        isFirst -> RoundedCornerShape(topStart = AppDimens.Corner.md_sm, topEnd = AppDimens.Corner.md_sm, bottomStart = 0.dp, bottomEnd = 0.dp)
-                        isLast  -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = AppDimens.Corner.md_sm, bottomEnd = AppDimens.Corner.md_sm)
-                        else    -> RoundedCornerShape(0.dp)
-                    }
-                    Surface(
-                        modifier       = Modifier.fillMaxWidth(),
-                        shape          = rowShape,
-                        border         = androidx.compose.foundation.BorderStroke(
-                            AppDimens.Stroke.thin,
-                            MaterialTheme.colorScheme.outline,
-                        ),
-                    ) {
-                        Column {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onNavigateToOfficialProgramDetail(r.id) }
-                                    .padding(horizontal = AppDimens.Spacing.md, vertical = AppDimens.Spacing.md_sm),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(AppDimens.Icon.xl)
-                                        .background(MaterialTheme.colorScheme.tertiaryContainer, CircleShape),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text       = r.name.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                                        style      = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color      = MaterialTheme.colorScheme.tertiary,
-                                        textAlign  = TextAlign.Center,
-                                    )
-                                }
-                                Spacer(Modifier.width(AppDimens.Spacing.md))
-                                Column(Modifier.weight(1f)) {
-                                    Text(r.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Spacer(Modifier.height(AppDimens.Spacing.xxs))
-                                    Text(
-                                        r.muscleLabels.ifBlank { "${r.totalExercises} exercises" },
-                                        style    = MaterialTheme.typography.bodySmall,
-                                        color    = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                                val isHearted = r.id in vitFavorites
-                                IconButton(
-                                    onClick  = { VitruvianFavoritesStore.toggle(r.id) },
-                                    modifier = Modifier.size(AppDimens.Icon.xl),
-                                ) {
-                                    Icon(
-                                        if (isHearted) AppIcons.Favorite else AppIcons.FavoriteBorder,
-                                        contentDescription = if (isHearted) "Remove from My Programs" else "Add to My Programs",
-                                        tint = if (isHearted) MaterialTheme.colorScheme.primary
-                                               else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(AppDimens.Icon.md),
-                                    )
-                                }
-                            }
-                            if (!isLast) {
-                                Divider(modifier = Modifier.padding(horizontal = AppDimens.Spacing.md), color = MaterialTheme.colorScheme.outlineVariant)
-                            }
-                        }
-                    }
-                }
-                item(key = "vit_spacer") { Spacer(Modifier.height(AppDimens.Spacing.lg)) }
-            }
-
             }
         }
     }

@@ -67,7 +67,7 @@ fun PremiumGradientBackground(modifier: Modifier = Modifier) {
 fun PremiumCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(AppDimens.Corner.md),
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(24.dp),
     content: @Composable () -> Unit,
 ) {
     val ext = LocalExtendedColors.current
@@ -85,6 +85,7 @@ fun PremiumCard(
         .graphicsLayer(scaleX = scale, scaleY = scale)
         .clip(shape)
         .background(background)
+        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .35f), shape)
 
     val withClick = if (onClick != null) {
         base.clickable(

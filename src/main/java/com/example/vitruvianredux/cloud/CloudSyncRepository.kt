@@ -24,6 +24,10 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+/** A synchronization timestamp is not a user-setting modification timestamp. */
+internal fun latestSettingsUpdatedAt(storeTimestamps: Iterable<Long>): Long =
+    storeTimestamps.filter { it > 0L }.maxOrNull() ?: 0L
+
 /**
  * Orchestrator for cloud sync.
  *
@@ -40,6 +44,7 @@ object CloudSyncRepository {
     private const val TAG = "CloudSyncRepo"
     private const val PREFS = "vitruvian_cloud_sync"
     private const val KEY_LAST_SYNC = "last_sync_at"
+    private const val KEY_ACCOUNT_OWNER = "local_data_account_owner"
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -50,12 +55,39 @@ object CloudSyncRepository {
     private val _state = MutableStateFlow<CloudSyncState>(CloudSyncState.Idle)
     val state: StateFlow<CloudSyncState> = _state.asStateFlow()
 
-    val lastSyncAt: Long get() = if (::prefs.isInitialized) prefs.getLong(KEY_LAST_SYNC, 0L) else 0L
+    val lastSyncAt: Long
+        get() = AuthRepository.userId?.let(::lastSyncAtFor) ?: 0L
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         deviceId = InstallationId.get(context)
+        AuthRepository.userId?.let(::claimAccountScope)
     }
+
+    /**
+     * Bind this installation's local data to the first authenticated account.
+     * Until a user-visible merge/replace workflow exists, a different account
+     * must not pull into or upload from these account-neutral local stores.
+     */
+    fun claimAccountScope(userId: String): Boolean {
+        if (!::prefs.isInitialized || userId.isBlank()) return true
+        val existing = prefs.getString(KEY_ACCOUNT_OWNER, null)
+        if (accountScopeConflicts(existing, userId)) return false
+        if (existing.isNullOrBlank()) {
+            val legacyLastSync = prefs.getLong(KEY_LAST_SYNC, 0L)
+            prefs.edit()
+                .putString(KEY_ACCOUNT_OWNER, userId)
+                .apply {
+                    if (legacyLastSync > 0L) putLong(scopedLastSyncKey(userId), legacyLastSync)
+                    remove(KEY_LAST_SYNC)
+                }
+                .apply()
+        }
+        return true
+    }
+
+    private fun lastSyncAtFor(userId: String): Long =
+        if (::prefs.isInitialized) prefs.getLong(scopedLastSyncKey(userId), 0L) else 0L
 
     // ═════════════════════════════════════════════════════════════════════════
     //  Full sync: push all local → remote, then pull remote → local
@@ -70,7 +102,11 @@ object CloudSyncRepository {
         }
         val userId = AuthRepository.userId
             ?: return@withLock CloudSyncState.Failed("No user ID")
+        if (!claimAccountScope(userId)) {
+            return@withLock CloudSyncState.Failed(ACCOUNT_SCOPE_ERROR)
+        }
 
+        val startedAt = System.currentTimeMillis()
         _state.value = CloudSyncState.Syncing
         Timber.tag(TAG).i("Cloud sync starting for user=$userId, device=$deviceId")
 
@@ -82,7 +118,7 @@ object CloudSyncRepository {
 
             // Record sync time
             val now = System.currentTimeMillis()
-            prefs.edit().putLong(KEY_LAST_SYNC, now).apply()
+            prefs.edit().putLong(scopedLastSyncKey(userId), now).apply()
 
             // Update device last_sync_at
             try {
@@ -95,13 +131,22 @@ object CloudSyncRepository {
             Timber.tag(TAG).i("Cloud sync complete: $summary")
             val result = CloudSyncState.Success(summary)
             _state.value = result
+            UxTelemetryStore.record("cloud_sync_success", durationBucket(System.currentTimeMillis() - startedAt))
             result
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Cloud sync failed")
             val result = CloudSyncState.Failed(e.message ?: "Sync failed")
             _state.value = result
+            UxTelemetryStore.record("cloud_sync_failure", durationBucket(System.currentTimeMillis() - startedAt))
             result
         }
+    }
+
+    private fun durationBucket(durationMs: Long): String = when {
+        durationMs < 1_000L -> "under_1s"
+        durationMs < 5_000L -> "1_to_5s"
+        durationMs < 15_000L -> "5_to_15s"
+        else -> "over_15s"
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -147,13 +192,13 @@ object CloudSyncRepository {
         if (localPrograms.isEmpty()) return 0
 
         // Fetch remote timestamps so we only push locally-newer records (LWW)
-        val remoteMap = try {
-            RemoteDataSource.getPrograms().associateBy { it.id }
-        } catch (_: Exception) { emptyMap() }
+        // If this verification read fails, abort the sync. Treating an error as
+        // an empty cloud would make every local row look safe to overwrite.
+        val remoteMap = RemoteDataSource.getPrograms().associateBy { it.id }
 
         val toUpsert = localPrograms.filter { p ->
             val existing = remoteMap[p.id]
-            existing == null || p.updatedAt >= existing.updatedAt
+            existing == null || p.updatedAt > existing.updatedAt
         }
         if (toUpsert.isEmpty()) return 0
 
@@ -181,8 +226,14 @@ object CloudSyncRepository {
         if (!SyncServiceLocator.isInitialized) return 0
         val localSessions = SyncServiceLocator.sessionRepo.loadAll()
         if (localSessions.isEmpty()) return 0
+        val remoteMap = RemoteDataSource.getSessions().associateBy { it.id }
+        val locallyNewer = localSessions.filter { session ->
+            val remote = remoteMap[session.id]
+            remote == null || session.updatedAt > remote.updatedAt
+        }
+        if (locallyNewer.isEmpty()) return 0
 
-        val remote = localSessions.map { s ->
+        val remote = locallyNewer.map { s ->
             RemoteSession(
                 id = s.id,
                 userId = userId,
@@ -207,12 +258,20 @@ object CloudSyncRepository {
         val logs = AnalyticsStore.logsFlow.value
         if (logs.isEmpty()) return 0
 
-        // Only push logs created/modified since the last successful sync
-        val lastSync = lastSyncAt
-        val newLogs = if (lastSync > 0L) logs.filter { it.createdAt >= lastSync } else logs
+        // Only push logs created/modified since the last successful sync.
+        // Historical cable corrections advance updatedAt without changing createdAt.
+        val lastSync = lastSyncAtFor(userId)
+        val newLogs = if (lastSync > 0L) logs.filter { it.updatedAt >= lastSync } else logs
         if (newLogs.isEmpty()) return 0
+        val remoteMap = RemoteDataSource.getAnalyticsLogs().associateBy { it.id }
+        val locallyNewer = newLogs.filter { log ->
+            val remote = remoteMap[log.id]
+            val remoteUpdatedAt = remote?.updatedAt?.takeIf { it > 0L } ?: remote?.createdAt
+            remoteUpdatedAt == null || log.updatedAt > remoteUpdatedAt
+        }
+        if (locallyNewer.isEmpty()) return 0
 
-        val remote = newLogs.map { log ->
+        val remote = locallyNewer.map { log ->
             RemoteAnalyticsLog(
                 id = log.id,
                 userId = userId,
@@ -231,7 +290,7 @@ object CloudSyncRepository {
                 createdAt = log.createdAt,
                 exerciseSets = json.parseToJsonElement(exerciseSetsToJson(log.exerciseSets)),
                 deviceId = deviceId,
-                updatedAt = log.createdAt,  // use createdAt as LWW clock for logs
+                updatedAt = log.updatedAt,
             )
         }
         RemoteDataSource.upsertAnalyticsLogs(remote)
@@ -239,10 +298,17 @@ object CloudSyncRepository {
     }
 
     private suspend fun pushCustomExercises(userId: String): Int {
-        val exercises = CustomExerciseStore.exercises.value
-        if (exercises.isEmpty()) return 0
+        val records = CustomExerciseStore.syncRecords()
+        if (records.isEmpty()) return 0
+        val remoteMap = RemoteDataSource.getCustomExercises().associateBy { it.id }
+        val locallyNewer = records.filter { record ->
+            val remote = remoteMap[record.exercise.id]
+            remote == null || record.updatedAt > remote.updatedAt
+        }
+        if (locallyNewer.isEmpty()) return 0
 
-        val remote = exercises.map { ex ->
+        val remote = locallyNewer.map { record ->
+            val ex = record.exercise
             RemoteCustomExercise(
                 id = ex.id,
                 userId = userId,
@@ -255,7 +321,8 @@ object CloudSyncRepository {
                 perSide = ex.perSide,
                 isFavorite = ex.isFavorite,
                 deviceId = deviceId,
-                updatedAt = System.currentTimeMillis(),
+                updatedAt = record.updatedAt,
+                deletedAt = record.deletedAt,
             )
         }
         RemoteDataSource.upsertCustomExercises(remote)
@@ -273,16 +340,16 @@ object CloudSyncRepository {
         // the remote timestamp reflects when the user truly made a change, not just
         // when a sync happened to run.  This prevents a future pull from treating a
         // sync-time stamp as newer than a real user edit on another device.
-        val settingsUpdatedAt = listOf(
-            ThemeStore.updatedAt,
-            UnitsStore.updatedAt,
-            JustLiftStore.updatedAt,
-            LedColorStore.updatedAt,
-            VoiceCoachingStore.updatedAt,
-            VitruvianFavoritesStore.updatedAt,
-            BodyWeightStore.updatedAt,
-            lastSyncAt,
-        ).maxOrNull() ?: 0L
+        val settingsUpdatedAt = latestSettingsUpdatedAt(
+            listOf(
+                ThemeStore.updatedAt,
+                UnitsStore.updatedAt,
+                JustLiftStore.updatedAt,
+                LedColorStore.updatedAt,
+                VoiceCoachingStore.updatedAt,
+                BodyWeightStore.updatedAt,
+            ),
+        )
 
         val settings = RemoteUserSettings(
             userId = userId,
@@ -381,7 +448,7 @@ object CloudSyncRepository {
                     deletedAt = rs.deletedAt,
                     deviceId = rs.deviceId,
                 )
-                SyncServiceLocator.sessionRepo.save(session)
+                SyncServiceLocator.sessionRepo.importSynced(session)
                 accepted++
             }
         }
@@ -392,12 +459,14 @@ object CloudSyncRepository {
         val remoteLogs = RemoteDataSource.getAnalyticsLogs()
         if (remoteLogs.isEmpty()) return 0
 
-        val localIds = AnalyticsStore.logsFlow.value.map { it.id }.toSet()
+        val localMap = AnalyticsStore.logsFlow.value.associateBy { it.id }
         var accepted = 0
+        val acceptedRemoteLogs = mutableListOf<RemoteAnalyticsLog>()
 
         for (rl in remoteLogs) {
-            // Analytics logs are append-only: skip if already present
-            if (rl.id in localIds) continue
+            val local = localMap[rl.id]
+            val remoteUpdatedAt = rl.updatedAt.takeIf { it > 0L } ?: rl.createdAt
+            if (local != null && remoteUpdatedAt <= local.updatedAt) continue
 
             val exerciseNames: List<String> = try {
                 json.decodeFromString(rl.exerciseNames.toString())
@@ -420,25 +489,23 @@ object CloudSyncRepository {
                 heaviestLiftLb = rl.heaviestLiftLb,
                 calories = rl.calories,
                 createdAt = rl.createdAt,
+                updatedAt = remoteUpdatedAt,
                 exerciseSets = exerciseSets,
             )
-            AnalyticsStore.record(log)
+            AnalyticsStore.upsert(log)
             accepted++
+            acceptedRemoteLogs += rl
         }
 
-        // Reconcile: ensure WorkoutHistoryStore has entries for pulled logs
-        if (accepted > 0) {
-            reconcilePulledAnalytics(remoteLogs.filter { it.id !in localIds })
-        }
+        // Reconcile both newly pulled sessions and newer corrections into Home/history projections.
+        if (acceptedRemoteLogs.isNotEmpty()) reconcilePulledAnalytics(acceptedRemoteLogs)
         return accepted
     }
 
-    private fun reconcilePulledAnalytics(newRemoteLogs: List<RemoteAnalyticsLog>) {
-        // newRemoteLogs contains only IDs not already in AnalyticsStore (filtered by caller),
-        // so each session here is guaranteed to be new on this device.
+    private fun reconcilePulledAnalytics(remoteLogs: List<RemoteAnalyticsLog>) {
         val zone = ZoneId.systemDefault()
 
-        for (rl in newRemoteLogs) {
+        for (rl in remoteLogs) {
             val date = Instant.ofEpochMilli(rl.endTimeMs).atZone(zone).toLocalDate()
             val exerciseNames: List<String> = try {
                 json.decodeFromString(rl.exerciseNames.toString())
@@ -446,6 +513,7 @@ object CloudSyncRepository {
 
             WorkoutHistoryStore.record(
                 WorkoutHistoryStore.WorkoutRecord(
+                    id = rl.id,
                     date = date,
                     exerciseNames = exerciseNames,
                     muscleGroups = emptyList(),    // will be populated on next app launch
@@ -463,56 +531,26 @@ object CloudSyncRepository {
         val remoteExercises = RemoteDataSource.getCustomExercises()
         if (remoteExercises.isEmpty()) return 0
 
-        val localMap = CustomExerciseStore.exercises.value.associateBy { it.id }
         var accepted = 0
 
         for (re in remoteExercises) {
-            val local = localMap[re.id]
-            // For custom exercises, accept if new or remote updatedAt > 0 and not locally present
-            if (local == null) {
-                if (re.deletedAt != null) continue  // skip remotely deleted exercises we never had
-                val exercise = Exercise(
-                    id = re.id,
-                    name = re.name,
-                    muscleGroups = buildList {
-                        if (re.primaryMuscleGroup.isNotBlank()) add(re.primaryMuscleGroup.uppercase())
-                        if (re.secondaryMuscleGroup.isNotBlank()) add(re.secondaryMuscleGroup.uppercase())
-                    },
-                    source = ExerciseSource.CUSTOM,
-                    defaultTrackingType = try { TrackingType.valueOf(re.defaultTrackingType) } catch (_: Exception) { TrackingType.REPS },
-                    defaultMode = re.defaultMode,
-                    notes = re.notes,
-                    primaryMuscleGroup = re.primaryMuscleGroup,
-                    secondaryMuscleGroup = re.secondaryMuscleGroup,
-                    perSide = re.perSide,
-                    isFavorite = re.isFavorite,
-                )
-                CustomExerciseStore.add(exercise, requestSync = false)
-                accepted++
-            }
-            // If exists locally but remotely deleted, remove locally
-            else if (re.deletedAt != null && re.updatedAt > 0) {
-                CustomExerciseStore.delete(re.id, requestSync = false)
-                accepted++
-            }
-            // If exists locally and remotely updated more recently, apply remote edits
-            else if (local != null && re.updatedAt > 0 && re.deletedAt == null) {
-                val updated = local.copy(
-                    name = re.name,
-                    primaryMuscleGroup = re.primaryMuscleGroup,
-                    secondaryMuscleGroup = re.secondaryMuscleGroup,
-                    muscleGroups = buildList {
-                        if (re.primaryMuscleGroup.isNotBlank()) add(re.primaryMuscleGroup.uppercase())
-                        if (re.secondaryMuscleGroup.isNotBlank()) add(re.secondaryMuscleGroup.uppercase())
-                    },
-                    defaultMode = re.defaultMode,
-                    notes = re.notes,
-                    perSide = re.perSide,
-                    isFavorite = re.isFavorite,
-                )
-                CustomExerciseStore.update(updated, requestSync = false)
-                accepted++
-            }
+            val exercise = Exercise(
+                id = re.id,
+                name = re.name,
+                muscleGroups = buildList {
+                    if (re.primaryMuscleGroup.isNotBlank()) add(re.primaryMuscleGroup.uppercase())
+                    if (re.secondaryMuscleGroup.isNotBlank()) add(re.secondaryMuscleGroup.uppercase())
+                },
+                source = ExerciseSource.CUSTOM,
+                defaultTrackingType = try { TrackingType.valueOf(re.defaultTrackingType) } catch (_: Exception) { TrackingType.REPS },
+                defaultMode = re.defaultMode,
+                notes = re.notes,
+                primaryMuscleGroup = re.primaryMuscleGroup,
+                secondaryMuscleGroup = re.secondaryMuscleGroup,
+                perSide = re.perSide,
+                isFavorite = re.isFavorite,
+            )
+            if (CustomExerciseStore.applyRemote(exercise, re.updatedAt, re.deletedAt)) accepted++
         }
         return accepted
     }
@@ -825,8 +863,6 @@ object CloudSyncRepository {
 
     private fun settingsExtrasToJson(): String {
         val voiceSettings = VoiceCoachingStore.settingsFlow.value
-        val favorites = VitruvianFavoritesStore.favoritesFlow.value.toList().sorted()
-
         return JSONObject().apply {
             put("voiceCoaching", JSONObject().apply {
                 put("coachingLevel", voiceSettings.coachingLevel.name)
@@ -835,10 +871,6 @@ object CloudSyncRepository {
                 put("repAnnouncementsEnabled", voiceSettings.repAnnouncementsEnabled)
                 put("restCountdownEnabled", voiceSettings.restCountdownEnabled)
                 put("updatedAt", VoiceCoachingStore.updatedAt)
-            })
-            put("vitruvianFavorites", JSONObject().apply {
-                put("updatedAt", VitruvianFavoritesStore.updatedAt)
-                put("ids", JSONArray().apply { favorites.forEach(::put) })
             })
             put("bodyWeight", JSONObject().apply {
                 put("updatedAt", BodyWeightStore.updatedAt)
@@ -870,20 +902,6 @@ object CloudSyncRepository {
             )
             VoiceCoachingStore.applyFromRemote(
                 settings = settings,
-                remoteUpdatedAt = obj.optLong("updatedAt", 0L),
-            )
-        }
-
-        root.optJSONObject("vitruvianFavorites")?.let { obj ->
-            val ids = obj.optJSONArray("ids")?.let { arr ->
-                buildSet {
-                    for (index in 0 until arr.length()) {
-                        arr.optString(index)?.takeIf { it.isNotBlank() }?.let(::add)
-                    }
-                }
-            } ?: emptySet()
-            VitruvianFavoritesStore.applyFromRemote(
-                ids = ids,
                 remoteUpdatedAt = obj.optLong("updatedAt", 0L),
             )
         }
@@ -1045,3 +1063,12 @@ object CloudSyncRepository {
         return accepted
     }
 }
+
+internal const val ACCOUNT_SCOPE_ERROR =
+    "This device's local training data is linked to another account. " +
+        "Sign back into that account; merge or replace must be chosen before switching."
+
+internal fun accountScopeConflicts(boundUserId: String?, requestedUserId: String): Boolean =
+    !boundUserId.isNullOrBlank() && boundUserId != requestedUserId
+
+internal fun scopedLastSyncKey(userId: String): String = "last_sync_at:$userId"

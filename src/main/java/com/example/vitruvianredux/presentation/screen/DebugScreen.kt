@@ -3,6 +3,7 @@
 package com.example.vitruvianredux.presentation.screen
 
 import com.vitruvian.trainer.R
+import android.content.Intent
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import com.example.vitruvianredux.ble.BleConnectionState
 import com.example.vitruvianredux.ble.BleDebugLog
@@ -28,6 +30,17 @@ import com.example.vitruvianredux.ble.BleViewModel
 import com.example.vitruvianredux.ble.WorkoutSessionViewModel
 import com.example.vitruvianredux.ble.protocol.WorkoutParameters
 import com.example.vitruvianredux.data.AnalyticsProvenance
+import com.example.vitruvianredux.data.DiagnosticsLogLine
+import com.example.vitruvianredux.data.DiagnosticsReportBuilder
+import com.example.vitruvianredux.data.DiagnosticsSnapshot
+import com.example.vitruvianredux.data.MachineCalibrationStore
+import com.example.vitruvianredux.data.UxTelemetryStore
+import com.example.vitruvianredux.data.AdaptiveDecisionOutcome
+import com.example.vitruvianredux.data.AdaptiveDecisionStore
+import com.example.vitruvianredux.data.AnalyticsStore
+import com.example.vitruvianredux.data.AnalyticsTrustAudit
+import com.example.vitruvianredux.cloud.CloudSyncRepository
+import com.vitruvian.trainer.BuildConfig
 import com.example.vitruvianredux.presentation.ui.AppDimens
 import com.example.vitruvianredux.presentation.ui.theme.AccentAmber
 import com.example.vitruvianredux.presentation.ui.theme.StatusError
@@ -49,6 +62,14 @@ fun DebugScreen(
     val bleState     by bleVM.state.collectAsState()
     val sessionState by workoutVM.state.collectAsState()
     val logEntries   by BleDebugLog.entries.collectAsState()
+    val diagnostics by workoutVM.bleDiagnostics.collectAsState()
+    val cloudState by CloudSyncRepository.state.collectAsState()
+    val partnerSnapshot by workoutVM.partnerLiveSnapshot.collectAsState()
+    val calibration by MachineCalibrationStore.profile.collectAsState()
+    val uxEvents by UxTelemetryStore.events.collectAsState()
+    val analyticsLogs by AnalyticsStore.logsFlow.collectAsState()
+    val adaptiveDecisions by AdaptiveDecisionStore.events.collectAsState()
+    val context = LocalContext.current
     val listState    = rememberLazyListState()
     val scope        = rememberCoroutineScope()
     val isConnected  = bleState is BleConnectionState.Connected
@@ -160,6 +181,56 @@ fun DebugScreen(
                             if (logEntries.isNotEmpty())
                                 listState.animateScrollToItem(logEntries.size - 1)
                         }
+                    }
+                    DebugButton("EXPORT") {
+                        val now = System.currentTimeMillis()
+                        val partner = partnerSnapshot
+                        val trust = AnalyticsTrustAudit.audit(analyticsLogs)
+                        val report = DiagnosticsReportBuilder.build(
+                            DiagnosticsSnapshot(
+                                generatedAtMs = now,
+                                appVersion = BuildConfig.VERSION_NAME,
+                                connectionState = bleState::class.simpleName ?: "Unknown",
+                                sessionPhase = sessionState.sessionPhase::class.simpleName ?: "Unknown",
+                                bleReady = diagnostics.isReady,
+                                writeCharacteristicReady = diagnostics.writeCharCached,
+                                notificationsReady = diagnostics.notifyEnabled,
+                                lastTxAtMs = diagnostics.lastTxAt,
+                                lastRxAtMs = diagnostics.lastRxAt,
+                                lastGattAtMs = diagnostics.lastGattEventAt,
+                                hasBleError = diagnostics.lastError != null,
+                                cloudState = cloudState::class.simpleName ?: "Unknown",
+                                partnerStatus = partner?.status?.name,
+                                partnerRevision = partner?.revision,
+                                partnerMemberCount = partner?.members?.size,
+                                partnerLeaseActive = partner?.let { it.bleLeaseExpiresAt > now },
+                                calibration = calibration,
+                                uxSummary = UxTelemetryStore.summary(uxEvents),
+                                logs = logEntries.map {
+                                    DiagnosticsLogLine(
+                                        timestampMs = it.timestampMs,
+                                        direction = it.direction.name,
+                                        characteristic = it.shortUuid,
+                                        byteCount = it.bytes.size,
+                                        note = it.note,
+                                    )
+                                },
+                                analyticsTrustScore = trust.score,
+                                analyticsUncertainSets = trust.uncertainCableSetCount,
+                                adaptiveDecisionCount = adaptiveDecisions.size,
+                                adaptiveAcceptedCount = adaptiveDecisions.count { it.outcome == AdaptiveDecisionOutcome.ACCEPTED },
+                            )
+                        )
+                        context.startActivity(
+                            Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Vitruvian Redux support report")
+                                    putExtra(Intent.EXTRA_TEXT, report)
+                                },
+                                "Share support report",
+                            )
+                        )
                     }
                 }
 

@@ -12,6 +12,7 @@ data class PartnerDeviceMember(
     val deviceId: String,
     val joinedAt: Long,
     val lastSeenAt: Long,
+    val ready: Boolean = true,
 )
 
 @Serializable
@@ -43,7 +44,9 @@ data class PartnerLiveSnapshot(
     val group: PartnerWorkoutGroup? = null,
     val currentAssignmentId: String? = null,
     val bleOwnerParticipantId: String? = null,
+    val bleOwnerDeviceId: String? = null,
     val bleLeaseExpiresAt: Long = 0L,
+    val bleLeaseEpoch: Long = 0L,
     val completedResults: List<PartnerSetResult> = emptyList(),
     val revision: Long = 0L,
     val updatedAt: Long,
@@ -62,6 +65,7 @@ data class PartnerSessionRequest(
     val inviteToken: String,
     val participantId: String,
     val expectedRevision: Long? = null,
+    val deviceId: String? = null,
 )
 
 @Serializable
@@ -69,6 +73,8 @@ data class PartnerStartRequest(
     val groupId: String,
     val inviteToken: String,
     val rotationMode: PartnerRotationMode,
+    val participantId: String,
+    val deviceId: String,
 )
 
 @Serializable

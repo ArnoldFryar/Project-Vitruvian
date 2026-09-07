@@ -417,6 +417,32 @@ internal fun completedSetRepCounts(
     return warmupRepsCompleted to workingRepsCompleted
 }
 
+/** Symmetry is not a meaningful metric when a set used only one cable. */
+internal fun clearSingleCableSymmetry(stats: ExerciseStats, effectiveCableCount: Int): ExerciseStats =
+    if (effectiveCableCount == 1) stats.copy(avgSymmetry = null) else stats
+
+internal fun cableAwareForceSummary(
+    mode: com.example.vitruvianredux.ble.session.CableExecutionMode,
+    effectiveCableCount: Int,
+    leftAverageKg: Float,
+    rightAverageKg: Float,
+    leftPeakKg: Float,
+    rightPeakKg: Float,
+): Pair<Float, Float> = when (mode) {
+    com.example.vitruvianredux.ble.session.CableExecutionMode.SINGLE_LEFT ->
+        leftAverageKg to leftPeakKg
+    com.example.vitruvianredux.ble.session.CableExecutionMode.SINGLE_RIGHT ->
+        rightAverageKg to rightPeakKg
+    com.example.vitruvianredux.ble.session.CableExecutionMode.DUAL_SYNCHRONOUS,
+    com.example.vitruvianredux.ble.session.CableExecutionMode.DUAL_ALTERNATING ->
+        ((leftAverageKg + rightAverageKg) / 2f) to maxOf(leftPeakKg, rightPeakKg)
+    com.example.vitruvianredux.ble.session.CableExecutionMode.UNKNOWN -> if (effectiveCableCount == 1) {
+        maxOf(leftAverageKg, rightAverageKg) to maxOf(leftPeakKg, rightPeakKg)
+    } else {
+        ((leftAverageKg + rightAverageKg) / 2f) to maxOf(leftPeakKg, rightPeakKg)
+    }
+}
+
 internal fun isReconnectablePhase(phase: SessionPhase): Boolean = when (phase) {
     is SessionPhase.InSet,
     is SessionPhase.ExerciseActive,
@@ -424,6 +450,19 @@ internal fun isReconnectablePhase(phase: SessionPhase): Boolean = when (phase) {
     is SessionPhase.Resting -> true
     else -> false
 }
+
+internal fun canRequestPlayerFinish(phase: SessionPhase): Boolean = when (phase) {
+    is SessionPhase.SetReady,
+    is SessionPhase.ExerciseActive,
+    is SessionPhase.Resting,
+    is SessionPhase.ExerciseComplete,
+    is SessionPhase.Paused,
+    -> true
+    else -> false
+}
+
+internal fun shouldStopTrainerBeforeFinish(phase: SessionPhase, isOffMachineTimer: Boolean): Boolean =
+    phase is SessionPhase.ExerciseActive && !isOffMachineTimer
 
 class WorkoutSessionEngine(
     internal val bleClient: AndroidBleClient,
@@ -505,6 +544,7 @@ class WorkoutSessionEngine(
     private var postSetTransitionJob: Job? = null
     private val restTransitionEpoch = SessionTransitionEpoch()
     private val postSetTransitionEpoch = SessionTransitionEpoch()
+    private var restSuspendedForFinishConfirmation = false
     /** Job driving the 15-second reconnect countdown. Cancelled on success or explicit reset. */
     private var reconnectJob: Job? = null
     /** Phase captured at the moment of disconnect — used to resume after successful reconnect. */
@@ -648,6 +688,14 @@ class WorkoutSessionEngine(
     /** Observes warm-up and working telemetry to correct catalog cable-count mistakes. */
     private val cableUsageDetector = com.example.vitruvianredux.ble.session.CableUsageDetector()
 
+    fun configureCableUsageDetection(
+        activeRangeMm: Float,
+        inactiveRangeMm: Float,
+        movingVelocityMmS: Float,
+    ) {
+        cableUsageDetector.configure(activeRangeMm, inactiveRangeMm, movingVelocityMmS)
+    }
+
     companion object {
         /** Duration handles must stay released before auto-stopping (spec: >5 s). */
         private const val HANDLE_RELEASE_AUTO_STOP_MS = 5_000L
@@ -663,7 +711,9 @@ class WorkoutSessionEngine(
         private const val DELOAD_OCCURRED_MASK = 0x8000
         /** Minimum average-cable delta that counts as movement for notification recovery. */
         private const val REP_NOTIFY_MOTION_DELTA = 0.03f
-        private const val PARTNER_STOP_DRAIN_MS = 650L
+        private const val PARTNER_STATIONARY_TIMEOUT_MS = 3_000L
+        private const val PARTNER_STATIONARY_SAMPLE_MS = 75L
+        private const val PARTNER_STATIONARY_SAMPLES = 3
         private const val PARTNER_DISCONNECT_TIMEOUT_MS = 5_000L
         private const val PARTNER_CONNECT_TIMEOUT_MS = 12_000L
     }
@@ -808,7 +858,9 @@ class WorkoutSessionEngine(
                                 val effective = usage.effectiveCableCount(planned)
                                 if (active != null && active.numCables != effective) {
                                     _state.update { current ->
-                                        current.copy(sessionPhase = active.copy(numCables = effective))
+                                        val currentActive = current.sessionPhase as? SessionPhase.ExerciseActive
+                                            ?: return@update current
+                                        current.copy(sessionPhase = currentActive.copy(numCables = effective))
                                     }
                                     Log.i(TAG, "CABLE_USAGE ${usage.mode} confidence=${usage.confidence} " +
                                         "planned=$planned observed=$effective")
@@ -1169,7 +1221,25 @@ class WorkoutSessionEngine(
         stopMonitorPolling()
         if (bleClient.state.value !is BleConnectionState.Connected) return true
         bleAdapter.execute(BleCommand.Stop, "PARTNER_HANDOFF_STOP")
-        delay(PARTNER_STOP_DRAIN_MS)
+        val stationary = withTimeoutOrNull(PARTNER_STATIONARY_TIMEOUT_MS) {
+            var stableSamples = 0
+            while (stableSamples < PARTNER_STATIONARY_SAMPLES) {
+                val snapshot = _state.value
+                val maxVelocity = maxOf(
+                    kotlin.math.abs(snapshot.leftCable?.velocity ?: 0f),
+                    kotlin.math.abs(snapshot.rightCable?.velocity ?: 0f),
+                )
+                stableSamples = if (
+                    maxVelocity < WorkoutEngineWatchdog.DEFAULT_MOVING_VELOCITY_THRESHOLD
+                ) stableSamples + 1 else 0
+                delay(PARTNER_STATIONARY_SAMPLE_MS)
+            }
+            true
+        } == true
+        if (!stationary) {
+            Log.w(TAG, "partner handoff held because cables did not become stationary")
+            return false
+        }
         bleClient.disconnect()
         return withTimeoutOrNull(PARTNER_DISCONNECT_TIMEOUT_MS) {
             bleClient.state.first { it is BleConnectionState.Disconnected }
@@ -1577,6 +1647,46 @@ class WorkoutSessionEngine(
     }
 
     /**
+     * Freeze any automatic workout transition while the finish confirmation is visible.
+     * Active machine sets are stopped through the normal pause path; rest countdowns
+     * are resumed from their remaining value if the user cancels.
+     */
+    fun beginFinishConfirmation(): Boolean {
+        val phase = _state.value.sessionPhase
+        if (!canRequestPlayerFinish(phase)) return false
+        when (phase) {
+            is SessionPhase.ExerciseActive -> {
+                restSuspendedForFinishConfirmation = false
+                pausePlayerWorkout()
+            }
+
+            is SessionPhase.Resting -> {
+                if (!restSuspendedForFinishConfirmation) {
+                    restSuspendedForFinishConfirmation = true
+                    restTransitionEpoch.invalidate()
+                    restJob?.cancel()
+                    restJob = null
+                }
+            }
+
+            else -> restSuspendedForFinishConfirmation = false
+        }
+        return true
+    }
+
+    fun cancelFinishConfirmation() {
+        if (!restSuspendedForFinishConfirmation) return
+        restSuspendedForFinishConfirmation = false
+        val resting = _state.value.sessionPhase as? SessionPhase.Resting ?: return
+        startRest(resting.secondsRemaining.coerceAtLeast(0), resting.next)
+    }
+
+    fun confirmFinishWorkout() {
+        restSuspendedForFinishConfirmation = false
+        finishWorkout()
+    }
+
+    /**
      * Queue the complete launch-time prescription for any exercise in the active
      * program at the current position, then open its first set.
      *
@@ -1819,6 +1929,7 @@ class WorkoutSessionEngine(
         postSetTransitionJob?.cancel(); postSetTransitionJob = null
         restTransitionEpoch.invalidate()
         restJob?.cancel(); restJob = null
+        restSuspendedForFinishConfirmation = false
         resetSetCompletionGuard()
         awaitingEccentricFinish = false
         eccentricTimeoutJob?.cancel()
@@ -2042,6 +2153,7 @@ class WorkoutSessionEngine(
         targetDurationOverride: Int? = null,
         weightOverride: Int? = null,
         warmupOverride: Int? = null,
+        restAfterSecOverride: Int? = null,
         programModeOverride: String? = null,
         echoLevelOverride: com.example.vitruvianredux.ble.protocol.EchoLevel? = null,
         eccentricLoadPctOverride: Int? = null,
@@ -2066,13 +2178,14 @@ class WorkoutSessionEngine(
 
         // Apply any user overrides from the ready screen
         val draftSet = if (targetRepsOverride != null || targetDurationOverride != null ||
-                      weightOverride != null || warmupOverride != null ||
+                      weightOverride != null || warmupOverride != null || restAfterSecOverride != null ||
                       programModeOverride != null || echoLevelOverride != null || eccentricLoadPctOverride != null) {
             original.copy(
                 targetReps        = targetRepsOverride ?: original.targetReps,
                 targetDurationSec = targetDurationOverride ?: original.targetDurationSec,
                 weightPerCableLb  = weightOverride ?: original.weightPerCableLb,
                 warmupReps        = warmupOverride ?: original.warmupReps,
+                restAfterSec      = restAfterSecOverride ?: original.restAfterSec,
                 programMode       = programModeOverride ?: original.programMode,
                 echoLevel         = echoLevelOverride ?: original.echoLevel,
                 eccentricLoadPct  = eccentricLoadPctOverride ?: original.eccentricLoadPct,
@@ -2240,14 +2353,16 @@ class WorkoutSessionEngine(
         val plannedNumCables = set.numCables.coerceIn(1, 2)
         val cableUsage = cableUsageDetector.resolve(warmupRepsCompleted + workingRepsCompleted)
         val observedNumCables = cableUsage.effectiveCableCount(plannedNumCables)
-        val hAvgForce = heuristic?.let {
-            if (observedNumCables > 1) {
-                (it.left.concentric.kgAvg + it.right.concentric.kgAvg) / 2f
-            } else {
-                maxOf(it.left.concentric.kgAvg, it.right.concentric.kgAvg)
-            }
-        } ?: 0f
-        val hPeakForce = heuristic?.let { maxOf(it.left.concentric.kgMax, it.right.concentric.kgMax) } ?: 0f
+        val (hAvgForce, hPeakForce) = heuristic?.let {
+            cableAwareForceSummary(
+                mode = cableUsage.mode,
+                effectiveCableCount = observedNumCables,
+                leftAverageKg = it.left.concentric.kgAvg,
+                rightAverageKg = it.right.concentric.kgAvg,
+                leftPeakKg = it.left.concentric.kgMax,
+                rightPeakKg = it.right.concentric.kgMax,
+            )
+        } ?: (0f to 0f)
         val isEcho = set.programMode == "Echo"
         val baseStats = ExerciseStats(
             participantId        = set.participantId,
@@ -2276,7 +2391,27 @@ class WorkoutSessionEngine(
             cableSamplesLeft     = samplesLeft.toList(),
             cableSamplesRight    = samplesRight.toList(),
         )
-        val enrichedStats = completedSetStatsEnricher(baseStats)
+        val measuredStats = completedSetStatsEnricher(baseStats)
+        val cableCorrectedStats = if (observedNumCables == 1 && cableUsage.confidence >= com.example.vitruvianredux.ble.session.CableUsageDetector.MIN_CONFIDENCE) {
+            val correctedQuality = com.example.vitruvianredux.data.CableAnalyticsCorrection.apply(
+                mode = cableUsage.mode,
+                previousCableCount = observedNumCables,
+                previousVolumeKg = measuredStats.volumeKg,
+                previousQualityScore = measuredStats.avgQualityScore,
+                rom = measuredStats.avgRom,
+                tempo = measuredStats.avgTempo,
+                symmetry = measuredStats.avgSymmetry,
+                smoothness = measuredStats.avgSmoothness,
+            )
+            measuredStats.copy(
+                avgQualityScore = correctedQuality.qualityScore,
+                avgSymmetry = null,
+            )
+        } else measuredStats
+        // Planned single-cable sets often resolve to UNKNOWN when the telemetry
+        // window is short. Scoring already excludes symmetry in that case, so do
+        // not persist the calculator's neutral placeholder (100) as real evidence.
+        val enrichedStats = clearSingleCableSymmetry(cableCorrectedStats, observedNumCables)
         val strengthTestEvaluation = evaluateStrengthTestAttempt(set, enrichedStats)
         val stats = enrichedStats.copy(
             strengthTestProtocolType = set.strengthTestProtocolType,
@@ -2695,12 +2830,21 @@ class WorkoutSessionEngine(
 
     internal fun finishWorkout() {
         if (_state.value.sessionPhase is SessionPhase.WorkoutComplete) return
+        val phaseBeforeFinish = _state.value.sessionPhase
         postSetTransitionEpoch.invalidate()
         postSetTransitionJob?.cancel()
         postSetTransitionJob = null
         restTransitionEpoch.invalidate()
         restJob?.cancel()
         restJob = null
+        restSuspendedForFinishConfirmation = false
+        val isOffMachineTimer = playerSets.getOrNull(currentPlayerIndex)?.isOffMachineTimer == true
+        if (shouldStopTrainerBeforeFinish(phaseBeforeFinish, isOffMachineTimer)) {
+            playerJob?.cancel()
+            awaitingEccentricFinish = false
+            eccentricTimeoutJob?.cancel()
+            bleAdapter.execute(BleCommand.Stop, "FINISH_WORKOUT_STOP")
+        }
         resetSetCompletionGuard()
         val totalDurSec = ((System.currentTimeMillis() - workoutStartTimeMs) / 1_000L).toInt()
         val totalReps      = completedStats.sumOf { it.repsCompleted }

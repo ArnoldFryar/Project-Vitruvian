@@ -82,6 +82,7 @@
     <string name="nav_programs">Programs</string>
     <string name="nav_device">Device</string>
     <string name="nav_profile">Profile</string>
+    <string name="nav_settings">Settings</string>
 
     <!-- ── Quality labels ──────────────────────────────────────────────── -->
     <string name="quality_perfect">Perfect</string>
@@ -191,15 +192,31 @@
     <string name="settings_voice_style_label">Coaching Style</string>
     <string name="settings_voice_style_coach">Coach</string>
     <string name="settings_voice_style_trainer">Trainer</string>
+    <string name="settings_voice_style_controlled">Controlled</string>
     <string name="settings_voice_output_label">Voice Source</string>
     <string name="settings_voice_output_recorded_only">Recorded Pack</string>
     <string name="settings_voice_count_style_label">Recorded Count Style</string>
     <string name="settings_voice_count_style_base">Base</string>
     <string name="settings_voice_count_style_steady">Steady</string>
     <string name="settings_voice_count_style_focus">Focus</string>
+    <string name="settings_voice_count_style_controlled">Controlled</string>
     <string name="settings_voice_preview">Preview</string>
     <string name="settings_voice_rep_counts">Rep count announcements</string>
     <string name="settings_voice_rest_countdown">Rest and timer countdown announcements</string>
+    <string name="settings_voice_controls_label">Voice Controls</string>
+    <string name="settings_voice_controls_description">Control the live workout by voice. Audio is handled by Android’s speech recognizer and is never stored by this app.</string>
+    <string name="settings_voice_controls_enabled">Show voice controls during workouts</string>
+    <string name="settings_voice_controls_hands_free">Hands-free listening (say “Coach” before commands)</string>
+    <string name="voice_control_listening">Listening for a command</string>
+    <string name="voice_control_processing">Processing voice command</string>
+    <string name="voice_control_disabled">Enable Voice Controls in Settings</string>
+    <string name="voice_control_permission_denied">Microphone permission is required for voice control</string>
+    <string name="voice_control_help_title">Workout voice commands</string>
+    <string name="voice_control_help_body">Start set · Pause or stop · Resume · Skip rest · Skip set · Skip exercise · Repeat last set · Increase or decrease weight · Mute or unmute coach · Finish workout</string>
+    <string name="voice_control_finish_title">Finish workout?</string>
+    <string name="voice_control_finish_message">Workout transitions are paused. Say “confirm finish” or use the button below to end the workout.</string>
+    <string name="voice_control_confirm_finish">Finish Workout</string>
+    <string name="voice_control_cancel">Keep Training</string>
     <string name="settings_bodyweight_label">Body Weight</string>
     <string name="settings_bodyweight_hint">Tap to enter your body weight</string>
     <string name="settings_bodyweight_dialog_title">Body Weight</string>

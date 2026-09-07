@@ -88,7 +88,7 @@ val VitruvianShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
     small      = RoundedCornerShape(AppDimens.Corner.sm),
     medium     = RoundedCornerShape(AppDimens.Corner.md),
-    large      = RoundedCornerShape(20.dp),
+    large      = RoundedCornerShape(24.dp),
     extraLarge = RoundedCornerShape(28.dp),
 )
 
