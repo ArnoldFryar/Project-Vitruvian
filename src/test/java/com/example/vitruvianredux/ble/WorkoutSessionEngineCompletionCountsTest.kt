@@ -48,6 +48,30 @@ class WorkoutSessionEngineCompletionCountsTest {
     }
 
     @Test
+    fun `completed display includes three warmup and ten working reps when BLE count lags`() {
+        assertEquals(
+            13,
+            completedSetDisplayRepCount(
+                stateRepsCount = 11,
+                warmupRepsCompleted = 3,
+                workingRepsCompleted = 10,
+            ),
+        )
+    }
+
+    @Test
+    fun `completed display preserves a higher confirmed device count`() {
+        assertEquals(
+            14,
+            completedSetDisplayRepCount(
+                stateRepsCount = 14,
+                warmupRepsCompleted = 3,
+                workingRepsCompleted = 10,
+            ),
+        )
+    }
+
+    @Test
     fun `single cable stats never retain a synthetic symmetry score`() {
         val stats = ExerciseStats(
             exerciseId = "curl",

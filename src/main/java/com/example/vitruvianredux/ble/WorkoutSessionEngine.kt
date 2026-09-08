@@ -417,6 +417,20 @@ internal fun completedSetRepCounts(
     return warmupRepsCompleted to workingRepsCompleted
 }
 
+/**
+ * Total shown after a set completes. The last BLE packet can lag the reducer's
+ * confirmed warmup/working split, so the completed UI must never regress below
+ * the sum of those authoritative counts.
+ */
+internal fun completedSetDisplayRepCount(
+    stateRepsCount: Int,
+    warmupRepsCompleted: Int,
+    workingRepsCompleted: Int,
+): Int = maxOf(
+    stateRepsCount.coerceAtLeast(0),
+    warmupRepsCompleted.coerceAtLeast(0) + workingRepsCompleted.coerceAtLeast(0),
+)
+
 /** Symmetry is not a meaningful metric when a set used only one cable. */
 internal fun clearSingleCableSymmetry(stats: ExerciseStats, effectiveCableCount: Int): ExerciseStats =
     if (effectiveCableCount == 1) stats.copy(avgSymmetry = null) else stats
@@ -2442,7 +2456,14 @@ class WorkoutSessionEngine(
                 thumbnailUrl = set.thumbnailUrl,
                 videoUrl     = set.videoUrl,
                 stats        = stats,
-            )
+            ),
+            repsCount = completedSetDisplayRepCount(
+                stateRepsCount = stateRepsCount,
+                warmupRepsCompleted = warmupRepsCompleted,
+                workingRepsCompleted = workingRepsCompleted,
+            ),
+            warmupRepsCompleted = warmupRepsCompleted,
+            workingRepsCompleted = workingRepsCompleted,
         )
 
         // Show ExerciseComplete for 1.5 s, then transition to Resting or WorkoutComplete.
