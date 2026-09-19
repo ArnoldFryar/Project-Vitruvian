@@ -24,6 +24,7 @@ object ProgressionEngine {
     private const val REQUIRED_SUCCESSES = 2
     private const val DEFAULT_REP_TARGET = 10
     private const val DEFAULT_TRAINING_MAX_PERCENT = 0.90
+    private const val MIN_PROGRESSION_QUALITY = 75
 
     /** Per-exercise median working weight (lb), keyed by lowercased name. */
     private var defaultWeights: Map<String, Int> = emptyMap()
@@ -107,6 +108,7 @@ object ProgressionEngine {
         repRangeMin: Int? = null,
         repRangeMax: Int? = null,
         movementCoefficient: Double? = null,
+        numCables: Int? = null,
     ): ProgressionResult? {
         if (currentWeightLb <= 0) return null
         val step  = if (progressionStepLb > 0) progressionStepLb else 5
@@ -120,7 +122,7 @@ object ProgressionEngine {
             .filterNot { it.isStrengthTestSession() }
             .filter { session ->
                 session.exerciseSets.any {
-                    it.isProgressionEligibleSet(nameNorm) &&
+                    it.isProgressionEligibleSet(nameNorm, numCables) &&
                         it.effectivePerCableLoad(coeff) >= effectiveCurrentLoad
                 }
             }
@@ -132,22 +134,27 @@ object ProgressionEngine {
             // ── Double Progression ────────────────────────────────────────────
             val allHitTop = relevantSessions.all { session ->
                 val sets = session.exerciseSets.filter {
-                    it.isProgressionEligibleSet(nameNorm) &&
+                    it.isProgressionEligibleSet(nameNorm, numCables) &&
                         it.effectivePerCableLoad(coeff) >= effectiveCurrentLoad
                 }
-                sets.isNotEmpty() && sets.all { it.reps >= repRangeMax }
+                sets.isNotEmpty() && sets.all {
+                    it.reps >= repRangeMax && it.meetsProgressionQualityFloor()
+                }
             }
             if (allHitTop) return ProgressionResult.Increase(currentWeightLb + step)
 
             val allMissedFloor = relevantSessions.all { session ->
                 val sets = session.exerciseSets.filter {
-                    it.isProgressionEligibleSet(nameNorm) &&
+                    it.isProgressionEligibleSet(nameNorm, numCables) &&
                         it.effectivePerCableLoad(coeff) >= effectiveCurrentLoad
                 }
                 sets.isNotEmpty() && sets.all { it.reps < repRangeMin }
             }
             if (allMissedFloor) {
-                val deloadLb = (currentWeightLb * 0.9).toInt().coerceAtLeast(1)
+                val deloadLb = (currentWeightLb * 0.9).toInt()
+                    .alignToStep(step)
+                    .coerceAtLeast(step)
+                    .coerceAtMost(currentWeightLb)
                 return ProgressionResult.Deload(deloadLb)
             }
             null
@@ -156,10 +163,12 @@ object ProgressionEngine {
             if (targetReps <= 0) return null
             val allMet = relevantSessions.all { session ->
                 val sets = session.exerciseSets.filter {
-                    it.isProgressionEligibleSet(nameNorm) &&
+                    it.isProgressionEligibleSet(nameNorm, numCables) &&
                         it.effectivePerCableLoad(coeff) >= effectiveCurrentLoad
                 }
-                sets.isNotEmpty() && sets.all { it.reps >= targetReps }
+                sets.isNotEmpty() && sets.all {
+                    it.reps >= targetReps && it.meetsProgressionQualityFloor()
+                }
             }
             if (allMet) ProgressionResult.Increase(currentWeightLb + step) else null
         }
@@ -176,6 +185,7 @@ object ProgressionEngine {
         progressionStepLb: Int,
         sessions: List<AnalyticsStore.SessionLog>,
         movementCoefficient: Double? = null,
+        numCables: Int? = null,
     ): Int? = (suggestProgression(
         exerciseName      = exerciseName,
         targetReps        = targetReps,
@@ -183,15 +193,24 @@ object ProgressionEngine {
         progressionStepLb = progressionStepLb,
         sessions          = sessions,
         movementCoefficient = movementCoefficient,
+        numCables = numCables,
     ) as? ProgressionResult.Increase)?.newWeightLb
 
     private fun AnalyticsStore.SessionLog.isStrengthTestSession(): Boolean =
         trainingMode == StrengthTestProtocolType.ONE_REP_MAX ||
             strengthTest?.protocolType == StrengthTestProtocolType.ONE_REP_MAX
 
-    private fun AnalyticsStore.ExerciseSetLog.isProgressionEligibleSet(exerciseNameNorm: String): Boolean =
+    private fun AnalyticsStore.ExerciseSetLog.isProgressionEligibleSet(
+        exerciseNameNorm: String,
+        requiredNumCables: Int?,
+    ): Boolean =
         exerciseName.trim().lowercase() == exerciseNameNorm &&
-            strengthTest?.protocolType != StrengthTestProtocolType.ONE_REP_MAX
+            strengthTest?.protocolType != StrengthTestProtocolType.ONE_REP_MAX &&
+            !skipped && reps > 0 &&
+            (requiredNumCables == null || numCables.coerceIn(1, 2) == requiredNumCables.coerceIn(1, 2))
+
+    private fun AnalyticsStore.ExerciseSetLog.meetsProgressionQualityFloor(): Boolean =
+        avgQualityScore == null || avgQualityScore >= MIN_PROGRESSION_QUALITY
 
     private fun AnalyticsStore.ExerciseSetLog.effectivePerCableLoad(movementCoefficient: Double): Double =
         weightLb.toDouble() / numCables.coerceAtLeast(1) * movementCoefficient

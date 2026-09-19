@@ -180,6 +180,7 @@ fun ExercisePlayerScreen(
     var voiceResultEvent by remember { mutableStateOf<Pair<Long, List<String>>?>(null) }
     var showVoiceHelp by remember { mutableStateOf(false) }
     var showVoiceFinishConfirmation by remember { mutableStateOf(false) }
+    var voiceSessionRequested by rememberSaveable { mutableStateOf(false) }
     val voiceRecognizer = remember(appContext) { WorkoutVoiceRecognizer(appContext) }
 
     fun showConfirmation(message: String) {
@@ -202,6 +203,7 @@ fun ExercisePlayerScreen(
     ) { granted ->
         hasMicrophonePermission = granted
         if (!granted) {
+            voiceSessionRequested = false
             showConfirmation(appContext.getString(R.string.voice_control_permission_denied))
         }
     }
@@ -211,8 +213,15 @@ fun ExercisePlayerScreen(
             !voiceControlSettings.enabled ->
                 showConfirmation(appContext.getString(R.string.voice_control_disabled))
             !voiceListeningAllowed -> showConfirmation("Voice control is unavailable in this workout state")
-            !hasMicrophonePermission -> microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-            else -> voiceRecognizer.start(voiceControlSettings.handsFreeEnabled)
+            !hasMicrophonePermission -> {
+                voiceSessionRequested = true
+                microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+            else -> {
+                voiceSessionRequested = true
+                voiceRecognizer.start(continuousMode = true)
+                showConfirmation("Voice control stays on · say ‘Coach’ before commands")
+            }
         }
     }
 
@@ -225,12 +234,13 @@ fun ExercisePlayerScreen(
         voiceRecognizer,
         voiceControlSettings.enabled,
         voiceControlSettings.handsFreeEnabled,
+        voiceSessionRequested,
         hasMicrophonePermission,
         voiceListeningAllowed,
     ) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val shouldListenContinuously = voiceControlSettings.enabled &&
-                voiceControlSettings.handsFreeEnabled &&
+                (voiceControlSettings.handsFreeEnabled || voiceSessionRequested) &&
                 hasMicrophonePermission &&
                 voiceListeningAllowed
             if (shouldListenContinuously) voiceRecognizer.start(continuousMode = true)
@@ -526,7 +536,7 @@ fun ExercisePlayerScreen(
             return@LaunchedEffect
         }
         if (
-            voiceControlSettings.handsFreeEnabled &&
+            (voiceControlSettings.handsFreeEnabled || voiceSessionRequested) &&
             !parsed.hadWakeWord &&
             parsed.command.requiresWakeWordInHandsFreeMode()
         ) {
@@ -813,8 +823,11 @@ fun ExercisePlayerScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            if (voiceRecognizer.isListening) voiceRecognizer.stop()
-                            else beginVoiceListening()
+                            if (voiceRecognizer.isContinuous || voiceSessionRequested) {
+                                voiceSessionRequested = false
+                                voiceRecognizer.stop()
+                                showConfirmation("Voice control off")
+                            } else beginVoiceListening()
                         },
                     ) {
                         Icon(
@@ -1016,6 +1029,7 @@ fun ExercisePlayerScreen(
                                     sessions          = allSessions,
                                     repRangeMin       = readyPhase.repRangeMin,
                                     repRangeMax       = readyPhase.repRangeMax,
+                                    numCables         = readyPrescribedCables,
                                 )
                             else null
                         }
@@ -1346,19 +1360,32 @@ fun ExercisePlayerScreen(
                             actionLabel = "Open Repair",
                             onAction = onNavigateToRepair,
                         )
-                        AppOutlinedButton(
-                            text = "Exit Workout",
-                            onClick = {
-                                UxTelemetryStore.record("workout_abandoned", "error")
-                                workoutVM.panicStop()
-                                onBack()
-                            },
+                        Column(
                             modifier = Modifier
                                 .widthIn(max = AppDimens.Layout.maxReadableWidth)
                                 .fillMaxWidth()
                                 .align(Alignment.BottomCenter)
                                 .padding(AppDimens.Spacing.xl),
-                        )
+                            verticalArrangement = Arrangement.spacedBy(AppDimens.Spacing.sm),
+                        ) {
+                            AppTonalButton(
+                                text = "Retry Connection",
+                                onClick = {
+                                    if (!workoutVM.retryWorkoutConnection()) {
+                                        showConfirmation("Reconnect is not available yet")
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            AppOutlinedButton(
+                                text = "Finish & Save Progress",
+                                onClick = {
+                                    UxTelemetryStore.record("workout_finished", "connection_error")
+                                    workoutVM.finishWorkout()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

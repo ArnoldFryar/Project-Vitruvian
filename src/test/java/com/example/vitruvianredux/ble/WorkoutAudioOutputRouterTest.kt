@@ -9,6 +9,14 @@ import org.junit.Test
 class WorkoutAudioOutputRouterTest {
 
     @Test
+    fun `warmup start is a single beep`() {
+        assertEquals(
+            RecordedAudioPlan(listOf("beep"), AUDIO_QUEUE_FLUSH),
+            WorkoutAudioOutputRouter().warmupStartPlan(),
+        )
+    }
+
+    @Test
     fun `dynamic athlete cue routes through spoken output`() {
         val router = WorkoutAudioOutputRouter()
         val utterance = WorkoutAudioUtterance(

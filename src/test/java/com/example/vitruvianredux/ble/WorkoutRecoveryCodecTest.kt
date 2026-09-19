@@ -6,9 +6,40 @@ import com.example.vitruvianredux.ble.session.ExerciseStats
 import com.example.vitruvianredux.ble.session.PlayerSetParams
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WorkoutRecoveryCodecTest {
+    @Test
+    fun `disconnect preserves partial reps as non progression evidence`() {
+        val set = PlayerSetParams(
+            exerciseId = "row",
+            exerciseName = "Low Row",
+            targetReps = 10,
+            weightPerCableLb = 45,
+            warmupReps = 2,
+            numCables = 2,
+        )
+
+        val interrupted = interruptedSetStats(
+            set = set,
+            setIndex = 2,
+            warmupRepsCompleted = 2,
+            workingRepsCompleted = 6,
+            durationSec = 38,
+            workingVolumeKg = 122.4f,
+        )
+
+        assertTrue(interrupted?.skipped == true)
+        assertEquals(6, interrupted?.repsCompleted)
+        assertEquals(2, interrupted?.warmupRepsCompleted)
+        assertEquals(122.4f, interrupted?.volumeKg ?: 0f, 0.01f)
+        assertNull(
+            interruptedSetStats(set, 2, 0, 0, 5, 0f),
+        )
+    }
+
     @Test
     fun `checkpoint round trip preserves queue position and completed evidence`() {
         val set = PlayerSetParams(

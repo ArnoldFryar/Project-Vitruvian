@@ -1,8 +1,6 @@
 ﻿package com.example.vitruvianredux.ble
 
 import android.app.Application
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -341,7 +339,6 @@ class WorkoutSessionViewModel(
     private val repQualityTracker = RepQualityTracker()
     private var activeMovementBaseline: PersonalMovementBaseline? = null
 
-    private val warmupToneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
     private var lastSpokenWorkingRep = 0
     private var lastCuedWarmupRep = 0
     private var lastSetPhase: com.example.vitruvianredux.ble.session.SetPhase? = null
@@ -440,15 +437,18 @@ class WorkoutSessionViewModel(
                     lastCuedWarmupRep = 0
                 }
 
+                // One audible cue per set is enough. Previously the default
+                // three warm-up reps each emitted a beep.
                 if (
                     warmupTarget > 0 &&
-                    currentState.warmupRepsCompleted > lastCuedWarmupRep &&
+                    currentState.warmupRepsCompleted > 0 &&
+                    lastCuedWarmupRep == 0 &&
                     voiceCoachingSettings.value.repAnnouncementsEnabled &&
                     soundEnabled.value
                 ) {
-                    playWarmupRepCue(isLastWarmupRep = currentState.warmupRepsCompleted >= warmupTarget)
-                    lastCuedWarmupRep = currentState.warmupRepsCompleted
+                    playWarmupRepCue()
                 }
+                lastCuedWarmupRep = maxOf(lastCuedWarmupRep, currentState.warmupRepsCompleted)
 
                 // Only announce working reps (matches Phoenix behaviour)
                 if (phase == com.example.vitruvianredux.ble.session.SetPhase.WORKING ||
@@ -560,10 +560,10 @@ class WorkoutSessionViewModel(
         }
     }
 
-    private fun playWarmupRepCue(isLastWarmupRep: Boolean) {
+    private fun playWarmupRepCue() {
         val settings = voiceCoachingSettings.value
         if (!soundEnabled.value || !settings.repAnnouncementsEnabled) return
-        recordedVoicePlayer.play(audioOutputRouter.warmupPlan(isLastWarmupRep))
+        recordedVoicePlayer.play(audioOutputRouter.warmupStartPlan())
     }
 
     private fun playRestCompleteCue() {
@@ -708,7 +708,6 @@ class WorkoutSessionViewModel(
         partnerTextToSpeech.stop()
         partnerTextToSpeech.shutdown()
         recordedVoicePlayer.release()
-        warmupToneGenerator.release()
         super.onCleared()
     }
 
@@ -1680,6 +1679,7 @@ class WorkoutSessionViewModel(
 
     /** Transition just-lift session to WorkoutComplete so analytics/history are recorded. */
     fun finishWorkout() = engine.finishWorkout()
+    fun retryWorkoutConnection(): Boolean = engine.retryReconnect()
     /** Ensure a stable completion id so post-workout saves can upsert consistently. */
     fun ensureCompletionSessionId(): String = completionSessionId
         ?: UUID.randomUUID().toString().also { completionSessionId = it }

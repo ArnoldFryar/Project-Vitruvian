@@ -417,6 +417,46 @@ internal fun completedSetRepCounts(
     return warmupRepsCompleted to workingRepsCompleted
 }
 
+/** Preserve work completed before an unexpected disconnect without treating it
+ * as progression evidence or a completed programmed set. */
+internal fun interruptedSetStats(
+    set: PlayerSetParams,
+    setIndex: Int,
+    warmupRepsCompleted: Int,
+    workingRepsCompleted: Int,
+    durationSec: Int,
+    workingVolumeKg: Float,
+    observedNumCables: Int = set.numCables,
+    cableExecutionMode: com.example.vitruvianredux.ble.session.CableExecutionMode =
+        com.example.vitruvianredux.ble.session.CableExecutionMode.UNKNOWN,
+    cableDetectionConfidence: Int = 0,
+): ExerciseStats? {
+    if (warmupRepsCompleted <= 0 && workingRepsCompleted <= 0) return null
+    return ExerciseStats(
+        participantId = set.participantId,
+        assignmentId = set.assignmentId,
+        exerciseId = set.exerciseId,
+        exerciseName = set.exerciseName,
+        muscleGroups = set.muscleGroups,
+        muscles = set.muscles,
+        setIndex = setIndex,
+        repsCompleted = workingRepsCompleted.coerceAtLeast(0),
+        warmupRepsCompleted = warmupRepsCompleted.coerceAtLeast(0),
+        durationSec = durationSec.coerceAtLeast(0),
+        volumeKg = workingVolumeKg.coerceAtLeast(0f),
+        weightPerCableLb = set.weightPerCableLb,
+        numCables = observedNumCables.coerceIn(1, 2),
+        plannedNumCables = set.numCables.coerceIn(1, 2),
+        cableExecutionMode = cableExecutionMode,
+        cableDetectionConfidence = cableDetectionConfidence.coerceIn(0, 100),
+        skipped = true,
+        echoLevel = if (set.programMode == "Echo") set.echoLevel.displayName else null,
+        eccentricLoadPct = set.eccentricLoadPct,
+        strengthTestProtocolType = set.strengthTestProtocolType,
+        strengthTestAttemptNumber = set.strengthTestAttemptNumber,
+    )
+}
+
 /**
  * Total shown after a set completes. The last BLE packet can lag the reducer's
  * confirmed warmup/working split, so the completed UI must never regress below
@@ -563,6 +603,7 @@ class WorkoutSessionEngine(
     private var reconnectJob: Job? = null
     /** Phase captured at the moment of disconnect — used to resume after successful reconnect. */
     private var preDisconnectPhase: SessionPhase = SessionPhase.Idle
+    private var interruptedProgressCapturedForDisconnect = false
     @Volatile private var setStartTimeMs = 0L
     @Volatile private var workoutStartTimeMs = 0L
     private val completedStats = mutableListOf<ExerciseStats>()
@@ -730,6 +771,7 @@ class WorkoutSessionEngine(
         private const val PARTNER_STATIONARY_SAMPLES = 3
         private const val PARTNER_DISCONNECT_TIMEOUT_MS = 5_000L
         private const val PARTNER_CONNECT_TIMEOUT_MS = 12_000L
+        private const val RECONNECT_TIMEOUT_SECONDS = 60
     }
     /** Timestamp when the current set became active (for auto-stop grace period). */
     private var setActiveTimestampMs: Long = 0L
@@ -1968,6 +2010,7 @@ class WorkoutSessionEngine(
         previousAvgCablePosition = null
         setVolumeAccumulator = VolumeAccumulator.ZERO
         justLiftArmed = false
+        interruptedProgressCapturedForDisconnect = false
         resetStrengthTestRuntime()
         _state.value = _state.value.copy(
             sessionPhase         = sessionPhase,
@@ -2220,6 +2263,7 @@ class WorkoutSessionEngine(
         Log.i(TAG, "confirmReady: launching set $index (${set.exerciseName}, ${set.weightPerCableLb}lb)")
 
         setStartTimeMs = System.currentTimeMillis()
+        interruptedProgressCapturedForDisconnect = false
         setActiveTimestampMs = setStartTimeMs
         setVolumeAccumulator = VolumeAccumulator.ZERO
         awaitingEccentricFinish = false
@@ -2670,18 +2714,22 @@ class WorkoutSessionEngine(
     }
 
     /**
-     * Launch a 15-second reconnect countdown. On success the [bleClient.state] collector
+     * Launch a reconnect countdown. On success the [bleClient.state] collector
      * detects [BleConnectionState.Connected] and calls [resumeAfterReconnect]; on timeout
      * the session falls through to [SessionPhase.Error] via [handleDisconnectError].
      */
     private fun startReconnectFlow(savedPhase: SessionPhase) {
+        preDisconnectPhase = savedPhase
+        if (savedPhase is SessionPhase.ExerciseActive && !interruptedProgressCapturedForDisconnect) {
+            preserveInterruptedSetProgress()
+            interruptedProgressCapturedForDisconnect = true
+        }
         val lastAddr = bleClient.lastConnectedAddress
         if (lastAddr == null) {
             handleDisconnectError(savedPhase)
             return
         }
-        preDisconnectPhase = savedPhase
-        val reconnectSec = 15
+        val reconnectSec = RECONNECT_TIMEOUT_SECONDS
         _state.value = _state.value.copy(
             sessionPhase = SessionPhase.Reconnecting(reconnectSec)
         )
@@ -2709,6 +2757,62 @@ class WorkoutSessionEngine(
         }
     }
 
+    /** Retry from the recovery screen without resetting workout position. */
+    fun retryReconnect(): Boolean {
+        if (_state.value.sessionPhase !is SessionPhase.Error || !isReconnectablePhase(preDisconnectPhase)) {
+            return false
+        }
+        startReconnectFlow(preDisconnectPhase)
+        return true
+    }
+
+    private fun preserveInterruptedSetProgress() {
+        val set = playerSets.getOrNull(currentPlayerIndex) ?: return
+        val (warmup, working) = completedSetRepCounts(
+            engineWarmupRepsCompleted = engineState.warmupRepsCompleted,
+            engineWorkingRepsCompleted = engineState.workingRepsCompleted,
+            stateRepsCount = _state.value.repsCount,
+            stateWorkingRepsCompleted = _state.value.workingRepsCompleted,
+            configuredWarmupReps = set.warmupReps,
+        )
+        val usage = cableUsageDetector.resolve(warmup + working)
+        val observedCables = usage.effectiveCableCount(set.numCables)
+        val interrupted = interruptedSetStats(
+            set = set,
+            setIndex = currentPlayerIndex,
+            warmupRepsCompleted = warmup,
+            workingRepsCompleted = working,
+            durationSec = ((System.currentTimeMillis() - setStartTimeMs) / 1_000L).toInt(),
+            workingVolumeKg = setVolumeAccumulator.workingKg *
+                observedCables.toFloat() / set.numCables.coerceAtLeast(1).toFloat(),
+            observedNumCables = observedCables,
+            cableExecutionMode = usage.mode,
+            cableDetectionConfidence = usage.confidence,
+        ) ?: return
+        skippedStatsList.add(interrupted)
+        SessionEventLog.append(
+            SessionEventLog.EventType.STATE,
+            "Preserved interrupted set ${set.exerciseName}: ${interrupted.repsCompleted} working reps",
+        )
+    }
+
+    private fun restartInterruptedSetAtReady() {
+        playerJob?.cancel()
+        awaitingEccentricFinish = false
+        eccentricTimeoutJob?.cancel()
+        engineState = EngineState()
+        repDetector.reset()
+        repCountPolicy.reset()
+        stallDetector.reset()
+        lastDispatchedRepCount = 0
+        lastRepNotifyTimestampMs = 0L
+        lastRepNotifyRearmAttemptMs = 0L
+        lastCableMotionTimestampMs = 0L
+        previousAvgCablePosition = null
+        setVolumeAccumulator = VolumeAccumulator.ZERO
+        launchPlayerSet(currentPlayerIndex)
+    }
+
     /**
      * Called when BLE reconnects while in [SessionPhase.Reconnecting].
      * Waits for [AndroidBleClient.isReady] then resumes the appropriate phase.
@@ -2730,27 +2834,8 @@ class WorkoutSessionEngine(
                 is SessionPhase.ExerciseActive -> {
                     val set = playerSets.getOrNull(currentPlayerIndex)
                     if (set != null) {
-                        Log.i(TAG, "resumeAfterReconnect: ExerciseActive → SetReady  idx=$currentPlayerIndex")
-                        val (exerciseSetIndex, exerciseTotalSets) = perExerciseSetInfo(currentPlayerIndex)
-                        _state.value = _state.value.copy(
-                            sessionPhase = SessionPhase.SetReady(
-                                exerciseName      = set.exerciseName,
-                                thumbnailUrl      = set.thumbnailUrl,
-                                videoUrl          = set.videoUrl,
-                                setIndex          = exerciseSetIndex,
-                                totalSets         = exerciseTotalSets,
-                                targetReps        = set.targetReps,
-                                targetDurationSec = set.targetDurationSec,
-                                warmupReps        = set.warmupReps,
-                                weightPerCableLb  = set.weightPerCableLb,
-                                programMode       = set.programMode,
-                                echoLevel         = set.echoLevel,
-                                eccentricLoadPct  = set.eccentricLoadPct,
-                                isJustLift        = set.isJustLift,
-                                repRangeMin       = set.repRangeMin,
-                                repRangeMax       = set.repRangeMax,
-                            )
-                        )
+                        Log.i(TAG, "resumeAfterReconnect: ExerciseActive → safe SetReady restart idx=$currentPlayerIndex")
+                        restartInterruptedSetAtReady()
                     } else {
                         handleDisconnectError(savedPhase)
                     }
@@ -2868,10 +2953,12 @@ class WorkoutSessionEngine(
         }
         resetSetCompletionGuard()
         val totalDurSec = ((System.currentTimeMillis() - workoutStartTimeMs) / 1_000L).toInt()
-        val totalReps      = completedStats.sumOf { it.repsCompleted }
+        val preservedInterruptedWork = skippedStatsList.filter { it.repsCompleted > 0 }
+        val allPerformedWork = completedStats + preservedInterruptedWork
+        val totalReps      = allPerformedWork.sumOf { it.repsCompleted }
         // Sum per-set working volumes — all in kg, the canonical unit.
-        val totalVolumeKg  = completedStats.sumOf { it.volumeKg.toDouble() }.toFloat()
-        val heaviest       = completedStats.maxOfOrNull { it.weightPerCableLb * it.numCables } ?: 0
+        val totalVolumeKg  = allPerformedWork.sumOf { it.volumeKg.toDouble() }.toFloat()
+        val heaviest       = allPerformedWork.maxOfOrNull { it.weightPerCableLb * it.numCables } ?: 0
         val stats = WorkoutStats(
             totalReps      = totalReps,
             totalVolumeKg  = totalVolumeKg,

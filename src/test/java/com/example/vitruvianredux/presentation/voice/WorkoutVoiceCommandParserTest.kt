@@ -83,4 +83,40 @@ class WorkoutVoiceCommandParserTest {
     fun `does not infer a command from unrelated speech`() {
         assertNull(WorkoutVoiceCommandParser.parse("great set today"))
     }
+
+    @Test
+    fun `understands natural workout phrases and alternate wake words`() {
+        assertEquals(
+            WorkoutVoiceCommand.StartSet,
+            WorkoutVoiceCommandParser.parse("Okay trainer, can you start my set now")?.command,
+        )
+        assertEquals(
+            WorkoutVoiceCommand.Pause,
+            WorkoutVoiceCommandParser.parse("hold on")?.command,
+        )
+        assertEquals(
+            WorkoutVoiceCommand.Resume,
+            WorkoutVoiceCommandParser.parse("Coach, keep going")?.command,
+        )
+        assertEquals(
+            WorkoutVoiceCommand.StartSet,
+            WorkoutVoiceCommandParser.parse("Hey coach, let's go")?.command,
+        )
+    }
+
+    @Test
+    fun `understands conversational resistance changes`() {
+        assertEquals(
+            WorkoutVoiceCommand.AdjustWeight(10, VoiceWeightUnit.POUNDS),
+            WorkoutVoiceCommandParser.parse("Coach bump it up by ten pounds")?.command,
+        )
+        assertEquals(
+            WorkoutVoiceCommand.AdjustWeight(-5),
+            WorkoutVoiceCommandParser.parse("Trainer take off five")?.command,
+        )
+        assertEquals(
+            WorkoutVoiceCommand.AdjustWeight(-5, VoiceWeightUnit.KILOGRAMS),
+            WorkoutVoiceCommandParser.parse("lower the resistance by five kilos")?.command,
+        )
+    }
 }

@@ -140,4 +140,62 @@ class ProgressionEngineTest {
 
         assertEquals(100, anchor)
     }
+
+    @Test
+    fun `skipped sets never produce a progression suggestion`() {
+        val skipped = set(reps = 12, weightLb = 100, numCables = 2).copy(skipped = true)
+        val sessions = listOf(
+            session(skipped, endMs = 2_000L),
+            session(skipped.copy(setIndex = 1), endMs = 1_000L),
+        )
+
+        assertNull(
+            ProgressionEngine.suggestProgression(
+                exerciseName = "Bench Press",
+                targetReps = 10,
+                currentWeightLb = 50,
+                progressionStepLb = 5,
+                sessions = sessions,
+            ),
+        )
+    }
+
+    @Test
+    fun `poor quality reps do not earn a load increase`() {
+        val lowQuality = set(reps = 12, weightLb = 100, numCables = 2)
+            .copy(avgQualityScore = 60)
+        val sessions = listOf(
+            session(lowQuality, endMs = 2_000L),
+            session(lowQuality.copy(setIndex = 1), endMs = 1_000L),
+        )
+
+        assertNull(
+            ProgressionEngine.suggestProgression(
+                exerciseName = "Bench Press",
+                targetReps = 10,
+                currentWeightLb = 50,
+                progressionStepLb = 5,
+                sessions = sessions,
+            ),
+        )
+    }
+
+    @Test
+    fun `single cable history does not drive a dual cable suggestion`() {
+        val sessions = listOf(
+            session(set(reps = 12, weightLb = 50, numCables = 1), endMs = 2_000L),
+            session(set(reps = 12, weightLb = 50, numCables = 1), endMs = 1_000L),
+        )
+
+        assertNull(
+            ProgressionEngine.suggestProgression(
+                exerciseName = "Bench Press",
+                targetReps = 10,
+                currentWeightLb = 50,
+                progressionStepLb = 5,
+                sessions = sessions,
+                numCables = 2,
+            ),
+        )
+    }
 }

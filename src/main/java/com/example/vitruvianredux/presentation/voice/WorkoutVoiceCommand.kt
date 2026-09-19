@@ -33,7 +33,7 @@ data class ParsedWorkoutVoiceCommand(
 )
 
 object WorkoutVoiceCommandParser {
-    private val wakeWords = Regex("^(?:hey\\s+)?(?:coach|vitruvian)[,\\s]+")
+    private val wakeWords = Regex("^(?:(?:hey|hi|okay|ok)\\s+)?(?:coach|trainer|vitruvian)[,\\s]+")
     private val negation = Regex("\\b(?:do\\s+not|don\\s+t|dont|never|no)\\b")
     private val digits = Regex("\\b(\\d{1,3})\\b")
     private val decimalNumber = Regex("\\b\\d+\\.\\d+\\b")
@@ -45,10 +45,12 @@ object WorkoutVoiceCommandParser {
         "nineteen" to 19,
     )
     private val tens = mapOf("twenty" to 20, "thirty" to 30, "forty" to 40, "fifty" to 50)
-    private val increaseWeight = Regex("^(?:increase|add)(?: the)? weight(?: by)?(?: (.+))?$")
-    private val increaseWeightAlt = Regex("^weight up(?: by)?(?: (.+))?$")
-    private val decreaseWeight = Regex("^(?:decrease|reduce|lower)(?: the)? weight(?: by)?(?: (.+))?$")
-    private val decreaseWeightAlt = Regex("^weight down(?: by)?(?: (.+))?$")
+    private val increaseWeight = Regex("^(?:increase|raise|add|bump)(?: the)? (?:weight|weights|load|resistance)(?: up)?(?: by)?(?: (.+))?$")
+    private val increaseWeightAlt = Regex("^(?:weight|load|resistance) up(?: by)?(?: (.+))?$")
+    private val increaseWeightNatural = Regex("^(?:go up|add|bump it up)(?: by)? (.+)$")
+    private val decreaseWeight = Regex("^(?:decrease|reduce|lower|drop)(?: the)? (?:weight|weights|load|resistance)(?: down)?(?: by)?(?: (.+))?$")
+    private val decreaseWeightAlt = Regex("^(?:weight|load|resistance) down(?: by)?(?: (.+))?$")
+    private val decreaseWeightNatural = Regex("^(?:go down|take off|drop it)(?: by)? (.+)$")
 
     fun parseCandidates(candidates: List<String>): ParsedWorkoutVoiceCommand? =
         candidates.firstOrNull()?.let(::parse)
@@ -56,6 +58,9 @@ object WorkoutVoiceCommandParser {
     fun parse(rawTranscript: String): ParsedWorkoutVoiceCommand? {
         val normalized = rawTranscript
             .lowercase()
+            .replace('’', '\'')
+            .replace("let's", "lets")
+            .replace("i'm", "im")
             .replace(Regex("[^a-z0-9.\\s,]"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
@@ -66,33 +71,40 @@ object WorkoutVoiceCommandParser {
         val rawPhrase = wakeMatch?.let { normalized.removeRange(it.range).trim() } ?: normalized
         if (negation.containsMatchIn(rawPhrase)) return null
         val phrase = rawPhrase
-            .removePrefix("please ")
-            .removeSuffix(" please")
+            .replace(Regex("^(?:please\\s+|can you\\s+|could you\\s+|would you\\s+|i want to\\s+|let us\\s+|lets\\s+)+"), "")
+            .replace(Regex("\\s+(?:please|now)$"), "")
             .trim()
 
-        val increaseMatch = increaseWeight.matchEntire(phrase) ?: increaseWeightAlt.matchEntire(phrase)
-        val decreaseMatch = decreaseWeight.matchEntire(phrase) ?: decreaseWeightAlt.matchEntire(phrase)
+        val increaseMatch = increaseWeight.matchEntire(phrase)
+            ?: increaseWeightAlt.matchEntire(phrase)
+            ?: increaseWeightNatural.matchEntire(phrase)
+        val decreaseMatch = decreaseWeight.matchEntire(phrase)
+            ?: decreaseWeightAlt.matchEntire(phrase)
+            ?: decreaseWeightNatural.matchEntire(phrase)
 
         val command = when {
-            phrase == "confirm finish" || phrase == "confirm" -> WorkoutVoiceCommand.ConfirmFinish
-            phrase == "cancel finish" || phrase == "cancel" -> WorkoutVoiceCommand.CancelFinish
-            phrase == "finish workout" || phrase == "end workout" -> WorkoutVoiceCommand.FinishWorkout
-            phrase == "skip exercise" || phrase == "next exercise" -> WorkoutVoiceCommand.SkipExercise
-            phrase == "skip rest" || phrase == "end rest" -> WorkoutVoiceCommand.SkipRest
-            phrase == "skip set" || phrase == "next set" -> WorkoutVoiceCommand.SkipSet
-            phrase == "repeat last set" || phrase == "repeat set" -> WorkoutVoiceCommand.RepeatLastSet
+            phrase in setOf("confirm finish", "yes finish", "confirm", "yes") -> WorkoutVoiceCommand.ConfirmFinish
+            phrase in setOf("cancel finish", "cancel", "no thanks") -> WorkoutVoiceCommand.CancelFinish
+            phrase in setOf("finish workout", "end workout", "finish my workout", "workout complete") -> WorkoutVoiceCommand.FinishWorkout
+            phrase in setOf("skip exercise", "next exercise", "move to next exercise") -> WorkoutVoiceCommand.SkipExercise
+            phrase in setOf("skip rest", "end rest", "finish rest", "start next set") -> WorkoutVoiceCommand.SkipRest
+            phrase in setOf("skip set", "next set") -> WorkoutVoiceCommand.SkipSet
+            phrase in setOf("repeat last set", "repeat set", "do that set again", "same set again") -> WorkoutVoiceCommand.RepeatLastSet
             phrase == "unmute" || phrase == "unmute coach" -> WorkoutVoiceCommand.UnmuteCoach
             phrase == "mute" || phrase == "mute coach" -> WorkoutVoiceCommand.MuteCoach
-            phrase == "help" || phrase == "commands" || phrase == "voice commands" -> WorkoutVoiceCommand.Help
+            phrase in setOf("help", "commands", "voice commands", "what can i say") -> WorkoutVoiceCommand.Help
             increaseMatch != null -> parseWeightAdjustment(increaseMatch.groupValues.getOrNull(1), direction = 1)
             decreaseMatch != null -> parseWeightAdjustment(decreaseMatch.groupValues.getOrNull(1), direction = -1)
-            phrase == "pause" || phrase == "stop" || phrase == "pause set" ||
-                phrase == "stop set" || phrase == "stop workout" ->
+            phrase == "pause" || phrase == "stop" || phrase == "hold on" ||
+                phrase == "pause set" || phrase == "stop set" || phrase == "end set" ||
+                phrase == "stop workout" ->
                 WorkoutVoiceCommand.Pause
             phrase == "resume" || phrase == "resume workout" || phrase == "resume set" ||
-                phrase == "continue workout" ->
+                phrase == "continue" || phrase == "keep going" || phrase == "continue workout" ->
                 WorkoutVoiceCommand.Resume
-            phrase == "go" || phrase == "start" || phrase == "start set" || phrase == "begin set" ->
+            phrase == "go" || phrase == "lets go" || phrase == "ready" || phrase == "im ready" ||
+                phrase == "start" || phrase == "start set" || phrase == "start my set" ||
+                phrase == "begin set" || phrase == "begin workout" ->
                 WorkoutVoiceCommand.StartSet
             else -> null
         } ?: return null
